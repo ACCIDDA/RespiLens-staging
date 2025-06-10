@@ -148,6 +148,7 @@ class ExternalData:
         self.ext = data_path.suffix.lower()
 
         if self.ext == '.csv':
+            # Ensure that .csv data contains a location and a date column 
             logger.info("Ensuring that .csv data contains a location and date column...")
             self.data = pd.read_csv(data_path)
             columns = {col.lower(): col for col in self.data.columns}
@@ -164,6 +165,8 @@ class ExternalData:
             # Pad FIPS codes with a leading 0 if they are only 1 digit
             self.data[self.location_col] = self.data[self.location_col].astype(str).str.zfill(2)
             logger.info("Success.")
+            # Re-format dates, if necessary
+            self.convert_to_ISO8601_date()
 
             # Validate location metadata using jsonschema
             location_metadata_path = Path(location_metadata_path)
@@ -196,16 +199,87 @@ class ExternalData:
                 raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
             logger.info("Success.")
 
-
+            # Convert validated DataFrame to RespiLens-formatted json
+            self.RespiLens_data = self.convert_from_csv()
 
         elif self.ext == '.json': 
+            # Dump json into dictionary
+            with open(data_path, 'r') as file:
+                self.data = json.load(file)
+            
+            # Check if json is already in RespiLens format, if it is not, attempt to convert to pd.DataFrame and convert that way
+            logger.info("Validating json data...")
+            try:
+                self.validate_jsonschema("data")
+            except ValueError as e:
+                logger.info("json data not in RespiLens format, attempting to flatten into a DataFrame...")
+                try:
+                    # Convert json to pd.DataFrame with json_normalize() (uknown structure)
+                    self.data = pd.json_normalize(self.data)
+                    logger.info("json data successfully converted to a DataFrame.")
+                    # Ensure that DataFrame contains a location and a date column
+                    logger.info("Ensuring that DataFrame data contains a location and date column...")
+                    columns = {col.lower(): col for col in self.data.columns}
+                    location_column_names = {"location", "locations"} 
+                    date_column_names = {"date", "dates"} 
+                    location_col = next((columns[col] for col in location_column_names if col in columns), None)
+                    date_col = next((columns[col] for col in date_column_names if col in columns), None)
+                    # Stop execution if data does not contain 'date' or 'location' column
+                    if not location_col or not date_col:
+                        raise KeyError("Input data must contain a 'location' and 'date' column.")
+                    # Store location and date column names
+                    self.location_col = location_col
+                    self.date_col = date_col
+                    # Pad FIPS codes with a leading 0 if they are only 1 digit
+                    self.data[self.location_col] = self.data[self.location_col].astype(str).str.zfill(2)
+                    logger.info("Success.")
+                    # Re-format dates, if necessary
+                    self.convert_to_ISO8601_date()
+
+                    # Validate location metadata using jsonschema
+                    location_metadata_path = Path(location_metadata_path)
+                    self.location_metadata = json.loads(location_metadata_path.read_text())
+                    logger.info("Validating location metadata...")
+                    self.validate_jsonschema("location_metadata")
+                    logger.info("Success.")
+
+                    # Ensure locations in data match locations in metadata 
+                    # Create universal map from all possible identifiers to the abbreviation
+                    logger.info("Mapping various location identifiers to location abbreviations...")
+                    loc_identifier_to_abbrv_map = {}
+                    for entry in self.location_metadata:
+                        abbreviation = entry['abbreviation']
+                        # Add full location name as a key
+                        loc_identifier_to_abbrv_map[entry['name'].lower()] = abbreviation
+                        # Add locaiton FIPS code as a key
+                        loc_identifier_to_abbrv_map[entry['location']] = abbreviation
+                        # Addlocation abbreviation as a key
+                        loc_identifier_to_abbrv_map[entry['abbreviation'].lower()] = abbreviation
+                    logger.info("Success.")
+                    # Match locations in .csv to key/value pairs in universal map
+                    logger.info(f"Matching locations in '{self.location_col}' col to metadata...")
+                    loc_abbrv_list = self.data[self.location_col].astype(str).str.lower().map(loc_identifier_to_abbrv_map).tolist()
+                    # Add as a column to data
+                    self.data['abbreviation'] = loc_abbrv_list
+                    # Validate that all locations were successfully matched (no NaNs)
+                    if pd.isna(self.data['abbreviation']).any():
+                        locs_with_nans = self.data[pd.isna(self.data['abbreviation'])][self.location_col].unique()
+                        raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
+                    logger.info("Success.")
+
+                    # Convert validated DataFrame to RespiLens-formatted json
+                    self.RespiLens_data = self.convert_from_csv()
+
+                except: # TODO: determine which errors would be most common in the above process and catch that/those errors w except(s) logic
+                    pass #raise lethal error
+
             # do the location_metadata schema validation, set as self.location_metadata
             # check that dates are properly formatted, if not, format them
             # try: validate json in case it is already respilens formatted
             # if not: convert to pd.DataFrame and create and attempt to convert to RL format
                 # do all the necessary checks: loc and date col exist, location metdata mapping, etc. (maybe pull this stuff into an external func?)
             # fail if nothing works
-            pass
+            
 
         else:
             raise ValueError(f"Unsupported file type: {self.ext}")
@@ -224,21 +298,13 @@ class ExternalData:
                 validate(instance=self.location_metadata, schema=LOCATION_METADATA_SCHEMA)
             except ValidationError as e:
                 raise ValueError(f"Location metadata does not comply with RespiLens standard. Failing on error: {e}")
-        elif which_data == 'data': # TODO: Call this from either main() or from .csv_converter() or both? ie when to validate?
+        elif which_data == 'data': # TODO: call this from main to confirm
             try:
                 validate(instance=self.data, schema=RESPILENS_DATA_SCHEMA)
             except ValidationError as e:
-                raise ValueError(f"Failed to validate json data: {e}") # TODO: maybe make this message more descriptive
+                raise ValueError(f"json data does not comply with RespiLens standard. Failing on error: {e}")
         else:
             raise ValueError(f"which_data argument must be either 'location_metdata' or 'data'; receieved {which_data}.")
-        
-
-    def data_to_metadata_location_matching(self) -> None:
-        """
-
-        """
-
-        pass
 
 
     def convert_to_ISO8601_date(self) -> None: 
@@ -247,21 +313,15 @@ class ExternalData:
         """
 
         logger.info("Converting dates into ISO 8601 strings...")
-        if self.ext == '.csv':
-            try:
-                self.data[self.date_col] = pd.to_datetime(
-                    self.data[self.date_col], 
-                    errors='raise', 
-                    format='mixed'
-                ).dt.strftime('%Y-%m-%d')
-            except Exception as e:
-                raise ValueError(f"Failed to normalize dates in column '{self.date_col}': {e}")
-
-        elif self.ext == '.json':
-            pass # TODO: Still have to convert dates from json (sigh)
-
+        try:
+            self.data[self.date_col] = pd.to_datetime(
+                self.data[self.date_col], 
+                errors='raise', 
+                format='mixed'
+            ).dt.strftime('%Y-%m-%d')
+        except Exception as e:
+            raise ValueError(f"Failed to normalize dates in column '{self.date_col}': {e}")
         logger.info("Success.")
-
 
 
     def convert_from_csv(self) -> dict: 
@@ -275,7 +335,7 @@ class ExternalData:
         # Create json to store the properly formatted data
         return_json = {}
 
-        logger.info("Converting .csv data to RespiLens json format...")
+        logger.info("Converting data to RespiLens json format...")
         # Populate a json entry with properly formatted unique location data
         unique_locations = set(list(self.data['abbreviation'])) 
         for location_abbrv in unique_locations:
@@ -294,10 +354,3 @@ class ExternalData:
         
         logger.info("Success.")
         return return_json
-
-
-    def convert_from_json(self) -> dict: # returns correctly formatted json
-        """
-        """
-
-        pass
