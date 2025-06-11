@@ -149,59 +149,23 @@ class ExternalData:
         self.ext = data_path.suffix.lower()
 
         if self.ext == '.csv':
-            # Ensure that .csv data contains a location and a date column 
-            logger.info("Ensuring that .csv data contains a location and date column...")
             self.data = pd.read_csv(data_path)
-            columns = {col.lower(): col for col in self.data.columns}
-            location_column_names = {"location", "locations"} 
-            date_column_names = {"date", "dates"} 
-            location_col = next((columns[col] for col in location_column_names if col in columns), None)
-            date_col = next((columns[col] for col in date_column_names if col in columns), None)
-            # Stop execution if data does not contain 'date' or 'location' column
-            if not location_col or not date_col:
-                raise KeyError("Input data must contain a 'location' and 'date' column.")
-            # Store location and date column names
-            self.location_col = location_col
-            self.date_col = date_col
-            # Pad FIPS codes with a leading 0 if they are only 1 digit
-            self.data[self.location_col] = self.data[self.location_col].astype(str).str.zfill(2)
-            logger.info("Success.")
-            # Re-format dates, if necessary
-            self.convert_to_ISO8601_date()
+
+            # Validate DF contents
+            self._validate_df()
+            self._convert_to_ISO8601_date()
 
             # Validate location metadata using jsonschema
             location_metadata_path = Path(location_metadata_path)
             self.location_metadata = json.loads(location_metadata_path.read_text())
-            logger.info("Validating location metadata...")
-            self.validate_jsonschema("location_metadata")
-            logger.info("Success.")
+            self._validate_jsonschema("location_metadata")
 
-            # Ensure locations in data match locations in metadata 
+            # Validate location metadata contents and map to DF
             # Create universal map from all possible identifiers to the abbreviation
-            logger.info("Mapping various location identifiers to location abbreviations...")
-            loc_identifier_to_abbrv_map = {}
-            for entry in self.location_metadata:
-                abbreviation = entry['abbreviation']
-                # Add full location name as a key
-                loc_identifier_to_abbrv_map[entry['name'].lower()] = abbreviation
-                # Add locaiton FIPS code as a key
-                loc_identifier_to_abbrv_map[entry['location']] = abbreviation
-                # Addlocation abbreviation as a key
-                loc_identifier_to_abbrv_map[entry['abbreviation'].lower()] = abbreviation
-            logger.info("Success.")
-            # Match locations in .csv to key/value pairs in universal map
-            logger.info(f"Matching locations in '{self.location_col}' col to metadata...")
-            loc_abbrv_list = self.data[self.location_col].astype(str).str.lower().map(loc_identifier_to_abbrv_map).tolist()
-            # Add as a column to data
-            self.data['abbreviation'] = loc_abbrv_list
-            # Validate that all locations were successfully matched (no NaNs)
-            if pd.isna(self.data['abbreviation']).any():
-                locs_with_nans = self.data[pd.isna(self.data['abbreviation'])][self.location_col].unique()
-                raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
-            logger.info("Success.")
+            self._validate_and_map_locations()
 
             # Convert validated DataFrame to RespiLens-formatted JSON, confirm it is valid RespiLens data (final validation step)
-            self.RespiLens_data = self.convert_from_df()
+            self.RespiLens_data = self._convert_from_df()
             logger.info("Validating final RespiLens JSON data...")
             for location_entry in self.RespiLens_data.keys():
                 try:
@@ -211,72 +175,35 @@ class ExternalData:
             logger.info("Success.")
 
         elif self.ext == '.json': 
-            # Dump JSON into dictionary
             with open(data_path, 'r') as file:
                 self.data = json.load(file)
             
             # Check if JSON is already in RespiLens format, if it is not, attempt to convert to pd.DataFrame and convert that way
             logger.info("Validating JSON data...")
             try:
-                self.validate_jsonschema("data")
+                self._validate_jsonschema("data")
+                # TODO: validate and map location metdata with this? maybe the way is to go through DF every time
             except ValueError as e:
                 logger.info("JSON data not in RespiLens format, attempting to flatten into a DataFrame...")
                 try:
                     # Convert JSON to pd.DataFrame with json_normalize() (uknown structure)
                     self.data = pd.json_normalize(self.data)
-                    logger.info("JSON data successfully converted to a DataFrame.")
-                    # Ensure that DataFrame contains a location and a date column
-                    logger.info("Ensuring that DataFrame data contains a location and date column...")
-                    columns = {col.lower(): col for col in self.data.columns}
-                    location_column_names = {"location", "locations"} 
-                    date_column_names = {"date", "dates"} 
-                    location_col = next((columns[col] for col in location_column_names if col in columns), None)
-                    date_col = next((columns[col] for col in date_column_names if col in columns), None)
-                    # Stop execution if data does not contain 'date' or 'location' column
-                    if not location_col or not date_col:
-                        raise KeyError("Input data must contain a 'location' and 'date' column.")
-                    # Store location and date column names
-                    self.location_col = location_col
-                    self.date_col = date_col
-                    # Pad FIPS codes with a leading 0 if they are only 1 digit
-                    self.data[self.location_col] = self.data[self.location_col].astype(str).str.zfill(2)
-                    logger.info("Success.")
-                    # Re-format dates, if necessary
-                    self.convert_to_ISO8601_date()
+
+                    # Validate DF contents
+                    self._validate_df()
+                    self._convert_to_ISO8601_date()
 
                     # Validate location metadata using jsonschema
                     location_metadata_path = Path(location_metadata_path)
                     self.location_metadata = json.loads(location_metadata_path.read_text())
-                    logger.info("Validating location metadata...")
-                    self.validate_jsonschema("location_metadata")
-                    logger.info("Success.")
+                    self._validate_jsonschema("location_metadata")
 
-                    # Ensure locations in data match locations in metadata 
+                    # Validate location metadata contents and map to DF
                     # Create universal map from all possible identifiers to the abbreviation
-                    logger.info("Mapping various location identifiers to location abbreviations...")
-                    loc_identifier_to_abbrv_map = {}
-                    for entry in self.location_metadata:
-                        abbreviation = entry['abbreviation']
-                        # Add full location name as a key
-                        loc_identifier_to_abbrv_map[entry['name'].lower()] = abbreviation
-                        # Add locaiton FIPS code as a key
-                        loc_identifier_to_abbrv_map[entry['location']] = abbreviation
-                        # Addlocation abbreviation as a key
-                        loc_identifier_to_abbrv_map[entry['abbreviation'].lower()] = abbreviation
-                    logger.info("Success.")
-                    # Match locations in .csv to key/value pairs in universal map
-                    logger.info(f"Matching locations in '{self.location_col}' col to metadata...")
-                    loc_abbrv_list = self.data[self.location_col].astype(str).str.lower().map(loc_identifier_to_abbrv_map).tolist()
-                    # Add as a column to data
-                    self.data['abbreviation'] = loc_abbrv_list
-                    # Validate that all locations were successfully matched (no NaNs)
-                    if pd.isna(self.data['abbreviation']).any():
-                        locs_with_nans = self.data[pd.isna(self.data['abbreviation'])][self.location_col].unique()
-                        raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
-                    logger.info("Success.")
+                    self._validate_and_map_locations()
 
                     # Convert validated DataFrame to RespiLens-formatted JSON, confirm it is valid RespiLens data (final validation step)
-                    self.RespiLens_data = self.convert_from_df()
+                    self.RespiLens_data = self._convert_from_df()
                     logger.info("Validating final RespiLens JSON data...")
                     for location_entry in self.RespiLens_data.keys():
                         try:
@@ -298,9 +225,64 @@ class ExternalData:
 
         else:
             raise ValueError(f"Unsupported file type: {self.ext}")
-        
+    
 
-    def validate_jsonschema(self, which_data: Literal['location_metadata', 'data']) -> None:
+    def _validate_df(self) -> None:
+        """
+        Ensure pd.DataFrame to be converted meets requirements:
+            - location and date column present
+            - If locations are listed as FIPS codes, single digits are padded with a leading 0
+        """
+
+        logger.info("Ensuring that DataFrame data contains a location and date column")
+        # Ensure that data contains a location and a date column and store col names, stop execution if not
+        columns = {col.lower(): col for col in self.data.columns}
+        location_column_names = {"location", "locations"} 
+        date_column_names = {"date", "dates"} 
+        location_col = next((columns[col] for col in location_column_names if col in columns), None)
+        date_col = next((columns[col] for col in date_column_names if col in columns), None)
+        if not location_col or not date_col:
+            raise KeyError("Input data must contain a 'location' and 'date' column.")
+        self.location_col = location_col
+        self.date_col = date_col
+
+        # Pad FIPS codes with a leading 0 if they are only 1 digit
+        self.data[self.location_col] = self.data[self.location_col].astype(str).str.zfill(2)
+
+        logger.info("Success.")
+
+
+    def _validate_and_map_locations(self) -> None:
+        """
+        From location metadata, maps location name, FIPS code, location abbreviation to location abbreviation.
+
+        Ensure that locations provided in DataFrame location column can be mapped (via location metadata) to
+        a two-character abbreviation that RespiLens stipulates.
+        """
+
+        # Validate location_metadata structure using .validate_jsonschema() method
+        self._validate_jsonschema("location_metadata")
+
+        # Map and match metadata locations to DF locations
+        logger.info("Mapping various location identifiers to location abbreviations...")
+        loc_identifier_to_abbrv_map = {}
+        for entry in self.location_metadata:
+            abbreviation = entry['abbreviation']
+            loc_identifier_to_abbrv_map[entry['name'].lower()] = abbreviation
+            loc_identifier_to_abbrv_map[entry['location']] = abbreviation
+            loc_identifier_to_abbrv_map[entry['abbreviation'].lower()] = abbreviation
+        logger.info("Success")
+        logger.info(f"Matching locations in '{self.location_col}' col to metadata...")
+        loc_abbrv_list = self.data[self.location_col].astype(str).str.lower().map(loc_identifier_to_abbrv_map).tolist()
+        self.data['abbreviation'] = loc_abbrv_list
+        if pd.isna(self.data['abbreviation']).any():
+            locs_with_nans = self.data[pd.isna(self.data['abbreviation'])][self.location_col].unique()
+            raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
+        logger.info("Success.")
+
+
+
+    def _validate_jsonschema(self, which_data: Literal['location_metadata', 'incoming_external_data']) -> None:
         """
         Validate JSON data using jsonschemas (constants defined outside of ExternalData class).
 
@@ -309,21 +291,25 @@ class ExternalData:
         """
 
         if which_data == 'location_metadata':
+            logger.info("Validating location metadata...")
             try:
                 validate(instance=self.location_metadata, schema=LOCATION_METADATA_SCHEMA)
             except ValidationError as e:
                 logger.info("Cannot proceed with data conversion if location metadata does not match RespiLens standard.")
                 raise ValueError("Location metadata does not comply with RespiLens standard.") from e
-        elif which_data == 'data': 
+            logger.info("Success.")
+        elif which_data == 'incoming_external_data': 
+            logger.info("Validating JSON data...")
             try:
                 validate(instance=self.data, schema=RESPILENS_DATA_SCHEMA)
             except ValidationError as e:
-                raise ValueError(f"JSON data does not comply with RespiLens standard.") from e
+                raise ValueError("JSON data does not comply with RespiLens standard.") from e
+            logger.info("Success")
         else:
             raise ValueError(f"which_data argument must be either 'location_metdata' or 'data'; receieved {which_data}.")
 
 
-    def convert_to_ISO8601_date(self) -> None: 
+    def _convert_to_ISO8601_date(self) -> None: 
         """
         Converts self.data dates to strs in ISO 8601 format.
         """
@@ -340,7 +326,7 @@ class ExternalData:
         logger.info("Success.")
 
 
-    def convert_from_df(self) -> dict: 
+    def _convert_from_df(self) -> dict: 
         """
         Converts external .csv data into RespiLens-formatted JSON data.
 
@@ -370,3 +356,4 @@ class ExternalData:
         
         logger.info("Success.")
         return return_json
+  
