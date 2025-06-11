@@ -114,12 +114,13 @@ class ExternalData:
     Loads, validates, and converts external .csv or .json data into a RespiLens-compatible format.
 
     Attributes:
-        json_struct: The RespiLens json structure template, to be recursively populated.
-        location_metadata: Location metadata (json)
+        json_struct: The RespiLens JSON structure template, to be recursively populated.
+        location_metadata: Location metadata (JSON)
         ext: The file extension of input data
         data: The external data to be converted
-        location_col: If converting from .csv, the name of the column that holds location info
-        date_col: If converting from .csv, the  name of the column that holds date info
+        location_col: The name of the column that holds location info
+        date_col: The  name of the column that holds date info
+        RespiLens_data: Correctly formatted RespiLens JSON data
     """
 
     def __init__(self, data_path: str, location_metadata_path: str, dataset: str):
@@ -128,7 +129,7 @@ class ExternalData:
 
         Args:
             data_path: Path to the external data to be converted to RespiLens format.
-            location_metadata: json-style metadata for your locations. 
+            location_metadata: JSON-style metadata for your locations. 
             dataset: What dataset the data is pulled from; e.g., 'CDC'
         """
 
@@ -199,24 +200,31 @@ class ExternalData:
                 raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
             logger.info("Success.")
 
-            # Convert validated DataFrame to RespiLens-formatted json
-            self.RespiLens_data = self.convert_from_csv()
+            # Convert validated DataFrame to RespiLens-formatted JSON, confirm it is valid RespiLens data (final validation step)
+            self.RespiLens_data = self.convert_from_df()
+            logger.info("Validating final RespiLens JSON data...")
+            for location_entry in self.RespiLens_data.keys():
+                try:
+                    validate(instance=self.RespiLens_data[location_entry], schema=RESPILENS_DATA_SCHEMA)
+                except ValidationError as e:
+                    raise ValueError(f"Final RespiLens JSON did not match jsonschema. First failed location entry is {location_entry}.") from e
+            logger.info("Success.")
 
         elif self.ext == '.json': 
-            # Dump json into dictionary
+            # Dump JSON into dictionary
             with open(data_path, 'r') as file:
                 self.data = json.load(file)
             
-            # Check if json is already in RespiLens format, if it is not, attempt to convert to pd.DataFrame and convert that way
-            logger.info("Validating json data...")
+            # Check if JSON is already in RespiLens format, if it is not, attempt to convert to pd.DataFrame and convert that way
+            logger.info("Validating JSON data...")
             try:
                 self.validate_jsonschema("data")
             except ValueError as e:
-                logger.info("json data not in RespiLens format, attempting to flatten into a DataFrame...")
+                logger.info("JSON data not in RespiLens format, attempting to flatten into a DataFrame...")
                 try:
-                    # Convert json to pd.DataFrame with json_normalize() (uknown structure)
+                    # Convert JSON to pd.DataFrame with json_normalize() (uknown structure)
                     self.data = pd.json_normalize(self.data)
-                    logger.info("json data successfully converted to a DataFrame.")
+                    logger.info("JSON data successfully converted to a DataFrame.")
                     # Ensure that DataFrame contains a location and a date column
                     logger.info("Ensuring that DataFrame data contains a location and date column...")
                     columns = {col.lower(): col for col in self.data.columns}
@@ -267,18 +275,25 @@ class ExternalData:
                         raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
                     logger.info("Success.")
 
-                    # Convert validated DataFrame to RespiLens-formatted json
-                    self.RespiLens_data = self.convert_from_csv()
+                    # Convert validated DataFrame to RespiLens-formatted JSON, confirm it is valid RespiLens data (final validation step)
+                    self.RespiLens_data = self.convert_from_df()
+                    logger.info("Validating final RespiLens JSON data...")
+                    for location_entry in self.RespiLens_data.keys():
+                        try:
+                            validate(instance=self.RespiLens_data[location_entry], schema=RESPILENS_DATA_SCHEMA)
+                        except ValidationError as e:
+                            raise ValueError(f"Final RespiLens JSON did not match jsonschema. First failed location entry is {location_entry}.") from e
+                    logger.info("Success.")
 
-                except: # TODO: determine which errors would be most common in the above process and catch that/those errors w except(s) logic
-                    pass #raise lethal error
-
-            # do the location_metadata schema validation, set as self.location_metadata
-            # check that dates are properly formatted, if not, format them
-            # try: validate json in case it is already respilens formatted
-            # if not: convert to pd.DataFrame and create and attempt to convert to RL format
-                # do all the necessary checks: loc and date col exist, location metdata mapping, etc. (maybe pull this stuff into an external func?)
-            # fail if nothing works
+                except (ValueError, TypeError) as e:
+                    logger.error("Data processing failed due to a format or type error.")
+                    raise ValueError(f"Could not process data on error. Check JSON structure, date formats, or location identifiers.") from e
+                except (json.JSONDecodeError, pd.errors.ParserError) as e:
+                    logger.error("Failed to convert JSON into DataFrame. JSON may be malformed or have complex nested structure that is not convertible using pd.json_normalize().")
+                    raise pd.errors.ParserError(f"Could not flatten JSON data into a tabular format.") from e
+                except Exception as e:
+                    logger.error("An unexpected error occurred during the data conversion process.")
+                    raise RuntimeError("Unexpected failure during data conversion.") from e
             
 
         else:
@@ -287,22 +302,23 @@ class ExternalData:
 
     def validate_jsonschema(self, which_data: Literal['location_metadata', 'data']) -> None:
         """
-        Validate json data using json schemas (constants defined outside of ExternalData class).
+        Validate JSON data using jsonschemas (constants defined outside of ExternalData class).
 
         Arguments:
-            which_data: Whether the json to be validated is location metadata or RespiLens data
+            which_data: Whether the JSON to be validated is location metadata or RespiLens data
         """
 
         if which_data == 'location_metadata':
             try:
                 validate(instance=self.location_metadata, schema=LOCATION_METADATA_SCHEMA)
             except ValidationError as e:
-                raise ValueError(f"Location metadata does not comply with RespiLens standard. Failing on error: {e}")
-        elif which_data == 'data': # TODO: call this from main to confirm
+                logger.info("Cannot proceed with data conversion if location metadata does not match RespiLens standard.")
+                raise ValueError("Location metadata does not comply with RespiLens standard.") from e
+        elif which_data == 'data': 
             try:
                 validate(instance=self.data, schema=RESPILENS_DATA_SCHEMA)
             except ValidationError as e:
-                raise ValueError(f"json data does not comply with RespiLens standard. Failing on error: {e}")
+                raise ValueError(f"JSON data does not comply with RespiLens standard.") from e
         else:
             raise ValueError(f"which_data argument must be either 'location_metdata' or 'data'; receieved {which_data}.")
 
@@ -319,24 +335,24 @@ class ExternalData:
                 errors='raise', 
                 format='mixed'
             ).dt.strftime('%Y-%m-%d')
-        except Exception as e:
-            raise ValueError(f"Failed to normalize dates in column '{self.date_col}': {e}")
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Failed to normalize dates in column '{self.date_col}'. Ensure all dates are in recognizable format.") from e
         logger.info("Success.")
 
 
-    def convert_from_csv(self) -> dict: 
+    def convert_from_df(self) -> dict: 
         """
-        Converts external .csv data into RespiLens-formatted json data.
+        Converts external .csv data into RespiLens-formatted JSON data.
 
         Returns:
-            A dict where each unique location has a RespiLens json entry.
+            A dict where each unique location has a RespiLens JSON entry.
         """
 
-        # Create json to store the properly formatted data
+        # Create JSON to store the properly formatted data
         return_json = {}
 
-        logger.info("Converting data to RespiLens json format...")
-        # Populate a json entry with properly formatted unique location data
+        logger.info("Converting data to RespiLens JSON format...")
+        # Populate a JSON entry with properly formatted unique location data
         unique_locations = set(list(self.data['abbreviation'])) 
         for location_abbrv in unique_locations:
             json_entry = copy.deepcopy(self.json_struct)
@@ -349,7 +365,7 @@ class ExternalData:
                 else:
                     json_entry["series"]["columns"][column] = list(current_loc_df[column])
             
-            # Add to larger json
+            # Add to larger JSON
             return_json[location_abbrv] = json_entry
         
         logger.info("Success.")
