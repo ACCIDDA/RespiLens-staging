@@ -2,6 +2,8 @@
 Module-level docs
 """
 
+import argparse
+import sys
 from pathlib import Path
 import json
 import copy
@@ -10,6 +12,7 @@ import pandas as pd
 from typing import Literal
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
+from save_RespiLens_data import save_data
 from typing import Literal
 # this is for timeseries data only 
 # TODO: write json portion 
@@ -17,94 +20,12 @@ from typing import Literal
   # CLI
 # TODO: module-level docs, organize import statements
 
-LOCATION_METADATA_SCHEMA = {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Location Metadata",
-  "type": "array",
-  "items": {
-    "type": "object",
-    "properties": {
-      "location": {
-        "description": "The FIPS code or 'US' for the nation.",
-        "type": "string",
-        "pattern": r"^(\d{2}|US)$"
-      },
-      "abbreviation": {
-        "description": "The two-letter postal abbreviation.",
-        "type": "string",
-        "pattern": "^[A-Z]{2}$"
-      },
-      "name": {
-        "description": "The full name of the location.",
-        "type": "string",
-        "minLength": 2
-      },
-      "population": {
-        "description": "The estimated population.",
-        "type": "integer",
-        "minimum": 0
-      }
-    },
-    "required": ["location", "abbreviation", "name", "population"]
-  }
-}
+SCRIPT_DIR = Path(__file__).parent
+with open(SCRIPT_DIR / "location-metadata.schema.json", "r") as f:
+    LOCATION_METADATA_SCHEMA = json.load(f)
+with open(SCRIPT_DIR / "respilens-data.schema.json", "r") as f:
+    RESPILENS_DATA_SCHEMA = json.load(f)
 
-RESPILENS_DATA_SCHEMA = { 
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "RespiLens Time Series Data",
-  "type": "object",
-  "properties": {
-    "metadata": {
-      "type": "object",
-      "properties": {
-        "dataset": {
-          "description": "The source of the dataset, e.g., CDC.",
-          "type": "string",
-          "minLength": 1
-        },
-        "location": {
-          "description": "The two-letter abbreviation for the location.",
-          "type": "string",
-          "pattern": "^[A-Z]{2}$"
-        },
-        "series_type": {
-          "description": "The type of data series, e.g., 'official'.",
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "required": ["dataset", "location", "series_type"]
-    },
-    "series": {
-      "type": "object",
-      "properties": {
-        "dates": {
-          "description": "A list of dates in ISO 8601 format (YYYY-MM-DD).",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string",
-            "format": "date"
-          }
-        },
-        "columns": {
-          "description": "A dictionary of data columns, where each key is a column name and each value is an array of numbers or nulls.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": ["number", "null"]
-            }
-          }
-        }
-      },
-      "required": ["dates", "columns"]
-    }
-  },
-  "required": ["metadata", "series"]
-}
-
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -123,16 +44,17 @@ class ExternalData:
         RespiLens_data: Correctly formatted RespiLens JSON data
     """
 
-    def __init__(self, data_path: str, location_metadata_path: str, dataset: str):
+    def __init__(self, data_path: str | Path, location_metadata_path: str | Path, dataset: str):
         """
         Initialize the ExternalData class.
 
         Args:
             data_path: Path to the external data to be converted to RespiLens format.
-            location_metadata: JSON-style metadata for your locations. 
+            location_metadata_path: JSON-style metadata for your locations. 
             dataset: What dataset the data is pulled from; e.g., 'CDC'
         """
 
+        logger.info(f"Processing file at {data_path}.")
         self.json_struct = {
             "metadata": {
                 "dataset": f"{dataset}",
@@ -155,13 +77,9 @@ class ExternalData:
             self._validate_df()
             self._convert_to_ISO8601_date()
 
-            # Validate location metadata using jsonschema
+            # Validate location metadata using jsonschema, create map from all possible identifiers to abbreviation
             location_metadata_path = Path(location_metadata_path)
             self.location_metadata = json.loads(location_metadata_path.read_text())
-            self._validate_jsonschema("location_metadata")
-
-            # Validate location metadata contents and map to DF
-            # Create universal map from all possible identifiers to the abbreviation
             self._validate_and_map_locations()
 
             # Convert validated DataFrame to RespiLens-formatted JSON, confirm it is valid RespiLens data (final validation step)
@@ -174,77 +92,26 @@ class ExternalData:
                     raise ValueError(f"Final RespiLens JSON did not match jsonschema. First failed location entry is {location_entry}.") from e
             logger.info("Success.")
 
-        elif self.ext == '.json': 
-            with open(data_path, 'r') as file:
-                self.data = json.load(file)
-            
-            # Check if JSON is already in RespiLens format, if it is not, attempt to convert to pd.DataFrame and convert that way
-            logger.info("Validating JSON data...")
-            try:
-                self._validate_jsonschema("data")
-                # TODO: validate and map location metdata with this? maybe the way is to go through DF every time
-            except ValueError as e:
-                logger.info("JSON data not in RespiLens format, attempting to flatten into a DataFrame...")
-                try:
-                    # Convert JSON to pd.DataFrame with json_normalize() (uknown structure)
-                    self.data = pd.json_normalize(self.data)
-
-                    # Validate DF contents
-                    self._validate_df()
-                    self._convert_to_ISO8601_date()
-
-                    # Validate location metadata using jsonschema
-                    location_metadata_path = Path(location_metadata_path)
-                    self.location_metadata = json.loads(location_metadata_path.read_text())
-                    self._validate_jsonschema("location_metadata")
-
-                    # Validate location metadata contents and map to DF
-                    # Create universal map from all possible identifiers to the abbreviation
-                    self._validate_and_map_locations()
-
-                    # Convert validated DataFrame to RespiLens-formatted JSON, confirm it is valid RespiLens data (final validation step)
-                    self.RespiLens_data = self._convert_from_df()
-                    logger.info("Validating final RespiLens JSON data...")
-                    for location_entry in self.RespiLens_data.keys():
-                        try:
-                            validate(instance=self.RespiLens_data[location_entry], schema=RESPILENS_DATA_SCHEMA)
-                        except ValidationError as e:
-                            raise ValueError(f"Final RespiLens JSON did not match jsonschema. First failed location entry is {location_entry}.") from e
-                    logger.info("Success.")
-
-                except (ValueError, TypeError) as e:
-                    logger.error("Data processing failed due to a format or type error.")
-                    raise ValueError(f"Could not process data on error. Check JSON structure, date formats, or location identifiers.") from e
-                except (json.JSONDecodeError, pd.errors.ParserError) as e:
-                    logger.error("Failed to convert JSON into DataFrame. JSON may be malformed or have complex nested structure that is not convertible using pd.json_normalize().")
-                    raise pd.errors.ParserError(f"Could not flatten JSON data into a tabular format.") from e
-                except Exception as e:
-                    logger.error("An unexpected error occurred during the data conversion process.")
-                    raise RuntimeError("Unexpected failure during data conversion.") from e
-            
-
         else:
-            raise ValueError(f"Unsupported file type: {self.ext}")
-    
+            raise ValueError(f"Unsupported file type: {self.ext}. File must be a CSV.")
+
 
     def _validate_df(self) -> None:
         """
         Ensure pd.DataFrame to be converted meets requirements:
-            - location and date column present
+            - 'location' and 'date' columns are present
             - If locations are listed as FIPS codes, single digits are padded with a leading 0
         """
 
         logger.info("Ensuring that DataFrame data contains a location and date column")
-        # Ensure that data contains a location and a date column and store col names, stop execution if not
-        columns = {col.lower(): col for col in self.data.columns}
-        location_column_names = {"location", "locations"} 
-        date_column_names = {"date", "dates"} 
-        location_col = next((columns[col] for col in location_column_names if col in columns), None)
-        date_col = next((columns[col] for col in date_column_names if col in columns), None)
-        if not location_col or not date_col:
-            raise KeyError("Input data must contain a 'location' and 'date' column.")
-        self.location_col = location_col
-        self.date_col = date_col
+        # Ensure that data contains columns 'location' and 'date', stop execution if not
+        # Define the exact required columns as a set
+        required_cols = {'location', 'date'}
+        missing_cols = required_cols.difference(self.data.columns)
+        if missing_cols:
+            raise KeyError(f"Input data is missing required columns: {sorted(list(missing_cols))}. Columns are case-sensitive.")
+        self.location_col = 'location'
+        self.date_col = 'date'
 
         # Pad FIPS codes with a leading 0 if they are only 1 digit
         self.data[self.location_col] = self.data[self.location_col].astype(str).str.zfill(2)
@@ -261,7 +128,13 @@ class ExternalData:
         """
 
         # Validate location_metadata structure using .validate_jsonschema() method
-        self._validate_jsonschema("location_metadata")
+        logger.info("Validating location metadata...")
+        try:
+            validate(instance=self.location_metadata, schema=LOCATION_METADATA_SCHEMA)
+        except ValidationError as e:
+            logger.info("Cannot proceed with data conversion if location metadata does not match RespiLens standards.")
+            raise ValueError("Location metadata does not comply with RespiLens schema.") from e
+        logger.info("Success.")
 
         # Map and match metadata locations to DF locations
         logger.info("Mapping various location identifiers to location abbreviations...")
@@ -279,34 +152,6 @@ class ExternalData:
             locs_with_nans = self.data[pd.isna(self.data['abbreviation'])][self.location_col].unique()
             raise ValueError(f"Could not find a metadata abbreviation match for the following locations: {list(locs_with_nans)}")
         logger.info("Success.")
-
-
-
-    def _validate_jsonschema(self, which_data: Literal['location_metadata', 'incoming_external_data']) -> None:
-        """
-        Validate JSON data using jsonschemas (constants defined outside of ExternalData class).
-
-        Arguments:
-            which_data: Whether the JSON to be validated is location metadata or RespiLens data
-        """
-
-        if which_data == 'location_metadata':
-            logger.info("Validating location metadata...")
-            try:
-                validate(instance=self.location_metadata, schema=LOCATION_METADATA_SCHEMA)
-            except ValidationError as e:
-                logger.info("Cannot proceed with data conversion if location metadata does not match RespiLens standard.")
-                raise ValueError("Location metadata does not comply with RespiLens standard.") from e
-            logger.info("Success.")
-        elif which_data == 'incoming_external_data': 
-            logger.info("Validating JSON data...")
-            try:
-                validate(instance=self.data, schema=RESPILENS_DATA_SCHEMA)
-            except ValidationError as e:
-                raise ValueError("JSON data does not comply with RespiLens standard.") from e
-            logger.info("Success")
-        else:
-            raise ValueError(f"which_data argument must be either 'location_metdata' or 'data'; receieved {which_data}.")
 
 
     def _convert_to_ISO8601_date(self) -> None: 
@@ -356,4 +201,67 @@ class ExternalData:
         
         logger.info("Success.")
         return return_json
-  
+
+
+def main(): # TODO: test
+    """
+    Main execution function.
+    """
+
+    parser = argparse.ArgumentParser(description = "Convert external data to RespiLens JSON format.")
+    parser.add_argument("--data-path",
+                        type = str,
+                        required = True,
+                        help = "Path to data, either a single file or directory with multiple files. File(s) must be CSVs.")
+    parser.add_argument("--location-metadata-path",
+                        type = str,
+                        required = True,
+                        help = "Path to location metadata (must be a single JSON file)")
+    parser.add_argument("--dataset",
+                        type = str,
+                        required = True,
+                        help = "What dataset the data is pulled from (for metadata purposes).")
+    parser.add_argument("--output-path", 
+                        type = str,
+                        required = True,
+                        help = "Path to directory to save data to.")
+    args = parser.parse_args()
+    if not (Path(args.location_metadata_path).is_file()) or (Path(args.location_metadata_path).suffix.lower() != '.json'):
+        logger.error(f"The provided location metadata path '{args.location_metadata_path}' is not a valid JSON file.")
+        sys.exit(1)
+    
+    files_to_process = []
+    unconverted_file_paths = []
+    converted_file_paths = []
+    list_of_converted_RespiLens_data_objects = []
+
+    if Path(args.data_path).is_file():
+        files_to_process.append(args.data_path)
+    elif Path(args.data_path).is_dir():
+        files_to_process = [f for f in Path(args.data_path).glob('*') if f.is_file()] 
+    
+    for file in files_to_process:
+        try:
+            converter_object = ExternalData(file, args.location_metadata_path, args.dataset)
+            converted_file_paths.append(file)
+            list_of_converted_RespiLens_data_objects.append((converter_object, file))
+        except Exception:
+            unconverted_file_paths.append(file)
+    if unconverted_file_paths:
+        if not converted_file_paths: 
+            raise RuntimeError("Failed to convert all files provided. Ensure all data is a CSV and contains 'location' and 'date' columns.")
+        logger.info(f"Failed to convert {len(unconverted_file_paths)}/{len(converted_file_paths)} files:")
+        for bad_file in unconverted_file_paths:
+            logger.info(f"{bad_file.name}")
+        logger.info("Proceeding for successfully converted files.")
+    
+    for entry in list_of_converted_RespiLens_data_objects:
+        for location, location_data in entry[0].RespiLens_data.items():
+            try:
+                save_data(location_data, args.output_path)
+            except Exception as e:
+                raise RuntimeError(f"Failed to save data for location {location} from file {entry[1]}.") from e
+    
+
+if __name__ == "__main__":
+    main()
