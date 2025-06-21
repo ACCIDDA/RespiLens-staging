@@ -1,0 +1,53 @@
+name: Process NHSN Data
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Daily at 4 AM ET (8 AM UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  process-nhsn:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout visualization repository
+      uses: actions/checkout@v4
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy pyarrow tqdm logging typing requests
+        
+    - name: Cache processed NHSN data
+      uses: actions/cache@v4
+      id: cache-processed-nhsn
+      with:
+        path: app/public/processed_data/nhsn/
+        key: processed-nhsn-${{ github.run_id }}
+        restore-keys: |
+          processed-nhsn-
+        
+    - name: Process NHSN data
+      run: |
+        mkdir -p app/public/processed_data/nhsn
+        python scripts/process_nhsn_data.py --output-path ./app/public/processed_data
+        echo "Checking processed NHSN files:"
+        ls -la app/public/processed_data/nhsn/
+        
+    - name: Upload processed data
+      uses: actions/upload-artifact@v4
+      with:
+        name: processed-nhsn-data
+        path: app/public/processed_data/nhsn/
+        if-no-files-found: error
+        retention-days: 7

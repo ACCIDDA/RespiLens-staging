@@ -1,0 +1,83 @@
+name: Build and Deploy Site
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Daily at 8 AM ET (12 PM UTC)
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Process FluSight Data", "Process RSV Data", "Process NHSN Data"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'app/package-lock.json'
+          
+      - name: Try to download FluSight data
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: processed-flusight-data
+          path: app/public/processed_data
+          
+      - name: Try to download RSV data
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: processed-rsv-data
+          path: app/public/processed_data/rsv
+          
+      - name: Try to download NHSN data
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: processed-nhsn-data
+          path: app/public/processed_data/nhsn
+          
+      - name: Install dependencies
+        working-directory: ./app
+        run: npm ci
+        
+      - name: Clean
+        working-directory: ./app
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install
+          
+      - name: Build website
+        working-directory: ./app
+        run: |
+          if [ "${{ github.repository }}" = "ACCIDDA/RespiLens-staging" ]; then
+            npm run build:staging
+          else
+            npm run build
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./app/dist
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
