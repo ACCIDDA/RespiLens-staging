@@ -116,7 +116,6 @@ const DataVisualization = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           searchParams={searchParams}
-          windowSize={windowSize}
         />
       );
 
@@ -124,7 +123,6 @@ const DataVisualization = ({
       return (
         <NHSNRawView 
           location={location}
-          windowSize={windowSize}
         />
       );
 

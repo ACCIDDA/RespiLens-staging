@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useView } from '../contexts/ViewContext';
 import { useSearchParams } from 'react-router-dom';
 import InfoOverlay from './InfoOverlay';
@@ -25,6 +25,25 @@ const ForecastViz = ({ location, handleStateSelect }) => {
   } = useView();
   
   const [searchParams] = useSearchParams();
+  
+  // Window size state (moved from Layout since we need it here)
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Fetch data for forecast views (not NHSN)
   const shouldFetchData = viewType !== 'nhsnall';
@@ -97,6 +116,7 @@ const ForecastViz = ({ location, handleStateSelect }) => {
               setActiveDate={setActiveDate}
               setSelectedModels={setSelectedModels}
               activeDate={activeDate}
+              windowSize={windowSize}
               searchParams={searchParams}
             />
           </div>

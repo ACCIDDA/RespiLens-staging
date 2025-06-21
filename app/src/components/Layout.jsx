@@ -1,36 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import StateSelector from './StateSelector';
 
 /**
- * Layout component that handles sidebar, window sizing, and responsive behavior
+ * Layout component that handles sidebar and responsive behavior
  */
 const Layout = ({ location, handleStateSelect, children }) => {
-  const [windowSize, setWindowSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight
-  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Auto-collapse sidebar on mobile
-  useEffect(() => {
-    if (windowSize.width < 768) {
-      setSidebarCollapsed(true);
-    }
-  }, [windowSize.width]);
 
   return (
     <div className="flex h-screen">
@@ -62,7 +38,7 @@ const Layout = ({ location, handleStateSelect, children }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-auto">
-          {React.cloneElement(children, { windowSize })}
+          {children}
         </div>
       </div>
     </div>
