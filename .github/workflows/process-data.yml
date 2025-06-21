@@ -100,7 +100,12 @@ jobs:
          
      - name: Build website
        working-directory: ./app
-       run: npm run build
+       run: |
+         if [ "${{ github.repository }}" = "ACCIDDA/RespiLens-staging" ]; then
+           npm run build:staging
+         else
+           npm run build
+         fi
 
      - name: Upload Pages artifact
        uses: actions/upload-pages-artifact@v3
