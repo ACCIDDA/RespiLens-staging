@@ -29,10 +29,7 @@ const NHSNRawView = ({ location }) => {
       try {
         setLoading(true);
         const url = getDataPath(`nhsn/${location}_nhsn.json`);
-        console.log('Fetching NHSN data from:', url);
-
         const response = await fetch(url);
-        console.log('NHSN response status:', response.status);
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -42,15 +39,7 @@ const NHSNRawView = ({ location }) => {
         }
 
         const text = await response.text();
-        console.log('Raw NHSN response:', text.slice(0, 500) + '...');
-
         const jsonData = JSON.parse(text);
-        console.log('Parsed NHSN data structure:', {
-          hasMetadata: !!jsonData.metadata,
-          hasData: !!jsonData.data,
-          hasGroundTruth: !!jsonData.ground_truth,
-          topLevelKeys: Object.keys(jsonData)
-        });
 
         // Validate the data structure
         if (!jsonData.data || !jsonData.data.official) {
@@ -82,7 +71,6 @@ const NHSNRawView = ({ location }) => {
         }
 
       } catch (err) {
-        console.error('Error loading NHSN data:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -104,6 +92,32 @@ const NHSNRawView = ({ location }) => {
     }
     setSearchParams(newParams, { replace: true });
   }, [selectedColumns]);
+
+  // Simple function to calculate y-range for NHSN data
+  const calculateNHSNYRange = () => {
+    if (!data || selectedColumns.length === 0) return null;
+    
+    let maxY = -Infinity;
+    
+    selectedColumns.forEach(column => {
+      const isPrelimininary = column.includes('_prelim');
+      const dataType = isPrelimininary ? 'preliminary' : 'official';
+      
+      if (data.data?.[dataType]?.[column]) {
+        data.data[dataType][column].forEach(value => {
+          if (typeof value === 'number' && !isNaN(value)) {
+            maxY = Math.max(maxY, value);
+          }
+        });
+      }
+    });
+    
+    if (maxY !== -Infinity) {
+      const padding = maxY * 0.15;
+      return [0, maxY + padding];
+    }
+    return null;
+  };
 
   if (loading) return <div className="p-4">Loading NHSN data...</div>;
   if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
@@ -143,7 +157,8 @@ const NHSNRawView = ({ location }) => {
       ]
     },
     yaxis: {
-      title: 'Value'
+      title: 'Value',
+      range: calculateNHSNYRange()
     },
     height: 600,
     showlegend: false,  // Hide legend

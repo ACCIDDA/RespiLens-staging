@@ -169,11 +169,59 @@ const RSVDefaultView = ({
     return [startDate, endDate];
   };
 
-  console.log('Creating RSV traces:', {
-    ageGroups,
-    groundTruth: data.ground_truth,
-    firstAge: data.ground_truth[ageGroups[0]]
-  });
+  // Simple function to calculate y-range for visible data in RSV subplots
+  const calculateYRangeForAgeGroup = (ageGroup, xRange) => {
+    if (!data || !xRange) return null;
+    
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+    let minY = Infinity;
+    let maxY = -Infinity;
+    
+    // Add ground truth values for this age group
+    const ageData = data.ground_truth[ageGroup];
+    if (ageData?.dates && ageData?.values) {
+      ageData.dates.forEach((date, index) => {
+        const pointDate = new Date(date);
+        if (pointDate >= startDate && pointDate <= endDate) {
+          const value = ageData.values[index];
+          if (typeof value === 'number' && !isNaN(value)) {
+            minY = Math.min(minY, value);
+            maxY = Math.max(maxY, value);
+          }
+        }
+      });
+    }
+    
+    // Add forecast values for this age group
+    selectedModels.forEach(model => {
+      selectedDates.forEach(date => {
+        const forecast = data.forecasts[date]?.[ageGroup]?.['inc hosp']?.[model];
+        if (forecast?.type === 'quantile') {
+          Object.entries(forecast.predictions || {}).forEach(([horizon, pred]) => {
+            const pointDate = new Date(pred.date);
+            if (pointDate >= startDate && pointDate <= endDate) {
+              const values = pred.values || [];
+              values.forEach(value => {
+                if (typeof value === 'number' && !isNaN(value)) {
+                  minY = Math.min(minY, value);
+                  maxY = Math.max(maxY, value);
+                }
+              });
+            }
+          });
+        }
+      });
+    });
+    
+    if (minY !== Infinity && maxY !== -Infinity) {
+      const padding = maxY * 0.15;
+      return [0, maxY + padding];
+    }
+    return null;
+  };
+
 
   // Create subplot traces for each age group
   const traces = ageGroups.map((age, index) => {
@@ -377,6 +425,22 @@ const RSVDefaultView = ({
     xaxis5: { 
       domain: [0.52, 1],
       range: getDefaultRange()
+    },
+    // Add y-axis ranges for each subplot
+    yaxis: {
+      range: calculateYRangeForAgeGroup(ageGroups[0], getDefaultRange())
+    },
+    yaxis2: {
+      range: calculateYRangeForAgeGroup(ageGroups[1], getDefaultRange())
+    },
+    yaxis3: {
+      range: calculateYRangeForAgeGroup(ageGroups[2], getDefaultRange())
+    },
+    yaxis4: {
+      range: calculateYRangeForAgeGroup(ageGroups[3], getDefaultRange())
+    },
+    yaxis5: {
+      range: calculateYRangeForAgeGroup(ageGroups[4], getDefaultRange())
     },
     annotations: ageGroups.map((age, index) => {
       if (index === 0) {

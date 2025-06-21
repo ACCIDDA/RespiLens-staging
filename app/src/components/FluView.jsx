@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 
@@ -10,13 +10,14 @@ export const MODEL_COLORS = [
 ];
 
 const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
+  // State to track the current y-axis range
+  const [yAxisRange, setYAxisRange] = useState(null);
+  const plotRef = useRef(null);
+
   const getTimeSeriesData = () => {
     if (!data || selectedDates.length === 0) {
-      console.log('Early return from getTimeSeriesData:', { data, selectedDates });
       return null;
     }
-    
-    console.log('Ground truth data:', data.ground_truth);
 
     const groundTruthTrace = {
       x: data.ground_truth.dates,
@@ -155,19 +156,69 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     }).filter(Boolean);
   };
 
+  // Function to calculate y-axis range for visible data
+  const calculateYRange = (data, xRange) => {
+    if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
+
+    let minY = Infinity;
+    let maxY = -Infinity;
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+
+    // Process each trace
+    data.forEach(trace => {
+      if (!trace.x || !trace.y) return;
+
+      // Find visible points in this trace
+      for (let i = 0; i < trace.x.length; i++) {
+        const pointDate = new Date(trace.x[i]);
+        if (pointDate >= startDate && pointDate <= endDate) {
+          const value = Number(trace.y[i]);
+          if (!isNaN(value)) {
+            minY = Math.min(minY, value);
+            maxY = Math.max(maxY, value);
+          }
+        }
+      }
+    });
+
+    // If we found valid min/max values
+    if (minY !== Infinity && maxY !== -Infinity) {
+      // Add 15% padding, but always start from 0
+      const padding = maxY * 0.15;
+      return [0, maxY + padding];
+    }
+
+    return null;
+  };
+
   const timeSeriesData = getTimeSeriesData() || [];
   const rateChangeData = getRateChangeData() || [];
+  const defaultRange = getDefaultRange();
 
-  console.log('FluView plotting data:', {
-    traces: [...timeSeriesData, ...(viewType === 'fludetailed' ? rateChangeData.map(trace => ({
-      ...trace,
-      orientation: 'h',
-      xaxis: 'x2',
-      yaxis: 'y2'
-    })) : [])],
-    selectedDates,
-    data: data?.ground_truth
-  });
+  // Initialize y-axis range based on default x range
+  useEffect(() => {
+    if (timeSeriesData.length > 0 && defaultRange) {
+      const initialYRange = calculateYRange(timeSeriesData, defaultRange);
+      if (initialYRange) {
+        setYAxisRange(initialYRange);
+      }
+    }
+  }, [timeSeriesData, defaultRange]);
+
+  const handlePlotUpdate = (figure) => {
+    // When plot is updated (e.g., zoom), recalculate y-axis range
+    if (figure && figure['xaxis.range'] && timeSeriesData.length > 0) {
+      const newYRange = calculateYRange(timeSeriesData, figure['xaxis.range']);
+      if (newYRange && plotRef.current) {
+        setYAxisRange(newYRange);
+        // Also update the plot directly
+        Plotly.relayout(plotRef.current, {'yaxis.range': newYRange});
+      }
+    }
+  };
+
 
   const layout = {
     width: Math.min(1200, windowSize.width * 0.8),
@@ -195,7 +246,12 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
           {step: 'all', label: 'all'}
         ]
       },
-      range: getDefaultRange()
+      range: defaultRange
+    },
+    yaxis: {
+      title: 'Hospitalizations',
+      // Apply dynamic y-axis range if available
+      range: yAxisRange
     },
     shapes: selectedDates.map(date => ({
       type: 'line',
@@ -210,9 +266,6 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
         dash: 'dash'
       }
     })),
-    yaxis: {
-      title: 'Hospitalizations'
-    },
     ...(viewType === 'fludetailed' ? {
       xaxis2: {
         domain: [0.85, 1],
@@ -226,7 +279,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
         automargin: true,
         tickfont: { align: 'right' }
       }
-    } : {}),
+    } : {})
   };
 
   const config = {
@@ -245,10 +298,14 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
       click: function(gd) {
         const range = getDefaultRange();
         if (range) {
+          // Reset y-axis range based on default x range
+          const newYRange = calculateYRange(timeSeriesData, range);
           Plotly.relayout(gd, {
             'xaxis.range': range,
-            'xaxis.rangeslider.range': range
+            'xaxis.rangeslider.range': getDefaultRange(true),
+            'yaxis.range': newYRange
           });
+          setYAxisRange(newYRange);
         }
       }
     }]
@@ -258,102 +315,23 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     <div>
       <div className="w-full" style={{ height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
+          ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-        data={[
-          ...timeSeriesData,
-          ...(viewType === 'fludetailed' 
-            ? rateChangeData.map(trace => ({
-                ...trace,
-                orientation: 'h',
-                xaxis: 'x2',
-                yaxis: 'y2'
-              }))
-            : [])
-        ]}
-        layout={{
-          width: Math.min(1200, windowSize.width * 0.8),
-          height: Math.min(800, windowSize.height * 0.6),
-          autosize: true,
-          grid: viewType === 'fludetailed' ? {
-            columns: 1,
-            rows: 1,
-            pattern: 'independent',
-            subplots: [['xy'], ['x2y2']],
-            xgap: 0.15
-          } : undefined,
-          showlegend: false,
-          hovermode: 'x unified',
-          margin: { l: 60, r: 30, t: 30, b: 30 },
-          xaxis: {
-            domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
-            rangeslider: {
-              range: getDefaultRange(true)
-            },
-            rangeselector: {
-              buttons: [
-                {count: 1, label: '1m', step: 'month', stepmode: 'backward'},
-                {count: 6, label: '6m', step: 'month', stepmode: 'backward'},
-                {step: 'all', label: 'all'}
-              ]
-            },
-            range: getDefaultRange()
-          },
-          shapes: selectedDates.map(date => ({
-            type: 'line',
-            x0: date,
-            x1: date,
-            y0: 0,
-            y1: 1,
-            yref: 'paper',
-            line: {
-              color: 'red',
-              width: 1,
-              dash: 'dash'
-            }
-          })),
-          yaxis: {
-            title: 'Hospitalizations'
-          },
-          ...(viewType === 'fludetailed' ? {
-            xaxis2: {
-              domain: [0.85, 1],
-              showgrid: false
-            },
-            yaxis2: {
-              title: '',
-              showticklabels: true,
-              type: 'category',
-              side: 'right',
-              automargin: true,
-              tickfont: { align: 'right' }
-            }
-          } : {}),
-        }}
-        config={{
-          responsive: true,
-          displayModeBar: true,
-          displaylogo: false,
-          modeBarPosition: 'left',
-          showSendToCloud: false,
-          plotlyServerURL: "",
-          toImageButtonOptions: {
-            format: 'png',
-            filename: 'forecast_plot'
-          },
-          modeBarButtonsToAdd: [{
-            name: 'Reset view',
-            click: function(gd) {
-              const range = getDefaultRange();
-              if (range) {
-                Plotly.relayout(gd, {
-                  'xaxis.range': range,
-                  'xaxis.rangeslider.range': range
-                });
-              }
-            }
-          }]
-        }}
-      />
+          data={[
+            ...timeSeriesData,
+            ...(viewType === 'fludetailed' 
+              ? rateChangeData.map(trace => ({
+                  ...trace,
+                  orientation: 'h',
+                  xaxis: 'x2',
+                  yaxis: 'y2'
+                }))
+              : [])
+          ]}
+          layout={layout}
+          config={config}
+          onRelayout={(figure) => handlePlotUpdate(figure)}
+        />
       </div>
       <ModelSelector 
         models={models}
