@@ -74,14 +74,11 @@ const ForecastViz = ({ location, handleStateSelect }) => {
     <ErrorBoundary onReset={() => window.location.reload()}>
       <Layout location={location} handleStateSelect={handleStateSelect}>
         <div className="flex flex-col h-full p-4">
-          {/* Header with view selector and controls */}
+          {/* Header with controls */}
           <div className="flex flex-wrap items-center justify-between mb-4 gap-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold text-gray-900">
-                {location} - Respiratory Disease Forecasts
-              </h1>
-              <ViewSelector />
-            </div>
+            <h1 className="text-xl font-semibold text-gray-900">
+              {location} - Respiratory Disease Forecasts
+            </h1>
             
             <InfoOverlay />
           </div>
