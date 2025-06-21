@@ -11,35 +11,28 @@ import Plot from 'react-plotly.js';
 import NHSNRawView from './NHSNRawView';
 import DateSelector from './DateSelector';
 import { getDataPath } from '../utils/paths';
-import { DATASETS } from '../config/datasets';
-
-// Color palette for model visualization
-const MODEL_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-  '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5',
-  '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
-];
-
-const getModelColor = (model, selectedModels) => {
-  const index = selectedModels.indexOf(model);
-  return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : null;
-};
+import { DATASETS, getModelColor, getAllViewValues } from '../config/datasets';
+import { useForecastData } from '../hooks/useForecastData';
 
 const ForecastViz = ({ location, handleStateSelect }) => {
   // 1. First declare all hooks
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const {
     selectedModels, setSelectedModels,
     selectedDates, setSelectedDates,
     activeDate, setActiveDate,
-    viewType, setViewType,  // Add this line
+    viewType, setViewType,
     currentDataset
   } = useView();
-  const [availableDates, setAvailableDates] = useState([]);
-  const [models, setModels] = useState([]);
+  
+  // Use custom hook for data fetching (only for forecast views, not NHSN)
+  const shouldFetchData = viewType !== 'nhsnall';
+  const { 
+    data, 
+    loading, 
+    error, 
+    availableDates, 
+    models 
+  } = useForecastData(shouldFetchData ? location : null, shouldFetchData ? viewType : null);
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -50,22 +43,12 @@ const ForecastViz = ({ location, handleStateSelect }) => {
   // 2. Define all useEffects
   useEffect(() => {
     const urlView = searchParams.get('view');
-    if (urlView && ['fludetailed', 'flutimeseries', 'rsvdetailed', 'nhsnall'].includes(urlView)) {
+    const validViews = getAllViewValues();
+    if (urlView && validViews.includes(urlView)) {
       setViewType(urlView);
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedDates.length > 0 && selectedModels.length > 0) {
-      const newParams = new URLSearchParams(searchParams);
-      const prefix = viewType === 'rsvdetailed' ? 'rsv' : viewType === 'nhsnall' ? 'nhsn' : 'flu';
-      newParams.set(`${prefix}_dates`, selectedDates.join(','));
-      newParams.set(`${prefix}_models`, selectedModels.join(','));
-      newParams.set('location', location);
-      newParams.set('view', viewType);
-      setSearchParams(newParams, { replace: true });
-    }
-  }, [selectedDates, selectedModels, viewType, location, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!loading && data && availableDates.length > 0 && models.length > 0 &&
@@ -136,102 +119,6 @@ const ForecastViz = ({ location, handleStateSelect }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    console.log('ForecastViz useEffect triggered:', { viewType, location });
-
-    // Skip loading forecast data if we're in NHSN view
-    if (viewType === 'nhsnall') {
-      return;
-    }
-
-    const fetchData = async () => {
-      try {
-        // Don't clear state when fetching new data
-        setData(null);
-        setError(null);
-        setLoading(true);
-
-        // Don't clear these anymore:
-        // setSelectedDates([]);
-        // setSelectedModels([]);
-        // setAvailableDates([]);
-        // setModels([]);
-
-        // Determine which file to load based on view type
-        const prefix = viewType === 'rsvdetailed' ? 'rsv' : 'flusight';
-        const url = getDataPath(`${prefix}/${location}_${prefix}.json`);
-        console.log('Attempting to fetch:', url);
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to load ${prefix} data for ${location} (status ${response.status})`);
-        }
-
-        const text = await response.text();
-        console.log('Raw response text:', text.slice(0, 500) + '...');
-
-        const parsedData = JSON.parse(text);
-        console.log('Parsed JSON structure:', {
-          hasMetadata: !!parsedData.metadata,
-          hasGroundTruth: !!parsedData.ground_truth,
-          topLevelKeys: Object.keys(parsedData)
-        });
-
-        if (!parsedData || typeof parsedData !== 'object') {
-          throw new Error('Invalid JSON response: not an object');
-        }
-        if (!parsedData.metadata) {
-          throw new Error('Invalid JSON response: missing metadata');
-        }
-        if (!parsedData.ground_truth) {
-          throw new Error('Invalid JSON response: missing ground_truth');
-        }
-
-        setData(parsedData);
-
-        // Initialize dates and models
-        if (viewType === 'rsvdetailed') {
-          const dates = Object.keys(parsedData.forecasts || {}).sort();
-          setAvailableDates(dates);
-          if (dates.length > 0) {
-            setSelectedDates([dates[dates.length - 1]]);
-            setActiveDate(dates[dates.length - 1]);
-          }
-        } else {
-          // For flu view
-          const dates = Object.keys(parsedData.forecasts || {}).sort();
-          const extractedModels = new Set();
-
-          dates.forEach(date => {
-            ['wk inc flu hosp', 'wk flu hosp rate change'].forEach(type => {
-              const typeForecast = parsedData.forecasts[date]?.[type] || {};
-              Object.keys(typeForecast).forEach(model => extractedModels.add(model));
-            });
-          });
-
-          const modelList = Array.from(extractedModels).sort((a, b) => a.localeCompare(b));
-          console.log('Extracted models from data:', {
-            modelList,
-            dates: dates.map(date => ({
-              date,
-              models: Object.keys(parsedData.forecasts[date]?.['wk inc flu hosp'] || {})
-            }))
-          });
-          setModels(modelList);
-          setAvailableDates(dates);
-        }
-      } catch (err) {
-        console.error('Data loading error:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (location) {
-      fetchData();
-    }
-  }, [location, viewType]);
 
   // 3. Define callbacks
   const getDefaultRange = useCallback((forRangeslider = false) => {

@@ -10,21 +10,14 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
-  const [viewType, setViewType] = useState(() => {
-    // Initialize with URL view or default to fludetailed
-    const urlView = searchParams.get('view');
-    if (!urlView) {
-        // If no view in URL, set both view and location params
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set('view', 'fludetailed');
-        newParams.set('location', 'US');
-        setSearchParams(newParams, { replace: true });
-    }
-    return urlView || 'fludetailed';
-  });
-
   // Create URL manager instance
   const urlManager = new URLParameterManager(searchParams, setSearchParams);
+  
+  const [viewType, setViewType] = useState(() => {
+    // Initialize URL with defaults if needed
+    urlManager.initializeDefaults();
+    return urlManager.getView();
+  });
 
   // Add new useEffect at the beginning of ViewProvider
   useEffect(() => {

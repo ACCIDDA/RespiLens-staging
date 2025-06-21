@@ -1,4 +1,4 @@
-import { DATASETS } from '../config/datasets';
+import { DATASETS, getAllViewValues } from '../config/datasets';
 
 export class URLParameterManager {
   constructor(searchParams, setSearchParams) {
@@ -9,7 +9,8 @@ export class URLParameterManager {
   // Get dataset from view type
   getDatasetFromView(viewType) {
     for (const [key, dataset] of Object.entries(DATASETS)) {
-      if (viewType.includes(dataset.shortName)) {
+      const hasMatchingView = dataset.views.some(view => view.value === viewType);
+      if (hasMatchingView) {
         return dataset;
       }
     }
@@ -96,44 +97,41 @@ export class URLParameterManager {
     this.setSearchParams(newParams, { replace: true });
   }
 
-  updateViewParam(newView) {
-    const newParams = new URLSearchParams(this.searchParams);
-    newParams.set('view', newView);
-    this.setSearchParams(newParams, { replace: true });
-  }
-
-  preserveDatasetParams(location) {
+  // Update location parameter while preserving all other params
+  updateLocation(location) {
     const newParams = new URLSearchParams(this.searchParams);
     newParams.set('location', location);
-
-    // Preserve view parameter
-    const view = this.searchParams.get('view');
-    if (view) {
-      newParams.set('view', view);
-
-      // Get current dataset
-      const dataset = this.getDatasetFromView(view);
-      if (dataset) {
-        // Get and preserve all current parameters
-        const params = this.getDatasetParams(dataset);
-
-        // Preserve dates
-        if (params.dates?.length > 0) {
-          newParams.set(`${dataset.prefix}_dates`, params.dates.join(','));
-        }
-
-        // Preserve models
-        if (params.models?.length > 0) {
-          newParams.set(`${dataset.prefix}_models`, params.models.join(','));
-        }
-
-        // Preserve NHSN columns if applicable
-        if (dataset.shortName === 'nhsn' && params.columns?.length > 0) {
-          newParams.set('nhsn_columns', params.columns.join(','));
-        }
-      }
-    }
-
     this.setSearchParams(newParams, { replace: true });
   }
+
+  // Get current location from URL
+  getLocation() {
+    return this.searchParams.get('location') || 'US';
+  }
+
+  // Get current view from URL
+  getView() {
+    return this.searchParams.get('view') || 'fludetailed';
+  }
+
+  // Initialize URL with defaults if missing
+  initializeDefaults() {
+    const newParams = new URLSearchParams(this.searchParams);
+    let updated = false;
+
+    if (!this.searchParams.get('view')) {
+      newParams.set('view', 'fludetailed');
+      updated = true;
+    }
+
+    if (!this.searchParams.get('location')) {
+      newParams.set('location', 'US');
+      updated = true;
+    }
+
+    if (updated) {
+      this.setSearchParams(newParams, { replace: true });
+    }
+  }
+
 }

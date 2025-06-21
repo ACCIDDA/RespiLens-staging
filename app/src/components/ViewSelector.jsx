@@ -8,8 +8,8 @@ const ViewSelector = () => {
   // Generate all possible view options
   const viewOptions = Object.values(DATASETS).flatMap(dataset =>
     dataset.views.map(view => ({
-      value: `${dataset.shortName}${view}`,
-      label: `${dataset.fullName} - ${view}`,
+      value: view.value,
+      label: `${dataset.fullName} - ${view.label}`,
       dataset: dataset.shortName
     }))
   );

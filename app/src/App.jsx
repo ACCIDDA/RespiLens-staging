@@ -3,20 +3,22 @@ import { BrowserRouter as Router, useSearchParams } from 'react-router-dom';
 import { ViewProvider } from './contexts/ViewContext';
 import StateSelector from './components/StateSelector';
 import ForecastViz from './components/ForecastViz';
+import { URLParameterManager } from './utils/urlManager';
 
 const AppContent = () => {
   useEffect(() => {
     document.title = 'RespiLens';
   }, []);
+  
   const [searchParams, setSearchParams] = useSearchParams();
+  const urlManager = new URLParameterManager(searchParams, setSearchParams);
+  
   const [selectedLocation, setSelectedLocation] = useState(() => {
-    return searchParams.get('location') || 'US';
+    return urlManager.getLocation();
   });
 
   const handleStateSelect = (newLocation) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('location', newLocation);
-    setSearchParams(newParams);
+    urlManager.updateLocation(newLocation);
     setSelectedLocation(newLocation);
   };
 

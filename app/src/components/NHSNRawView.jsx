@@ -8,7 +8,7 @@ import ViewSelector from './ViewSelector';
 import InfoOverlay from './InfoOverlay';
 import { useView } from '../contexts/ViewContext';
 import NHSNColumnSelector from './NHSNColumnSelector';
-import { VISUALIZATION_COLORS } from '../config/datasets';
+import { MODEL_COLORS } from '../config/datasets';
 
 const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
@@ -122,7 +122,7 @@ const NHSNRawView = ({ location }) => {
       type: 'scatter',
       mode: 'lines+markers',
       line: {
-        color: VISUALIZATION_COLORS[columnIndex % VISUALIZATION_COLORS.length],
+        color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
         width: 2
       },
       marker: { size: 6 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { VISUALIZATION_COLORS } from '../config/datasets';
+import { MODEL_COLORS } from '../config/datasets';
 
 const NHSNColumnSelector = ({
   availableColumns,
@@ -30,7 +30,7 @@ const NHSNColumnSelector = ({
               }`}
               style={
                 selectedColumns.includes(column)
-                  ? { backgroundColor: VISUALIZATION_COLORS[index % VISUALIZATION_COLORS.length] }
+                  ? { backgroundColor: MODEL_COLORS[index % MODEL_COLORS.length] }
                   : undefined
               }
             >
@@ -54,7 +54,7 @@ const NHSNColumnSelector = ({
               }`}
               style={
                 selectedColumns.includes(column)
-                  ? { backgroundColor: VISUALIZATION_COLORS[(availableColumns.official.length + index) % VISUALIZATION_COLORS.length] }
+                  ? { backgroundColor: MODEL_COLORS[(availableColumns.official.length + index) % MODEL_COLORS.length] }
                   : undefined
               }
             >
