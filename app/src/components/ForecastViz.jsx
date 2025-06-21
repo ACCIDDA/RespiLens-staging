@@ -203,7 +203,7 @@ const ForecastViz = ({ location, handleStateSelect }) => {
           ci95Upper.push(q95Upper);
         });
 
-        const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        const modelColor = getModelColor(model, selectedModels);
 
         return [
           {
@@ -268,7 +268,7 @@ const ForecastViz = ({ location, handleStateSelect }) => {
       const horizon0 = forecast.predictions['0'];
       if (!horizon0) return null;
 
-      const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+      const modelColor = getModelColor(model, selectedModels);
 
       const orderedData = categoryOrder.map(cat => ({
         category: cat.replace('_', '<br>'),
