@@ -24,7 +24,7 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
         }
 
         const metadata = await manifestResponse.json();
-        console.log('Loaded metadata:', metadata);
+        // Metadata loaded successfully
 
         if (!metadata.locations || !Array.isArray(metadata.locations)) {
           throw new Error('Invalid metadata format');

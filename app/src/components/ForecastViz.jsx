@@ -79,20 +79,12 @@ const ForecastViz = ({ location, handleStateSelect }) => {
       // Only set models if none are selected for current view type
       if (selectedModels.length === 0) {
         const requestedModels = urlModels.filter(Boolean); // Filter out any empty strings
-        console.log('Initializing models:', {
-          requestedModels,
-          availableModels: models,
-          currentSelection: selectedModels
-        });
-
         if (requestedModels.length > 0) {
           // Try to match each requested model exactly
           const validModels = requestedModels.filter(model => models.includes(model));
-          console.log('Found valid models:', validModels);
 
           if (validModels.length > 0) {
             setSelectedModels(validModels);
-            console.log('Setting models from URL:', validModels);
             return;  // Exit early if we found valid models
           }
         }
@@ -101,7 +93,6 @@ const ForecastViz = ({ location, handleStateSelect }) => {
         const defaultModel = viewType === 'rsvdetailed' ?
           (models.includes('hub-ensemble') ? 'hub-ensemble' : models[0]) :
           (models.includes('FluSight-ensemble') ? 'FluSight-ensemble' : models[0]);
-        console.log('Setting default model:', defaultModel);
         setSelectedModels([defaultModel]);
       }
     }
@@ -368,14 +359,7 @@ const ForecastViz = ({ location, handleStateSelect }) => {
   const timeSeriesData = getTimeSeriesData();
   const rateChangeData = getRateChangeData();
 
-  console.log('ForecastViz render state:', {
-    viewType,
-    data,
-    selectedDates,
-    selectedModels,
-    timeSeriesData,
-    rateChangeData
-  });
+  // Removed debug logging for production
 
   return (
     <div className="flex h-screen">

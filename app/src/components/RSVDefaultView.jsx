@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
-
-const MODEL_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-  '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5',
-  '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
-];
+import { MODEL_COLORS } from '../config/datasets';
 
 const RSVDefaultView = ({ 
   location, 
@@ -39,41 +33,19 @@ const RSVDefaultView = ({
         }
         const jsonData = await response.json();
         
-        console.log('RSV data structure:', {
-          metadata: jsonData.metadata ? 'present' : 'missing',
-          ground_truth: Object.keys(jsonData.ground_truth || {}),
-          forecasts: Object.keys(jsonData.forecasts || {}),
-          ageGroups: ageGroups
-        });
-
-        // Validate forecast data structure
-        if (jsonData.forecasts) {
-          for (const [date, dateData] of Object.entries(jsonData.forecasts)) {
-            for (const [age, ageData] of Object.entries(dateData)) {
-              for (const [target, targetData] of Object.entries(ageData)) {
-                for (const [model, modelData] of Object.entries(targetData)) {
-                  console.log(`Model data for ${model} on ${date}:`, {
-                    type: modelData.type,
-                    predictions: Object.keys(modelData.predictions || {}).length
-                  });
-                }
-              }
-            }
-          }
+        // Validate forecast data structure - basic validation without logging
+        if (!jsonData.forecasts) {
+          throw new Error('Invalid data structure: missing forecasts');
         }
 
         setData(jsonData);
         
-        // Extract available models with more fludetailed logging
+        // Extract available models
         const availableModels = new Set();
         Object.values(jsonData.forecasts || {}).forEach(dateData => {
           Object.values(dateData).forEach(ageData => {
             Object.values(ageData).forEach(targetData => {
               Object.keys(targetData).forEach(model => {
-                console.log(`Found model ${model} with data:`, {
-                  type: targetData[model].type,
-                  predictions: Object.keys(targetData[model].predictions || {}).length
-                });
                 availableModels.add(model);
               });
             });
@@ -81,13 +53,6 @@ const RSVDefaultView = ({
         });
         
         const sortedModels = Array.from(availableModels).sort();
-        console.log('RSV - Available models:', {
-          sortedModels,
-          byDate: Object.entries(jsonData.forecasts || {}).map(([date, dateData]) => ({
-            date,
-            models: Object.keys(dateData['0-130']?.['inc hosp'] || {})
-          }))
-        });
         setModels(sortedModels);
         
         // Set default model selection if none selected
@@ -96,20 +61,12 @@ const RSVDefaultView = ({
           const urlModels = new URLSearchParams(window.location.search).get('rsv_models')?.split(',') || [];
           const requestedModels = urlModels.filter(Boolean);
           
-          console.log('RSV - Initializing models:', {
-            requestedModels,
-            availableModels: sortedModels,
-            currentSelection: selectedModels
-          });
-
           if (requestedModels.length > 0) {
             // Try to match each requested model exactly
             const validModels = requestedModels.filter(model => sortedModels.includes(model));
-            console.log('RSV - Found valid models:', validModels);
             
             if (validModels.length > 0) {
               setSelectedModels(validModels);
-              console.log('RSV - Setting models from URL:', validModels);
               return;  // Exit early if we found valid models
             }
           }
@@ -118,7 +75,6 @@ const RSVDefaultView = ({
           const defaultModel = sortedModels.includes('hub-ensemble') ? 
             'hub-ensemble' : 
             sortedModels[0];
-          console.log('RSV - Setting default model:', defaultModel);
           setSelectedModels([defaultModel]);
         }
       } catch (err) {

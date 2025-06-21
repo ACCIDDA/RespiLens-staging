@@ -100,8 +100,7 @@ For rsv views:
   * rsv_dates: Comma-separated dates for RSV view
   * rsv_models: Comma-separated model names for RSV view
 For nshn views:
-  * prelim_col: column to display on the preliminary dataset
-  * final_col: column on the official dataset
+  * nhsn_columns: Comma-separated column names for both datasets
 
 Parameter Logic:
   * URL params are dataset specific (flu_ or rsv_ prefix)
