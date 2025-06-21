@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
+import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
 const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   // State to track the current y-axis range
@@ -111,13 +112,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
   const getRateChangeData = () => {
     if (!data || selectedDates.length === 0) return null;
 
-    const categoryOrder = [
-      'large_decrease',
-      'decrease',
-      'stable',
-      'increase',
-      'large_increase'
-    ];
+    const categoryOrder = RATE_CHANGE_CATEGORIES;
 
     const lastSelectedDate = selectedDates.slice().sort().pop();
     
@@ -179,8 +174,8 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
 
     // If we found valid min/max values
     if (minY !== Infinity && maxY !== -Infinity) {
-      // Add 15% padding, but always start from 0
-      const padding = maxY * 0.15;
+      // Add padding, but always start from 0
+      const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
       return [0, maxY + padding];
     }
 
@@ -215,8 +210,8 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
 
 
   const layout = {
-    width: Math.min(1200, windowSize.width * 0.8),
-    height: Math.min(800, windowSize.height * 0.6),
+    width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
+    height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
     autosize: true,
     grid: viewType === 'fludetailed' ? {
       columns: 1,
