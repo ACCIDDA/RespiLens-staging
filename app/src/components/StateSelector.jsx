@@ -96,7 +96,7 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
           <h3 className="font-bold mb-4 text-gray-700">Select View</h3>
           <ViewSelector />
         </div>
-        <div className="p-4 flex-1 overflow-hidden">
+        <div className="p-4 flex-1 flex flex-col overflow-hidden">
           <h3 className="font-bold mb-4 text-gray-700">Select Location</h3>
           <input
             type="text"
@@ -105,7 +105,7 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full p-2 border rounded mb-4"
           />
-          <div className="overflow-y-auto h-full">
+          <div className="overflow-y-auto flex-1 min-h-0">
             {filteredStates.map((state) => (
               <div
                 key={state.location}
