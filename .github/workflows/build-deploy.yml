@@ -41,7 +41,7 @@ jobs:
     - name: Process FluSight data
       run: |
         mkdir -p app/public/processed_data
-        python scripts/process_flusight_data.py --output-path ./app/public/processed_data
+        python scripts/process_flusight_data.py --hub-path ./FluSight-forecast-hub --output-path ./app/public/processed_data
         echo "Checking processed FluSight files:"
         ls -la app/public/processed_data/
         
@@ -82,7 +82,7 @@ jobs:
     - name: Process RSV data
       run: |
         mkdir -p app/public/processed_data/rsv
-        python scripts/process_rsv_data.py --output-path ./app/public/processed_data
+        python scripts/process_rsv_data.py --hub-path ./rsv-forecast-hub --output-path ./app/public/processed_data
         echo "Checking processed RSV files:"
         ls -la app/public/processed_data/rsv/
         
