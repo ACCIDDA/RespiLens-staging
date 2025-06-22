@@ -66,16 +66,14 @@ jobs:
     - name: Checkout visualization repository
       uses: actions/checkout@v4
       
-    - name: Check RSV forecast hub
+    - name: Check RSV forecast hub data
       run: |
-        if [ ! -d "rsv-forecast-hub" ]; then
-          echo "RSV hub not found, cloning..."
-          git clone https://github.com/cdcepi/rsv-forecast-hub.git
-        else
-          echo "RSV hub already exists"
-        fi
         echo "RSV hub contents:"
         ls -la rsv-forecast-hub/
+        echo "Target data files:"
+        ls -la rsv-forecast-hub/target-data/
+        echo "Auxiliary data:"
+        ls -la rsv-forecast-hub/auxiliary-data/location_census/
         
     - name: Set up Python
       uses: actions/setup-python@v4
