@@ -66,14 +66,15 @@ jobs:
     - name: Checkout visualization repository
       uses: actions/checkout@v4
       
-    - name: Check RSV forecast hub data
+    - name: Clone RSV forecast hub
       run: |
-        echo "RSV hub contents:"
+        git clone https://github.com/HopkinsIDD/rsv-forecast-hub.git
+        echo "RSV hub cloned, checking contents:"
         ls -la rsv-forecast-hub/
         echo "Target data files:"
-        ls -la rsv-forecast-hub/target-data/
+        ls -la rsv-forecast-hub/target-data/ || echo "No target-data directory found"
         echo "Auxiliary data:"
-        ls -la rsv-forecast-hub/auxiliary-data/location_census/
+        ls -la rsv-forecast-hub/auxiliary-data/ || echo "No auxiliary-data directory found"
         
     - name: Set up Python
       uses: actions/setup-python@v4
