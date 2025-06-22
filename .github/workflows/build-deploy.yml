@@ -19,6 +19,12 @@ jobs:
     - name: Checkout visualization repository
       uses: actions/checkout@v4
       
+    - name: Clone FluSight forecast hub
+      run: |
+        git clone https://github.com/cdcepi/FluSight-forecast-hub.git
+        echo "FluSight hub cloned, checking contents:"
+        ls -la FluSight-forecast-hub/
+      
     - name: Cache FluSight data
       uses: actions/cache@v4
       id: cache-flusight
@@ -59,6 +65,17 @@ jobs:
     steps:
     - name: Checkout visualization repository
       uses: actions/checkout@v4
+      
+    - name: Check RSV forecast hub
+      run: |
+        if [ ! -d "rsv-forecast-hub" ]; then
+          echo "RSV hub not found, cloning..."
+          git clone https://github.com/cdcepi/rsv-forecast-hub.git
+        else
+          echo "RSV hub already exists"
+        fi
+        echo "RSV hub contents:"
+        ls -la rsv-forecast-hub/
         
     - name: Set up Python
       uses: actions/setup-python@v4
