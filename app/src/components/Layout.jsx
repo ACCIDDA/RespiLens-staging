@@ -20,12 +20,12 @@ const Layout = ({ location, handleStateSelect, children }) => {
       )}
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative">
         {/* Sidebar toggle button */}
-        <div className="p-2">
+        <div className="absolute top-20 left-2 z-10">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-2 rounded bg-gray-200 hover:bg-gray-300 transition-colors"
+            className="p-2 rounded bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200 transition-colors shadow-sm"
             aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
           >
             {sidebarCollapsed ? (

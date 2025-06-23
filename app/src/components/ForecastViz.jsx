@@ -52,7 +52,8 @@ const ForecastViz = ({ location, handleStateSelect }) => {
     loading, 
     error, 
     availableDates, 
-    models 
+    models,
+    locationMetadata 
   } = useForecastData(shouldFetchData ? location : null, shouldFetchData ? viewType : null);
 
   // Initialize state from URL parameters
@@ -73,15 +74,17 @@ const ForecastViz = ({ location, handleStateSelect }) => {
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
       <Layout location={location} handleStateSelect={handleStateSelect}>
-        <div className="flex flex-col h-full p-4">
+        <div className="flex flex-col h-full">
           {/* Header with controls */}
-          <div className="flex flex-wrap items-center justify-between mb-4 gap-4">
-            <h1 className="text-xl font-semibold text-gray-900">
-              {location} - Respiratory Disease Forecasts
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              {locationMetadata?.location_name || location} - {currentDataset.fullName}
             </h1>
-            
-            <InfoOverlay />
+            <p className="text-sm text-gray-600 mt-1">
+              Respiratory disease forecasts and surveillance data
+            </p>
           </div>
+          <div className="flex-1 p-4">
 
           {/* Date selector for forecast views */}
           {currentDataset.hasDateSelector && (
@@ -117,6 +120,7 @@ const ForecastViz = ({ location, handleStateSelect }) => {
               searchParams={searchParams}
             />
           </div>
+        </div>
         </div>
       </Layout>
     </ErrorBoundary>

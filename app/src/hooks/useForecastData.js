@@ -93,6 +93,7 @@ export const useForecastData = (location, viewType) => {
     loading,
     error,
     availableDates,
-    models
+    models,
+    locationMetadata: data?.metadata
   };
 };
