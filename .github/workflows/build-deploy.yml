@@ -25,12 +25,16 @@ jobs:
         echo "FluSight hub cloned, checking contents:"
         ls -la FluSight-forecast-hub/
       
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
     - name: Cache FluSight data
       uses: actions/cache@v4
       id: cache-flusight
       with:
-        path: data/flusight/
-        key: flusight-${{ github.run_id }}
+        path: app/public/processed_data/
+        key: flusight-${{ steps.date.outputs.date }}
         restore-keys: |
           flusight-
           
@@ -51,13 +55,6 @@ jobs:
         echo "Checking processed FluSight files:"
         ls -la app/public/processed_data/
         
-    - name: Upload processed data
-      uses: actions/upload-artifact@v4
-      with:
-        name: processed-flusight-data
-        path: app/public/processed_data/
-        if-no-files-found: error
-        retention-days: 7
 
   process-rsv:
     if: github.event.schedule == '0 12 * * 4' || github.event_name == 'workflow_dispatch'
@@ -86,12 +83,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install pandas numpy pyarrow tqdm logging typing requests
         
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
     - name: Cache processed RSV data
       uses: actions/cache@v4
       id: cache-processed-rsv
       with:
         path: app/public/processed_data/rsv/
-        key: processed-rsv-${{ github.run_id }}
+        key: processed-rsv-${{ steps.date.outputs.date }}
         restore-keys: |
           processed-rsv-
         
@@ -102,13 +103,6 @@ jobs:
         echo "Checking processed RSV files:"
         ls -la app/public/processed_data/rsv/
         
-    - name: Upload processed data
-      uses: actions/upload-artifact@v4
-      with:
-        name: processed-rsv-data
-        path: app/public/processed_data/rsv/
-        if-no-files-found: error
-        retention-days: 7
 
   process-nhsn:
     runs-on: ubuntu-latest
@@ -151,7 +145,7 @@ jobs:
         retention-days: 7
 
   build-and-deploy:  
-    needs: [process-flusight, process-rsv, process-nhsn]
+    needs: [process-nhsn]
     if: always()
     runs-on: ubuntu-latest
     environment:
@@ -169,19 +163,25 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'app/package-lock.json'
           
-      - name: Download FluSight data
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: processed-flusight-data
-          path: app/public/processed_data
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           
-      - name: Download RSV data  
-        uses: actions/download-artifact@v4
-        continue-on-error: true
+      - name: Restore FluSight cache
+        uses: actions/cache/restore@v4
         with:
-          name: processed-rsv-data
-          path: app/public/processed_data/rsv
+          path: app/public/processed_data/
+          key: flusight-${{ steps.date.outputs.date }}
+          restore-keys: |
+            flusight-
+          
+      - name: Restore RSV cache
+        uses: actions/cache/restore@v4
+        with:
+          path: app/public/processed_data/rsv/
+          key: processed-rsv-${{ steps.date.outputs.date }}
+          restore-keys: |
+            processed-rsv-
           
       - name: Download NHSN data
         uses: actions/download-artifact@v4
