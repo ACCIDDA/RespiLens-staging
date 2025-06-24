@@ -1,24 +1,34 @@
 """
-Module-level docs
+A command-line utility to convert external CSV data into RespiLens JSON format.
+
+This script processes CSV files, validates them against required schemas using
+a location metadata file, and saves the output as per-location JSON files.
+
+Classes:
+    ExternalData: Handles the loading, validation, and conversion of a single
+                  source data file into the RespiLens format.
+
+Usage:
+    python your_script_name.py --data-path <path/to/data> \\
+                               --location-metadata-path <path/to/metadata.json> \\
+                               --dataset "MyDataset" \\
+                               --output-path <path/to/output>
+
 """
 
 import argparse
+import copy
+import json
+import logging
 import sys
 from pathlib import Path
-import json
-import copy
-import logging
+
 import pandas as pd
-from typing import Literal
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
-from save_RespiLens_data import save_data
-from typing import Literal
-# this is for timeseries data only 
-# TODO: write json portion 
-# TODO: write main function
-  # CLI
-# TODO: module-level docs, organize import statements
+
+from metadata_builder import metadata_builder
+from save_RespiLens_data import save_data, save_metadata
 
 SCRIPT_DIR = Path(__file__).parent
 with open(SCRIPT_DIR / "location-metadata.schema.json", "r") as f:
@@ -35,6 +45,7 @@ class ExternalData:
     Loads, validates, and converts external .csv or .json data into a RespiLens-compatible format.
 
     Attributes:
+        dataset: The source your data was pulled fro (e.g., CDC)
         json_struct: The RespiLens JSON structure template, to be recursively populated.
         location_metadata: Location metadata (JSON)
         ext: The file extension of input data
@@ -55,9 +66,10 @@ class ExternalData:
         """
 
         logger.info(f"Processing file at {data_path}.")
+        self.dataset = dataset
         self.json_struct = {
             "metadata": {
-                "dataset": f"{dataset}",
+                "dataset": f"{self.dataset}",
                 "location": "",
                 "series_type": "official"
             },
@@ -169,7 +181,7 @@ class ExternalData:
         except (ValueError, TypeError) as e:
             raise ValueError(f"Failed to normalize dates in column '{self.date_col}'. Ensure all dates are in recognizable format.") from e
         logger.info("Success.")
-
+        
 
     def _convert_from_df(self) -> dict: 
         """
@@ -203,7 +215,7 @@ class ExternalData:
         return return_json
 
 
-def main(): # TODO: test
+def main(): 
     """
     Main execution function.
     """
@@ -254,13 +266,33 @@ def main(): # TODO: test
         for bad_file in unconverted_file_paths:
             logger.info(f"{bad_file.name}")
         logger.info("Proceeding for successfully converted files.")
+
+    logger.info("Building metadata...")    
+    metadata = metadata_builder(args.dataset)
+    logger.info("Success, missing metadata fields can be filled in manually.")
+    logger.info("Saving metadata...")
+    try:
+        save_metadata(metadata, args.output_path)
+    except Exception as e:
+        raise RuntimeError("Failed to save metadata.") from e
+    logger.info("Success.")
     
+    unsaved_files = []
+    saved_files = []
+    logger.info("Saving data...") 
     for entry in list_of_converted_RespiLens_data_objects:
-        for location, location_data in entry[0].RespiLens_data.items():
+        for location, location_data in entry[0].RespiLens_data.items(): 
             try:
                 save_data(location_data, args.output_path)
+                saved_files.append((location, entry[1]))
             except Exception as e:
-                raise RuntimeError(f"Failed to save data for location {location} from file {entry[1]}.") from e
+                unsaved_files.append((location, entry[1]))
+        if unsaved_files:
+            logger.info(f"Failed to save {len(unsaved_files)} files:")
+            for unsaved_file_tuple in unsaved_files:
+                logger.info(f"{unsaved_file_tuple[0]}.json from your file {unsaved_file_tuple[1]}")
+
+    logger.info("Process complete.")
     
 
 if __name__ == "__main__":
