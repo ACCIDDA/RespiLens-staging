@@ -1,4 +1,6 @@
 import React from 'react';
+import { Center, Stack, Loader, Text, Alert, Button } from '@mantine/core';
+import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
 import Plot from 'react-plotly.js';
 import FluView from './FluView';
 import RSVDefaultView from './RSVDefaultView';
@@ -29,37 +31,39 @@ const DataVisualization = ({
   // Show loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading forecast data...</p>
-        </div>
-      </div>
+      <Center h="100%">
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Loading forecast data...</Text>
+        </Stack>
+      </Center>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center max-w-md">
-          <div className="text-red-600 mb-4">
-            <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.232 15.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Unable to Load Data
-          </h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
+      <Center h="100%">
+        <Alert
+          icon={<IconAlertTriangle size={20} />}
+          title="Unable to Load Data"
+          color="red"
+          variant="light"
+          style={{ maxWidth: 400 }}
+        >
+          <Stack gap="md">
+            <Text size="sm">{error}</Text>
+            <Button
+              onClick={() => window.location.reload()}
+              leftSection={<IconRefresh size={16} />}
+              variant="light"
+              color="red"
+            >
+              Retry
+            </Button>
+          </Stack>
+        </Alert>
+      </Center>
     );
   }
 
@@ -128,16 +132,14 @@ const DataVisualization = ({
 
     default:
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Unknown View Type
-            </h3>
-            <p className="text-gray-600">
+        <Center h="100%">
+          <Stack align="center" gap="md">
+            <Text size="lg" fw={600}>Unknown View Type</Text>
+            <Text c="dimmed" ta="center">
               The requested view type "{viewType}" is not supported.
-            </p>
-          </div>
-        </div>
+            </Text>
+          </Stack>
+        </Center>
       );
   }
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ActionIcon, Tooltip, Stack, Paper, Group, Box } from '@mantine/core';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import StateSelector from './StateSelector';
 
 /**
@@ -9,7 +10,7 @@ const Layout = ({ location, handleStateSelect, children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen">
+    <Group gap={0} style={{ height: '100vh' }} wrap="nowrap">
       {/* Sidebar */}
       {!sidebarCollapsed && (
         <StateSelector
@@ -20,28 +21,40 @@ const Layout = ({ location, handleStateSelect, children }) => {
       )}
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col relative">
+      <Box style={{ flex: 1, position: 'relative' }}>
         {/* Sidebar toggle button */}
-        <div className="absolute top-20 left-2 z-10">
-          <button
+        <Tooltip 
+          label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+          position="right"
+        >
+          <ActionIcon
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-2 rounded bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200 transition-colors shadow-sm"
-            aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+            variant="default"
+            size="lg"
+            radius="md"
+            style={{
+              position: 'absolute',
+              top: 16,
+              left: 8,
+              zIndex: 100,
+              backdropFilter: 'blur(8px)',
+              boxShadow: 'var(--mantine-shadow-sm)',
+            }}
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
+              <IconChevronRight size={16} />
             ) : (
-              <ChevronLeft className="w-4 h-4" />
+              <IconChevronLeft size={16} />
             )}
-          </button>
-        </div>
+          </ActionIcon>
+        </Tooltip>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto">
+        <Box style={{ height: '100vh', overflow: 'auto' }}>
           {children}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Group>
   );
 };
 

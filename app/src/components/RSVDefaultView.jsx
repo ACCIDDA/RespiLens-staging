@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Center, Text, Paper, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
@@ -22,6 +23,7 @@ const RSVDefaultView = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [models, setModels] = useState([]);
+  const { colorScheme } = useMantineColorScheme();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -93,11 +95,13 @@ const RSVDefaultView = ({
 
   if (error || !data || !data.ground_truth || Object.keys(data.ground_truth).length === 0) {
     return (
-      <div className="flex items-center justify-center h-full w-full bg-gray-100 bg-opacity-50 rounded-lg">
-        <div className="text-gray-500 text-center p-4">
-          No RSV forecast data available for this location
-        </div>
-      </div>
+      <Center h="100%" w="100%">
+        <Paper p="xl" withBorder>
+          <Text c="dimmed" ta="center">
+            No RSV forecast data available for this location
+          </Text>
+        </Paper>
+      </Center>
     );
   }
 
@@ -310,6 +314,12 @@ const RSVDefaultView = ({
   }).flat();
 
   const layout = {
+    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+    paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    font: {
+      color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
+    },
     grid: {
       rows: 3,
       columns: 2,
@@ -451,7 +461,7 @@ const RSVDefaultView = ({
             }
           }]
         }}
-        className="w-full"
+        style={{ width: '100%' }}
       />
       <ModelSelector 
         models={models}

@@ -1,12 +1,13 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { Group, Text, ActionIcon, Button } from '@mantine/core';
+import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
 const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeDate, setActiveDate }) => {
   return (
-    <div className="flex flex-wrap gap-4 items-center justify-center">
+    <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
       {selectedDates.map((date, index) => (
-        <div key={date} className="flex items-center gap-2">
-          <button 
+        <Group key={date} gap="xs" align="center" wrap="nowrap">
+          <ActionIcon
             onClick={() => {
               const sortedDates = selectedDates.slice().sort();
               const dateIndex = availableDates.indexOf(date);
@@ -24,26 +25,36 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               availableDates.indexOf(date) === 0 ||
               (selectedDates.includes(availableDates[availableDates.indexOf(date) - 1]))
             }
-            className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
+            variant="subtle"
+            size={{ base: 'xs', sm: 'sm' }}
           >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+            <IconChevronLeft size={14} />
+          </ActionIcon>
           
-          <div className="flex items-center gap-2">
-            <span className={`font-medium ${date === activeDate ? 'text-blue-600' : ''}`}>
-              Week of {date}
-            </span>
-            <button
-              onClick={() => setSelectedDates(dates => dates.filter(d => d !== date))}
-              className="p-1 rounded-full hover:bg-gray-100"
-              disabled={selectedDates.length === 1}
-              style={{ opacity: selectedDates.length === 1 ? 0.5 : 1 }}
+          <Group gap="xs" align="center" wrap="nowrap">
+            <Text 
+              fw={500} 
+              c={date === activeDate ? 'blue' : 'dimmed'}
+              size={{ base: 'xs', sm: 'sm' }}
+              style={{ 
+                minWidth: 'fit-content',
+                whiteSpace: 'nowrap' 
+              }}
             >
-              ×
-            </button>
-          </div>
+              {date}
+            </Text>
+            <ActionIcon
+              onClick={() => setSelectedDates(dates => dates.filter(d => d !== date))}
+              disabled={selectedDates.length === 1}
+              variant="subtle"
+              size="xs"
+              color="red"
+            >
+              <IconX size={10} />
+            </ActionIcon>
+          </Group>
 
-          <button 
+          <ActionIcon
             onClick={() => {
               const sortedDates = selectedDates.slice().sort();
               const dateIndex = availableDates.indexOf(date);
@@ -61,15 +72,16 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               availableDates.indexOf(date) === availableDates.length - 1 ||
               (selectedDates.includes(availableDates[availableDates.indexOf(date) + 1]))
             }
-            className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
+            variant="subtle"
+            size={{ base: 'xs', sm: 'sm' }}
           >
-            <ArrowRight className="w-5 h-5" />
-          </button>
-        </div>
+            <IconChevronRight size={14} />
+          </ActionIcon>
+        </Group>
       ))}
       
       {selectedDates.length < 5 && (
-        <button
+        <Button
           onClick={() => {
             if (selectedDates.length >= 5) return;
             
@@ -95,16 +107,14 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
             }
           }}
           disabled={selectedDates.length >= 5}
-          className={`px-3 py-1 rounded border ${
-            selectedDates.length >= 5 
-              ? 'opacity-50 cursor-not-allowed' 
-              : 'hover:bg-gray-100'
-          }`}
+          variant="light"
+          size="xs"
+          leftSection={<IconPlus size={14} />}
         >
-          + Add Date
-        </button>
+          Add Date
+        </Button>
       )}
-    </div>
+    </Group>
   );
 };
 
