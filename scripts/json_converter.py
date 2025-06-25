@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from datetime import date
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
@@ -237,6 +238,10 @@ def main():
                         type = str,
                         required = True,
                         help = "Path to directory to save data to.")
+    parser.add_argument("--dont-rebuild-metadata",
+                        action="store_false",
+                        dest="build_metadata",
+                        help="Pass this flag to skip building metadata.json file; metadata 'lastUpdated' will still be updated")
     args = parser.parse_args()
     if not (Path(args.location_metadata_path).is_file()) or (Path(args.location_metadata_path).suffix.lower() != '.json'):
         logger.error(f"The provided location metadata path '{args.location_metadata_path}' is not a valid JSON file.")
@@ -250,7 +255,7 @@ def main():
     if Path(args.data_path).is_file():
         files_to_process.append(args.data_path)
     elif Path(args.data_path).is_dir():
-        files_to_process = [f for f in Path(args.data_path).glob('*') if f.is_file()] 
+        files_to_process = [f for f in Path(args.data_path).glob('*.csv') if f.is_file()] 
     
     for file in files_to_process:
         try:
@@ -267,15 +272,27 @@ def main():
             logger.info(f"{bad_file.name}")
         logger.info("Proceeding for successfully converted files.")
 
-    logger.info("Building metadata...")    
-    metadata = metadata_builder(args.dataset)
-    logger.info("Success, missing metadata fields can be filled in manually.")
-    logger.info("Saving metadata...")
-    try:
-        save_metadata(metadata, args.output_path)
-    except Exception as e:
-        raise RuntimeError("Failed to save metadata.") from e
-    logger.info("Success.")
+    if args.build_metadata:
+        logger.info("Building metadata...")    
+        metadata = metadata_builder(args.dataset)
+        logger.info("Success, missing metadata fields can be filled in manually.")
+        logger.info("Saving metadata...")
+        try:
+            save_metadata(metadata, args.output_path)
+        except Exception as e:
+            raise RuntimeError("Failed to save metadata.") from e
+        logger.info("Success.")
+    else:
+        logger.info("Skipping metadata re-build per --dont-rebuild-metadata flag.")
+        potential_preexisting_metadata_file_path = Path(args.output_path) / "metadata.json"
+        if potential_preexisting_metadata_file_path.is_file(): 
+            try:
+                with open(potential_preexisting_metadata_file_path, 'r') as f:
+                    metadata_to_update = json.load(f)
+                metadata_to_update["lastUpdated"] = date.today().strftime("%Y-%m-%d")
+                save_metadata(metadata_to_update, args.output_path)
+            except Exception as e:
+                logger.info("Pre-existing metadata could not be updated or saved. Proceeding.")
     
     unsaved_files = []
     saved_files = []

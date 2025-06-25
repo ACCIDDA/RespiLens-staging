@@ -8,7 +8,7 @@ Functions:
 from datetime import date
 
 
-def metadata_builder(shortName: str, fullName: str = "", defaultView: str = "", datasetType: str = "") -> dict:
+def metadata_builder(shortName: str = "", fullName: str = "", defaultView: str = "", datasetType: str = "") -> dict:
     """
     Builds RespiLens metadata from user input.
 
