@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Container, 
   Center, 
   Loader, 
   Text, 
   Alert, 
   List, 
-  Group, 
-  Image, 
-  Title, 
   TextInput,
   Stack,
   ScrollArea,
-  Card,
-  SimpleGrid,
-  NavLink,
+  Button,
   Paper,
   Divider
 } from '@mantine/core';
@@ -22,7 +16,7 @@ import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
 import ViewSelector from './ViewSelector';
 import { getDataPath } from '../utils/paths';
 
-const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = false }) => {
+const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = false, appShellMode = false }) => {
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -100,7 +94,52 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
     );
   }
 
-  if (sidebarMode) {
+  if (sidebarMode || appShellMode) {
+    const sidebarContent = (
+      <Stack gap="md" h="100%">
+        {/* View Selection Section */}
+        <Stack gap="xs">
+          <Text fw={500} size="sm" c="dimmed">View</Text>
+          <ViewSelector />
+        </Stack>
+        
+        <Divider />
+        
+        {/* Location Selection Section */}
+        <Stack gap="xs" flex={1} style={{ overflow: 'hidden' }}>
+          <Text fw={500} size="sm" c="dimmed">Location</Text>
+          <TextInput
+            placeholder="Search states..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            leftSection={<IconSearch size={16} />}
+          />
+          <ScrollArea flex={1}>
+            <Stack gap="xs">
+              {filteredStates.map((state) => (
+                <Button
+                  key={state.location}
+                  variant={currentLocation === state.abbreviation ? 'light' : 'subtle'}
+                  onClick={() => onStateSelect(state.abbreviation)}
+                  justify="start"
+                  size="sm"
+                  fullWidth
+                >
+                  {state.location_name}
+                </Button>
+              ))}
+            </Stack>
+          </ScrollArea>
+        </Stack>
+      </Stack>
+    );
+
+    // If appShellMode, return content without Paper wrapper (AppShell.Navbar handles styling)
+    if (appShellMode) {
+      return sidebarContent;
+    }
+
+    // If sidebarMode, wrap in Paper for standalone use
     return (
       <Paper 
         w="min(256px, 85vw)"
@@ -110,84 +149,13 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
         style={{ borderRight: '1px solid var(--mantine-color-gray-3)' }}
         p="md"
       >
-        <Stack gap="md" h="100%">
-          {/* View Selection Section */}
-          <Stack gap="md">
-            <Text fw={500} size="sm" c="dimmed">Select View</Text>
-            <ViewSelector />
-          </Stack>
-          
-          <Divider />
-          
-          {/* Location Selection Section */}
-          <Stack gap="md" flex={1} style={{ overflow: 'hidden' }}>
-            <Text fw={500} size="sm" c="dimmed">Select Location</Text>
-            <TextInput
-              placeholder="Search states..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              leftSection={<IconSearch size={16} />}
-            />
-            <ScrollArea flex={1}>
-              <Stack gap={2}>
-                {filteredStates.map((state) => (
-                  <NavLink
-                    key={state.location}
-                    label={state.location_name}
-                    onClick={() => onStateSelect(state.abbreviation)}
-                    active={currentLocation === state.abbreviation}
-                    styles={{
-                      root: {
-                        borderRadius: 'var(--mantine-radius-sm)',
-                      }
-                    }}
-                  />
-                ))}
-              </Stack>
-            </ScrollArea>
-          </Stack>
-        </Stack>
+        {sidebarContent}
       </Paper>
     );
   }
 
-  return (
-    <Container size="xl" py="xl">
-      <Center mb="xl">
-        <Group gap="md">
-          <Image src="respilens-logo.svg" alt="RespiLens Logo" h={56} w={56} />
-          <Title order={1} c="blue">
-            RespiLens<sup style={{ color: 'red', fontSize: '0.75rem' }}>α</sup>
-          </Title>
-        </Group>
-      </Center>
-      
-      <SimpleGrid 
-        cols={{ base: 1, sm: 2, lg: 3 }} 
-        spacing="md" 
-        style={{ maxWidth: 1200, margin: '0 auto' }}
-      >
-        {states.map((state) => (
-          <Card
-            key={state.location}
-            shadow="sm"
-            padding="md"
-            radius="md"
-            withBorder
-            style={{ cursor: 'pointer' }}
-            onClick={() => onStateSelect(state.abbreviation)}
-          >
-            <Title order={3} mb="xs">{state.location_name || state.location}</Title>
-            {state.population && (
-              <Text size="sm" c="dimmed">
-                Population: {state.population.toLocaleString()}
-              </Text>
-            )}
-          </Card>
-        ))}
-      </SimpleGrid>
-    </Container>
-  );
+  // Card-based selector is no longer used since we moved to AppShell navbar
+  return null;
 };
 
 export default StateSelector;

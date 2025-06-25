@@ -7,124 +7,37 @@ import NarrativeBrowser from './components/narratives/NarrativeBrowser';
 import NarrativeViewer from './components/narratives/NarrativeViewer';
 import ForecastableGame from './components/forecastable/ForecastableGame';
 import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
-import InfoOverlay from './components/InfoOverlay';
+import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import { URLParameterManager } from './utils/urlManager';
-import { AppShell, Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu, Burger, Center, Text } from '@mantine/core';
-import { IconChartLine, IconBook, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
-import { useDisclosure } from '@mantine/hooks';
+import { Group, Center, Text } from '@mantine/core';
 
-const MainNavigation = () => {
-  const location = useLocation();
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const [opened, { toggle, close }] = useDisclosure(false);
-  
-  const isActive = (path) => location.pathname.startsWith(path);
-  
-  const navigationItems = [
-    { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
-    { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },
-    { href: '/forecastable', label: 'Forecastable', icon: IconTarget, active: isActive('/forecastable') },
-    { href: '/dashboard', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/dashboard') }
-  ];
-  
-  return (
-    <Group justify="space-between" align="center" w="100%">
-      {/* Logo */}
-      <Group gap="sm">
-        <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w={28} />
-        <Title order={3} c="blue" visibleFrom="sm">
-          RespiLens<sup style={{ color: 'red', fontSize: '0.75rem' }}>α</sup>
-        </Title>
-      </Group>
-      
-      {/* Desktop Navigation */}
-      <Group gap="xs" visibleFrom="md">
-        {navigationItems.map((item) => (
-          <Button
-            key={item.href}
-            component="a"
-            href={item.href}
-            variant={item.active ? 'filled' : 'subtle'}
-            leftSection={<item.icon size={16} />}
-            size="sm"
-          >
-            {item.label}
-          </Button>
-        ))}
-      </Group>
 
-      {/* Mobile Menu */}
-      <Menu 
-        opened={opened} 
-        onClose={close} 
-        shadow="md" 
-        width={200}
-        hiddenFrom="md"
-      >
-        <Menu.Target>
-          <ActionIcon
-            onClick={toggle}
-            variant="subtle"
-            size="lg"
-            hiddenFrom="md"
-          >
-            <IconMenu2 size={18} />
-          </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {navigationItems.map((item) => (
-            <Menu.Item
-              key={item.href}
-              component="a"
-              href={item.href}
-              leftSection={<item.icon size={16} />}
-              onClick={close}
-            >
-              {item.label}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
-
-      {/* Actions */}
-      <Group gap="xs">
-        <ActionIcon
-          onClick={toggleColorScheme}
-          variant="subtle"
-          size="lg"
-          aria-label="Toggle color scheme"
-        >
-          {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-        </ActionIcon>
-        <InfoOverlay />
-      </Group>
-    </Group>
-  );
-};
-
-const ForecastApp = () => {
+const ForecastApp = ({ selectedLocation, onStateSelect }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlManager = new URLParameterManager(searchParams, setSearchParams);
   
-  const [selectedLocation, setSelectedLocation] = useState(() => {
-    return urlManager.getLocation();
-  });
+  // Initialize location from URL if not provided from parent
+  useEffect(() => {
+    if (!selectedLocation) {
+      const urlLocation = urlManager.getLocation();
+      if (urlLocation) {
+        onStateSelect(urlLocation);
+      }
+    }
+  }, [selectedLocation, onStateSelect]);
 
   const handleStateSelect = (newLocation) => {
     urlManager.updateLocation(newLocation);
-    setSelectedLocation(newLocation);
+    onStateSelect(newLocation);
   };
 
   if (!selectedLocation) {
     return (
-      <Group wrap="nowrap" h="100vh">
-        <StateSelector onStateSelect={handleStateSelect} sidebarMode={true} />
-        <Center flex={1}>
-          <Text c="dimmed" size="lg">
-            Select a state to view forecasts
-          </Text>
-        </Center>
-      </Group>
+      <Center h="100%">
+        <Text c="dimmed" size="lg">
+          Select a state to view forecasts
+        </Text>
+      </Center>
     );
   }
 
@@ -132,41 +45,44 @@ const ForecastApp = () => {
 };
 
 const AppContent = () => {
-  const location = useLocation();
-  
+  const [dashboardActiveTab, setDashboardActiveTab] = useState('overview');
+  const [dashboardUser] = useState({
+    name: 'Dr. Sarah Johnson',
+    email: 'sarah.johnson@health.state.gov',
+    role: 'State Epidemiologist',
+    organization: 'New York State Health Department',
+    joinDate: '2023-08-15',
+    avatar: null
+  });
+
+  // Forecast state for AppShell navbar
+  const [selectedLocation, setSelectedLocation] = useState(null);
+
   useEffect(() => {
     document.title = 'RespiLens';
   }, []);
 
-  // Don't show main navigation for dashboard (it has its own AppShell)
-  const showMainNav = !location.pathname.startsWith('/dashboard');
+  const dashboardProps = {
+    activeTab: dashboardActiveTab,
+    setActiveTab: setDashboardActiveTab,
+    user: dashboardUser
+  };
+
+  const forecastProps = {
+    currentLocation: selectedLocation,
+    onStateSelect: setSelectedLocation
+  };
 
   return (
-    <>
-      {showMainNav && (
-        <AppShell header={{ height: 60 }} padding={0}>
-          <AppShell.Header>
-            <Center h="100%" px="md">
-              <MainNavigation />
-            </Center>
-          </AppShell.Header>
-          <AppShell.Main>
-            <Routes>
-              <Route path="/" element={<ForecastApp />} />
-              <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => window.location.href = `/narratives/${id}`} />} />
-              <Route path="/narratives/:id" element={<NarrativeViewer />} />
-              <Route path="/forecastable" element={<ForecastableGame />} />
-            </Routes>
-          </AppShell.Main>
-        </AppShell>
-      )}
-      
-      {!showMainNav && (
-        <Routes>
-          <Route path="/dashboard" element={<MyRespiLensDashboard />} />
-        </Routes>
-      )}
-    </>
+    <UnifiedAppShell dashboardProps={dashboardProps} forecastProps={forecastProps}>
+      <Routes>
+        <Route path="/" element={<ForecastApp selectedLocation={selectedLocation} onStateSelect={setSelectedLocation} />} />
+        <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => window.location.href = `/narratives/${id}`} />} />
+        <Route path="/narratives/:id" element={<NarrativeViewer />} />
+        <Route path="/forecastable" element={<ForecastableGame />} />
+        <Route path="/dashboard" element={<MyRespiLensDashboard activeTab={dashboardActiveTab} user={dashboardUser} />} />
+      </Routes>
+    </UnifiedAppShell>
   );
 };
 

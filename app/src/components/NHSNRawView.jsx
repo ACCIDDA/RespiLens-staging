@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Stack, Alert, Text, Center, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
-import ModelSelector from './ModelSelector';
 import { getDataPath } from '../utils/paths';
 import { useSearchParams } from 'react-router-dom';
-import ViewSelector from './ViewSelector';
 import { useView } from '../contexts/ViewContext';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';

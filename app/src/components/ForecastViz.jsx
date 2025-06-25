@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Stack } from '@mantine/core';
 import { useView } from '../contexts/ViewContext';
 import { useSearchParams } from 'react-router-dom';
-import ViewSelector from './ViewSelector';
 import DateSelector from './DateSelector';
-import Layout from './Layout';
 import DataVisualization from './DataVisualization';
 import ErrorBoundary from './ErrorBoundary';
 import { useForecastData } from '../hooks/useForecastData';
@@ -73,43 +71,40 @@ const ForecastViz = ({ location, handleStateSelect }) => {
 
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
-      <Layout location={location} handleStateSelect={handleStateSelect}>
-        <Stack gap="md" p="md" style={{ height: '100%' }}>
+      <Stack gap="md" p="md" style={{ height: '100%' }}>
+        {/* Date selector for forecast views */}
+        {currentDataset.hasDateSelector && (
+          <DateSelector
+            selectedDates={selectedDates}
+            setSelectedDates={setSelectedDates}
+            availableDates={availableDates}
+            activeDate={activeDate}
+            setActiveDate={setActiveDate}
+            loading={loading}
+          />
+        )}
 
-            {/* Date selector for forecast views */}
-            {currentDataset.hasDateSelector && (
-              <DateSelector
-                selectedDates={selectedDates}
-                setSelectedDates={setSelectedDates}
-                availableDates={availableDates}
-                activeDate={activeDate}
-                setActiveDate={setActiveDate}
-                loading={loading}
-              />
-            )}
-
-            {/* Main visualization area */}
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <DataVisualization
-                viewType={viewType}
-                location={location}
-                data={data}
-                loading={loading}
-                error={error}
-                availableDates={availableDates}
-                models={models}
-                selectedDates={selectedDates}
-                selectedModels={selectedModels}
-                setSelectedDates={setSelectedDates}
-                setActiveDate={setActiveDate}
-                setSelectedModels={setSelectedModels}
-                activeDate={activeDate}
-                windowSize={windowSize}
-                searchParams={searchParams}
-              />
-            </div>
-        </Stack>
-      </Layout>
+        {/* Main visualization area */}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <DataVisualization
+            viewType={viewType}
+            location={location}
+            data={data}
+            loading={loading}
+            error={error}
+            availableDates={availableDates}
+            models={models}
+            selectedDates={selectedDates}
+            selectedModels={selectedModels}
+            setSelectedDates={setSelectedDates}
+            setActiveDate={setActiveDate}
+            setSelectedModels={setSelectedModels}
+            activeDate={activeDate}
+            windowSize={windowSize}
+            searchParams={searchParams}
+          />
+        </div>
+      </Stack>
     </ErrorBoundary>
   );
 };

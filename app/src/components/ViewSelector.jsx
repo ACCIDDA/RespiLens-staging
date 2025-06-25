@@ -37,14 +37,13 @@ const ViewSelector = () => {
 
   return (
     <Stack gap="xs">
-      <Group gap="xs">
-        <Text size="sm" fw={500}>View:</Text>
-        {currentOption && (
+      {currentOption && (
+        <Group gap="xs">
           <Badge size="sm" variant="light" color="blue">
             {currentOption.dataset.toUpperCase()}
           </Badge>
-        )}
-      </Group>
+        </Group>
+      )}
       
       <Select
         data={selectData}
@@ -53,6 +52,7 @@ const ViewSelector = () => {
         placeholder="Select a view"
         searchable
         clearable={false}
+        size="sm"
         comboboxProps={{
           withinPortal: true,
         }}
