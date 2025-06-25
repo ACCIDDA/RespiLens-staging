@@ -9,7 +9,7 @@ import ForecastableGame from './components/forecastable/ForecastableGame';
 import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
 import InfoOverlay from './components/InfoOverlay';
 import { URLParameterManager } from './utils/urlManager';
-import { AppShell, Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu, Burger } from '@mantine/core';
+import { AppShell, Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu, Burger, Center, Text } from '@mantine/core';
 import { IconChartLine, IconBook, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 
