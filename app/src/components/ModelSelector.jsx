@@ -1,18 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Stack,
   Group,
   Button,
   Text,
-  MultiSelect,
   Tooltip,
   Badge,
-  Divider
+  Divider,
+  Switch,
+  Card,
+  SimpleGrid,
+  PillsInput,
+  Pill,
+  Combobox,
+  useCombobox
 } from '@mantine/core';
 import {
   IconCircleCheck,
-  IconCircle
+  IconCircle,
+  IconEye,
+  IconEyeOff
 } from '@tabler/icons-react';
+import { MODEL_COLORS } from '../config/datasets';
 
 const ModelSelector = ({ 
   models = [],
@@ -22,6 +31,12 @@ const ModelSelector = ({
   allowMultiple = true,
   disabled = false
 }) => {
+  const [showAllAvailable, setShowAllAvailable] = useState(false);
+  const [search, setSearch] = useState('');
+  const combobox = useCombobox({
+    onDropdownClose: () => combobox.resetSelectedOption(),
+    onDropdownOpen: () => combobox.updateSelectedOptionIndex('active', 0),
+  });
 
   const handleSelectAll = () => {
     setSelectedModels(models);
@@ -31,31 +46,31 @@ const ModelSelector = ({
     setSelectedModels([]);
   };
 
-  const getColorForModel = (model) => {
-    // Always use our fallback color generation to ensure unique colors
-    const colors = [
-      '#51cf66', // green  
-      '#ff6b6b', // red
-      '#ffd43b', // yellow
-      '#9775fa', // purple
-      '#f06595', // pink
-      '#20c997', // teal
-      '#74c0fc', // light blue
-      '#ff8787', // light red
-      '#69db7c', // light green
-      '#da77f2', // light purple
-      '#ffa94d', // orange
-      '#339af0', // blue (moved to end)
-    ];
-    
-    // Use model name for consistent color assignment
-    let hash = 0;
-    for (let i = 0; i < model.length; i++) {
-      hash = model.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
+  const getModelColorByIndex = (model) => {
+    // Use the same color logic as graphs: index-based from MODEL_COLORS
+    const index = selectedModels.indexOf(model);
+    return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : MODEL_COLORS[models.indexOf(model) % MODEL_COLORS.length];
   };
+
+  const modelsToShow = showAllAvailable ? models : selectedModels;
+
+  const handleValueSelect = (val) => {
+    if (selectedModels.includes(val)) {
+      setSelectedModels(selectedModels.filter(v => v !== val));
+    } else if (allowMultiple) {
+      setSelectedModels([...selectedModels, val]);
+    } else {
+      setSelectedModels([val]);
+    }
+  };
+
+  const handleValueRemove = (val) => {
+    setSelectedModels(selectedModels.filter(v => v !== val));
+  };
+
+  const filteredModels = models.filter(model =>
+    model.toLowerCase().includes(search.toLowerCase().trim())
+  );
 
   if (!models.length) {
     return (
@@ -69,11 +84,25 @@ const ModelSelector = ({
     <Stack gap="md" mt="md">
       <Divider />
       
-      {/* Header */}
+      {/* Header with Toggle */}
       <Group justify="space-between" align="center">
         <Text size="sm" fw={500} c="dimmed">
           Models ({selectedModels.length}/{models.length})
         </Text>
+        <Switch
+          label="Show all available models"
+          checked={showAllAvailable}
+          onChange={(event) => setShowAllAvailable(event.currentTarget.checked)}
+          size="sm"
+          disabled={disabled}
+          thumbIcon={
+            showAllAvailable ? (
+              <IconEye size={12} stroke={2.5} />
+            ) : (
+              <IconEyeOff size={12} stroke={2.5} />
+            )
+          }
+        />
       </Group>
 
       {/* Bulk Actions */}
@@ -107,99 +136,169 @@ const ModelSelector = ({
         </Group>
       )}
 
-      {/* Selected Models Display */}
-      {selectedModels.length > 0 && (
-        <Group gap="xs" mb="sm" wrap="wrap">
-          {selectedModels.map((model) => (
-            <div
-              key={model}
-              style={{
-                backgroundColor: getColorForModel(model),
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '16px',
-                fontSize: '12px',
-                fontWeight: '500',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                whiteSpace: 'nowrap',
-                userSelect: 'none',
-                maxWidth: '200px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              <span style={{ 
-                overflow: 'hidden', 
-                textOverflow: 'ellipsis',
-                maxWidth: '160px' 
-              }}>
-                {model}
-              </span>
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedModels(selectedModels.filter(m => m !== model))}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: 'white',
-                    cursor: 'pointer',
-                    padding: '0',
-                    marginLeft: '4px',
-                    fontSize: '14px',
-                    lineHeight: '1',
-                    opacity: '0.8',
-                    flexShrink: 0
-                  }}
-                  onMouseEnter={(e) => e.target.style.opacity = '1'}
-                  onMouseLeave={(e) => e.target.style.opacity = '0.8'}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-        </Group>
+      {/* Model Grid Display */}
+      {modelsToShow.length > 0 && (
+        <SimpleGrid 
+          cols={{ base: 1, xs: 2, sm: 3, md: 4 }}
+          spacing="xs"
+          verticalSpacing="xs"
+        >
+          {modelsToShow.map((model) => {
+            const isSelected = selectedModels.includes(model);
+            const modelColor = getModelColorByIndex(model);
+            
+            return (
+              <Card
+                key={model}
+                p="xs"
+                radius="md"
+                withBorder
+                style={{
+                  cursor: 'pointer',
+                  backgroundColor: isSelected ? modelColor : 'transparent',
+                  borderColor: isSelected ? modelColor : 'var(--mantine-color-gray-4)',
+                  borderWidth: isSelected ? '2px' : '1px',
+                  transition: 'all 0.2s ease',
+                  opacity: disabled ? 0.5 : 1
+                }}
+                onClick={() => {
+                  if (disabled) return;
+                  
+                  if (isSelected) {
+                    setSelectedModels(selectedModels.filter(m => m !== model));
+                  } else {
+                    if (allowMultiple) {
+                      setSelectedModels([...selectedModels, model]);
+                    } else {
+                      setSelectedModels([model]);
+                    }
+                  }
+                }}
+              >
+                <Group gap="xs" justify="space-between" align="center">
+                  <Group gap="xs" align="center" flex={1}>
+                    {isSelected ? (
+                      <IconCircleCheck size={16} color="white" />
+                    ) : (
+                      <IconCircle size={16} color={modelColor} />
+                    )}
+                    <Text 
+                      size="xs" 
+                      fw={isSelected ? 600 : 400}
+                      c={isSelected ? 'white' : 'inherit'}
+                      style={{ 
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1
+                      }}
+                      title={model}
+                    >
+                      {model}
+                    </Text>
+                  </Group>
+                  <Badge 
+                    size="xs" 
+                    variant="filled"
+                    style={{ 
+                      backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : modelColor,
+                      color: isSelected ? 'white' : 'white'
+                    }}
+                  >
+                    •
+                  </Badge>
+                </Group>
+              </Card>
+            );
+          })}
+        </SimpleGrid>
       )}
 
-      {/* MultiSelect Dropdown */}
-      <MultiSelect
-        data={models}
-        value={selectedModels}
-        onChange={setSelectedModels}
-        placeholder="Select models..."
-        searchable
-        clearable
-        disabled={disabled}
-        maxDropdownHeight={300}
-        comboboxProps={{ withinPortal: true }}
-        hidePills
-        renderOption={({ option, checked }) => (
-          <Group gap="sm">
-            {checked ? (
-              <IconCircleCheck size={16} style={{ color: getColorForModel(option.value) }} />
-            ) : (
-              <IconCircle size={16} />
-            )}
-            <span style={{ 
-              color: checked ? getColorForModel(option.value) : 'inherit',
-              fontWeight: checked ? 600 : 400
-            }}>
-              {option.value}
-            </span>
-            <Badge 
-              size="xs" 
-              variant="filled"
-              style={{ backgroundColor: getColorForModel(option.value) }}
-              ml="auto"
-            >
-              •
-            </Badge>
-          </Group>
-        )}
-      />
+      {/* Custom MultiSelect with Colored Pills */}
+      <Combobox
+        store={combobox}
+        onOptionSubmit={handleValueSelect}
+        withinPortal
+      >
+        <Combobox.DropdownTarget>
+          <PillsInput
+            onClick={() => combobox.openDropdown()}
+            size="sm"
+          >
+            <Pill.Group>
+              {selectedModels.map((model) => {
+                const modelColor = getModelColorByIndex(model);
+                return (
+                  <Pill
+                    key={model}
+                    withRemoveButton
+                    onRemove={() => handleValueRemove(model)}
+                    style={{
+                      backgroundColor: modelColor,
+                      color: 'white'
+                    }}
+                  >
+                    {model}
+                  </Pill>
+                );
+              })}
+
+              <Combobox.EventsTarget>
+                <PillsInput.Field
+                  onFocus={() => combobox.openDropdown()}
+                  onBlur={() => combobox.closeDropdown()}
+                  value={search}
+                  placeholder="Quick search and select models..."
+                  onChange={(event) => {
+                    combobox.updateSelectedOptionIndex();
+                    setSearch(event.currentTarget.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Backspace' && search.length === 0) {
+                      event.preventDefault();
+                      handleValueRemove(selectedModels[selectedModels.length - 1]);
+                    }
+                  }}
+                />
+              </Combobox.EventsTarget>
+            </Pill.Group>
+          </PillsInput>
+        </Combobox.DropdownTarget>
+
+        <Combobox.Dropdown>
+          <Combobox.Options>
+            {filteredModels.map((model) => {
+              const modelColor = getModelColorByIndex(model);
+              const isSelected = selectedModels.includes(model);
+              return (
+                <Combobox.Option value={model} key={model}>
+                  <Group gap="sm">
+                    {isSelected ? (
+                      <IconCircleCheck size={16} style={{ color: modelColor }} />
+                    ) : (
+                      <IconCircle size={16} style={{ color: modelColor, opacity: 0.5 }} />
+                    )}
+                    <span style={{ 
+                      color: isSelected ? modelColor : 'inherit',
+                      fontWeight: isSelected ? 600 : 400
+                    }}>
+                      {model}
+                    </span>
+                    <Badge 
+                      size="xs" 
+                      variant="filled"
+                      style={{ backgroundColor: modelColor }}
+                      ml="auto"
+                    >
+                      •
+                    </Badge>
+                  </Group>
+                </Combobox.Option>
+              );
+            })}
+          </Combobox.Options>
+        </Combobox.Dropdown>
+      </Combobox>
     </Stack>
   );
 };
