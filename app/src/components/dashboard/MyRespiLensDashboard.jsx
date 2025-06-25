@@ -141,10 +141,10 @@ const MyRespiLensDashboard = () => {
         <ThemeIcon size="sm" variant="light">
           {getIcon()}
         </ThemeIcon>
-        <div style={{ flex: 1 }}>
+        <Stack gap={0} flex={1}>
           <Text size="sm" fw={500}>{getTitle()}</Text>
           <Text size="xs" c="dimmed">{item.date}</Text>
-        </div>
+        </Stack>
         <ActionIcon size="sm" variant="subtle">
           <IconChevronRight size={14} />
         </ActionIcon>
@@ -153,18 +153,12 @@ const MyRespiLensDashboard = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      {/* Sidebar */}
-      <Paper 
-        style={{ 
-          width: 250, 
-          minWidth: 250, 
-          height: '100vh',
-          borderRadius: 0,
-          borderRight: '1px solid var(--mantine-color-gray-3)'
-        }} 
-        p="md"
-      >
+    <AppShell
+      navbar={{ width: 250, breakpoint: 'sm' }}
+      header={{ height: 70 }}
+      padding="md"
+    >
+      <AppShell.Navbar p="md">
         <Stack gap="xs">
           <Button
             variant={activeTab === 'overview' ? 'light' : 'subtle'}
@@ -223,60 +217,47 @@ const MyRespiLensDashboard = () => {
             Play Forecastable
           </Button>
         </Stack>
-      </Paper>
+      </AppShell.Navbar>
 
-      {/* Main Content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
-        <Paper 
-          style={{ 
-            height: 60, 
-            borderRadius: 0,
-            borderBottom: '1px solid var(--mantine-color-gray-3)',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 1rem'
-          }}
-        >
-          <Group justify="space-between" w="100%">
-            <Group>
-              <ThemeIcon size="lg" variant="light">
-                <IconDashboard size={24} />
-              </ThemeIcon>
-              <Title order={3}>MyRespiLens</Title>
-            </Group>
-            
-            <Group gap="xs">
-              <ActionIcon variant="subtle" size="lg">
-                <IconBell size={20} />
-              </ActionIcon>
-              <Menu shadow="md" width={200}>
-                <Menu.Target>
-                  <Group style={{ cursor: 'pointer' }}>
-                    <Avatar size="sm" radius="xl" />
-                    <Text size="sm" fw={500}>{user.name}</Text>
-                  </Group>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item leftSection={<IconUser size={14} />}>
-                    Profile
-                  </Menu.Item>
-                  <Menu.Item leftSection={<IconSettings size={14} />}>
-                    Settings
-                  </Menu.Item>
-                  <Menu.Divider />
-                  <Menu.Item leftSection={<IconLogout size={14} />} color="red">
-                    Logout
-                  </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
-            </Group>
+      <AppShell.Header p="md">
+        <Group justify="space-between" align="center">
+          <Group>
+            <ThemeIcon size="lg" variant="light">
+              <IconDashboard size={24} />
+            </ThemeIcon>
+            <Title order={3}>MyRespiLens</Title>
           </Group>
-        </Paper>
+          
+          <Group gap="xs">
+            <ActionIcon variant="subtle" size="lg">
+              <IconBell size={20} />
+            </ActionIcon>
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <Group style={{ cursor: 'pointer' }}>
+                  <Avatar size="sm" radius="xl" />
+                  <Text size="sm" fw={500}>{user.name}</Text>
+                </Group>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconUser size={14} />}>
+                  Profile
+                </Menu.Item>
+                <Menu.Item leftSection={<IconSettings size={14} />}>
+                  Settings
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item leftSection={<IconLogout size={14} />} color="red">
+                  Logout
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </Group>
+      </AppShell.Header>
 
-        {/* Content Area */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
-          <Container size="xl">
+      <AppShell.Main>
+        <Container size="xl">
           {activeTab === 'overview' && (
             <Stack gap="md">
               {/* Welcome Section */}
@@ -508,10 +489,9 @@ const MyRespiLensDashboard = () => {
               </Tabs>
             </Stack>
           )}
-          </Container>
-        </div>
-      </div>
-    </div>
+        </Container>
+      </AppShell.Main>
+    </AppShell>
   );
 };
 

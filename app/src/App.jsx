@@ -117,14 +117,14 @@ const ForecastApp = () => {
 
   if (!selectedLocation) {
     return (
-      <div style={{ display: 'flex', height: '100vh' }}>
+      <Group wrap="nowrap" h="100vh">
         <StateSelector onStateSelect={handleStateSelect} sidebarMode={true} />
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: 'var(--mantine-color-dimmed)', fontSize: '1.125rem' }}>
+        <Center flex={1}>
+          <Text c="dimmed" size="lg">
             Select a state to view forecasts
-          </div>
-        </div>
-      </div>
+          </Text>
+        </Center>
+      </Group>
     );
   }
 
@@ -146,9 +146,9 @@ const AppContent = () => {
       {showMainNav && (
         <AppShell header={{ height: 60 }} padding={0}>
           <AppShell.Header>
-            <div style={{ height: '100%', padding: '0 1rem', display: 'flex', alignItems: 'center' }}>
+            <Center h="100%" px="md">
               <MainNavigation />
-            </div>
+            </Center>
           </AppShell.Header>
           <AppShell.Main>
             <Routes>

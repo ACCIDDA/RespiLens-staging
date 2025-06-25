@@ -103,13 +103,11 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
   if (sidebarMode) {
     return (
       <Paper 
-        style={{ 
-          width: 'min(256px, 85vw)', 
-          minWidth: 'min(256px, 85vw)', 
-          height: '100vh',
-          borderRadius: 0,
-          borderRight: '1px solid var(--mantine-color-gray-3)'
-        }} 
+        w="min(256px, 85vw)"
+        miw="min(256px, 85vw)"
+        h="100vh"
+        radius={0}
+        style={{ borderRight: '1px solid var(--mantine-color-gray-3)' }}
         p="md"
       >
         <Stack gap="md" h="100%">

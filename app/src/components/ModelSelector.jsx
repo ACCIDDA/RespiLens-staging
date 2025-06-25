@@ -152,15 +152,14 @@ const ModelSelector = ({
                 key={model}
                 p="xs"
                 radius="md"
-                withBorder
+                withBorder={!isSelected}
+                variant={isSelected ? 'filled' : 'default'}
                 style={{
-                  cursor: 'pointer',
-                  backgroundColor: isSelected ? modelColor : 'transparent',
-                  borderColor: isSelected ? modelColor : 'var(--mantine-color-gray-4)',
-                  borderWidth: isSelected ? '2px' : '1px',
-                  transition: 'all 0.2s ease',
-                  opacity: disabled ? 0.5 : 1
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  backgroundColor: isSelected ? modelColor : undefined,
+                  borderColor: isSelected ? modelColor : undefined
                 }}
+                opacity={disabled ? 0.5 : 1}
                 onClick={() => {
                   if (disabled) return;
                   
@@ -200,10 +199,8 @@ const ModelSelector = ({
                   <Badge 
                     size="xs" 
                     variant="filled"
-                    style={{ 
-                      backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : modelColor,
-                      color: isSelected ? 'white' : 'white'
-                    }}
+                    color={isSelected ? 'gray.0' : undefined}
+                    style={!isSelected ? { backgroundColor: modelColor } : undefined}
                   >
                     •
                   </Badge>
