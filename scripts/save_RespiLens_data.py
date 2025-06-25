@@ -34,6 +34,12 @@ def save_data(data: dict, output_path: str | Path) -> None:
     except ValidationError as e:
         raise ValueError("Data does not match RespiLens jsonschema.") from e
 
+    output_file_path = output_path / f"{data['metadata']['location']}.json"
+
+    # Check if the file already exists before opening it for writing
+    if output_file_path.is_file():
+        raise FileExistsError(f"There is a pre-existing file titled {output_file_path}.") 
+
     # Save data 
     output_file = os.path.join(output_path, f"{data["metadata"]["location"]}.json") 
     with open(output_file, "w") as data_json_file:

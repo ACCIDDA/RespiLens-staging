@@ -303,11 +303,12 @@ def main():
                 save_data(location_data, args.output_path)
                 saved_files.append((location, entry[1]))
             except Exception as e:
-                unsaved_files.append((location, entry[1]))
+                unsaved_files.append((location, entry[1], e))
         if unsaved_files:
             logger.info(f"Failed to save {len(unsaved_files)} files:")
             for unsaved_file_tuple in unsaved_files:
                 logger.info(f"{unsaved_file_tuple[0]}.json from your file {unsaved_file_tuple[1]}")
+                logger.info(f"Fatal error: {unsaved_file_tuple[2]}")
 
     logger.info("Process complete.")
     
