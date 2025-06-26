@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Center, 
+  Loader, 
+  Text, 
+  Alert, 
+  List, 
+  TextInput,
+  Stack,
+  ScrollArea,
+  Button,
+  Paper,
+  Divider
+} from '@mantine/core';
+import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
 import ViewSelector from './ViewSelector';
-import InfoOverlay from './InfoOverlay';
 import { getDataPath } from '../utils/paths';
 
-const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = false }) => {
+const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = false, appShellMode = false }) => {
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,20 +30,17 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
   useEffect(() => {
     const fetchStates = async () => {
       try {
-        // Fetch manifest using getDataPath
         const manifestResponse = await fetch(getDataPath('flusight/metadata.json'));
         if (!manifestResponse.ok) {
           throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
         }
 
         const metadata = await manifestResponse.json();
-        // Metadata loaded successfully
 
         if (!metadata.locations || !Array.isArray(metadata.locations)) {
           throw new Error('Invalid metadata format');
         }
 
-        // Use the locations data directly from metadata
         const sortedLocations = metadata.locations
           .sort((a, b) => {
             if (a.abbreviation === 'US') return -1;
@@ -52,105 +62,100 @@ const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = fa
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <div className="mb-2">Loading locations...</div>
-        </div>
-      </div>
+      <Center h="100vh">
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text>Loading locations...</Text>
+        </Stack>
+      </Center>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="text-red-500 text-center mb-4">
-          Error: {error}
-        </div>
-        <div className="text-sm text-gray-600 max-w-lg text-center">
-          Please ensure that:
-          <ul className="list-disc text-left mt-2 space-y-1">
-            <li>The process_flusight_data.py script has been run</li>
-            <li>Data files are present in app/public/processed_data/</li>
-            <li>manifest.json contains valid location data</li>
-          </ul>
-        </div>
-      </div>
+      <Container size="md" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+        <Alert
+          icon={<IconAlertTriangle size={20} />}
+          title="Error Loading Data"
+          color="red"
+          variant="light"
+        >
+          <Text mb="md">Error: {error}</Text>
+          <Text size="sm" c="dimmed">
+            Please ensure that:
+          </Text>
+          <List size="sm" spacing="xs" mt="xs">
+            <List.Item>The process_flusight_data.py script has been run</List.Item>
+            <List.Item>Data files are present in app/public/processed_data/</List.Item>
+            <List.Item>manifest.json contains valid location data</List.Item>
+          </List>
+        </Alert>
+      </Container>
     );
   }
 
-  if (sidebarMode) {
-    return (
-      <div className="w-64 min-w-64 bg-white border-r shadow-lg flex flex-col h-screen overflow-hidden">
-        <div className="p-4 border-b flex items-center justify-between">
-          <div className="flex items-center">
-            <img src="respilens-logo.svg" alt="RespiLens Logo" className="h-12 w-12" />
-            <div className="ml-2">
-              <h3 className="font-bold text-blue-600">RespiLens<sup className="text-red-500 text-xs">α</sup></h3>
-            </div>
-          </div>
-          <div>
-            <InfoOverlay />
-          </div>
-        </div>
-        <div className="p-4 border-b">
-          <h3 className="font-bold mb-4 text-gray-700">Select View</h3>
+  if (sidebarMode || appShellMode) {
+    const sidebarContent = (
+      <Stack gap="md" h="100%">
+        {/* View Selection Section */}
+        <Stack gap="xs">
+          <Text fw={500} size="sm" c="dimmed">View</Text>
           <ViewSelector />
-        </div>
-        <div className="p-4 flex-1 flex flex-col overflow-hidden">
-          <h3 className="font-bold mb-4 text-gray-700">Select Location</h3>
-          <input
-            type="text"
+        </Stack>
+        
+        <Divider />
+        
+        {/* Location Selection Section */}
+        <Stack gap="xs" flex={1} style={{ overflow: 'hidden' }}>
+          <Text fw={500} size="sm" c="dimmed">Location</Text>
+          <TextInput
             placeholder="Search states..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded mb-4"
+            leftSection={<IconSearch size={16} />}
           />
-          <div className="overflow-y-auto flex-1 min-h-0">
-            {filteredStates.map((state) => (
-              <div
-                key={state.location}
-                onClick={() => onStateSelect(state.abbreviation)}
-                className={`p-2 cursor-pointer rounded transition-colors ${
-                  currentLocation === state.abbreviation
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'hover:bg-gray-100'
-                }`}
-              >
-                <div className="font-medium">{state.location_name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+          <ScrollArea flex={1}>
+            <Stack gap="xs">
+              {filteredStates.map((state) => (
+                <Button
+                  key={state.location}
+                  variant={currentLocation === state.abbreviation ? 'light' : 'subtle'}
+                  onClick={() => onStateSelect(state.abbreviation)}
+                  justify="start"
+                  size="sm"
+                  fullWidth
+                >
+                  {state.location_name}
+                </Button>
+              ))}
+            </Stack>
+          </ScrollArea>
+        </Stack>
+      </Stack>
+    );
+
+    // If appShellMode, return content without Paper wrapper (AppShell.Navbar handles styling)
+    if (appShellMode) {
+      return sidebarContent;
+    }
+
+    // If sidebarMode, wrap in Paper for standalone use
+    return (
+      <Paper 
+        w="min(256px, 85vw)"
+        miw="min(256px, 85vw)"
+        h="100vh"
+        radius={0}
+        style={{ borderRight: '1px solid var(--mantine-color-gray-3)' }}
+        p="md"
+      >
+        {sidebarContent}
+      </Paper>
     );
   }
 
-  return (
-    <div className="container mx-auto p-4">
-      <div className="flex items-center justify-center gap-4 mb-6">
-        <img src="respilens-logo.svg" alt="RespiLens Logo" className="h-14 w-14" />
-        <h1 className="text-3xl font-bold text-blue-600">
-          RespiLens<sup className="text-red-500 text-xs">α</sup>
-        </h1>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
-        {states.map((state) => (
-          <div
-            key={state.location}
-            onClick={() => onStateSelect(state.abbreviation)}
-            className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <h2 className="text-xl font-semibold">{state.location_name || state.location}</h2>
-            {state.population && (
-              <p className="text-gray-600 text-sm">
-                Population: {state.population.toLocaleString()}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  // Card-based selector is no longer used since we moved to AppShell navbar
+  return null;
 };
 
 export default StateSelector;

@@ -11,7 +11,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^0.471.2",
+    "@mantine/carousel": "^8.1.1",
+    "@mantine/core": "^8.1.1",
+    "@mantine/dates": "^8.1.1",
+    "@mantine/form": "^8.1.1",
+    "@mantine/hooks": "^8.1.1",
+    "@mantine/notifications": "^8.1.1",
+    "@mantine/spotlight": "^8.1.1",
+    "@tabler/icons-react": "^3.34.0",
+    "dayjs": "^1.11.13",
     "plotly.js": "^2.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -23,13 +31,13 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "postcss": "^8.5.0",
-    "tailwindcss": "^3.4.17",
+    "postcss-preset-mantine": "^1.17.0",
+    "postcss-simple-vars": "^7.0.1",
     "vite": "^6.0.1"
   }
 }

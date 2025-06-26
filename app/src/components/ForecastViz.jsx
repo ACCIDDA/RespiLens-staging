@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Stack, Container, Paper } from '@mantine/core';
 import { useView } from '../contexts/ViewContext';
 import { useSearchParams } from 'react-router-dom';
-import InfoOverlay from './InfoOverlay';
-import ViewSelector from './ViewSelector';
 import DateSelector from './DateSelector';
-import Layout from './Layout';
 import DataVisualization from './DataVisualization';
 import ErrorBoundary from './ErrorBoundary';
 import { useForecastData } from '../hooks/useForecastData';
@@ -73,22 +71,11 @@ const ForecastViz = ({ location, handleStateSelect }) => {
 
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
-      <Layout location={location} handleStateSelect={handleStateSelect}>
-        <div className="flex flex-col h-full">
-          {/* Header with controls */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-4">
-            <h1 className="text-2xl font-bold text-gray-800">
-              {locationMetadata?.location_name || location} - {currentDataset.fullName}
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Respiratory disease forecasts and surveillance data
-            </p>
-          </div>
-          <div className="flex-1 p-4">
-
-          {/* Date selector for forecast views */}
-          {currentDataset.hasDateSelector && (
-            <div className="mb-4">
+      <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
+        <Paper shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md" style={{ minHeight: '70vh' }}>
+            {/* Date selector for forecast views */}
+            {currentDataset.hasDateSelector && (
               <DateSelector
                 selectedDates={selectedDates}
                 setSelectedDates={setSelectedDates}
@@ -97,32 +84,31 @@ const ForecastViz = ({ location, handleStateSelect }) => {
                 setActiveDate={setActiveDate}
                 loading={loading}
               />
-            </div>
-          )}
+            )}
 
-          {/* Main visualization area */}
-          <div className="flex-1 min-h-0">
-            <DataVisualization
-              viewType={viewType}
-              location={location}
-              data={data}
-              loading={loading}
-              error={error}
-              availableDates={availableDates}
-              models={models}
-              selectedDates={selectedDates}
-              selectedModels={selectedModels}
-              setSelectedDates={setSelectedDates}
-              setActiveDate={setActiveDate}
-              setSelectedModels={setSelectedModels}
-              activeDate={activeDate}
-              windowSize={windowSize}
-              searchParams={searchParams}
-            />
-          </div>
-        </div>
-        </div>
-      </Layout>
+            {/* Main visualization area */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <DataVisualization
+                viewType={viewType}
+                location={location}
+                data={data}
+                loading={loading}
+                error={error}
+                availableDates={availableDates}
+                models={models}
+                selectedDates={selectedDates}
+                selectedModels={selectedModels}
+                setSelectedDates={setSelectedDates}
+                setActiveDate={setActiveDate}
+                setSelectedModels={setSelectedModels}
+                activeDate={activeDate}
+                windowSize={windowSize}
+                searchParams={searchParams}
+              />
+            </div>
+          </Stack>
+        </Paper>
+      </Container>
     </ErrorBoundary>
   );
 };

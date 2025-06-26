@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Stack, Alert, Text, Center, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
-import ModelSelector from './ModelSelector';
 import { getDataPath } from '../utils/paths';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
-import ViewSelector from './ViewSelector';
-import InfoOverlay from './InfoOverlay';
 import { useView } from '../contexts/ViewContext';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
@@ -15,6 +12,7 @@ const NHSNRawView = ({ location }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { currentDataset } = useView();
+  const { colorScheme } = useMantineColorScheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedColumns, setSelectedColumns] = useState(() => {
     return searchParams.get('nhsn_columns')?.split(',') || ['totalconfflunewadm'];
@@ -119,9 +117,9 @@ const NHSNRawView = ({ location }) => {
     return null;
   };
 
-  if (loading) return <div className="p-4">Loading NHSN data...</div>;
-  if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
-  if (!data) return <div className="p-4">No NHSN data available for this location</div>;
+  if (loading) return <Center p="md"><Text>Loading NHSN data...</Text></Center>;
+  if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
+  if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
   const traces = selectedColumns.map((column, index) => {
     // Add this line to determine the data type
@@ -144,6 +142,12 @@ const NHSNRawView = ({ location }) => {
   });
 
   const layout = {
+    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+    paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    font: {
+      color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
+    },
     title: `NHSN Raw Data for ${data.metadata.location_name}`,
     xaxis: {
       title: 'Date',
@@ -166,7 +170,7 @@ const NHSNRawView = ({ location }) => {
   };
 
   return (
-    <div className="w-full">
+    <Stack gap="md" w="100%">
       <Plot
         data={traces}
         layout={layout}
@@ -176,7 +180,7 @@ const NHSNRawView = ({ location }) => {
           displaylogo: false,
           modeBarButtonsToAdd: ['resetScale2d']
         }}
-        className="w-full"
+        style={{ width: '100%' }}
       />
 
       <NHSNColumnSelector
@@ -184,7 +188,7 @@ const NHSNRawView = ({ location }) => {
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
       />
-    </div>
+    </Stack>
   );
 };
 

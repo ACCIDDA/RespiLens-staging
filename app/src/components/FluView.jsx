@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
@@ -8,6 +9,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
   // State to track the current y-axis range
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
+  const { colorScheme } = useMantineColorScheme();
 
   const getTimeSeriesData = () => {
     if (!data || selectedDates.length === 0) {
@@ -213,6 +215,12 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
     autosize: true,
+    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+    paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    font: {
+      color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
+    },
     grid: viewType === 'fludetailed' ? {
       columns: 1,
       rows: 1,
@@ -302,7 +310,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
 
   return (
     <div>
-      <div className="w-full" style={{ height: Math.min(800, windowSize.height * 0.6) }}>
+      <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
