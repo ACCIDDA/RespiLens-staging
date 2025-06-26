@@ -1,9 +1,7 @@
 // Narrative Registry - Auto-discovers all narrative files
 // This file exports metadata for all available narratives
 
-import { narrativeContent as fluWinter2024 } from './flu-winter-2024-25-slides.js';
 import { narrativeContent as exampleSimple } from './example-simple.js';
-import { narrativeContent as rsvTrends2024 } from './rsv-trends-2024.js';
 
 // Helper function to extract metadata from narrative content
 const extractMetadata = (content, id) => {
@@ -43,19 +41,9 @@ const extractMetadata = (content, id) => {
 // Registry of all available narratives
 export const narrativeRegistry = [
   {
-    ...extractMetadata(fluWinter2024, 'flu-winter-2024-25-slides'),
-    featured: true, // Mark as featured
-    tags: ['Influenza', 'Forecasting', 'Public Health', 'Winter 2024']
-  },
-  {
-    ...extractMetadata(rsvTrends2024, 'rsv-trends-2024'),
-    featured: true, // Also featured
-    tags: ['RSV', 'Pediatric', 'Hospital Capacity', 'Healthcare']
-  },
-  {
     ...extractMetadata(exampleSimple, 'example-simple'),
-    featured: false,
-    tags: ['Example', 'Tutorial', 'Demo']
+    featured: true, // Mark as featured for demonstration
+    tags: ['Example', 'Tutorial', 'Demo', 'Plotly', 'Custom Visualization']
   }
 ].filter(Boolean); // Remove any null entries
 

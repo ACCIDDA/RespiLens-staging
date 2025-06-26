@@ -2,7 +2,7 @@ export const narrativeContent = `---
 title: "Simple Example Narrative"
 authors: "RespiLens Team"
 date: "2024-12-26"
-abstract: "A simple example showing how to create dynamic narratives"
+abstract: "A simple example showing how to create dynamic narratives with custom visualizations"
 dataset: "/?location=US&view=fludetailed"
 ---
 
@@ -29,8 +29,14 @@ Now we're showing the time series view for the US.
 
 This demonstrates how different RespiLens views can be embedded in narratives.
 
-# Custom Visualization Example [javascript:custom-demo-chart]
+# Custom Plotly Gaussian [javascript:plotly-gaussian]
 
-This slide would show a custom JavaScript visualization.
+This slide demonstrates a custom Plotly visualization showing a Gaussian distribution.
 
-Developers can create custom charts using D3, Plotly, or other libraries.`;
+**Custom Visualization Features:**
+- Interactive Plotly charts
+- Statistical distributions
+- Real-time parameter adjustment
+- Professional scientific plotting
+
+The right panel shows a beautiful Gaussian curve with customizable parameters that demonstrates how developers can embed any JavaScript visualization into RespiLens narratives.`;

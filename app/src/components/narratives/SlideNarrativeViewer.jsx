@@ -26,6 +26,109 @@ import {
 } from '@tabler/icons-react';
 import ForecastViz from '../ForecastViz';
 
+// Plotly Gaussian Chart Component
+const PlotlyGaussianChart = () => {
+  const [chartData, setChartData] = useState(null);
+
+  useEffect(() => {
+    // Generate Gaussian data
+    const generateGaussian = (mean = 0, std = 1, points = 1000) => {
+      const x = [];
+      const y = [];
+      
+      for (let i = 0; i < points; i++) {
+        const xi = (i - points/2) * 6 / points; // Range from -3 to 3
+        x.push(xi);
+        y.push((1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((xi - mean) / std, 2)));
+      }
+      
+      return { x, y };
+    };
+
+    const gaussianData = generateGaussian(0, 1, 200);
+    
+    const plotData = [{
+      x: gaussianData.x,
+      y: gaussianData.y,
+      type: 'scatter',
+      mode: 'lines',
+      name: 'Gaussian Distribution',
+      line: {
+        color: '#228be6',
+        width: 3
+      },
+      fill: 'tonexty',
+      fillcolor: 'rgba(34, 139, 230, 0.2)'
+    }];
+
+    const layout = {
+      title: {
+        text: 'Standard Normal Distribution (μ=0, σ=1)',
+        font: { size: 16 }
+      },
+      xaxis: {
+        title: 'Value',
+        showgrid: true,
+        gridcolor: '#f0f0f0'
+      },
+      yaxis: {
+        title: 'Probability Density',
+        showgrid: true,
+        gridcolor: '#f0f0f0'
+      },
+      margin: { t: 50, r: 20, b: 50, l: 60 },
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'Inter, sans-serif' }
+    };
+
+    setChartData({ data: plotData, layout });
+  }, []);
+
+  useEffect(() => {
+    if (chartData && window.Plotly) {
+      const plotDiv = document.getElementById('plotly-gaussian-chart');
+      if (plotDiv) {
+        window.Plotly.newPlot(plotDiv, chartData.data, chartData.layout, {
+          responsive: true,
+          displayModeBar: true,
+          modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+          displaylogo: false
+        });
+      }
+    }
+  }, [chartData]);
+
+  // Load Plotly if not already loaded
+  useEffect(() => {
+    if (!window.Plotly) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.plot.ly/plotly-latest.min.js';
+      script.onload = () => {
+        console.log('Plotly loaded');
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  if (!chartData) {
+    return (
+      <Center h="100%">
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text>Loading Plotly chart...</Text>
+        </Stack>
+      </Center>
+    );
+  }
+
+  return (
+    <div style={{ height: '100%', padding: '20px' }}>
+      <div id="plotly-gaussian-chart" style={{ width: '100%', height: '100%' }} />
+    </div>
+  );
+};
+
 const SlideNarrativeViewer = () => {
   const { id } = useParams();
   const [slides, setSlides] = useState([]);
@@ -309,6 +412,12 @@ The final view returns to the national perspective with our latest forecasts, sh
     }
 
     if (currentVisualization.type === 'custom') {
+      // Handle specific custom visualizations
+      if (currentVisualization.code === 'plotly-gaussian') {
+        return <PlotlyGaussianChart />;
+      }
+      
+      // Default custom visualization placeholder
       return (
         <Center h="100%">
           <Stack align="center" gap="md">
