@@ -1,4 +1,4 @@
----
+export const narrativeContent = `---
 title: "Flu Season Winter 2024-25: A Data Story"
 authors: "RespiLens Analytics Team"
 date: "December 24, 2024"
@@ -97,4 +97,4 @@ The good model agreement provides confidence for short-term planning, though lon
 2. Early communication about vaccine importance
 3. Flexible resource distribution strategies
 
-The final view returns to the national perspective with our latest forecasts, showing the overall trajectory as we move through the peak season.
+The final view returns to the national perspective with our latest forecasts, showing the overall trajectory as we move through the peak season.`;

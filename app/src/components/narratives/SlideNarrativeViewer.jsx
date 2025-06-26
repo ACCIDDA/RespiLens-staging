@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { 
   Container, 
   Paper, 
@@ -26,6 +27,7 @@ import {
 import ForecastViz from '../ForecastViz';
 
 const SlideNarrativeViewer = () => {
+  const { id } = useParams();
   const [slides, setSlides] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -33,8 +35,22 @@ const SlideNarrativeViewer = () => {
   const [currentVisualization, setCurrentVisualization] = useState(null);
 
   useEffect(() => {
-    // Load and parse the narrative markdown
-    const narrativeContent = `---
+    // Load narrative using dynamic import approach (works better with Vite)
+    const narrativeId = id || 'flu-winter-2024-25-slides';
+    
+    console.log('Loading narrative:', narrativeId);
+    
+    const loadNarrative = async () => {
+      try {
+        // Try to import the narrative as a module
+        const narrativeModule = await import(`../../data/narratives/${narrativeId}.js`);
+        console.log('Loaded narrative module');
+        parseNarrative(narrativeModule.narrativeContent);
+      } catch (error) {
+        console.error('Error loading narrative module:', error);
+        
+        // Fallback to embedded content
+        const fallbackContent = `---
 title: "Flu Season Winter 2024-25: A Data Story"
 authors: "RespiLens Analytics Team"
 date: "December 24, 2024"
@@ -134,61 +150,81 @@ The good model agreement provides confidence for short-term planning, though lon
 3. Flexible resource distribution strategies
 
 The final view returns to the national perspective with our latest forecasts, showing the overall trajectory as we move through the peak season.`;
+        
+        console.log('Using fallback content');
+        parseNarrative(fallbackContent);
+      }
+    };
 
-    parseNarrative(narrativeContent);
-  }, []);
+    loadNarrative();
+  }, [id]);
 
   const parseNarrative = (content) => {
-    // Split into frontmatter and content
-    const parts = content.split('---');
-    if (parts.length >= 3) {
-      // Parse YAML frontmatter
-      const frontmatterLines = parts[1].trim().split('\n');
-      const parsedMetadata = {};
-      frontmatterLines.forEach(line => {
-        const [key, ...valueParts] = line.split(':');
-        if (key && valueParts.length > 0) {
-          parsedMetadata[key.trim()] = valueParts.join(':').trim().replace(/"/g, '');
-        }
-      });
-      setMetadata(parsedMetadata);
-
-      // Parse slides
-      const slideContent = parts.slice(2).join('---');
-      const slideMatches = slideContent.split(/\n# /).filter(s => s.trim());
+    console.log('parseNarrative called with content length:', content?.length);
+    
+    try {
+      // Split into frontmatter and content
+      const parts = content.split('---');
+      console.log('Split into parts:', parts.length);
       
-      const parsedSlides = slideMatches.map((slide, index) => {
-        if (index === 0) {
-          slide = slide.replace(/^# /, '');
-        }
-        
-        // Extract title and URL from heading
-        const lines = slide.split('\n');
-        const titleLine = lines[0];
-        const titleMatch = titleLine.match(/^(.*?)\s*\[(.*?)\]$/);
-        
-        let title, url;
-        if (titleMatch) {
-          title = titleMatch[1].trim();
-          url = titleMatch[2].trim();
-        } else {
-          title = titleLine.trim();
-          url = null;
-        }
+      if (parts.length >= 3) {
+        // Parse YAML frontmatter
+        const frontmatterLines = parts[1].trim().split('\n');
+        const parsedMetadata = {};
+        frontmatterLines.forEach(line => {
+          const [key, ...valueParts] = line.split(':');
+          if (key && valueParts.length > 0) {
+            parsedMetadata[key.trim()] = valueParts.join(':').trim().replace(/"/g, '');
+          }
+        });
+        console.log('Parsed metadata:', parsedMetadata);
+        setMetadata(parsedMetadata);
 
-        const content = lines.slice(1).join('\n').trim();
+        // Parse slides
+        const slideContent = parts.slice(2).join('---');
+        console.log('Slide content length:', slideContent.length);
         
-        return { title, url, content };
-      });
+        const slideMatches = slideContent.split(/\n# /).filter(s => s.trim());
+        console.log('Found slide matches:', slideMatches.length);
+        
+        const parsedSlides = slideMatches.map((slide, index) => {
+          if (index === 0) {
+            slide = slide.replace(/^# /, '');
+          }
+          
+          // Extract title and URL from heading
+          const lines = slide.split('\n');
+          const titleLine = lines[0];
+          const titleMatch = titleLine.match(/^(.*?)\s*\[(.*?)\]$/);
+          
+          let title, url;
+          if (titleMatch) {
+            title = titleMatch[1].trim();
+            url = titleMatch[2].trim();
+          } else {
+            title = titleLine.trim();
+            url = null;
+          }
 
-      setSlides(parsedSlides);
-      
-      // Set initial visualization
-      if (parsedSlides[0]?.url) {
-        setCurrentVisualization(parseVisualizationUrl(parsedSlides[0].url));
-      } else if (parsedMetadata.dataset) {
-        setCurrentVisualization(parseVisualizationUrl(parsedMetadata.dataset));
+          const content = lines.slice(1).join('\n').trim();
+          
+          return { title, url, content };
+        });
+
+        console.log('Parsed slides:', parsedSlides.length, parsedSlides.map(s => s.title));
+        setSlides(parsedSlides);
+        
+        // Set initial visualization
+        if (parsedSlides[0]?.url) {
+          setCurrentVisualization(parseVisualizationUrl(parsedSlides[0].url));
+        } else if (parsedMetadata.dataset) {
+          setCurrentVisualization(parseVisualizationUrl(parsedMetadata.dataset));
+        }
+      } else {
+        console.error('Invalid narrative format - not enough parts after splitting by ---');
       }
+    } catch (error) {
+      console.error('Error parsing narrative:', error);
     }
 
     setLoading(false);
