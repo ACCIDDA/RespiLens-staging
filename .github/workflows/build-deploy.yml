@@ -209,6 +209,10 @@ jobs:
           else
             npm run build
           fi
+          
+      - name: Copy index.html to 404.html for SPA routing
+        working-directory: ./app
+        run: cp dist/index.html dist/404.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

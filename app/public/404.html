@@ -1,14 +1,24 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
   <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/respilens-logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RespiLens</title>
-    <script type="text/javascript">
-      // Simple redirect to index.html for SPA routing
-      window.location.replace('/');
+    <script>
+      // Color scheme handling
+      (function() {
+        var key = 'respilens-color-scheme';
+        var colorScheme = localStorage.getItem(key) || 'auto';
+        if (colorScheme === 'auto') {
+          colorScheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-mantine-color-scheme', colorScheme);
+      })();
     </script>
   </head>
   <body>
-    <p>Redirecting...</p>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
