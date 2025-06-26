@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   Container, 
@@ -29,10 +29,36 @@ import ForecastViz from '../ForecastViz';
 // Plotly Gaussian Chart Component
 const PlotlyGaussianChart = () => {
   const [chartData, setChartData] = useState(null);
+  const [plotlyLoaded, setPlotlyLoaded] = useState(false);
+  const chartRef = useRef(null);
 
+  // Load Plotly if not already loaded
   useEffect(() => {
+    if (window.Plotly) {
+      setPlotlyLoaded(true);
+      return;
+    }
+
+    if (!document.querySelector('script[src*="plotly"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.plot.ly/plotly-2.27.0.min.js'; // Use specific version
+      script.onload = () => {
+        console.log('Plotly loaded');
+        setPlotlyLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('Failed to load Plotly');
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // Generate chart data once
+  useEffect(() => {
+    if (!plotlyLoaded) return;
+
     // Generate Gaussian data
-    const generateGaussian = (mean = 0, std = 1, points = 1000) => {
+    const generateGaussian = (mean = 0, std = 1, points = 200) => {
       const x = [];
       const y = [];
       
@@ -83,35 +109,23 @@ const PlotlyGaussianChart = () => {
     };
 
     setChartData({ data: plotData, layout });
-  }, []);
+  }, [plotlyLoaded]);
 
+  // Render chart when data is ready
   useEffect(() => {
-    if (chartData && window.Plotly) {
-      const plotDiv = document.getElementById('plotly-gaussian-chart');
-      if (plotDiv) {
-        window.Plotly.newPlot(plotDiv, chartData.data, chartData.layout, {
-          responsive: true,
-          displayModeBar: true,
-          modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
-          displaylogo: false
-        });
-      }
+    if (chartData && plotlyLoaded && window.Plotly && chartRef.current) {
+      window.Plotly.newPlot(chartRef.current, chartData.data, chartData.layout, {
+        responsive: true,
+        displayModeBar: true,
+        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+        displaylogo: false
+      }).catch(error => {
+        console.error('Error creating Plotly chart:', error);
+      });
     }
-  }, [chartData]);
+  }, [chartData, plotlyLoaded]);
 
-  // Load Plotly if not already loaded
-  useEffect(() => {
-    if (!window.Plotly) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.plot.ly/plotly-latest.min.js';
-      script.onload = () => {
-        console.log('Plotly loaded');
-      };
-      document.head.appendChild(script);
-    }
-  }, []);
-
-  if (!chartData) {
+  if (!plotlyLoaded || !chartData) {
     return (
       <Center h="100%">
         <Stack align="center" gap="md">
@@ -124,7 +138,7 @@ const PlotlyGaussianChart = () => {
 
   return (
     <div style={{ height: '100%', padding: '20px' }}>
-      <div id="plotly-gaussian-chart" style={{ width: '100%', height: '100%' }} />
+      <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
     </div>
   );
 };
