@@ -108,8 +108,8 @@ const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }
         <Button variant="light" size="xs" leftSection={<IconBookmark size={14} />} component="a" href="/narratives">
           Browse Narratives
         </Button>
-        <Button variant="light" size="xs" leftSection={<IconTarget size={14} />} component="a" href="/forecastable">
-          Play Forecastable
+        <Button variant="light" size="xs" leftSection={<IconTarget size={14} />} component="a" href="/forecastle">
+          Play Forecastle
         </Button>
       </Stack>
     </>

@@ -4,8 +4,8 @@ import { ViewProvider } from './contexts/ViewContext';
 import StateSelector from './components/StateSelector';
 import ForecastViz from './components/ForecastViz';
 import NarrativeBrowser from './components/narratives/NarrativeBrowser';
-import NarrativeViewer from './components/narratives/NarrativeViewer';
-import ForecastableGame from './components/forecastable/ForecastableGame';
+import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
+import ForecastleGame from './components/forecastle/ForecastleGame';
 import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import { URLParameterManager } from './utils/urlManager';
@@ -78,8 +78,8 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<ForecastApp selectedLocation={selectedLocation} onStateSelect={setSelectedLocation} />} />
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => window.location.href = `/narratives/${id}`} />} />
-        <Route path="/narratives/:id" element={<NarrativeViewer />} />
-        <Route path="/forecastable" element={<ForecastableGame />} />
+        <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
+        <Route path="/forecastle" element={<ForecastleGame />} />
         <Route path="/dashboard" element={<MyRespiLensDashboard activeTab={dashboardActiveTab} user={dashboardUser} />} />
       </Routes>
     </UnifiedAppShell>

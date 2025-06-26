@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Stack } from '@mantine/core';
+import { Stack, Container, Paper } from '@mantine/core';
 import { useView } from '../contexts/ViewContext';
 import { useSearchParams } from 'react-router-dom';
 import DateSelector from './DateSelector';
@@ -71,40 +71,44 @@ const ForecastViz = ({ location, handleStateSelect }) => {
 
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
-      <Stack gap="md" p="md" style={{ height: '100%' }}>
-        {/* Date selector for forecast views */}
-        {currentDataset.hasDateSelector && (
-          <DateSelector
-            selectedDates={selectedDates}
-            setSelectedDates={setSelectedDates}
-            availableDates={availableDates}
-            activeDate={activeDate}
-            setActiveDate={setActiveDate}
-            loading={loading}
-          />
-        )}
+      <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
+        <Paper shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md" style={{ minHeight: '70vh' }}>
+            {/* Date selector for forecast views */}
+            {currentDataset.hasDateSelector && (
+              <DateSelector
+                selectedDates={selectedDates}
+                setSelectedDates={setSelectedDates}
+                availableDates={availableDates}
+                activeDate={activeDate}
+                setActiveDate={setActiveDate}
+                loading={loading}
+              />
+            )}
 
-        {/* Main visualization area */}
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <DataVisualization
-            viewType={viewType}
-            location={location}
-            data={data}
-            loading={loading}
-            error={error}
-            availableDates={availableDates}
-            models={models}
-            selectedDates={selectedDates}
-            selectedModels={selectedModels}
-            setSelectedDates={setSelectedDates}
-            setActiveDate={setActiveDate}
-            setSelectedModels={setSelectedModels}
-            activeDate={activeDate}
-            windowSize={windowSize}
-            searchParams={searchParams}
-          />
-        </div>
-      </Stack>
+            {/* Main visualization area */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <DataVisualization
+                viewType={viewType}
+                location={location}
+                data={data}
+                loading={loading}
+                error={error}
+                availableDates={availableDates}
+                models={models}
+                selectedDates={selectedDates}
+                selectedModels={selectedModels}
+                setSelectedDates={setSelectedDates}
+                setActiveDate={setActiveDate}
+                setSelectedModels={setSelectedModels}
+                activeDate={activeDate}
+                windowSize={windowSize}
+                searchParams={searchParams}
+              />
+            </div>
+          </Stack>
+        </Paper>
+      </Container>
     </ErrorBoundary>
   );
 };

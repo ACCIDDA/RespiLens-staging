@@ -6,15 +6,6 @@ import DashboardNavigation from './DashboardNavigation';
 import StateSelector from '../StateSelector';
 
 const getShellConfig = (pathname) => {
-  if (pathname.startsWith('/dashboard')) {
-    return {
-      type: 'dashboard',
-      header: { height: 70 },
-      navbar: { width: 250, breakpoint: 'sm' },
-      padding: 'md'
-    };
-  }
-  
   // For forecast view (main page), show navbar with StateSelector
   if (pathname === '/') {
     return {
@@ -38,14 +29,6 @@ const UnifiedAppShell = ({ children, dashboardProps = {}, forecastProps = {} }) 
   const config = getShellConfig(location.pathname);
 
   const renderHeaderNavigation = () => {
-    if (config.type === 'dashboard') {
-      return (
-        <DashboardNavigation 
-          inHeader={true} 
-          user={dashboardProps.user}
-        />
-      );
-    }
     return (
       <Center h="100%" px="md">
         <MainNavigation />
@@ -54,15 +37,6 @@ const UnifiedAppShell = ({ children, dashboardProps = {}, forecastProps = {} }) 
   };
 
   const renderNavbar = () => {
-    if (config.type === 'dashboard') {
-      return (
-        <DashboardNavigation 
-          activeTab={dashboardProps.activeTab}
-          setActiveTab={dashboardProps.setActiveTab}
-        />
-      );
-    }
-    
     if (config.type === 'forecast') {
       return (
         <StateSelector

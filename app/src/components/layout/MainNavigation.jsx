@@ -15,7 +15,7 @@ const MainNavigation = () => {
   const navigationItems = [
     { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
     { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },
-    { href: '/forecastable', label: 'Forecastable', icon: IconTarget, active: isActive('/forecastable') },
+    { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: isActive('/forecastle') },
     { href: '/dashboard', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/dashboard') }
   ];
   

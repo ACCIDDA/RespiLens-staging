@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container,
-  SimpleGrid,
   Card,
   Title,
   Text,
@@ -9,19 +8,15 @@ import {
   Badge,
   Button,
   Stack,
-  TextInput,
-  Select,
   Loader,
   Center,
   ThemeIcon,
   Paper
 } from '@mantine/core';
 import {
-  IconSearch,
   IconBook,
   IconCalendar,
   IconUser,
-  IconTags,
   IconArrowRight,
   IconStar,
   IconClock
@@ -30,11 +25,8 @@ import {
 const NarrativeBrowser = ({ onNarrativeSelect }) => {
   const [narratives, setNarratives] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('date');
-  const [filterTag, setFilterTag] = useState('');
 
-  // Sample narratives data
+  // Sample narrative data
   const sampleNarratives = [
     {
       id: 'flu-winter-2024-25',
@@ -44,52 +36,7 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
       date: '2024-12-24',
       tags: ['Influenza', 'Forecasting', 'Public Health'],
       featured: true,
-      readTime: '8 min',
-      steps: 4
-    },
-    {
-      id: 'rsv-pediatric-surge',
-      title: 'RSV Pediatric Surge: Understanding the 2024 Pattern',
-      description: 'Analyzing the unexpected RSV surge in pediatric populations and its implications for hospital capacity planning.',
-      author: 'ACCIDDA Research Team',
-      date: '2024-12-20',
-      tags: ['RSV', 'Pediatric', 'Hospital Capacity'],
-      featured: false,
-      readTime: '6 min',
-      steps: 5
-    },
-    {
-      id: 'multi-pathogen-dynamics',
-      title: 'Multi-Pathogen Dynamics in Fall 2024',
-      description: 'Exploring the complex interactions between flu, RSV, and COVID-19 circulation patterns.',
-      author: 'Multi-Hub Collaborative',
-      date: '2024-12-18',
-      tags: ['Multi-pathogen', 'Surveillance', 'Modeling'],
-      featured: true,
-      readTime: '12 min',
-      steps: 6
-    },
-    {
-      id: 'regional-forecasting-accuracy',
-      title: 'Regional Forecasting Accuracy: Lessons from 2023-24',
-      description: 'A retrospective analysis of forecasting model performance across different US regions.',
-      author: 'FluSight Consortium',
-      date: '2024-12-15',
-      tags: ['Forecasting', 'Model Evaluation', 'Regional Analysis'],
-      featured: false,
-      readTime: '10 min',
-      steps: 7
-    },
-    {
-      id: 'climate-respiratory-health',
-      title: 'Climate Change and Respiratory Disease Patterns',
-      description: 'How changing climate patterns are affecting respiratory disease seasonality and geographic distribution.',
-      author: 'Climate-Health Initiative',
-      date: '2024-12-10',
-      tags: ['Climate Change', 'Seasonality', 'Geographic Analysis'],
-      featured: false,
-      readTime: '15 min',
-      steps: 8
+      readTime: '8 min'
     }
   ];
 
@@ -98,36 +45,8 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
     setTimeout(() => {
       setNarratives(sampleNarratives);
       setLoading(false);
-    }, 1000);
+    }, 500);
   }, []);
-
-  const allTags = [...new Set(narratives.flatMap(n => n.tags))];
-
-  const filteredNarratives = narratives
-    .filter(narrative => {
-      const matchesSearch = narrative.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           narrative.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           narrative.author.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTag = !filterTag || narrative.tags.includes(filterTag);
-      return matchesSearch && matchesTag;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'date':
-          return new Date(b.date) - new Date(a.date);
-        case 'title':
-          return a.title.localeCompare(b.title);
-        case 'author':
-          return a.author.localeCompare(b.author);
-        case 'readTime':
-          return parseInt(a.readTime) - parseInt(b.readTime);
-        default:
-          return 0;
-      }
-    });
-
-  const featuredNarratives = filteredNarratives.filter(n => n.featured);
-  const regularNarratives = filteredNarratives.filter(n => !n.featured);
 
   if (loading) {
     return (
@@ -226,66 +145,16 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
           </div>
         </Group>
 
-        {/* Search and Filters */}
-        <Group grow>
-          <TextInput
-            placeholder="Search narratives..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            leftSection={<IconSearch size={16} />}
-          />
-          <Select
-            placeholder="Filter by tag"
-            value={filterTag}
-            onChange={setFilterTag}
-            data={[
-              { value: '', label: 'All tags' },
-              ...allTags.map(tag => ({ value: tag, label: tag }))
-            ]}
-            clearable
-          />
-          <Select
-            placeholder="Sort by"
-            value={sortBy}
-            onChange={setSortBy}
-            data={[
-              { value: 'date', label: 'Date (newest first)' },
-              { value: 'title', label: 'Title (A-Z)' },
-              { value: 'author', label: 'Author (A-Z)' },
-              { value: 'readTime', label: 'Read time (shortest first)' }
-            ]}
-          />
-        </Group>
       </Paper>
 
-      {/* Featured Narratives */}
-      {featuredNarratives.length > 0 && (
-        <>
-          <Title order={2} mb="md">Featured Narratives</Title>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="xl">
-            {featuredNarratives.map(narrative => (
-              <NarrativeCard key={narrative.id} narrative={narrative} featured={true} />
-            ))}
-          </SimpleGrid>
-        </>
-      )}
-
-      {/* All Narratives */}
-      <Title order={2} mb="md">
-        {featuredNarratives.length > 0 ? 'More Narratives' : 'All Narratives'}
-      </Title>
-      
-      {regularNarratives.length > 0 ? (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-          {regularNarratives.map(narrative => (
-            <NarrativeCard key={narrative.id} narrative={narrative} />
+      {/* Sample Narrative */}
+      <Center>
+        <div style={{ maxWidth: '600px', width: '100%' }}>
+          {narratives.map(narrative => (
+            <NarrativeCard key={narrative.id} narrative={narrative} featured={true} />
           ))}
-        </SimpleGrid>
-      ) : (
-        <Paper p="xl" style={{ textAlign: 'center' }}>
-          <Text c="dimmed">No narratives found matching your criteria.</Text>
-        </Paper>
-      )}
+        </div>
+      </Center>
     </Container>
   );
 };
