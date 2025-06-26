@@ -8,12 +8,11 @@
     <script>
       // Handle GitHub Pages SPA routing
       (function(l) {
-        if (l.search[1] === '/' ) {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
-            return s.replace(/~and~/g, '&')
-          }).join('?');
-          var newPath = decoded.replace(/^\?/, '');
-          window.history.replaceState(null, null, '/' + newPath + l.hash);
+        if (l.search && l.search[1] === '/' ) {
+          var path = l.search.slice(2).split('&')[0].replace(/~and~/g, '&');
+          if (path && path !== l.pathname.slice(1)) {
+            window.history.replaceState(null, null, '/' + path + l.hash);
+          }
         }
       }(window.location))
       
