@@ -11,7 +11,10 @@ import {
   Loader,
   Center,
   ThemeIcon,
-  Paper
+  Paper,
+  SimpleGrid,
+  TextInput,
+  Select
 } from '@mantine/core';
 import {
   IconBook,
@@ -19,34 +22,36 @@ import {
   IconUser,
   IconArrowRight,
   IconStar,
-  IconClock
+  IconClock,
+  IconSearch
 } from '@tabler/icons-react';
+import { 
+  narrativeRegistry, 
+  getFeaturedNarratives, 
+  getRegularNarratives, 
+  getAllTags,
+  searchNarratives 
+} from '../../data/narratives/index.js';
 
 const NarrativeBrowser = ({ onNarrativeSelect }) => {
   const [narratives, setNarratives] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Sample narrative data
-  const sampleNarratives = [
-    {
-      id: 'flu-winter-2024-25',
-      title: 'Flu Season Winter 2024-25: A Data Story',
-      description: 'An interactive narrative exploring the 2024-25 flu season trends, forecasting insights, and public health implications.',
-      author: 'RespiLens Analytics Team',
-      date: '2024-12-24',
-      tags: ['Influenza', 'Forecasting', 'Public Health'],
-      featured: true,
-      readTime: '8 min'
-    }
-  ];
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTag, setFilterTag] = useState('');
+  const [sortBy, setSortBy] = useState('date');
 
   useEffect(() => {
-    // Simulate loading time
-    setTimeout(() => {
-      setNarratives(sampleNarratives);
-      setLoading(false);
-    }, 500);
+    // Load narratives from registry
+    console.log('Loading narratives from registry:', narrativeRegistry.length);
+    setNarratives(narrativeRegistry);
+    setLoading(false);
   }, []);
+
+  // Get filtered narratives based on search/filter criteria
+  const filteredNarratives = searchNarratives(searchTerm, filterTag, sortBy);
+  const featuredNarratives = filteredNarratives.filter(n => n.featured);
+  const regularNarratives = filteredNarratives.filter(n => !n.featured);
+  const allTags = getAllTags();
 
   if (loading) {
     return (
@@ -111,6 +116,12 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
               <IconClock size={14} />
               <Text size="xs" c="dimmed">{narrative.readTime}</Text>
             </Group>
+            {narrative.slideCount && (
+              <Group gap="xs">
+                <IconBook size={14} />
+                <Text size="xs" c="dimmed">{narrative.slideCount} slides</Text>
+              </Group>
+            )}
           </Group>
         </Stack>
 
@@ -145,16 +156,70 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
           </div>
         </Group>
 
+        {/* Search and Filters */}
+        <Group grow>
+          <TextInput
+            placeholder="Search narratives..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            leftSection={<IconSearch size={16} />}
+          />
+          <Select
+            placeholder="Filter by tag"
+            value={filterTag}
+            onChange={setFilterTag}
+            data={[
+              { value: '', label: 'All tags' },
+              ...allTags.map(tag => ({ value: tag, label: tag }))
+            ]}
+            clearable
+          />
+          <Select
+            placeholder="Sort by"
+            value={sortBy}
+            onChange={setSortBy}
+            data={[
+              { value: 'date', label: 'Date (newest first)' },
+              { value: 'title', label: 'Title (A-Z)' },
+              { value: 'author', label: 'Author (A-Z)' },
+              { value: 'readTime', label: 'Read time (shortest first)' }
+            ]}
+          />
+        </Group>
       </Paper>
 
-      {/* Sample Narrative */}
-      <Center>
-        <div style={{ maxWidth: '600px', width: '100%' }}>
-          {narratives.map(narrative => (
-            <NarrativeCard key={narrative.id} narrative={narrative} featured={true} />
+      {/* Featured Narratives */}
+      {featuredNarratives.length > 0 && (
+        <>
+          <Title order={2} mb="md">Featured Narratives</Title>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mb="xl">
+            {featuredNarratives.map(narrative => (
+              <NarrativeCard key={narrative.id} narrative={narrative} featured={true} />
+            ))}
+          </SimpleGrid>
+        </>
+      )}
+
+      {/* All Narratives */}
+      <Title order={2} mb="md">
+        {featuredNarratives.length > 0 ? 'More Narratives' : 'All Narratives'}
+      </Title>
+      
+      {regularNarratives.length > 0 ? (
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+          {regularNarratives.map(narrative => (
+            <NarrativeCard key={narrative.id} narrative={narrative} />
           ))}
-        </div>
-      </Center>
+        </SimpleGrid>
+      ) : (
+        <Paper p="xl" style={{ textAlign: 'center' }}>
+          <Text c="dimmed">
+            {searchTerm || filterTag 
+              ? 'No narratives found matching your criteria.' 
+              : 'No additional narratives available.'}
+          </Text>
+        </Paper>
+      )}
     </Container>
   );
 };
