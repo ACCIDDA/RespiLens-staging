@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu, useMantineTheme } from '@mantine/core';
+import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu } from '@mantine/core';
 import { IconChartLine, IconBook, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import InfoOverlay from '../InfoOverlay';
@@ -8,11 +8,7 @@ import InfoOverlay from '../InfoOverlay';
 const MainNavigation = () => {
   const location = useLocation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const theme = useMantineTheme();
   const [opened, { toggle, close }] = useDisclosure(false);
-  
-  // Access centralized colors
-  const colors = theme.other.colors;
   
   const isActive = (path) => location.pathname.startsWith(path);
   
@@ -29,7 +25,7 @@ const MainNavigation = () => {
       <Group gap="sm" align="center">
         <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w="auto" fit="contain" />
         <Title order={3} c="blue" visibleFrom="sm">
-          RespiLens<sup style={{ color: colors.alpha, fontSize: '0.75rem' }}>α</sup>
+          RespiLens<sup style={{ color: 'var(--mantine-color-red-6)', fontSize: '0.75rem' }}>α</sup>
         </Title>
       </Group>
       

@@ -1,11 +1,8 @@
 import React from 'react';
-import { Group, Text, ActionIcon, Button, useMantineTheme } from '@mantine/core';
+import { Group, Text, ActionIcon, Button } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
 const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeDate, setActiveDate }) => {
-  const theme = useMantineTheme();
-  const colors = theme.other.colors;
-  
   return (
     <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
       {selectedDates.map((date, index) => (
@@ -51,7 +48,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               disabled={selectedDates.length === 1}
               variant="subtle"
               size="xs"
-              style={{ color: colors.error }}
+              color="red"
             >
               <IconX size={10} />
             </ActionIcon>
