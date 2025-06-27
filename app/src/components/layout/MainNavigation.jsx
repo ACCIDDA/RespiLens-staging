@@ -22,8 +22,8 @@ const MainNavigation = () => {
   return (
     <Group justify="space-between" align="center" w="100%">
       {/* Logo */}
-      <Group gap="sm">
-        <Image src="respilens-logo.svg" alt="RespiLens Logo" h={32} fit="contain" />
+      <Group gap="sm" align="center">
+        <Image src="respilens-logo.svg" alt="RespiLens Logo" h={32} w="auto" fit="contain" />
         <Title order={3} c="blue" visibleFrom="sm">
           RespiLens<sup style={{ color: 'red', fontSize: '0.75rem' }}>α</sup>
         </Title>
