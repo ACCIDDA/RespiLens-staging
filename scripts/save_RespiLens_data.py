@@ -13,7 +13,8 @@ from jsonschema.exceptions import ValidationError
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
-with open(SCRIPT_DIR / "respilens-data.schema.json", "r") as f:
+SCHEMA_DIR = SCRIPT_DIR / "schemas"
+with open(SCHEMA_DIR / "respilens-data.schema.json", "r") as f:
     RESPILENS_DATA_SCHEMA = json.load(f)
 
 

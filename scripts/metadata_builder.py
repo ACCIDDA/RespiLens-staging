@@ -15,9 +15,8 @@ def metadata_builder(shortName: str = "", fullName: str = "", defaultView: str =
     Args:
         shortName: Short or abbreviated name of the dataset data was pulled from.
         fullName: Full name of the dataset data was pulled from.
-        defaultView: Which view data belongs in.
-        lastUpdated: Day of metadata creation
-        datasetType: The type of data 
+        defaultView: Which view the data belongs in.
+        datasetType: The type of data. 
     """
 
     metadata_struct = { 
