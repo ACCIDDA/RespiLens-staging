@@ -26,9 +26,9 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               (selectedDates.includes(availableDates[availableDates.indexOf(date) - 1]))
             }
             variant="subtle"
-            size={{ base: 'xs', sm: 'sm' }}
+            size={{ base: 'sm', sm: 'md' }}
           >
-            <IconChevronLeft size={14} />
+            <IconChevronLeft size={18} />
           </ActionIcon>
           
           <Group gap="xs" align="center" wrap="nowrap">
@@ -73,9 +73,9 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               (selectedDates.includes(availableDates[availableDates.indexOf(date) + 1]))
             }
             variant="subtle"
-            size={{ base: 'xs', sm: 'sm' }}
+            size={{ base: 'sm', sm: 'md' }}
           >
-            <IconChevronRight size={14} />
+            <IconChevronRight size={18} />
           </ActionIcon>
         </Group>
       ))}
