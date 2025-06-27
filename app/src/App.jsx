@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useSearchParams, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { ViewProvider } from './contexts/ViewContext';
 import StateSelector from './components/StateSelector';
 import ForecastViz from './components/ForecastViz';
@@ -45,6 +45,7 @@ const ForecastApp = ({ selectedLocation, onStateSelect }) => {
 };
 
 const AppContent = () => {
+  const navigate = useNavigate();
   const [dashboardActiveTab, setDashboardActiveTab] = useState('overview');
   const [dashboardUser] = useState({
     name: 'Dr. Sarah Johnson',
@@ -77,7 +78,7 @@ const AppContent = () => {
     <UnifiedAppShell dashboardProps={dashboardProps} forecastProps={forecastProps}>
       <Routes>
         <Route path="/" element={<ForecastApp selectedLocation={selectedLocation} onStateSelect={setSelectedLocation} />} />
-        <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => window.location.href = `/narratives/${id}`} />} />
+        <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />
         <Route path="/dashboard" element={<MyRespiLensDashboard activeTab={dashboardActiveTab} user={dashboardUser} />} />
