@@ -1,7 +1,7 @@
 """
 This module facilitates the retrieval, transformation, and storage of data from the CDC's public API.
 
-Data can either be stored as raw json, or as a pd.DataFrame. Metdata is always stored as raw json.
+Data can either be stored as raw json, or as a pd.DataFrame. Metadata is always stored as raw json.
 
 Classes:
     CDCData: Handles downloading, transforming, and saving data from a specific CDC dataset resource.
