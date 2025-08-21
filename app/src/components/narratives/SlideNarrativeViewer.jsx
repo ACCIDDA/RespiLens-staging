@@ -487,7 +487,7 @@ The final view returns to the national perspective with our latest forecasts, sh
             leftSection={<IconChevronLeft size={16}/>}
             onClick={() => navigate('/narratives')}
           >
-            Back to Narratives
+            Back
           </Button>
           <div>
             <Group gap="xs" mb="xs">
