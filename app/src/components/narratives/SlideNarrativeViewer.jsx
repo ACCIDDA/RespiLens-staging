@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Container, 
   Paper, 
@@ -145,6 +145,7 @@ const PlotlyGaussianChart = () => {
 
 const SlideNarrativeViewer = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [slides, setSlides] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -481,6 +482,13 @@ The final view returns to the national perspective with our latest forecasts, sh
       {/* Header */}
       <Paper shadow="sm" p="md" style={{ flexShrink: 0 }}>
         <Group justify="space-between" align="center">
+          <Button
+            variant="light"
+            leftSection={<IconChevronLeft size={16}/>}
+            onClick={() => navigate('/narratives')}
+          >
+            Back to Narratives
+          </Button>
           <div>
             <Group gap="xs" mb="xs">
               <ThemeIcon size="sm" variant="light">
