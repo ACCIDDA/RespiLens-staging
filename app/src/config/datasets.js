@@ -26,6 +26,19 @@ export const DATASETS = {
     prefix: 'rsv',
     dataPath: 'rsv'
   },
+  covid: {
+    shortName: 'covid',
+    fullName: 'COVID-19 Forecast Hub',
+    views: [
+      { key: 'detailed', label: 'Detailed View', value: 'coviddetailed' }
+    ],
+    defaultView: 'coviddetailed',
+    defaultModel: 'COVIDHub-ensemble',
+    hasDateSelector: true,
+    hasModelSelector: true,
+    prefix: 'covid',
+    dataPath: 'covid19' // TODO 
+  },
   nhsn: {
     shortName: 'nhsn',
     fullName: 'NHSN Raw Data',
