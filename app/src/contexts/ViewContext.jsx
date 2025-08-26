@@ -13,11 +13,14 @@ export const ViewProvider = ({ children }) => {
   // Create URL manager instance
   const urlManager = new URLParameterManager(searchParams, setSearchParams);
   
-  const [viewType, setViewType] = useState(() => {
-    // Initialize URL with defaults if needed
+  // 1. The useState initializer is now a pure function that ONLY reads the URL
+  const [viewType, setViewType] = useState(() => urlManager.getView());
+
+  // 2. A NEW useEffect handles the one-time default-setting side-effect
+  useEffect(() => {
+    // This runs once on mount to ensure the URL has the default params
     urlManager.initializeDefaults();
-    return urlManager.getView();
-  });
+  }, []); // The empty array [] ensures this runs only once on initial load
 
   // Add new useEffect at the beginning of ViewProvider
   useEffect(() => {
