@@ -222,9 +222,7 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
           style={{ width: '100%', height: '100%' }}
           data={[
             ...timeSeriesData,
-            ...(viewType === 'coviddetailed' 
-              ? rateChangeData.map(trace => ({ ...trace, orientation: 'h', xaxis: 'x2', yaxis: 'y2' }))
-              : [])
+            ...rateChangeData // <-- REMOVE THE CONDITIONAL LOGIC HERE
           ]}
           layout={layout}
           config={config}
