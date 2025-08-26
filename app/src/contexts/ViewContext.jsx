@@ -1,7 +1,7 @@
 // src/contexts/ViewContext.jsx
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom'; // 1. Import useLocation
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config/datasets';
@@ -10,55 +10,50 @@ const ViewContext = createContext(null);
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation(); // 2. Get the current location object
   const urlManager = new URLParameterManager(searchParams, setSearchParams);
 
-  // --- All state is now centralized here ---
+  // --- State remains centralized ---
   const [viewType, setViewType] = useState(() => urlManager.getView());
   const [selectedLocation, setSelectedLocation] = useState(() => urlManager.getLocation());
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
 
-  // --- Data fetching is now driven directly by the context's state ---
+  // --- Data fetching remains centralized ---
   const { data, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
 
-  // --- THIS IS THE FINAL, CORRECTED INITIALIZATION LOGIC ---
+  // This effect now ONLY runs its logic when we are on the forecast page ('/')
   useEffect(() => {
-    // This effect runs once on mount to set ALL default URL params if they are missing.
-    const currentParams = new URLSearchParams(searchParams);
-    let needsUpdate = false;
+    // 3. Add condition to only manage the URL on the main forecast page
+    if (location.pathname === '/') {
+      const currentParams = new URLSearchParams(searchParams);
+      let needsUpdate = false;
 
-    // 1. Ensure 'location' is set (assuming 'US' is the default)
-    if (!currentParams.has('location')) {
-      currentParams.set('location', 'US');
-      needsUpdate = true;
+      if (!currentParams.has('location')) {
+        currentParams.set('location', 'US');
+        needsUpdate = true;
+      }
+      const view = currentParams.get('view') || 'fludetailed';
+      if (!currentParams.has('view')) {
+        currentParams.set('view', view);
+        needsUpdate = true;
+      }
+      const initialDataset = Object.values(DATASETS).find(d => 
+        d.views.some(v => v.value === view)
+      );
+      if (initialDataset?.defaultModel && !currentParams.has(`${initialDataset.prefix}_models`)) {
+        currentParams.set(`${initialDataset.prefix}_models`, initialDataset.defaultModel);
+        needsUpdate = true;
+      }
+      if (needsUpdate) {
+        setSearchParams(currentParams, { replace: true });
+      }
     }
+  }, [location.pathname]); // 4. Run this effect whenever the pathname changes
 
-    // 2. Ensure 'view' is set, defaulting to 'fludetailed'
-    const view = currentParams.get('view') || 'fludetailed';
-    if (!currentParams.has('view')) {
-      currentParams.set('view', view);
-      needsUpdate = true;
-    }
-    
-    // 3. Find the dataset for the initial view (e.g., 'flu')
-    const initialDataset = Object.values(DATASETS).find(d => 
-      d.views.some(v => v.value === view)
-    );
-    
-    // 4. Ensure the default model for that dataset is set in the URL
-    if (initialDataset?.defaultModel && !currentParams.has(`${initialDataset.prefix}_models`)) {
-      currentParams.set(`${initialDataset.prefix}_models`, initialDataset.defaultModel);
-      needsUpdate = true;
-    }
-
-    // 5. Only update the URL if a change was actually made
-    if (needsUpdate) {
-      setSearchParams(currentParams, { replace: true });
-    }
-  }, []); // The empty array [] ensures this runs only once on initial load
-
-  // This secondary effect syncs the local React state from the URL after initialization
+  // (The rest of the file is the same as the one you provided in the last turn)
+  
   useEffect(() => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (!currentDataset) return;
@@ -69,7 +64,6 @@ export const ViewProvider = ({ children }) => {
   }, [searchParams, viewType]);
 
 
-  // Effect to set default dates after data loads
   useEffect(() => {
     if (!loading && availableDates.length > 0 && selectedDates.length === 0) {
       const latestDate = availableDates[availableDates.length - 1];

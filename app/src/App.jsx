@@ -6,12 +6,14 @@ import { ViewProvider, useView } from './contexts/ViewContext';
 import ForecastViz from './components/ForecastViz';
 import NarrativeBrowser from './components/narratives/NarrativeBrowser';
 import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
+import ForecastleGame from './components/forecastle/ForecastleGame';
+import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import { Center, Text } from '@mantine/core';
 
 const ForecastApp = () => {
-  // Get location and the function to update it from the context
-  const { selectedLocation, handleLocationSelect } = useView();
+  // This component uses the view context, so it must be inside the provider.
+  const { selectedLocation } = useView();
 
   if (!selectedLocation) {
     return (
@@ -20,29 +22,36 @@ const ForecastApp = () => {
       </Center>
     );
   }
-  // ForecastViz no longer needs location passed as a prop
   return <ForecastViz />;
 };
 
-const AppContent = () => {
-  const navigate = useNavigate();
+// We create this new component to hold our main layout.
+// It can safely use hooks because it will be inside the Router and Provider.
+const AppLayout = () => {
+  const navigate = useNavigate(); // Safely used inside <Router>
+
   return (
     <UnifiedAppShell>
       <Routes>
         <Route path="/" element={<ForecastApp />} />
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
+        <Route path="/forecastle" element={<ForecastleGame />} />
+        <Route path="/dashboard" element={<MyRespiLensDashboard />} />
       </Routes>
     </UnifiedAppShell>
   );
 };
 
-const App = () => (
-  <Router>
-    <ViewProvider>
-      <AppContent />
-    </ViewProvider>
-  </Router>
-);
+const App = () => {
+  return (
+    <Router>
+      {/* The ViewProvider now wraps everything, making the context available to all components */}
+      <ViewProvider>
+        <AppLayout />
+      </ViewProvider>
+    </Router>
+  );
+};
 
 export default App;
