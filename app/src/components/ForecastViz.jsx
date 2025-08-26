@@ -6,7 +6,7 @@ import DateSelector from './DateSelector';
 import DataVisualization from './DataVisualization';
 import ErrorBoundary from './ErrorBoundary';
 import { useForecastData } from '../hooks/useForecastData';
-import { useUrlParameterInit } from '../hooks/useUrlParameterInit';
+// import { useUrlParameterInit } from '../hooks/useUrlParameterInit';
 
 /**
  * Main forecast visualization component - simplified and focused
@@ -54,6 +54,32 @@ const ForecastViz = ({ location, handleStateSelect }) => {
     locationMetadata 
   } = useForecastData(shouldFetchData ? location : null, shouldFetchData ? viewType : null);
 
+  // ADD THIS NEW BLOCK TO INITIALIZE DEFAULTS
+  useEffect(() => {
+    // This effect runs once data is available for the current view
+    if (!loading && availableDates.length > 0) {
+      
+      // If no dates are selected, default to the most recent one.
+      // This ensures the graph always has a date selected.
+      if (selectedDates.length === 0) {
+        const latestDate = availableDates[availableDates.length - 1];
+        if (latestDate) {
+          setSelectedDates([latestDate]);
+          setActiveDate(latestDate);
+        }
+      }
+
+      // If no models are selected, default to the one from our config.
+      // This avoids the race condition and trusts our configuration as the source of truth.
+      if (selectedModels.length === 0 && currentDataset?.defaultModel) {
+        setSelectedModels([currentDataset.defaultModel]);
+      }
+    }
+  // NOTE: The dependency array is simpler now
+  }, [loading, availableDates, currentDataset]);
+  // END OF NEW BLOCK
+
+  /*
   // Initialize state from URL parameters
   useUrlParameterInit({
     loading,
@@ -68,6 +94,7 @@ const ForecastViz = ({ location, handleStateSelect }) => {
     setActiveDate,
     setViewType
   });
+  */
 
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>

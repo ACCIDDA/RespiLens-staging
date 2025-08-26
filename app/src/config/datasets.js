@@ -37,7 +37,7 @@ export const DATASETS = {
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'covid',
-    dataPath: 'covid19' // TODO 
+    dataPath: 'covid19' 
   },
   nhsn: {
     shortName: 'nhsn',

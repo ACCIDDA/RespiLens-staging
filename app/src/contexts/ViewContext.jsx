@@ -42,26 +42,44 @@ export const ViewProvider = ({ children }) => {
   // Handle view type changes
   const handleViewChange = useCallback((newView) => {
     const oldView = viewType;
+    if (oldView === newView) {
+      return; // No change needed
+    }
 
-    if (oldView !== newView) {
-      // Use URL manager to handle parameter changes
-      urlManager.handleViewChange(oldView, newView);
+    const oldDataset = urlManager.getDatasetFromView(oldView);
+    const newDataset = urlManager.getDatasetFromView(newView);
 
-      // Check if we're switching between different datasets
-      const oldDataset = urlManager.getDatasetFromView(oldView);
-      const newDataset = urlManager.getDatasetFromView(newView);
+    // Create a new URLSearchParams object from the current URL to modify it
+    const newSearchParams = new URLSearchParams(searchParams);
 
-      // Only clear state when switching between different datasets (e.g., flu to rsv)
-      // AND not when switching between views within the same dataset (e.g., fludetailed to flutimeseries)
-      if (oldDataset?.shortName !== newDataset?.shortName) {
-        setSelectedDates([]);
-        setSelectedModels([]);
-        setActiveDate(null);
+    // Always update the view parameter
+    newSearchParams.set('view', newView);
+
+    // Check if we're switching between different datasets (e.g., flu to covid)
+    if (oldDataset?.shortName !== newDataset?.shortName) {
+      // 1. Reset the local React state immediately
+      setSelectedDates([]);
+      setSelectedModels([]);
+      setActiveDate(null);
+
+      // 2. Remove the parameters from the OLD dataset
+      if (oldDataset) {
+        newSearchParams.delete(`${oldDataset.prefix}_models`);
+        newSearchParams.delete(`${oldDataset.prefix}_dates`);
       }
 
-      setViewType(newView);
+      // 3. Set the default model for the NEW dataset
+      if (newDataset?.defaultModel) {
+        newSearchParams.set(`${newDataset.prefix}_models`, newDataset.defaultModel);
+      }
     }
-  }, [viewType, urlManager]);
+    
+    // 4. Update the component's viewType state and commit the URL change in one go.
+    // React will batch these state updates together.
+    setViewType(newView);
+    setSearchParams(newSearchParams);
+
+  }, [viewType, searchParams, setSearchParams, urlManager]);
 
   // Update dataset parameters
   const updateDatasetParams = useCallback((params) => {

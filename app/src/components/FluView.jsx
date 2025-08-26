@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
@@ -6,148 +6,10 @@ import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
 const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
-  // State to track the current y-axis range
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
 
-  const getTimeSeriesData = () => {
-    if (!data || selectedDates.length === 0) {
-      return null;
-    }
-
-    const groundTruthTrace = {
-      x: data.ground_truth.dates,
-      y: data.ground_truth.values,
-      name: 'Observed',
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: { color: '#8884d8', width: 2 },
-      marker: { size: 6 }
-    };
-
-    const modelTraces = selectedModels.flatMap(model => 
-      selectedDates.flatMap((date) => {
-        const forecasts = data.forecasts[date] || {};
-        const forecast = 
-          forecasts['wk inc flu hosp']?.[model] || 
-          forecasts['wk flu hosp rate change']?.[model];
-      
-        if (!forecast) return [];
-
-        const forecastDates = [];
-        const medianValues = [];
-        const ci95Upper = [];
-        const ci95Lower = [];
-        const ci50Upper = [];
-        const ci50Lower = [];
-
-        const sortedPredictions = Object.entries(forecast.predictions || {})
-          .sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
-        
-        sortedPredictions.forEach(([horizon, pred]) => {
-          forecastDates.push(pred.date);
-          
-          if (forecast.type !== 'quantile') {
-            return;
-          }
-          const quantiles = pred.quantiles || [];
-          const values = pred.values || [];
-          
-          const q95Lower = values[quantiles.indexOf(0.025)] || 0;
-          const q50Lower = values[quantiles.indexOf(0.25)] || 0;
-          const median = values[quantiles.indexOf(0.5)] || 0;
-          const q50Upper = values[quantiles.indexOf(0.75)] || 0;
-          const q95Upper = values[quantiles.indexOf(0.975)] || 0;
-          
-          ci95Lower.push(q95Lower);
-          ci50Lower.push(q50Lower);
-          medianValues.push(median);
-          ci50Upper.push(q50Upper);
-          ci95Upper.push(q95Upper);
-        });
-
-        const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-
-        return [
-          {
-            x: [...forecastDates, ...forecastDates.slice().reverse()],
-            y: [...ci95Upper, ...ci95Lower.slice().reverse()],
-            fill: 'toself',
-            fillcolor: `${modelColor}10`,
-            line: { color: 'transparent' },
-            showlegend: false,
-            type: 'scatter',
-            name: `${model} (${date}) 95% CI`
-          },
-          {
-            x: [...forecastDates, ...forecastDates.slice().reverse()],
-            y: [...ci50Upper, ...ci50Lower.slice().reverse()],
-            fill: 'toself',
-            fillcolor: `${modelColor}30`,
-            line: { color: 'transparent' },
-            showlegend: false,
-            type: 'scatter',
-            name: `${model} (${date}) 50% CI`
-          },
-          {
-            x: forecastDates,
-            y: medianValues,
-            name: `${model} (${date})`,
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: { 
-              color: modelColor,
-              width: 2,
-              dash: 'solid'
-            },
-            marker: { size: 6, color: modelColor },
-            showlegend: true
-          }
-        ];
-      })
-    );
-
-    return [groundTruthTrace, ...modelTraces];
-  };
-
-  const getRateChangeData = () => {
-    if (!data || selectedDates.length === 0) return null;
-
-    const categoryOrder = RATE_CHANGE_CATEGORIES;
-
-    const lastSelectedDate = selectedDates.slice().sort().pop();
-    
-    return selectedModels.map(model => {
-      const forecast = data.forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
-      if (!forecast) return null;
-
-      const horizon0 = forecast.predictions['0'];
-      if (!horizon0) return null;
-      
-      const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-    
-      const orderedData = categoryOrder.map(cat => ({
-        category: cat.replace('_', '<br>'),
-        value: horizon0.probabilities[horizon0.categories.indexOf(cat)] * 100
-      }));
-      
-      return {
-        name: `${model} (${lastSelectedDate})`,
-        y: orderedData.map(d => d.category),
-        x: orderedData.map(d => d.value),
-        type: 'bar',
-        orientation: 'h',
-        marker: { color: modelColor },
-        showlegend: true,
-        legendgroup: 'histogram',
-        xaxis: 'x2',
-        yaxis: 'y2'
-      };
-    }).filter(Boolean);
-  };
-
-  // Function to calculate y-axis range for visible data
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
 
@@ -157,11 +19,8 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     const startDate = new Date(startX);
     const endDate = new Date(endX);
 
-    // Process each trace
     data.forEach(trace => {
       if (!trace.x || !trace.y) return;
-
-      // Find visible points in this trace
       for (let i = 0; i < trace.x.length; i++) {
         const pointDate = new Date(trace.x[i]);
         if (pointDate >= startDate && pointDate <= endDate) {
@@ -174,21 +33,76 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
       }
     });
 
-    // If we found valid min/max values
     if (minY !== Infinity && maxY !== -Infinity) {
-      // Add padding, but always start from 0
       const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
       return [0, maxY + padding];
     }
-
     return null;
   };
 
-  const timeSeriesData = getTimeSeriesData() || [];
-  const rateChangeData = getRateChangeData() || [];
-  const defaultRange = getDefaultRange();
+  const timeSeriesData = useMemo(() => {
+    if (!data || !data.ground_truth || selectedDates.length === 0) {
+      return [];
+    }
+    const groundTruthTrace = {
+      x: data.ground_truth.dates,
+      y: data.ground_truth.values,
+      name: 'Observed',
+      type: 'scatter',
+      mode: 'lines+markers',
+      line: { color: '#8884d8', width: 2 },
+      marker: { size: 6 }
+    };
+    const modelTraces = selectedModels.flatMap(model => 
+      selectedDates.flatMap((date) => {
+        const forecasts = data.forecasts[date] || {};
+        const forecast = 
+          forecasts['wk inc flu hosp']?.[model] || 
+          forecasts['wk flu hosp rate change']?.[model];
+        if (!forecast) return [];
+        const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
+        const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
+        sortedPredictions.forEach(([horizon, pred]) => {
+          forecastDates.push(pred.date);
+          if (forecast.type !== 'quantile') return;
+          const { quantiles = [], values = [] } = pred;
+          ci95Lower.push(values[quantiles.indexOf(0.025)] || 0);
+          ci50Lower.push(values[quantiles.indexOf(0.25)] || 0);
+          medianValues.push(values[quantiles.indexOf(0.5)] || 0);
+          ci50Upper.push(values[quantiles.indexOf(0.75)] || 0);
+          ci95Upper.push(values[quantiles.indexOf(0.975)] || 0);
+        });
+        const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        return [
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI` },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI` },
+          { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
+        ];
+      })
+    );
+    return [groundTruthTrace, ...modelTraces];
+  }, [data, selectedDates, selectedModels]);
 
-  // Initialize y-axis range based on default x range
+  const rateChangeData = useMemo(() => {
+    if (!data || !data.forecasts || selectedDates.length === 0) return [];
+    const categoryOrder = RATE_CHANGE_CATEGORIES;
+    const lastSelectedDate = selectedDates.slice().sort().pop();
+    return selectedModels.map(model => {
+      const forecast = data.forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
+      if (!forecast) return null;
+      const horizon0 = forecast.predictions['0'];
+      if (!horizon0) return null;
+      const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+      const orderedData = categoryOrder.map(cat => ({
+        category: cat.replace('_', '<br>'),
+        value: (horizon0.probabilities[horizon0.categories.indexOf(cat)] || 0) * 100
+      }));
+      return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
+    }).filter(Boolean);
+  }, [data, selectedDates, selectedModels]);
+
+  const defaultRange = useMemo(() => getDefaultRange(), [data, selectedDates, getDefaultRange]);
+
   useEffect(() => {
     if (timeSeriesData.length > 0 && defaultRange) {
       const initialYRange = calculateYRange(timeSeriesData, defaultRange);
@@ -199,17 +113,14 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
   }, [timeSeriesData, defaultRange]);
 
   const handlePlotUpdate = (figure) => {
-    // When plot is updated (e.g., zoom), recalculate y-axis range
     if (figure && figure['xaxis.range'] && timeSeriesData.length > 0) {
       const newYRange = calculateYRange(timeSeriesData, figure['xaxis.range']);
       if (newYRange && plotRef.current) {
         setYAxisRange(newYRange);
-        // Also update the plot directly
-        Plotly.relayout(plotRef.current, {'yaxis.range': newYRange});
+        Plotly.relayout(plotRef.current.el, {'yaxis.range': newYRange});
       }
     }
   };
-
 
   const layout = {
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -247,7 +158,6 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     },
     yaxis: {
       title: 'Hospitalizations',
-      // Apply dynamic y-axis range if available
       range: yAxisRange
     },
     shapes: selectedDates.map(date => ({
@@ -295,7 +205,6 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
       click: function(gd) {
         const range = getDefaultRange();
         if (range) {
-          // Reset y-axis range based on default x range
           const newYRange = calculateYRange(timeSeriesData, range);
           Plotly.relayout(gd, {
             'xaxis.range': range,
