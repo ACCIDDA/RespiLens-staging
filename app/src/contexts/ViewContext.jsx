@@ -1,138 +1,127 @@
+// src/contexts/ViewContext.jsx
+
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
+import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config/datasets';
 
 const ViewContext = createContext(null);
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const urlManager = new URLParameterManager(searchParams, setSearchParams);
+
+  // --- All state is now centralized here ---
+  const [viewType, setViewType] = useState(() => urlManager.getView());
+  const [selectedLocation, setSelectedLocation] = useState(() => urlManager.getLocation());
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
-  // Create URL manager instance
-  const urlManager = new URLParameterManager(searchParams, setSearchParams);
-  
-  // 1. The useState initializer is now a pure function that ONLY reads the URL
-  const [viewType, setViewType] = useState(() => urlManager.getView());
 
-  // 2. A NEW useEffect handles the one-time default-setting side-effect
+  // --- Data fetching is now driven directly by the context's state ---
+  const { data, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
+
+  // --- THIS IS THE FINAL, CORRECTED INITIALIZATION LOGIC ---
   useEffect(() => {
-    // This runs once on mount to ensure the URL has the default params
-    urlManager.initializeDefaults();
+    // This effect runs once on mount to set ALL default URL params if they are missing.
+    const currentParams = new URLSearchParams(searchParams);
+    let needsUpdate = false;
+
+    // 1. Ensure 'location' is set (assuming 'US' is the default)
+    if (!currentParams.has('location')) {
+      currentParams.set('location', 'US');
+      needsUpdate = true;
+    }
+
+    // 2. Ensure 'view' is set, defaulting to 'fludetailed'
+    const view = currentParams.get('view') || 'fludetailed';
+    if (!currentParams.has('view')) {
+      currentParams.set('view', view);
+      needsUpdate = true;
+    }
+    
+    // 3. Find the dataset for the initial view (e.g., 'flu')
+    const initialDataset = Object.values(DATASETS).find(d => 
+      d.views.some(v => v.value === view)
+    );
+    
+    // 4. Ensure the default model for that dataset is set in the URL
+    if (initialDataset?.defaultModel && !currentParams.has(`${initialDataset.prefix}_models`)) {
+      currentParams.set(`${initialDataset.prefix}_models`, initialDataset.defaultModel);
+      needsUpdate = true;
+    }
+
+    // 5. Only update the URL if a change was actually made
+    if (needsUpdate) {
+      setSearchParams(currentParams, { replace: true });
+    }
   }, []); // The empty array [] ensures this runs only once on initial load
 
-  // Add new useEffect at the beginning of ViewProvider
+  // This secondary effect syncs the local React state from the URL after initialization
   useEffect(() => {
-    // Get current dataset and its parameters
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (!currentDataset) return;
-
     const params = urlManager.getDatasetParams(currentDataset);
-
-    // Set dates if we have them in URL and none are selected
-    if (params.dates?.length > 0 && selectedDates.length === 0) {
-      setSelectedDates(params.dates);
-      setActiveDate(params.dates[params.dates.length - 1]);
-    }
-
-    // Set models if we have them in URL and none are selected
-    if (params.models?.length > 0 && selectedModels.length === 0) {
+    if (params.models?.length > 0) {
       setSelectedModels(params.models);
     }
-  }, [viewType, searchParams]); // Only run when view type or URL params change
+  }, [searchParams, viewType]);
 
-  // Handle view type changes
+
+  // Effect to set default dates after data loads
+  useEffect(() => {
+    if (!loading && availableDates.length > 0 && selectedDates.length === 0) {
+      const latestDate = availableDates[availableDates.length - 1];
+      if (latestDate) {
+        setSelectedDates([latestDate]);
+        setActiveDate(latestDate);
+      }
+    }
+  }, [loading, availableDates]);
+
+  const handleLocationSelect = (newLocation) => {
+    setSelectedLocation(newLocation);
+    urlManager.updateLocation(newLocation);
+  };
+  
   const handleViewChange = useCallback((newView) => {
     const oldView = viewType;
-    if (oldView === newView) {
-      return; // No change needed
-    }
+    if (oldView === newView) return;
 
     const oldDataset = urlManager.getDatasetFromView(oldView);
     const newDataset = urlManager.getDatasetFromView(newView);
-
-    // Create a new URLSearchParams object from the current URL to modify it
     const newSearchParams = new URLSearchParams(searchParams);
-
-    // Always update the view parameter
     newSearchParams.set('view', newView);
 
-    // Check if we're switching between different datasets (e.g., flu to covid)
     if (oldDataset?.shortName !== newDataset?.shortName) {
-      // 1. Reset the local React state immediately
       setSelectedDates([]);
       setSelectedModels([]);
       setActiveDate(null);
-
-      // 2. Remove the parameters from the OLD dataset
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
       }
-
-      // 3. Set the default model for the NEW dataset
       if (newDataset?.defaultModel) {
         newSearchParams.set(`${newDataset.prefix}_models`, newDataset.defaultModel);
       }
     }
-    
-    // 4. Update the component's viewType state and commit the URL change in one go.
-    // React will batch these state updates together.
     setViewType(newView);
     setSearchParams(newSearchParams);
-
   }, [viewType, searchParams, setSearchParams, urlManager]);
 
-  // Update dataset parameters
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (currentDataset) {
-      urlManager.updateDatasetParams(currentDataset, params);
-    }
+    if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
   }, [viewType, urlManager]);
 
-  // Reset current view to defaults
-  const resetView = useCallback(() => {
-    const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (!currentDataset) return;
-
-    // Clear parameters
-    urlManager.clearDatasetParams(currentDataset);
-
-    // Set defaults based on dataset configuration
-    if (currentDataset.hasDateSelector) {
-      // Set most recent date
-      const latestDate = window.availableDates?.[window.availableDates.length - 1];
-      if (latestDate) {
-        setSelectedDates([latestDate]);
-        setActiveDate(latestDate);
-        updateDatasetParams({ dates: [latestDate] });
-      }
-    }
-
-    if (currentDataset.hasModelSelector && currentDataset.defaultModel) {
-      setSelectedModels([currentDataset.defaultModel]);
-      updateDatasetParams({ models: [currentDataset.defaultModel] });
-    }
-  }, [viewType, urlManager, updateDatasetParams]);
-
   const contextValue = {
-    selectedModels,
-    setSelectedModels: (models) => {
-      setSelectedModels(models);
-      updateDatasetParams({ models });
-    },
-    selectedDates,
-    setSelectedDates: (dates) => {
-      setSelectedDates(dates);
-      updateDatasetParams({ dates });
-    },
-    activeDate,
-    setActiveDate,
-    viewType,
-    setViewType: handleViewChange,  // Ensure this is present
-    resetView,
+    selectedLocation, handleLocationSelect,
+    data, loading, error, availableDates, models,
+    selectedModels, setSelectedModels: (models) => { setSelectedModels(models); updateDatasetParams({ models }); },
+    selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
+    activeDate, setActiveDate,
+    viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType)
   };
 
@@ -145,8 +134,6 @@ export const ViewProvider = ({ children }) => {
 
 export const useView = () => {
   const context = useContext(ViewContext);
-  if (!context) {
-    throw new Error('useView must be used within a ViewProvider');
-  }
+  if (!context) throw new Error('useView must be used within a ViewProvider');
   return context;
 };
