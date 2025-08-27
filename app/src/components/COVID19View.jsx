@@ -222,7 +222,7 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
           style={{ width: '100%', height: '100%' }}
           data={[
             ...timeSeriesData,
-            ...rateChangeData // <-- REMOVE THE CONDITIONAL LOGIC HERE
+            ...rateChangeData 
           ]}
           layout={layout}
           config={config}
