@@ -124,7 +124,7 @@ const DataVisualization = ({
         />
       );
 
-    case 'coviddetailed':
+    case 'covidtimeseries':
       return(
         <COVID19View
           data={data}
