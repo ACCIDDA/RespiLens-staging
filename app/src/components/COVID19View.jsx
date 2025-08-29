@@ -1,11 +1,9 @@
-// src/components/COVID19View.jsx
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
-import { CHART_CONSTANTS } from '../constants/chart';
+import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
 const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -55,7 +53,9 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     const modelTraces = selectedModels.flatMap(model => 
       selectedDates.flatMap((date) => {
         const forecasts = data.forecasts[date] || {};
-        const forecast = forecasts['wk inc covid hosp']?.[model]; // Simplified to only look for time series data
+        const forecast = 
+          forecasts['wk inc covid hosp']?.[model] || 
+          forecasts['wk covid hosp rate change']?.[model];
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
         const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
@@ -80,6 +80,24 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     return [groundTruthTrace, ...modelTraces];
   }, [data, selectedDates, selectedModels]);
 
+  const rateChangeData = useMemo(() => {
+    if (!data || !data.forecasts || selectedDates.length === 0) return [];
+    const categoryOrder = RATE_CHANGE_CATEGORIES;
+    const lastSelectedDate = selectedDates.slice().sort().pop();
+    return selectedModels.map(model => {
+      const forecast = data.forecasts[lastSelectedDate]?.['wk covid hosp rate change']?.[model];
+      if (!forecast) return null;
+      const horizon0 = forecast.predictions['0'];
+      if (!horizon0) return null;
+      const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+      const orderedData = categoryOrder.map(cat => ({
+        category: cat.replace('_', '<br>'),
+        value: (horizon0.probabilities[horizon0.categories.indexOf(cat)] || 0) * 100
+      }));
+      return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
+    }).filter(Boolean);
+  }, [data, selectedDates, selectedModels]);
+
   const defaultRange = useMemo(() => getDefaultRange(), [data, selectedDates, getDefaultRange]);
 
   useEffect(() => {
@@ -101,7 +119,6 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     }
   };
 
-  // Simplified layout for a single, full-width time series chart
   const layout = {
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
@@ -112,11 +129,18 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
+    grid: viewType === 'coviddetailed' ? {
+      columns: 1,
+      rows: 1,
+      pattern: 'independent',
+      subplots: [['xy'], ['x2y2']],
+      xgap: 0.15
+    } : undefined,
     showlegend: false,
     hovermode: 'x unified',
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
-      domain: [0, 1], // Full width
+      domain: viewType === 'coviddetailed' ? [0, 0.8] : [0, 1],
       rangeslider: {
         range: getDefaultRange(true)
       },
@@ -145,7 +169,21 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
         width: 1,
         dash: 'dash'
       }
-    }))
+    })),
+    ...(viewType === 'coviddetailed' ? {
+      xaxis2: {
+        domain: [0.85, 1],
+        showgrid: false
+      },
+      yaxis2: {
+        title: '',
+        showticklabels: true,
+        type: 'category',
+        side: 'right',
+        automargin: true,
+        tickfont: { align: 'right' }
+      }
+    } : {})
   };
 
   const config = {
@@ -182,7 +220,10 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={timeSeriesData} 
+          data={[
+            ...timeSeriesData,
+            ...rateChangeData 
+          ]}
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}
