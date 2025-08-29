@@ -20,7 +20,7 @@ export const useForecastData = (location, viewType) => {
         const datasetMap = {
           'fludetailed': 'flusight',
           'flutimeseries': 'flusight', 
-          'coviddetailed': 'covid19',
+          'covidtimeseries': 'covid19',
           'rsvdetailed': 'rsv',
           'nhsnall': 'nhsn'
         };

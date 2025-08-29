@@ -30,9 +30,9 @@ export const DATASETS = {
     shortName: 'covid',
     fullName: 'COVID-19 Forecast Hub',
     views: [
-      { key: 'detailed', label: 'Detailed View', value: 'coviddetailed' }
+      { key: 'timeseries', label: 'Time Series', value: 'covidtimeseries' }
     ],
-    defaultView: 'coviddetailed',
+    defaultView: 'covidtimeseries',
     defaultModel: 'COVIDHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
