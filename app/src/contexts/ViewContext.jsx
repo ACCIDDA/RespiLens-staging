@@ -70,16 +70,9 @@ export const ViewProvider = ({ children }) => {
       if (latestDate) {
         setSelectedDates([latestDate]);
         setActiveDate(latestDate);
-
-        const currentDataset = urlManager.getDatasetFromView(viewType);
-        if (currentDataset?.hasDateSelector) {
-          const newParams = new URLSearchParams(searchParams);
-          newParams.set(`${currentDataset.prefix}_dates`, latestDate);
-          setSearchParams(newParams, { replace: true });
-        }
       }
     }
-  }, [loading, availableDates, selectedDates.length, viewType]); // Updated dependencies
+  }, [loading, availableDates]);
 
   const handleLocationSelect = (newLocation) => {
     setSelectedLocation(newLocation);
