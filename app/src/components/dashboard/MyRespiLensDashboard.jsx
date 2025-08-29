@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react'; 
+import { useSearchParams } from 'react-router-dom'; 
 import {
   Container,
   Title,
@@ -16,6 +17,11 @@ import {
 } from '@tabler/icons-react';
 
 const MyRespiLensDashboard = () => {
+  const [, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    setSearchParams({}, { replace: true });
+  }, []);
+
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
 
