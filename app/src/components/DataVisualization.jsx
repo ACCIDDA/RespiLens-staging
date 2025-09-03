@@ -25,6 +25,8 @@ const DataVisualization = ({
   setSelectedDates,
   setActiveDate,
   setSelectedModels,
+  selectedColumns,
+  setSelectedColumns,
   activeDate,
   windowSize,
   searchParams
@@ -142,6 +144,8 @@ const DataVisualization = ({
       return (
         <NHSNRawView 
           location={location}
+          selectedColumns={selectedColumns}
+          setSelectedColumns={setSelectedColumns}
         />
       );
 

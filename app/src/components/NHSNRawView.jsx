@@ -2,21 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Stack, Alert, Text, Center, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
-import { useSearchParams } from 'react-router-dom';
-import { useView } from '../contexts/ViewContext';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
 
-const NHSNRawView = ({ location }) => {
+const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentDataset } = useView();
   const { colorScheme } = useMantineColorScheme();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedColumns, setSelectedColumns] = useState(() => {
-    return searchParams.get('nhsn_columns')?.split(',') || ['totalconfflunewadm'];
-  });
   const [availableColumns, setAvailableColumns] = useState({
     official: [],
     preliminary: []
@@ -39,14 +32,12 @@ const NHSNRawView = ({ location }) => {
         const text = await response.text();
         const jsonData = JSON.parse(text);
 
-        // Validate the data structure
         if (!jsonData.data || !jsonData.data.official) {
           throw new Error('Invalid data format');
         }
 
         setData(jsonData);
 
-        // Get available columns (only those with data)
         const officialCols = Object.keys(jsonData.data.official).sort();
         const prelimCols = Object.keys(jsonData.data.preliminary || {}).sort();
 
@@ -54,19 +45,6 @@ const NHSNRawView = ({ location }) => {
           official: officialCols,
           preliminary: prelimCols
         });
-
-        // Get columns from URL if any, otherwise select only totalconfflunewadm
-        const urlColumns = searchParams.get('nhsn_columns')?.split(',').filter(Boolean);
-        if (urlColumns?.length > 0) {
-          const validColumns = urlColumns.filter(col =>
-            officialCols.includes(col) || prelimCols.includes(col)
-          );
-          setSelectedColumns(validColumns);
-        } else {
-          // By default, select only totalconfflunewadm
-          const defaultColumn = officialCols.find(col => col === 'totalconfflunewadm') || officialCols[0];
-          setSelectedColumns([defaultColumn]);
-        }
 
       } catch (err) {
         setError(err.message);
@@ -80,18 +58,6 @@ const NHSNRawView = ({ location }) => {
     }
   }, [location]);
 
-  // Update URL when columns change
-  useEffect(() => {
-    const newParams = new URLSearchParams(searchParams);
-    if (selectedColumns.length > 0) {
-      newParams.set('nhsn_columns', selectedColumns.join(','));
-    } else {
-      newParams.delete('nhsn_columns');
-    }
-    setSearchParams(newParams, { replace: true });
-  }, [selectedColumns]);
-
-  // Simple function to calculate y-range for NHSN data
   const calculateNHSNYRange = () => {
     if (!data || selectedColumns.length === 0) return null;
     
@@ -121,8 +87,7 @@ const NHSNRawView = ({ location }) => {
   if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
   if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
-  const traces = selectedColumns.map((column, index) => {
-    // Add this line to determine the data type
+  const traces = selectedColumns.map((column) => {
     const isPrelimininary = column.includes('_prelim');
     const dataType = isPrelimininary ? 'preliminary' : 'official';
     const columnIndex = [...availableColumns.official, ...availableColumns.preliminary].indexOf(column);
@@ -154,7 +119,6 @@ const NHSNRawView = ({ location }) => {
       rangeslider: {
         visible: true
       },
-      // Set default range to show all dates
       range: [
         data.ground_truth.dates[0],
         data.ground_truth.dates[data.ground_truth.dates.length - 1]
@@ -165,8 +129,8 @@ const NHSNRawView = ({ location }) => {
       range: calculateNHSNYRange()
     },
     height: 600,
-    showlegend: false,  // Hide legend
-    margin: { t: 40, r: 10, l: 60, b: 120 }  // Adjust margins to fit everything
+    showlegend: false,
+    margin: { t: 40, r: 10, l: 60, b: 120 }
   };
 
   return (
