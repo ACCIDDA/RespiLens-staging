@@ -4,6 +4,7 @@ import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
 import Plot from 'react-plotly.js';
 import FluView from './FluView';
 import RSVDefaultView from './RSVDefaultView';
+import COVID19View from './COVID19View'
 import NHSNRawView from './NHSNRawView';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 import { MODEL_COLORS, getModelColor } from '../config/datasets';
@@ -120,6 +121,20 @@ const DataVisualization = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           searchParams={searchParams}
+        />
+      );
+
+    case 'covidtimeseries':
+      return(
+        <COVID19View
+          data={data}
+          selectedDates={selectedDates}
+          selectedModels={selectedModels}
+          models={models}
+          setSelectedModels={setSelectedModels}
+          viewType={viewType}
+          windowSize={windowSize}
+          getDefaultRange={getDefaultRange}
         />
       );
 

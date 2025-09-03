@@ -1,24 +1,24 @@
+// src/components/COVID19View.jsx
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
-import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
+import { CHART_CONSTANTS } from '../constants/chart';
 
-const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
+const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
 
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
-
     let minY = Infinity;
     let maxY = -Infinity;
     const [startX, endX] = xRange;
     const startDate = new Date(startX);
     const endDate = new Date(endX);
-
     data.forEach(trace => {
       if (!trace.x || !trace.y) return;
       for (let i = 0; i < trace.x.length; i++) {
@@ -32,7 +32,6 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
         }
       }
     });
-
     if (minY !== Infinity && maxY !== -Infinity) {
       const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
       return [0, maxY + padding];
@@ -56,9 +55,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     const modelTraces = selectedModels.flatMap(model => 
       selectedDates.flatMap((date) => {
         const forecasts = data.forecasts[date] || {};
-        const forecast = 
-          forecasts['wk inc flu hosp']?.[model] || 
-          forecasts['wk flu hosp rate change']?.[model];
+        const forecast = forecasts['wk inc covid hosp']?.[model]; // Simplified to only look for time series data
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
         const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
@@ -83,24 +80,6 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     return [groundTruthTrace, ...modelTraces];
   }, [data, selectedDates, selectedModels]);
 
-  const rateChangeData = useMemo(() => {
-    if (!data || !data.forecasts || selectedDates.length === 0) return [];
-    const categoryOrder = RATE_CHANGE_CATEGORIES;
-    const lastSelectedDate = selectedDates.slice().sort().pop();
-    return selectedModels.map(model => {
-      const forecast = data.forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
-      if (!forecast) return null;
-      const horizon0 = forecast.predictions['0'];
-      if (!horizon0) return null;
-      const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-      const orderedData = categoryOrder.map(cat => ({
-        category: cat.replace('_', '<br>'),
-        value: (horizon0.probabilities[horizon0.categories.indexOf(cat)] || 0) * 100
-      }));
-      return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
-    }).filter(Boolean);
-  }, [data, selectedDates, selectedModels]);
-
   const defaultRange = useMemo(() => getDefaultRange(), [data, selectedDates, getDefaultRange]);
 
   useEffect(() => {
@@ -122,6 +101,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     }
   };
 
+  // Simplified layout for a single, full-width time series chart
   const layout = {
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
@@ -132,18 +112,11 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    grid: viewType === 'fludetailed' ? {
-      columns: 1,
-      rows: 1,
-      pattern: 'independent',
-      subplots: [['xy'], ['x2y2']],
-      xgap: 0.15
-    } : undefined,
     showlegend: false,
     hovermode: 'x unified',
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
-      domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
+      domain: [0, 1], // Full width
       rangeslider: {
         range: getDefaultRange(true)
       },
@@ -172,21 +145,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
         width: 1,
         dash: 'dash'
       }
-    })),
-    ...(viewType === 'fludetailed' ? {
-      xaxis2: {
-        domain: [0.85, 1],
-        showgrid: false
-      },
-      yaxis2: {
-        title: '',
-        showticklabels: true,
-        type: 'category',
-        side: 'right',
-        automargin: true,
-        tickfont: { align: 'right' }
-      }
-    } : {})
+    }))
   };
 
   const config = {
@@ -223,17 +182,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={[
-            ...timeSeriesData,
-            ...(viewType === 'fludetailed' 
-              ? rateChangeData.map(trace => ({
-                  ...trace,
-                  orientation: 'h',
-                  xaxis: 'x2',
-                  yaxis: 'y2'
-                }))
-              : [])
-          ]}
+          data={timeSeriesData} 
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}
@@ -252,4 +201,4 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
   );
 };
 
-export default FluView;
+export default COVID19View;
