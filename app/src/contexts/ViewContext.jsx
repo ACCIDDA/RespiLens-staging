@@ -71,6 +71,8 @@ export const ViewProvider = ({ children }) => {
         const defaultCols = ['totalconfflunewadm'];
         setSelectedColumns(defaultCols);
         // No need to update URL here, NHSNRawView's effect will do it on first load if needed
+
+        updateDatasetParams({ columns: defaultCols });
       }
     }
   }, [searchParams, viewType]);
