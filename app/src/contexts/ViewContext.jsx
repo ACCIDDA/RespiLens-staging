@@ -1,7 +1,7 @@
 // src/contexts/ViewContext.jsx
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom'; // 1. Import useLocation
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config/datasets';
@@ -10,7 +10,7 @@ const ViewContext = createContext(null);
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation(); // 2. Get the current location object
+  const location = useLocation();
   const urlManager = new URLParameterManager(searchParams, setSearchParams);
 
   // --- State remains centralized ---
@@ -19,13 +19,13 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
+  const [selectedColumns, setSelectedColumns] = useState([]); // Add state for NHSN columns
 
   // --- Data fetching remains centralized ---
   const { data, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
 
   // This effect now ONLY runs its logic when we are on the forecast page ('/')
   useEffect(() => {
-    // 3. Add condition to only manage the URL on the main forecast page
     if (location.pathname === '/') {
       const currentParams = new URLSearchParams(searchParams);
       let needsUpdate = false;
@@ -50,16 +50,31 @@ export const ViewProvider = ({ children }) => {
         setSearchParams(currentParams, { replace: true });
       }
     }
-  }, [location.pathname]); // 4. Run this effect whenever the pathname changes
+  }, [location.pathname]);
 
-  // (The rest of the file is the same as the one you provided in the last turn)
-  
+  // Effect to initialize models and columns from URL
   useEffect(() => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (!currentDataset) return;
+
     const params = urlManager.getDatasetParams(currentDataset);
     if (params.models?.length > 0) {
       setSelectedModels(params.models);
+    }
+    
+    // Initialize columns for NHSN view
+    if (currentDataset.shortName === 'nhsn') {
+      if (params.columns?.length > 0) {
+        setSelectedColumns(params.columns);
+      } else {
+        if (currentDataset.defaultColumn) {
+          // Set a default if nothing is in the URL
+          const defaultCols = [currentDataset.defaultColumn];
+          setSelectedColumns(defaultCols);
+          updateDatasetParams({ columns: defaultCols });
+        }
+
+      }
     }
   }, [searchParams, viewType]);
 
@@ -91,10 +106,15 @@ export const ViewProvider = ({ children }) => {
     if (oldDataset?.shortName !== newDataset?.shortName) {
       setSelectedDates([]);
       setSelectedModels([]);
+      setSelectedColumns([]); // Reset columns state
       setActiveDate(null);
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
+        // **THE FIX**: Explicitly delete NHSN columns when leaving the NHSN view
+        if (oldDataset.shortName === 'nhsn') {
+          newSearchParams.delete('nhsn_columns');
+        }
       }
       if (newDataset?.defaultModel) {
         newSearchParams.set(`${newDataset.prefix}_models`, newDataset.defaultModel);
@@ -114,6 +134,8 @@ export const ViewProvider = ({ children }) => {
     data, loading, error, availableDates, models,
     selectedModels, setSelectedModels: (models) => { setSelectedModels(models); updateDatasetParams({ models }); },
     selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
+    // Expose column state and its updater function
+    selectedColumns, setSelectedColumns: (columns) => { setSelectedColumns(columns); updateDatasetParams({ columns }); },
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType)

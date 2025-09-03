@@ -46,6 +46,7 @@ export const DATASETS = {
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
     defaultView: 'nhsnall',
+    defaultColumn: 'totalconfflunewadm',
     hasDateSelector: false,
     hasModelSelector: false,
     prefix: 'nhsn',

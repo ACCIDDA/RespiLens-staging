@@ -16,7 +16,9 @@ const ForecastViz = () => {
     selectedDates, setSelectedDates,
     activeDate, setActiveDate,
     viewType,
-    currentDataset
+    currentDataset,
+    selectedColumns,
+    setSelectedColumns,
   } = useView();
   
   const [windowSize, setWindowSize] = useState({
@@ -60,6 +62,8 @@ const ForecastViz = () => {
                 setSelectedDates={setSelectedDates}
                 setActiveDate={setActiveDate}
                 setSelectedModels={setSelectedModels}
+                selectedColumns={selectedColumns}
+                setSelectedColumns={setSelectedColumns}
                 windowSize={windowSize}
               />
             </div>
