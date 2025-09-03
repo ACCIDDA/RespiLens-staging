@@ -67,12 +67,13 @@ export const ViewProvider = ({ children }) => {
       if (params.columns?.length > 0) {
         setSelectedColumns(params.columns);
       } else {
-        // Set a default if nothing is in the URL
-        const defaultCols = ['totalconfflunewadm'];
-        setSelectedColumns(defaultCols);
-        // No need to update URL here, NHSNRawView's effect will do it on first load if needed
+        if (currentDataset.defaultColumn) {
+          // Set a default if nothing is in the URL
+          const defaultCols = [currentDataset.defaultColumn];
+          setSelectedColumns(defaultCols);
+          updateDatasetParams({ columns: defaultCols });
+        }
 
-        updateDatasetParams({ columns: defaultCols });
       }
     }
   }, [searchParams, viewType]);
