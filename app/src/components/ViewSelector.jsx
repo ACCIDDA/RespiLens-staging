@@ -50,15 +50,16 @@ const ViewSelector = () => {
         value={viewType}
         onChange={setViewType}
         placeholder="Select a view"
-        searchable
+        searchable={false}
         clearable={false}
         size="sm"
+        allowDeselect={false}
         comboboxProps={{
           withinPortal: true,
         }}
         styles={{
           dropdown: {
-            maxHeight: '300px',
+            maxHeight: '215px',
             overflowY: 'auto',
           }
         }}
