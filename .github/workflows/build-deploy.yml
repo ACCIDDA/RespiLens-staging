@@ -107,7 +107,7 @@ jobs:
       
     - name: Clone COVID-19 forecast hub
       run: |
-        git clone https://github.com/cdcepi/covid19-forecast-hub.git
+        git clone https://github.com/CDCgov/covid19-forecast-hub.git
         echo "COVID-19 hub cloned, checking contents:"
         ls -la covid19-forecast-hub/
         
