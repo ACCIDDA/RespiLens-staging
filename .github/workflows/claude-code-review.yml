@@ -27,6 +27,8 @@ jobs:
       id-token: write
     
     steps:
+      - name: Wait for PR Head to Update # So that the branch has time to fully update on push
+        run: sleep 15
       - name: Checkout PR Branch
         uses: actions/checkout@v4
         with:
