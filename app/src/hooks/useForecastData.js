@@ -19,9 +19,9 @@ export const useForecastData = (location, viewType) => {
         // Determine the data path based on view type
         const datasetMap = {
           'fludetailed': 'flusight',
-          'flutimeseries': 'flusight', 
-          'covidtimeseries': 'covid19',
-          'rsvdetailed': 'rsv',
+          'flu_ts': 'flusight', 
+          'covid_ts': 'covid19',
+          'rsv_ts': 'rsv',
           'nhsnall': 'nhsn'
         };
 
