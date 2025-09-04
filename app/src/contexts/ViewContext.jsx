@@ -50,8 +50,6 @@ export const ViewProvider = ({ children }) => {
       } else if (currentDataset.defaultColumn) {
         const defaultCols = [currentDataset.defaultColumn];
         setSelectedColumns(defaultCols);
-        // We still update the URL here because NHSN has no default view state
-        updateDatasetParams({ columns: defaultCols });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +123,28 @@ export const ViewProvider = ({ children }) => {
       setSelectedModels(models);
     },
     selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
-    selectedColumns, setSelectedColumns: (columns) => { setSelectedColumns(columns); updateDatasetParams({ columns }); },
+    selectedColumns, setSelectedColumns: (columns) => { 
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      
+      if (currentDataset?.shortName === 'nhsn') {
+        const defaultColumn = currentDataset.defaultColumn;
+        // Check if the current selection is the default
+        const isDefault = columns.length === 1 && columns[0] === defaultColumn;
+        
+        if (isDefault) {
+          // If returning to default, REMOVE the parameter from the URL
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('nhsn_columns');
+          setSearchParams(newParams, { replace: true });
+        } else {
+          // If it's not the default, UPDATE the URL
+          updateDatasetParams({ columns });
+        }
+      }
+      // Always update the state itself
+      setSelectedColumns(columns);
+    },
+
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType)
