@@ -33,7 +33,7 @@ jobs:
       uses: actions/cache@v4
       id: cache-flusight
       with:
-        path: app/public/processed_data/
+        path: app/public/processed_data/flusight/
         key: flusight-${{ steps.date.outputs.date }}
         restore-keys: |
           flusight-
