@@ -53,7 +53,7 @@ jobs:
         mkdir -p app/public/processed_data
         python scripts/process_flusight_data.py --hub-path ./FluSight-forecast-hub --output-path ./app/public/processed_data
         echo "Checking processed FluSight files:"
-        ls -la app/public/processed_data/
+        ls -la app/public/processed_data/flusight/
         
   process-rsv:
     if: github.event.schedule == '0 12 * * 4' || github.event_name == 'workflow_dispatch'
