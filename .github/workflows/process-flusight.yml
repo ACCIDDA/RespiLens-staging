@@ -47,7 +47,7 @@ jobs:
       uses: actions/cache@v4
       id: cache-processed-flusight
       with:
-        path: app/public/processed_data/
+        path: app/public/processed_data/flusight
         key: processed-flusight-${{ hashFiles('FluSight-forecast-hub/**/*.csv', 'FluSight-forecast-hub/**/*.parquet') }}
         
     - name: Process FluSight data
@@ -62,6 +62,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: processed-flusight-data
-        path: app/public/processed_data/
+        path: app/public/processed_data/flusight
         if-no-files-found: error
         retention-days: 7

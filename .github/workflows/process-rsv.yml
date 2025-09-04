@@ -2,7 +2,7 @@ name: Process RSV Data
 
 on:
   schedule:
-    - cron: '15 12 * * 4'  # Thursdays 8:15 AM ET (12:15 PM UTC)
+    - cron: '0 12 * * 4'  # Thursdays 8 AM ET (12 PM UTC)
   workflow_dispatch:
 
 permissions:
