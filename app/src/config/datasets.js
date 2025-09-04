@@ -19,7 +19,7 @@ export const DATASETS = {
     views: [
       { key: 'detailed', label: 'Time Series', value: 'rsv_ts' }
     ],
-    defaultView: 'rsvdetailed',
+    defaultView: 'rsv_ts',
     defaultModel: 'hub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -32,7 +32,7 @@ export const DATASETS = {
     views: [
       { key: 'timeseries', label: 'Time Series', value: 'covid_ts' }
     ],
-    defaultView: 'covidtimeseries',
+    defaultView: 'covid_ts',
     defaultModel: 'COVIDHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
