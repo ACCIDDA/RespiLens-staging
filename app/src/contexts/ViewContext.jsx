@@ -55,15 +55,27 @@ export const ViewProvider = ({ children }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, viewType]);
 
+  // useEffect to initialize dates:
   useEffect(() => {
     if (!loading && availableDates.length > 0 && selectedDates.length === 0) {
-      const latestDate = availableDates[availableDates.length - 1];
-      if (latestDate) {
-        setSelectedDates([latestDate]);
-        setActiveDate(latestDate);
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      if (!currentDataset) return;
+      const urlDates = searchParams.get(`${currentDataset.prefix}_dates`)?.split(',') || [];
+      const validUrlDates = urlDates.filter(date => availableDates.includes(date));
+      if (validUrlDates.length > 0) {
+        validUrlDates.sort();
+        setSelectedDates(validUrlDates);
+        setActiveDate(validUrlDates[validUrlDates.length - 1]);
+      } else {
+        const latestDate = availableDates[availableDates.length - 1];
+        if (latestDate) {
+          setSelectedDates([latestDate]);
+          setActiveDate(latestDate);
+        }
       }
     }
-  }, [loading, availableDates]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, availableDates, searchParams, viewType]); 
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
