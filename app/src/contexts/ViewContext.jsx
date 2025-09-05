@@ -19,65 +19,41 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
-  const [selectedColumns, setSelectedColumns] = useState([]); // Add state for NHSN columns
+  const [selectedColumns, setSelectedColumns] = useState([]);
 
   // --- Data fetching remains centralized ---
   const { data, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
+  
+  const updateDatasetParams = useCallback((params) => {
+    const currentDataset = urlManager.getDatasetFromView(viewType);
+    if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
+  }, [viewType, urlManager]);
 
-  // This effect now ONLY runs its logic when we are on the forecast page ('/')
-  useEffect(() => {
-    if (location.pathname === '/') {
-      const currentParams = new URLSearchParams(searchParams);
-      let needsUpdate = false;
-
-      if (!currentParams.has('location')) {
-        currentParams.set('location', 'US');
-        needsUpdate = true;
-      }
-      const view = currentParams.get('view') || 'fludetailed';
-      if (!currentParams.has('view')) {
-        currentParams.set('view', view);
-        needsUpdate = true;
-      }
-      const initialDataset = Object.values(DATASETS).find(d => 
-        d.views.some(v => v.value === view)
-      );
-      if (initialDataset?.defaultModel && !currentParams.has(`${initialDataset.prefix}_models`)) {
-        currentParams.set(`${initialDataset.prefix}_models`, initialDataset.defaultModel);
-        needsUpdate = true;
-      }
-      if (needsUpdate) {
-        setSearchParams(currentParams, { replace: true });
-      }
-    }
-  }, [location.pathname]);
-
-  // Effect to initialize models and columns from URL
+  // Effect to initialize models and columns from URL, with defaults for a clean URL
   useEffect(() => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (!currentDataset) return;
 
     const params = urlManager.getDatasetParams(currentDataset);
+    
+    // Set models: use URL params if they exist, otherwise use the dataset's default model
     if (params.models?.length > 0) {
       setSelectedModels(params.models);
+    } else if (currentDataset.defaultModel) {
+      setSelectedModels([currentDataset.defaultModel]);
     }
-    
-    // Initialize columns for NHSN view
+
+    // Set columns for NHSN view
     if (currentDataset.shortName === 'nhsn') {
       if (params.columns?.length > 0) {
         setSelectedColumns(params.columns);
-      } else {
-        if (currentDataset.defaultColumn) {
-          // Set a default if nothing is in the URL
-          const defaultCols = [currentDataset.defaultColumn];
-          setSelectedColumns(defaultCols);
-          updateDatasetParams({ columns: defaultCols });
-        }
-
+      } else if (currentDataset.defaultColumn) {
+        const defaultCols = [currentDataset.defaultColumn];
+        setSelectedColumns(defaultCols);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, viewType]);
-
 
   useEffect(() => {
     if (!loading && availableDates.length > 0 && selectedDates.length === 0) {
@@ -90,8 +66,16 @@ export const ViewProvider = ({ children }) => {
   }, [loading, availableDates]);
 
   const handleLocationSelect = (newLocation) => {
+    // Only update URL if the location is not the default
+    if (newLocation !== 'US') {
+      urlManager.updateLocation(newLocation);
+    } else {
+      // If returning to default, remove it from URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('location');
+      setSearchParams(newParams, { replace: true });
+    }
     setSelectedLocation(newLocation);
-    urlManager.updateLocation(newLocation);
   };
   
   const handleViewChange = useCallback((newView) => {
@@ -101,41 +85,66 @@ export const ViewProvider = ({ children }) => {
     const oldDataset = urlManager.getDatasetFromView(oldView);
     const newDataset = urlManager.getDatasetFromView(newView);
     const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set('view', newView);
+
+    // Set the view in the URL, unless it's the default view with no other params
+    if (newView !== 'fludetailed' || newSearchParams.toString().length > 0) {
+      newSearchParams.set('view', newView);
+    } else {
+      newSearchParams.delete('view');
+    }
 
     if (oldDataset?.shortName !== newDataset?.shortName) {
       setSelectedDates([]);
       setSelectedModels([]);
-      setSelectedColumns([]); // Reset columns state
+      setSelectedColumns([]);
       setActiveDate(null);
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
-        // **THE FIX**: Explicitly delete NHSN columns when leaving the NHSN view
         if (oldDataset.shortName === 'nhsn') {
           newSearchParams.delete('nhsn_columns');
         }
       }
-      if (newDataset?.defaultModel) {
-        newSearchParams.set(`${newDataset.prefix}_models`, newDataset.defaultModel);
-      }
+      // Do not set default model in URL on view change
     }
     setViewType(newView);
-    setSearchParams(newSearchParams);
+    setSearchParams(newSearchParams, { replace: true });
   }, [viewType, searchParams, setSearchParams, urlManager]);
-
-  const updateDatasetParams = useCallback((params) => {
-    const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
-  }, [viewType, urlManager]);
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, loading, error, availableDates, models,
-    selectedModels, setSelectedModels: (models) => { setSelectedModels(models); updateDatasetParams({ models }); },
+    selectedModels, setSelectedModels: (models) => { 
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      // Only update URL if models are not the default
+      if (JSON.stringify(models) !== JSON.stringify([currentDataset?.defaultModel])) {
+        updateDatasetParams({ models }); 
+      }
+      setSelectedModels(models);
+    },
     selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
-    // Expose column state and its updater function
-    selectedColumns, setSelectedColumns: (columns) => { setSelectedColumns(columns); updateDatasetParams({ columns }); },
+    selectedColumns, setSelectedColumns: (columns) => { 
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      
+      if (currentDataset?.shortName === 'nhsn') {
+        const defaultColumn = currentDataset.defaultColumn;
+        // Check if the current selection is the default
+        const isDefault = columns.length === 1 && columns[0] === defaultColumn;
+        
+        if (isDefault) {
+          // If returning to default, REMOVE the parameter from the URL
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('nhsn_columns');
+          setSearchParams(newParams, { replace: true });
+        } else {
+          // If it's not the default, UPDATE the URL
+          updateDatasetParams({ columns });
+        }
+      }
+      // Always update the state itself
+      setSelectedColumns(columns);
+    },
+
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType)

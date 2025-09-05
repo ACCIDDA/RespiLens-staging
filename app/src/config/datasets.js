@@ -4,7 +4,7 @@ export const DATASETS = {
     fullName: 'FluSight',
     views: [
       { key: 'detailed', label: 'Detailed View', value: 'fludetailed' },
-      { key: 'timeseries', label: 'Time Series', value: 'flutimeseries' }
+      { key: 'timeseries', label: 'Time Series', value: 'flu_ts' }
     ],
     defaultView: 'fludetailed',
     defaultModel: 'FluSight-ensemble',
@@ -17,9 +17,9 @@ export const DATASETS = {
     shortName: 'rsv',
     fullName: 'RSV Forecast Hub',
     views: [
-      { key: 'detailed', label: 'Detailed View', value: 'rsvdetailed' }
+      { key: 'detailed', label: 'Time Series', value: 'rsv_ts' }
     ],
-    defaultView: 'rsvdetailed',
+    defaultView: 'rsv_ts',
     defaultModel: 'hub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -30,9 +30,9 @@ export const DATASETS = {
     shortName: 'covid',
     fullName: 'COVID-19 Forecast Hub',
     views: [
-      { key: 'timeseries', label: 'Time Series', value: 'covidtimeseries' }
+      { key: 'timeseries', label: 'Time Series', value: 'covid_ts' }
     ],
-    defaultView: 'covidtimeseries',
+    defaultView: 'covid_ts',
     defaultModel: 'COVIDHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
