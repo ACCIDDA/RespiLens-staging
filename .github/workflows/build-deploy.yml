@@ -160,7 +160,7 @@ jobs:
     - name: Process NHSN data
       run: |
         mkdir -p app/public/processed_data/nhsn
-        python scripts/process_nhsn_data.py --output-path ./app/public/processed_data --locations-path ./data/locations.csv
+        python scripts/process_cdc_data.py --output-path ./app/public/processed_data --locations-path ./data/locations.csv --replace-column-names
         echo "Checking processed NHSN files:"
         ls -la app/public/processed_data/nhsn/
         
