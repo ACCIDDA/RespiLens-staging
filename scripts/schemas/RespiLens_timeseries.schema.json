@@ -1,0 +1,67 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "RespiLens Projections Data",
+    "type": "object",
+    "properties": {
+
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "description": "FIPS code of location, encased in quotes",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "abbreviation": {
+                    "description": "Two-letter abbreviation of location",
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$",
+                    "minLength": 1
+                },
+                "location_name": {
+                    "description": "Full name of location",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "population": {
+                    "description": "Population of location, encased in quotes",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "dataset": {
+                    "description": "Dataset the data is pulled from",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "series_type": {
+                    "description": "Type of data; projection or timeseries.",
+                    "type": "string",
+                    "enum": ["projection", "timeseries"],
+                    "minLength": 1
+                }
+            },
+            "required": ["location", "abbreviation", "location_name", "population", "dataset", "series_type"]
+        },
+
+        "series": {
+            "type": "object",
+            "properties": {
+                "dates": {
+                    "description": "All dates covered in data.",
+                    "type": "array",
+                    "items": {"type": "string", "format": "date"}
+                },
+                "columns": {
+                    "description": "Columns to plot.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    }
+                },
+                "required": ["dates", "columns"]
+            }
+        }
+    },
+    "required": ["metadata", "series"]
+}

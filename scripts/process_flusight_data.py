@@ -274,7 +274,9 @@ class FluSightPreprocessor:
                 'location': str(location_info['location']),
                 'abbreviation': str(location_info['abbreviation']),
                 'location_name': str(location_info['location_name']),
-                'population': float(location_info['population'])
+                'population': float(location_info['population']),
+                'dataset': 'flu',
+                'series_type': 'projection'
             }
 
             # Before the payload creation, get location-specific models

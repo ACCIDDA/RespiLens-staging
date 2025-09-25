@@ -1,0 +1,125 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "RespiLens Projections Data",
+    "type": "object",
+    "properties": {
+
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "description": "FIPS code of location, encased in quotes",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "abbreviation": {
+                    "description": "Two-letter abbreviation of location",
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$",
+                    "minLength": 1
+                },
+                "location_name": {
+                    "description": "Full name of location",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "population": {
+                    "description": "Population of location, encased in quotes",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "dataset": {
+                    "description": "Dataset the data is pulled from",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "series_type": {
+                    "description": "Type of data; projection or timeseries.",
+                    "type": "string",
+                    "enum": ["projection", "timeseries"],
+                    "minLength": 1
+                }
+            },
+            "required": ["location", "abbreviation", "location_name", "population", "dataset", "series_type"]
+        },
+
+        "ground_truth": {
+            "type": "object",
+            "properties": {
+                "dates": {
+                    "description": "A list of date strings in YYYY-MM-DD format.",
+                    "type": "array",
+                    "items": {"type": "string", "format": "date"}
+                },
+                "values": {
+                    "description": "Groudn truth values.",
+                    "type": "array",
+                    "items": {"type": ["integer", "number"]}
+                },
+                "rates": {
+                    "description": "Ground truth rates.",
+                    "type": "array",
+                    "items": {"type": ["number", "integer"]}
+                }
+            },
+            "required": ["dates", "values", "rates"]
+        },
+
+        "forecasts": { 
+            "description": "Object containing forecast data, keyed by date",
+            "type": "object",
+            "additionalProperties": {
+                "description": "An object keyed by target.",
+                "type": "object",
+                "additionalProperties": {
+                    "description": "An object keyed by model name.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "description": "The type of data encased in this date/target/model combination.",
+                                "type": "string",
+                                "enum": ["quantile", "pmf"]
+                            },
+                            "predictions": {
+                                "description": "An object keyed by horizon.",
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object",
+                                    "properties": {
+                                        "date": {"type": "string", "format": "date"},
+                                        "quantiles": {"type": "array", "items": {"type": ["number", "integer"]}},
+                                        "values": {"type": "array", "items": {"type": ["number", "integer"]}},
+                                        "categories": {"type": "array", "items": {"type": "string"}},
+                                        "probabilities": {"type": "array", "items": {"type": ["number", "integer"]}}
+                                    },
+                                    "required": ["date"],
+                                    "oneOf": [
+                                        {"required": ["quantiles", "values"]},
+                                        {"required": ["categories", "probabilities"]}
+                                    ],
+                                    "additionalProperties": false
+                                }
+                            }
+                        },
+                        "required": ["type", "predictions"]
+                    }
+                }
+            }
+        },
+
+        "available_models": {
+            "description": "Models implicated in this file.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+
+        "all_models": {
+            "description": "All models contributing to FluSight Forecast Hub.",
+            "type": "array",
+            "items": {"type": "string"}
+        }
+    },
+    "required": ["metadata", "ground_truth", "forecasts", "available_models"]
+}
