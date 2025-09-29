@@ -62,7 +62,7 @@
                     "items": {"type": ["number", "integer"]}
                 }
             },
-            "required": ["dates", "values", "rates"]
+            "required": ["dates", "values"]
         },
 
         "forecasts": { 
