@@ -1,6 +1,6 @@
 // src/contexts/ViewContext.jsx
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
@@ -11,7 +11,10 @@ const ViewContext = createContext(null);
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const urlManager = new URLParameterManager(searchParams, setSearchParams);
+
+  // --- CHANGE 1: Memoize urlManager ---
+  // This ensures urlManager is not recreated on every render.
+  const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
 
   // --- State remains centralized ---
   const [viewType, setViewType] = useState(() => urlManager.getView());
@@ -85,8 +88,9 @@ export const ViewProvider = ({ children }) => {
       updateDatasetParams({ models: modelsToSet });
     }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, viewType, models, availableDates, urlManager]);
+  // --- CHANGE 2: Remove the eslint-disable comment ---
+  // The dependency array is now correct because urlManager is stable.
+  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
