@@ -33,7 +33,7 @@ export const DATASETS = {
       { key: 'timeseries', label: 'Time Series', value: 'covid_ts' }
     ],
     defaultView: 'covid_ts',
-    defaultModel: 'COVIDHub-ensemble',
+    defaultModel: 'CovidHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'covid',
