@@ -111,10 +111,10 @@
                                     "type": "object",
                                     "properties": {
                                         "date": {"type": "string", "format": "date"},
-                                        "quantiles": {"type": "array", "items": {"type": ["number", "integer"]}},
-                                        "values": {"type": "array", "items": {"type": ["number", "integer"]}},
+                                        "quantiles": {"type": "array", "items": {"type": ["number", "integer", "null"]}},
+                                        "values": {"type": "array", "items": {"type": ["number", "integer", "null"]}},
                                         "categories": {"type": "array", "items": {"type": "string"}},
-                                        "probabilities": {"type": "array", "items": {"type": ["number", "integer"]}}
+                                        "probabilities": {"type": "array", "items": {"type": ["number", "integer", "null"]}}
                                     },
                                     "required": ["date"],
                                     "oneOf": [
