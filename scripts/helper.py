@@ -41,6 +41,9 @@ def hubverse_df_preprocessor(df: pd.DataFrame) -> pd.DataFrame: # can add **kwar
     is_categorical_id = df['output_type_id'].isin(categorical_ids)
     is_numeric_id = numeric_output_ids.isin(numeric_ids)
     df = df[is_categorical_id | is_numeric_id]
+    # Ensure quantile column is numeric (if output_type = quantile)
+    quantile_mask = df['output_type'] == 'quantile'
+    df.loc[quantile_mask, 'output_type_id'] = df.loc[quantile_mask, 'output_type_id'].astype(float)
 
     return df
 
