@@ -25,7 +25,7 @@
                 },
                 "population": {
                     "description": "Population of location, encased in quotes",
-                    "type": "integer",
+                    "type": ["integer", "number", "null"],
                     "minimum": 0
                 },
                 "dataset": {
@@ -38,9 +38,35 @@
                     "type": "string",
                     "enum": ["projection", "timeseries"],
                     "minLength": 1
+                },
+                "hubverse_keys": {
+                    "type": "object",
+                    "properties": {
+                        "models": {
+                            "description": "Models included in forecasts key of this file.",
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "targets": {
+                            "description": "Targets included in forecasts key of this file.",
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "horizons": {
+                            "description": "Horizons included in forecasts key of this file.",
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "output_types": {
+                            "description": "Output types included in forecasts key of this file.",
+                            "type": "array", 
+                            "items": {"type": "string"}
+                        }
+                    },
+                    "required": ["models", "targets", "horizons", "output_types"]
                 }
             },
-            "required": ["location", "abbreviation", "location_name", "population", "dataset", "series_type"]
+            "required": ["location", "abbreviation", "location_name", "population", "dataset", "series_type", "hubverse_keys"]
         },
 
         "ground_truth": {
@@ -50,19 +76,15 @@
                     "description": "A list of date strings in YYYY-MM-DD format.",
                     "type": "array",
                     "items": {"type": "string", "format": "date"}
-                },
-                "values": {
-                    "description": "Groudn truth values.",
-                    "type": "array",
-                    "items": {"type": ["integer", "number"]}
-                },
-                "rates": {
-                    "description": "Ground truth rates.",
-                    "type": "array",
-                    "items": {"type": ["number", "integer"]}
                 }
             },
-            "required": ["dates", "values"]
+            "required": ["dates"],
+            "minProperties": 2, 
+            "additionalProperties": {
+                "description": "An array of ground_truth values keyed by target name.", 
+                "type": "array",
+                "items": {"type": ["number", "integer", "null"]}
+            }
         },
 
         "forecasts": { 
@@ -107,19 +129,7 @@
                     }
                 }
             }
-        },
-
-        "available_models": {
-            "description": "Models implicated in this file.",
-            "type": "array",
-            "items": {"type": "string"}
-        },
-
-        "all_models": {
-            "description": "All models contributing to FluSight Forecast Hub.",
-            "type": "array",
-            "items": {"type": "string"}
         }
     },
-    "required": ["metadata", "ground_truth", "forecasts", "available_models"]
+    "required": ["metadata", "ground_truth", "forecasts"]
 }

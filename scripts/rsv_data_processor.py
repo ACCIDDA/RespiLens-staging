@@ -76,23 +76,33 @@ class RSVDataProcessor:
 
     def _build_ground_truth_key(self, df: pd.DataFrame) -> dict:
         """Build ground_truth key of an individual JSON file"""
-        ground_truth = {}
-         # Filter gt data by current location
+        # 1. Perform initial filtering as before
         location = str(df['location'].iloc[0])
         filtered_target_data = self.target_data[self.target_data['location'] == location].copy()
 
-        # Ensure date columns are in datetime format for sorting, only use relevant flu season 
         filtered_target_data['date'] = pd.to_datetime(filtered_target_data['date'])
-        filtered_target_data = filtered_target_data[filtered_target_data['date'] >= pd.Timestamp('2023-10-01')].copy() # (can change)
+        filtered_target_data = filtered_target_data[filtered_target_data['date'] >= pd.Timestamp('2023-10-01')].copy()
 
-        # Group by combined target, then fill in values
-        filtered_target_data_gbo = filtered_target_data.groupby('combined_target')
-        for combined_target_name in list(filtered_target_data_gbo.groups.keys()):
-            current_target_data = filtered_target_data_gbo.get_group(combined_target_name)
-            current_target_data = current_target_data.sort_values(by='date')
-            combined_target_dict = ground_truth.setdefault(combined_target_name, {})
-            combined_target_dict['dates'] = current_target_data['date'].dt.strftime('%Y-%m-%d').tolist()
-            combined_target_dict['values'] = current_target_data['value'].tolist()
+        # 2. Create a pivot table to align all targets against a common date index
+        # This automatically handles missing values by inserting NaN
+        pivot_df = filtered_target_data.pivot_table(
+            index='date',
+            columns='combined_target',
+            values='value'
+        )
+
+        # 3. Create the single, shared list of dates from the pivot table's index
+        dates_list = pivot_df.index.strftime('%Y-%m-%d').tolist()
+        ground_truth = {"dates": dates_list}
+
+        # 4. Loop through the columns of the pivot table (each column is a target)
+        for combined_target_name in pivot_df.columns:
+            # Get the list of values for the current target
+            # Replace NaN with None so it becomes 'null' in the JSON
+            values_list = pivot_df[combined_target_name].where(pd.notna(pivot_df[combined_target_name]), None).tolist()
+            
+            # Add the list of values to the dictionary, keyed by the target name
+            ground_truth[combined_target_name] = values_list
 
         return ground_truth
 
