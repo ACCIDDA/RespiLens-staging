@@ -141,12 +141,19 @@ export const ViewProvider = ({ children }) => {
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, loading, error, availableDates, models,
-    selectedModels, setSelectedModels: (models) => { 
+    selectedModels, setSelectedModels: (models) => {
       const currentDataset = urlManager.getDatasetFromView(viewType);
-      // Only update URL if models are not the default
-      if (JSON.stringify(models) !== JSON.stringify([currentDataset?.defaultModel])) {
-        updateDatasetParams({ models }); 
+      const isDefault = JSON.stringify(models) === JSON.stringify([currentDataset?.defaultModel]);
+
+      if (isDefault) {
+        // If the selection is now the default, update the URL by passing
+        // an empty array, which tells urlManager to DELETE the parameter.
+        updateDatasetParams({ models: [] });
+      } else {
+        // Otherwise, update the URL with the current selection.
+        updateDatasetParams({ models });
       }
+      // Always update the state itself.
       setSelectedModels(models);
     },
     selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
