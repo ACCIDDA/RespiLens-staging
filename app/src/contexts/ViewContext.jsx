@@ -64,10 +64,20 @@ export const ViewProvider = ({ children }) => {
         datesToSet = [latestDate];
       }
     }
+    // 4b. Determine the definitive columns for NHSN views.
+    let columnsToSet = [];
+    if (currentDataset.shortName === 'nhsn') {
+      if (params.columns?.length > 0) {
+        columnsToSet = params.columns;
+      } else if (currentDataset.defaultColumn) {
+        columnsToSet = [currentDataset.defaultColumn];
+      }
+    }
 
     // 5. Apply all state updates at once.
     setSelectedModels(modelsToSet);
     setSelectedDates(datesToSet);
+    setSelectedColumns(columnsToSet);
     setActiveDate(datesToSet[datesToSet.length - 1] || null);
     
     // 6. If we decided to use a default model, update the URL to match the state.
@@ -76,7 +86,7 @@ export const ViewProvider = ({ children }) => {
     }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, viewType, models, availableDates]);
+  }, [loading, viewType, models, availableDates, urlManager]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
