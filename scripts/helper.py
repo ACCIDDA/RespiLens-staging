@@ -97,13 +97,14 @@ def save_json_file(
         None
 
     Raises:
-        FileExistsError: If file already exists at the full output path
+        FileExistsError: If file already exists at the full output path and overwrite is set to False.
     """
     # Construct full target directory path (output_path / pathogen-ext)
     path_mapping = {
         "flu": "flusight",
         "rsv": "rsv",
-        "covid": "covid19"
+        "covid": "covid19",
+        "cdc": "nhsn"
     }
     sub_dir = path_mapping.get(pathogen)
     if not sub_dir:

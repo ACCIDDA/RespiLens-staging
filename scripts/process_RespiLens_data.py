@@ -11,7 +11,7 @@ from hubdata import connect_hub
 from flusight_data_processor import FlusightDataProcessor
 from rsv_data_processor import RSVDataProcessor
 from covid19_data_processor import COVIDDataProcessor
-# from process_cdc_data import CDCDataProcessor
+from cdc_data_processor import CDCDataProcessor
 from helper import save_json_file, hubverse_df_preprocessor, clean_nan_values
 
 logging.basicConfig(level=logging.INFO)
@@ -39,12 +39,15 @@ def main():
                         type=str,
                         required=False,
                         help="Absolute path to local clone of COVID19 forecaast repo.")
-    # parser.add_argument("--CDC") ?
+    parser.add_argument("--CDC",
+                        action='store_true',
+                        required=False,
+                        help="If set, pull NHSN data.") 
     args = parser.parse_args()
 
-    if not (args.flusight_hub_path or args.rsv_hub_path or args.covid_hub_path):
-        print("🛑 No hub paths provided 🛑, so no data can be fetched.")
-        print("Please re-run script with hub path(s) specified.")
+    if not (args.flusight_hub_path or args.rsv_hub_path or args.covid_hub_path or args.CDC):
+        print("🛑 No hub paths or CDC flag provided 🛑, so no data will be fetched.")
+        print("Please re-run script with hub path(s) specified or CDC flag set.")
         sys.exit(1)
 
     logger.info("Beginning conversion process...")
@@ -138,6 +141,20 @@ def main():
                 file_contents=contents,
                 overwrite=True
             )
+        logger.info("Success ✅")
+
+    if args.CDC:
+        cdc_processor_object = CDCDataProcessor(resource_id='ua7e-t2fy', replace_column_names=True)
+        logger.info("Iteratively saving CDC JSON files...")
+        for filename, contents in cdc_processor_object.output_dict.items():
+            save_json_file(
+                pathogen="cdc",
+                output_path=args.output_path,
+                output_filename=filename,
+                file_contents=contents,
+                overwrite=True
+            )
+        logger.info("Success ✅")
     
     logger.info("Process complete.")
 
