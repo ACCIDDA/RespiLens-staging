@@ -1,6 +1,6 @@
 // src/contexts/ViewContext.jsx
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
@@ -11,7 +11,10 @@ const ViewContext = createContext(null);
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const urlManager = new URLParameterManager(searchParams, setSearchParams);
+
+  // --- CHANGE 1: Memoize urlManager ---
+  // This ensures urlManager is not recreated on every render.
+  const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
 
   // --- State remains centralized ---
   const [viewType, setViewType] = useState(() => urlManager.getView());
@@ -65,10 +68,20 @@ export const ViewProvider = ({ children }) => {
         datesToSet = [latestDate];
       }
     }
+    // 4b. Determine the definitive columns for NHSN views.
+    let columnsToSet = [];
+    if (currentDataset.shortName === 'nhsn') {
+      if (params.columns?.length > 0) {
+        columnsToSet = params.columns;
+      } else if (currentDataset.defaultColumn) {
+        columnsToSet = [currentDataset.defaultColumn];
+      }
+    }
 
     // 5. Apply all state updates at once.
     setSelectedModels(modelsToSet);
     setSelectedDates(datesToSet);
+    setSelectedColumns(columnsToSet);
     setActiveDate(datesToSet[datesToSet.length - 1] || null);
     
     // 6. If we decided to use a default model, update the URL to match the state.
@@ -76,9 +89,9 @@ export const ViewProvider = ({ children }) => {
       updateDatasetParams({ models: modelsToSet });
     }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, viewType, models, availableDates]);
-
+  // --- CHANGE 2: Remove the eslint-disable comment ---
+  // The dependency array is now correct because urlManager is stable.
+  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
@@ -129,12 +142,19 @@ export const ViewProvider = ({ children }) => {
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, loading, error, availableDates, models,
-    selectedModels, setSelectedModels: (models) => { 
+    selectedModels, setSelectedModels: (models) => {
       const currentDataset = urlManager.getDatasetFromView(viewType);
-      // Only update URL if models are not the default
-      if (JSON.stringify(models) !== JSON.stringify([currentDataset?.defaultModel])) {
-        updateDatasetParams({ models }); 
+      const isDefault = JSON.stringify(models) === JSON.stringify([currentDataset?.defaultModel]);
+
+      if (isDefault) {
+        // If the selection is now the default, update the URL by passing
+        // an empty array, which tells urlManager to DELETE the parameter.
+        updateDatasetParams({ models: [] });
+      } else {
+        // Otherwise, update the URL with the current selection.
+        updateDatasetParams({ models });
       }
+      // Always update the state itself.
       setSelectedModels(models);
     },
     selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },

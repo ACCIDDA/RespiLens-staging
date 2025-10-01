@@ -15,6 +15,7 @@ import time
 from datetime import date
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -70,6 +71,7 @@ class CDCData:
         logger.info(f"Retrieving data from {self.data_url}.") 
         data_list = self.retrieve_data_from_endpoint_aslist()
         data = pd.DataFrame(data_list)
+        data = data.replace(np.nan, value=None) 
         data['weekendingdate'] = pd.to_datetime(data['weekendingdate']).dt.strftime('%Y-%m-%d')
         if replace_column_names:
             data = self.replace_column_names(data, CDC_metadata)
