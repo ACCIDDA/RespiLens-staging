@@ -10,10 +10,7 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  const [availableColumns, setAvailableColumns] = useState({
-    official: [],
-    preliminary: []
-  });
+  const [availableColumns, setAvailableColumns] = useState([]); // removed official and preliminary
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,19 +29,19 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
         const text = await response.text();
         const jsonData = JSON.parse(text);
 
-        if (!jsonData.data || !jsonData.data.official) {
+        if (!jsonData.series || !jsonData.series.dates) { // changed here too
           throw new Error('Invalid data format');
         }
 
         setData(jsonData);
 
-        const officialCols = Object.keys(jsonData.data.official).sort();
-        const prelimCols = Object.keys(jsonData.data.preliminary || {}).sort();
-
-        setAvailableColumns({
-          official: officialCols,
-          preliminary: prelimCols
-        });
+        // added here
+        const dataColumns = Object.keys(jsonData.series)
+          .filter(key => key !== 'dates')
+          .sort();
+        
+        setAvailableColumns(dataColumns);
+        // end here
 
       } catch (err) {
         setError(err.message);
@@ -59,42 +56,40 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
   }, [location]);
 
   const calculateNHSNYRange = () => {
-    if (!data || selectedColumns.length === 0) return null;
-    
-    let maxY = -Infinity;
-    
-    selectedColumns.forEach(column => {
-      const isPrelimininary = column.includes('_prelim');
-      const dataType = isPrelimininary ? 'preliminary' : 'official';
-      
-      if (data.data?.[dataType]?.[column]) {
-        data.data[dataType][column].forEach(value => {
-          if (typeof value === 'number' && !isNaN(value)) {
-            maxY = Math.max(maxY, value);
-          }
-        });
-      }
-    });
-    
-    if (maxY !== -Infinity) {
-      const padding = maxY * 0.15;
-      return [0, maxY + padding];
-    }
-    return null;
-  };
+    if (!data?.series || selectedColumns.length === 0) return null;
+
+    // 1. Gather all numeric values from all selected columns into a single array
+    const allValues = selectedColumns.reduce((acc, column) => {
+        const valuesArray = data.series[column];
+        if (valuesArray) {
+            // Filter out any non-numeric or null values before adding to the list
+            const numericValues = valuesArray.filter(v => typeof v === 'number' && !isNaN(v));
+            return acc.concat(numericValues);
+        }
+        return acc;
+    }, []);
+
+    // If there are no valid numbers to plot, don't set a range
+    if (allValues.length === 0) return null;
+
+    // 2. Find the maximum value from the combined array of all points
+    const maxY = Math.max(...allValues);
+
+    // 3. Calculate the padded range and return it
+    const padding = maxY * 0.15;
+    return [0, maxY + padding];
+};
 
   if (loading) return <Center p="md"><Text>Loading NHSN data...</Text></Center>;
   if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
   if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
+  // changed here 
   const traces = selectedColumns.map((column) => {
-    const isPrelimininary = column.includes('_prelim');
-    const dataType = isPrelimininary ? 'preliminary' : 'official';
-    const columnIndex = [...availableColumns.official, ...availableColumns.preliminary].indexOf(column);
-
+    const columnIndex = availableColumns.indexOf(column);
     return {
-      x: data.ground_truth.dates,
-      y: data.data[dataType][column],
+      x: data.series.dates, // Get dates from series object
+      y: data.series[column], // Get data directly from series object
       name: column,
       type: 'scatter',
       mode: 'lines+markers',
@@ -120,8 +115,8 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
         visible: true
       },
       range: [
-        data.ground_truth.dates[0],
-        data.ground_truth.dates[data.ground_truth.dates.length - 1]
+        data.series.dates[0],
+        data.series.dates[data.series.dates.length - 1]
       ]
     },
     yaxis: {
