@@ -24,7 +24,7 @@
                     "minLength": 1
                 },
                 "population": {
-                    "description": "Population of location, encased in quotes",
+                    "description": "Population of location",
                     "type": ["integer", "number", "null"],
                     "minimum": 0
                 },

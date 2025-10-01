@@ -9,8 +9,7 @@
             "properties": {
                 "location": {
                     "description": "FIPS code of location, encased in quotes",
-                    "type": "string",
-                    "minLength": 1
+                    "type": ["string", "null"]
                 },
                 "abbreviation": {
                     "description": "Two-letter abbreviation of location",
@@ -20,12 +19,11 @@
                 },
                 "location_name": {
                     "description": "Full name of location",
-                    "type": "string",
-                    "minLength": 1
+                    "type": ["string", "null"]
                 },
                 "population": {
-                    "description": "Population of location, encased in quotes",
-                    "type": "integer",
+                    "description": "Population of location",
+                    "type": ["integer", "number", "null"],
                     "minimum": 0
                 },
                 "dataset": {
@@ -51,15 +49,13 @@
                     "type": "array",
                     "items": {"type": "string", "format": "date"}
                 },
-                "columns": {
-                    "description": "Columns to plot.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {"type": "string"}
-                    }
-                },
-                "required": ["dates", "columns"]
+                "required": ["dates"],
+                "minProperties": 2, 
+                "additionalProperties": {
+                    "description": "An array of timeseries data keyed by column name.", 
+                    "type": "array",
+                    "items": {"type": ["number", "integer", "null"]}
+                }
             }
         }
     },

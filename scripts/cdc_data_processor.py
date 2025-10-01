@@ -62,9 +62,9 @@ class CDCDataProcessor:
                     series[column] = list(current_region_df[column])
                 json_struct = {
                     "metadata": {
-                        "location": "",
+                        "location": None,
                         "abbreviation": region,
-                        "location_name": "",
+                        "location_name": None,
                         "population": None,
                         "dataset": "NHSN",
                         "series_type": "timeseries"
