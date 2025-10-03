@@ -46,7 +46,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     }
     const groundTruthTrace = {
       x: data.ground_truth.dates,
-      y: data.ground_truth.values,
+      y: data.ground_truth.values || data.ground_truth['wk inc flu hosp'],
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',

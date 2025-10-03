@@ -1,24 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Stack, Alert, Text, Center, useMantineColorScheme } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
 
-const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
+// --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
+const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  const [availableColumns, setAvailableColumns] = useState({
-    official: [],
-    preliminary: []
-  });
+  const [availableColumns, setAvailableColumns] = useState([]);
+
+  // --- CHANGE 2: Add state for selectedColumns inside this component ---
+  const [selectedColumns, setSelectedColumns] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        // Reset state for new location to prevent showing old data
+        setData(null);
+        setAvailableColumns([]);
+        setSelectedColumns([]);
+
         const url = getDataPath(`nhsn/${location}_nhsn.json`);
         const response = await fetch(url);
 
@@ -29,22 +35,27 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
           throw new Error('Failed to load NHSN data');
         }
 
-        const text = await response.text();
-        const jsonData = JSON.parse(text);
+        const jsonData = await response.json();
 
-        if (!jsonData.data || !jsonData.data.official) {
+        if (!jsonData.series || !jsonData.series.dates) {
           throw new Error('Invalid data format');
         }
 
         setData(jsonData);
 
-        const officialCols = Object.keys(jsonData.data.official).sort();
-        const prelimCols = Object.keys(jsonData.data.preliminary || {}).sort();
+        const dataColumns = Object.keys(jsonData.series)
+          .filter(key => key !== 'dates')
+          .sort();
+        
+        setAvailableColumns(dataColumns);
 
-        setAvailableColumns({
-          official: officialCols,
-          preliminary: prelimCols
-        });
+        // --- CHANGE 3: Set a default column selection when data loads ---
+        if (dataColumns.length > 0) {
+          // You can make this smarter, but for now, we'll select the first column by default.
+          const defaultColumn = dataColumns.find(c => c.includes("COVID-19")) || dataColumns[0];
+          setSelectedColumns([defaultColumn]);
+        }
+        // --- END OF CHANGE 3 ---
 
       } catch (err) {
         setError(err.message);
@@ -56,45 +67,34 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
     if (location) {
       fetchData();
     }
-  }, [location]);
+  }, [location]); // This effect only runs when the location changes
 
+  // The calculateNHSNYRange function is correct and doesn't need changes.
   const calculateNHSNYRange = () => {
-    if (!data || selectedColumns.length === 0) return null;
-    
-    let maxY = -Infinity;
-    
-    selectedColumns.forEach(column => {
-      const isPrelimininary = column.includes('_prelim');
-      const dataType = isPrelimininary ? 'preliminary' : 'official';
-      
-      if (data.data?.[dataType]?.[column]) {
-        data.data[dataType][column].forEach(value => {
-          if (typeof value === 'number' && !isNaN(value)) {
-            maxY = Math.max(maxY, value);
-          }
-        });
-      }
-    });
-    
-    if (maxY !== -Infinity) {
-      const padding = maxY * 0.15;
-      return [0, maxY + padding];
-    }
-    return null;
+    if (!data?.series || selectedColumns.length === 0) return null;
+    const allValues = selectedColumns.reduce((acc, column) => {
+        const valuesArray = data.series[column];
+        if (valuesArray) {
+            const numericValues = valuesArray.filter(v => typeof v === 'number' && !isNaN(v));
+            return acc.concat(numericValues);
+        }
+        return acc;
+    }, []);
+    if (allValues.length === 0) return null;
+    const maxY = Math.max(...allValues);
+    const padding = maxY * 0.15;
+    return [0, maxY + padding];
   };
 
-  if (loading) return <Center p="md"><Text>Loading NHSN data...</Text></Center>;
+  if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
   if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
   if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
   const traces = selectedColumns.map((column) => {
-    const isPrelimininary = column.includes('_prelim');
-    const dataType = isPrelimininary ? 'preliminary' : 'official';
-    const columnIndex = [...availableColumns.official, ...availableColumns.preliminary].indexOf(column);
-
+    const columnIndex = availableColumns.indexOf(column);
     return {
-      x: data.ground_truth.dates,
-      y: data.data[dataType][column],
+      x: data.series.dates,
+      y: data.series[column],
       name: column,
       type: 'scatter',
       mode: 'lines+markers',
@@ -120,8 +120,8 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
         visible: true
       },
       range: [
-        data.ground_truth.dates[0],
-        data.ground_truth.dates[data.ground_truth.dates.length - 1]
+        data.series.dates[0],
+        data.series.dates[data.series.dates.length - 1]
       ]
     },
     yaxis: {
@@ -146,7 +146,6 @@ const NHSNRawView = ({ location, selectedColumns, setSelectedColumns }) => {
         }}
         style={{ width: '100%' }}
       />
-
       <NHSNColumnSelector
         availableColumns={availableColumns}
         selectedColumns={selectedColumns}

@@ -1,0 +1,135 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "RespiLens Projections Data",
+    "type": "object",
+    "properties": {
+
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "description": "FIPS code of location, encased in quotes",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "abbreviation": {
+                    "description": "Two-letter abbreviation of location",
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$",
+                    "minLength": 1
+                },
+                "location_name": {
+                    "description": "Full name of location",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "population": {
+                    "description": "Population of location",
+                    "type": ["integer", "number", "null"],
+                    "minimum": 0
+                },
+                "dataset": {
+                    "description": "Dataset the data is pulled from",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "series_type": {
+                    "description": "Type of data; projection or timeseries.",
+                    "type": "string",
+                    "enum": ["projection", "timeseries"],
+                    "minLength": 1
+                },
+                "hubverse_keys": {
+                    "type": "object",
+                    "properties": {
+                        "models": {
+                            "description": "Models included in forecasts key of this file.",
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "targets": {
+                            "description": "Targets included in forecasts key of this file.",
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "horizons": {
+                            "description": "Horizons included in forecasts key of this file.",
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "output_types": {
+                            "description": "Output types included in forecasts key of this file.",
+                            "type": "array", 
+                            "items": {"type": "string"}
+                        }
+                    },
+                    "required": ["models", "targets", "horizons", "output_types"]
+                }
+            },
+            "required": ["location", "abbreviation", "location_name", "population", "dataset", "series_type", "hubverse_keys"]
+        },
+
+        "ground_truth": {
+            "type": "object",
+            "properties": {
+                "dates": {
+                    "description": "A list of date strings in YYYY-MM-DD format.",
+                    "type": "array",
+                    "items": {"type": "string", "format": "date"}
+                }
+            },
+            "required": ["dates"],
+            "minProperties": 2, 
+            "additionalProperties": {
+                "description": "An array of ground_truth values keyed by target name.", 
+                "type": "array",
+                "items": {"type": ["number", "integer", "null"]}
+            }
+        },
+
+        "forecasts": { 
+            "description": "Object containing forecast data, keyed by date",
+            "type": "object",
+            "additionalProperties": {
+                "description": "An object keyed by target.",
+                "type": "object",
+                "additionalProperties": {
+                    "description": "An object keyed by model name.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "description": "The type of data encased in this date/target/model combination.",
+                                "type": "string",
+                                "enum": ["quantile", "pmf"]
+                            },
+                            "predictions": {
+                                "description": "An object keyed by horizon.",
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object",
+                                    "properties": {
+                                        "date": {"type": "string", "format": "date"},
+                                        "quantiles": {"type": "array", "items": {"type": ["number", "integer", "null"]}},
+                                        "values": {"type": "array", "items": {"type": ["number", "integer", "null"]}},
+                                        "categories": {"type": "array", "items": {"type": "string"}},
+                                        "probabilities": {"type": "array", "items": {"type": ["number", "integer", "null"]}}
+                                    },
+                                    "required": ["date"],
+                                    "oneOf": [
+                                        {"required": ["quantiles", "values"]},
+                                        {"required": ["categories", "probabilities"]}
+                                    ],
+                                    "additionalProperties": false
+                                }
+                            }
+                        },
+                        "required": ["type", "predictions"]
+                    }
+                }
+            }
+        }
+    },
+    "required": ["metadata", "ground_truth", "forecasts"]
+}

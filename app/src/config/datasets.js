@@ -46,7 +46,7 @@ export const DATASETS = {
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
     defaultView: 'nhsnall',
-    defaultColumn: 'totalconfflunewadm',
+    defaultColumn: 'Number Hospitals Reporting TotalPatients Hospitalized with Influenza', // guess at best default col
     hasDateSelector: false,
     hasModelSelector: false,
     prefix: 'nhsn',
