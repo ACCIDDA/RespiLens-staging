@@ -27,7 +27,7 @@ LOCATIONS_ABBREV = [
     ]
 
 
-class CDCDataProcessor:
+class NHSNDataProcessor:
     def __init__(self, resource_id, replace_column_names: bool = True):
         self.replace_column_names = replace_column_names
         self.data_url = "https://data.cdc.gov/resource/" + f"{resource_id}.json"
@@ -39,9 +39,9 @@ class CDCDataProcessor:
 
     
     def _process_data(self):
-        """Fetches, processes, and structures CDC data into self.output_dict"""
+        """Fetches, processes, and structures NHSN data into self.output_dict"""
         # Get data set up 
-        logger.info(f"Retrieving CDC data from {self.data_url}...")
+        logger.info(f"Retrieving NHSN data from {self.data_url}...")
         data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()) # read from endpoint
         data = data[TEMP_NHSN_COLUMN_MASK] # only include a specific subset of columns for plotting now 
         non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
@@ -58,7 +58,7 @@ class CDCDataProcessor:
 
         # Process the data
         # Pipeline #1: key on longform location column name
-        logger.info("Processing CDC data...")
+        logger.info("Processing NHSN data...")
         if self.replace_column_names: 
             data = self._replace_column_names(data, cdc_metadata) 
             self.output_dict["metadata.json"] = self._build_metadata_file(list(data.columns), list(set(data['Geographic aggregation'])))
@@ -66,6 +66,7 @@ class CDCDataProcessor:
             for region in unique_regions:
                 current_region_fips_code = LOCATIONS_MAP[region]
                 current_region_df = data[data['Geographic aggregation'] == region]
+                current_region_df = current_region_df.sort_values(by='Week Ending Date')
                 series = {
                     "dates": list(current_region_df['Week Ending Date'])
                 }
@@ -91,6 +92,7 @@ class CDCDataProcessor:
             unique_regions = set(data['jurisdiction'])
             for region in unique_regions:
                 current_region_df = data[data['jurisdiction'] == region]
+                current_region_df = current_region_df.sort_values(by='weekendingdate')
                 series = {
                     "dates": list(current_region_df['weekendingdate'])
                 }
@@ -114,7 +116,7 @@ class CDCDataProcessor:
         
 
     def _retrieve_data_from_endpoint_aslist(self) -> list[dict]:
-        """Downloads CDC data from the endpoint with pagination."""
+        """Downloads NHSN data from the endpoint with pagination."""
         all_data = []
         offset = 0
         batch_size = 1000

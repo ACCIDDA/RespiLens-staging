@@ -104,7 +104,7 @@ def save_json_file(
         "flu": "flusight",
         "rsv": "rsv",
         "covid": "covid19",
-        "cdc": "nhsn"
+        "nhsn": "nhsn"
     }
     sub_dir = path_mapping.get(pathogen)
     if not sub_dir:
