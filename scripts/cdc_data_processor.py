@@ -6,12 +6,16 @@ Data is processed from resource id 'ua7e-t2fy'.
 
 import logging
 import numpy as np
+import os
 import pandas as pd
 import requests
 import time
 
+from helper import TEMP_NHSN_COLUMN_MASK, get_location_info, LOCATIONS_MAP
 
 logger = logging.getLogger(__name__)
+script_dir = os.path.dirname(__file__) 
+locations_file_path = os.path.join(script_dir, 'locations.csv')
 
 
 LOCATIONS_ABBREV = [
@@ -29,6 +33,7 @@ class CDCDataProcessor:
         self.data_url = "https://data.cdc.gov/resource/" + f"{resource_id}.json"
         self.metadata_url = "https://data.cdc.gov/api/views/" + f"{resource_id}.json"
         self.output_dict = {}
+        self.locations_data = pd.read_csv(locations_file_path)
 
         self._process_data()
 
@@ -37,10 +42,16 @@ class CDCDataProcessor:
         """Fetches, processes, and structures CDC data into self.output_dict"""
         # Get data set up 
         logger.info(f"Retrieving CDC data from {self.data_url}...")
-        data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()).replace(np.nan, value=None) 
-        data.loc[data['jurisdiction'].str.lower() == 'usa', 'jurisdiction'] = 'US'
-        data = data[data['jurisdiction'].isin(LOCATIONS_ABBREV)].copy()
-        data['weekendingdate'] = pd.to_datetime(data['weekendingdate']).dt.strftime('%Y-%m-%d')
+        data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()) # read from endpoint
+        data = data[TEMP_NHSN_COLUMN_MASK] # only include a specific subset of columns for plotting now 
+        non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
+        for col in data.columns:
+            if col not in non_numeric_cols:
+                data[col] = pd.to_numeric(data[col], errors='ignore')
+        data = data.replace(np.nan, value=None) # cleanse NaN values 
+        data.loc[data['jurisdiction'].str.lower() == 'usa', 'jurisdiction'] = 'US' # change USA jurisdiction to US
+        data = data[data['jurisdiction'].isin(LOCATIONS_ABBREV)].copy() # filter out unwanted regions
+        data['weekendingdate'] = pd.to_datetime(data['weekendingdate']).dt.strftime('%Y-%m-%d') # ensure date columns are dates
         # Get metadata set up
         cdc_metadata = (requests.get(self.metadata_url)).json() 
         logger.info("Success ✅")
@@ -53,6 +64,7 @@ class CDCDataProcessor:
             self.output_dict["metadata.json"] = self._build_metadata_file(list(data.columns), list(set(data['Geographic aggregation'])))
             unique_regions = set(data['Geographic aggregation'])
             for region in unique_regions:
+                current_region_fips_code = LOCATIONS_MAP[region]
                 current_region_df = data[data['Geographic aggregation'] == region]
                 series = {
                     "dates": list(current_region_df['Week Ending Date'])
@@ -62,10 +74,10 @@ class CDCDataProcessor:
                     series[column] = list(current_region_df[column])
                 json_struct = {
                     "metadata": {
-                        "location": None,
+                        "location": current_region_fips_code,
                         "abbreviation": region,
-                        "location_name": None,
-                        "population": None,
+                        "location_name": get_location_info(location_data=self.locations_data, location=current_region_fips_code, value_needed="location_name"),
+                        "population": get_location_info(location_data=self.locations_data, location=current_region_fips_code, value_needed='population'),
                         "dataset": "NHSN",
                         "series_type": "timeseries"
                     },
