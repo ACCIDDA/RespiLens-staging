@@ -22,7 +22,6 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
-  const [selectedColumns, setSelectedColumns] = useState([]);
 
   // --- Data fetching remains centralized ---
   const { data, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
@@ -68,20 +67,10 @@ export const ViewProvider = ({ children }) => {
         datesToSet = [latestDate];
       }
     }
-    // 4b. Determine the definitive columns for NHSN views.
-    let columnsToSet = [];
-    if (currentDataset.shortName === 'nhsn') {
-      if (params.columns?.length > 0) {
-        columnsToSet = params.columns;
-      } else if (currentDataset.defaultColumn) {
-        columnsToSet = [currentDataset.defaultColumn];
-      }
-    }
 
     // 5. Apply all state updates at once.
     setSelectedModels(modelsToSet);
     setSelectedDates(datesToSet);
-    setSelectedColumns(columnsToSet);
     setActiveDate(datesToSet[datesToSet.length - 1] || null);
     
     // 6. If we decided to use a default model, update the URL to match the state.
@@ -124,14 +113,10 @@ export const ViewProvider = ({ children }) => {
     if (oldDataset?.shortName !== newDataset?.shortName) {
       setSelectedDates([]);
       setSelectedModels([]);
-      setSelectedColumns([]);
       setActiveDate(null);
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
-        if (oldDataset.shortName === 'nhsn') {
-          newSearchParams.delete('nhsn_columns');
-        }
       }
       // Do not set default model in URL on view change
     }
@@ -158,27 +143,6 @@ export const ViewProvider = ({ children }) => {
       setSelectedModels(models);
     },
     selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
-    selectedColumns, setSelectedColumns: (columns) => { 
-      const currentDataset = urlManager.getDatasetFromView(viewType);
-      
-      if (currentDataset?.shortName === 'nhsn') {
-        const defaultColumn = currentDataset.defaultColumn;
-        // Check if the current selection is the default
-        const isDefault = columns.length === 1 && columns[0] === defaultColumn;
-        
-        if (isDefault) {
-          // If returning to default, REMOVE the parameter from the URL
-          const newParams = new URLSearchParams(searchParams);
-          newParams.delete('nhsn_columns');
-          setSearchParams(newParams, { replace: true });
-        } else {
-          // If it's not the default, UPDATE the URL
-          updateDatasetParams({ columns });
-        }
-      }
-      // Always update the state itself
-      setSelectedColumns(columns);
-    },
 
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
