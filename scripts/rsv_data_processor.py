@@ -14,9 +14,26 @@ class RSVDataProcessor:
     def __init__(self, data: pd.DataFrame, locations_data: pd.DataFrame, target_data: pd.DataFrame):
         self.output_dict = {}
         self.df_data = data
-        self.locations_data = locations_data # style the same as others
-        self.target_data = target_data # `date`, `age_group`, `target`, `value`; 
-        # 'as_of' is in the file name (all are up to date)
+        self.locations_data = locations_data 
+        # Set up target data correctly
+        self.target_data = target_data[~target_data['target'].str.contains("rate", regex=True, na=False)]
+        age_group_mapping = {
+            "0-0.99": ["0-0.49", "0.5-0.99"], "1-4": ["1-1.99", "2-4"],
+            "5-64": ["5-17", "18-49", "50-64"], "65-130": ["65-130"], "0-130": ["0-130"]
+        }
+        reverse_age_map = {
+            source: target for target, sources in age_group_mapping.items() for source in sources
+        }
+        self.target_data = (self.target_data
+                            .assign(aggregated_age_group=lambda df: df['age_group'].map(reverse_age_map))
+                            .dropna(subset=['aggregated_age_group'])
+                           )
+        self.target_data = (self.target_data
+                            .groupby(['location', 'date', 'target', 'aggregated_age_group'])
+                            ['value'].sum()
+                            .reset_index()
+                           )
+        self.target_data = self.target_data.rename(columns={'aggregated_age_group': 'age_group'})
 
         # Add the combined_targets column to combine `age_group` and `target`, drop NaNs from target data
         self.df_data['combined_target'] = self.df_data['age_group'] + '_' + self.df_data['target']

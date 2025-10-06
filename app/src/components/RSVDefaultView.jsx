@@ -1,99 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Center, Text, Paper, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
+import { useView } from '../contexts/ViewContext'; // 1. Import useView
 
+// 2. Component signature is simplified. We only keep props that are not in the context.
 const RSVDefaultView = ({ 
-  location, 
-  selectedDates,
-  availableDates,
-  setSelectedDates,
-  setActiveDate,
-  selectedModels,
-  setSelectedModels,
-  searchParams,
   ageGroups = ["0-130", "0-0.99", "1-4", "5-64", "65-130"],
   getModelColor = (model, selectedModels) => {
     const index = selectedModels.indexOf(model);
     return MODEL_COLORS[index % MODEL_COLORS.length];
   }
 }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [models, setModels] = useState([]);
+  // 3. Get all data and state from the central useView() hook.
+  const { data, loading, error, models, selectedModels, setSelectedModels, selectedDates } = useView();
   const { colorScheme } = useMantineColorScheme();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`./processed_data/rsv/${location}_rsv.json`);
-        console.log('RSV fetch response:', response);
-        if (!response.ok) {
-          throw new Error(`No RSV data available for ${location} (status ${response.status})`);
-        }
-        const jsonData = await response.json();
-        
-        // Validate forecast data structure - basic validation without logging
-        if (!jsonData.forecasts) {
-          throw new Error('Invalid data structure: missing forecasts');
-        }
+  // 4. The entire data-fetching useState and useEffect logic has been removed.
 
-        setData(jsonData);
-        
-        // Extract available models
-        const availableModels = new Set();
-        Object.values(jsonData.forecasts || {}).forEach(dateData => {
-          Object.values(dateData).forEach(ageData => {
-            Object.values(ageData).forEach(targetData => {
-              Object.keys(targetData).forEach(model => {
-                availableModels.add(model);
-              });
-            });
-          });
-        });
-        
-        const sortedModels = Array.from(availableModels).sort();
-        setModels(sortedModels);
-        
-        // Set default model selection if none selected
-        if (selectedModels.length === 0 && sortedModels.length > 0) {
-          // Try to get models from URL
-          const urlModels = new URLSearchParams(window.location.search).get('rsv_models')?.split(',') || [];
-          const requestedModels = urlModels.filter(Boolean);
-          
-          if (requestedModels.length > 0) {
-            // Try to match each requested model exactly
-            const validModels = requestedModels.filter(model => sortedModels.includes(model));
-            
-            if (validModels.length > 0) {
-              setSelectedModels(validModels);
-              return;  // Exit early if we found valid models
-            }
-          }
-
-          // If no valid models found, set default
-          const defaultModel = sortedModels.includes('hub-ensemble') ? 
-            'hub-ensemble' : 
-            sortedModels[0];
-          setSelectedModels([defaultModel]);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [location]);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error || !data || !data.ground_truth || Object.keys(data.ground_truth).length === 0) {
+  // 5. Loading and error states are now handled by the parent component (DataVisualization.jsx).
+  // We just need to check if the data from the context is ready for this specific component.
+  if (!data || !data.ground_truth || !data.forecasts) {
     return (
       <Center h="100%" w="100%">
         <Paper p="xl" withBorder>
@@ -108,8 +36,8 @@ const RSVDefaultView = ({
   const getDefaultRange = (forRangeslider = false) => {
     if (!data?.ground_truth || !selectedDates.length) return undefined;
     
-    const firstGroundTruthDate = new Date(data.ground_truth[ageGroups[0]].dates[0]);
-    const lastGroundTruthDate = new Date(data.ground_truth[ageGroups[0]].dates.slice(-1)[0]);
+    const firstGroundTruthDate = new Date(data.ground_truth.dates[0]);
+    const lastGroundTruthDate = new Date(data.ground_truth.dates.slice(-1)[0]);
     
     if (forRangeslider) {
       const rangesliderEnd = new Date(lastGroundTruthDate);
@@ -132,26 +60,32 @@ const RSVDefaultView = ({
   // Simple function to calculate y-range for visible data in RSV subplots
   const calculateYRangeForAgeGroup = (ageGroup, xRange) => {
     if (!data || !xRange) return null;
-    
+
     const [startX, endX] = xRange;
     const startDate = new Date(startX);
     const endDate = new Date(endX);
     let minY = Infinity;
     let maxY = -Infinity;
-    
+
+    // Find the full target name that matches the age group
+    const allTargets = Object.keys(data.ground_truth).filter(k => k !== 'dates');
+    const targetForAgeGroup = allTargets.find(t => t.startsWith(ageGroup));
+
     // Add ground truth values for this age group
-    const ageData = data.ground_truth[ageGroup];
-    if (ageData?.dates && ageData?.values) {
-      ageData.dates.forEach((date, index) => {
-        const pointDate = new Date(date);
-        if (pointDate >= startDate && pointDate <= endDate) {
-          const value = ageData.values[index];
-          if (typeof value === 'number' && !isNaN(value)) {
-            minY = Math.min(minY, value);
-            maxY = Math.max(maxY, value);
-          }
-        }
-      });
+    const groundTruthDates = data.ground_truth.dates;
+    const groundTruthValues = data.ground_truth[targetForAgeGroup];
+
+    if (groundTruthDates && groundTruthValues) {
+        groundTruthDates.forEach((date, index) => {
+            const pointDate = new Date(date);
+            if (pointDate >= startDate && pointDate <= endDate) {
+                const value = groundTruthValues[index];
+                if (typeof value === 'number' && !isNaN(value)) {
+                    minY = Math.min(minY, value);
+                    maxY = Math.max(maxY, value);
+                }
+            }
+        });
     }
     
     // Add forecast values for this age group
@@ -185,19 +119,20 @@ const RSVDefaultView = ({
 
   // Create subplot traces for each age group
   const traces = ageGroups.map((age, index) => {
-    // Get the age-specific ground truth data
-    const ageData = data.ground_truth[age] || {};
-    
-    // Create base ground truth trace for this age group
+    // Find the full target name for the current age group
+    const allTargets = Object.keys(data.ground_truth).filter(k => k !== 'dates');
+    const targetForAgeGroup = allTargets.find(t => t.startsWith(age));
+
+    // Create the ground truth trace using the shared dates and specific values array
     const groundTruthTrace = {
-      x: ageData.dates || [],
-      y: ageData.values || [],
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Observed',  // Remove age group from name since it's in subplot title
-      xaxis: `x${index + 1}`,  // Use consistent indexing
-      yaxis: `y${index + 1}`,  // Use consistent indexing
-      line: { color: '#8884d8', width: 2 }
+        x: data.ground_truth.dates || [],
+        y: data.ground_truth[targetForAgeGroup] || [],
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Observed',
+        xaxis: `x${index + 1}`,
+        yaxis: `y${index + 1}`,
+        line: { color: '#8884d8', width: 2 }
     };
 
     // Get model traces for this specific age group
@@ -450,11 +385,8 @@ const RSVDefaultView = ({
               const range = getDefaultRange();
               if (range) {
                 Plotly.relayout(gd, {
-                  'xaxis.range': range,
-                  'xaxis2.range': range,
-                  'xaxis3.range': range,
-                  'xaxis4.range': range,
-                  'xaxis5.range': range,
+                  'xaxis.range': range, 'xaxis2.range': range, 'xaxis3.range': range,
+                  'xaxis4.range': range, 'xaxis5.range': range,
                   'xaxis.rangeslider.range': getDefaultRange(true)
                 });
               }
