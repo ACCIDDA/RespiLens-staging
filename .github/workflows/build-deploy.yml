@@ -56,7 +56,6 @@ jobs:
           --flusight-hub-path $GITHUB_WORKSPACE/FluSight-forecast-hub \
           --rsv-hub-path $GITHUB_WORKSPACE/rsv-forecast-hub \
           --covid-hub-path $GITHUB_WORKSPACE/covid19-forecast-hub \
-          --NHSN
 
     # This step runs only the NHSN part of the script for the daily schedule
     - name: Process NHSN Data Only
