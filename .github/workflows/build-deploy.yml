@@ -24,7 +24,7 @@ jobs:
       if: github.event.schedule == '0 12 * * 4' || github.event_name == 'workflow_dispatch'
       run: |
         git clone https://github.com/cdcepi/FluSight-forecast-hub.git
-        git clone https://github.com/HopkinsIDD/rsv-forecast-hub.git
+        git clone https://github.com/CDCgov/rsv-forecast-hub.git 
         git clone https://github.com/CDCgov/covid19-forecast-hub.git
         echo "Forecast hubs cloned successfully."
 
@@ -52,10 +52,10 @@ jobs:
       run: |
         mkdir -p app/public/processed_data
         python scripts/process_RespiLens_data.py \
-          --output-path ./app/public/processed_data \
-          --flusight-hub-path ./FluSight-forecast-hub \
-          --rsv-hub-path ./rsv-forecast-hub \
-          --covid-hub-path ./covid19-forecast-hub \
+          --output-path $GITHUB_WORKSPACE/app/public/processed_data \
+          --flusight-hub-path $GITHUB_WORKSPACE/FluSight-forecast-hub \
+          --rsv-hub-path $GITHUB_WORKSPACE/rsv-forecast-hub \
+          --covid-hub-path $GITHUB_WORKSPACE/covid19-forecast-hub \
           --NHSN
 
     # This step runs only the NHSN part of the script for the daily schedule
