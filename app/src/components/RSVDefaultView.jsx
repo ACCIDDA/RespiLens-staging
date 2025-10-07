@@ -195,7 +195,6 @@ const RSVDefaultView = ({
   const traces = [groundTruthTrace, ...modelTraces];
 
   const layout = {
-    title: 'RSV Forecasts',
     template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
     paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
     plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
