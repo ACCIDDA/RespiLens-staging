@@ -20,7 +20,7 @@ export const DATASETS = {
       { key: 'detailed', label: 'Time Series', value: 'rsv_ts' }
     ],
     defaultView: 'rsv_ts',
-    defaultModel: 'hub-ensemble',
+    defaultModel: 'RSVHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'rsv',
@@ -46,7 +46,7 @@ export const DATASETS = {
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
     defaultView: 'nhsnall',
-    defaultColumn: 'totalconfflunewadm',
+    defaultColumn: 'Number Hospitals Reporting TotalPatients Hospitalized with Influenza', // guess at best default col
     hasDateSelector: false,
     hasModelSelector: false,
     prefix: 'nhsn',

@@ -38,7 +38,7 @@ export const CHART_CONSTANTS = {
 // Default model names by dataset
 export const DEFAULT_MODELS = {
   FLU: 'FluSight-ensemble',
-  RSV: 'hub-ensemble'
+  RSV: 'RSVHub-ensemble'
 };
 
 // Rate change category order
