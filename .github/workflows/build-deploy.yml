@@ -44,7 +44,6 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        # Consolidated dependencies for the new script
         pip install pandas numpy pyarrow tqdm requests hubdata
 
     # This step runs the full script for the Thursday schedule or manual dispatch
@@ -52,7 +51,7 @@ jobs:
       if: github.event.schedule == '0 12 * * 4' || github.event_name == 'workflow_dispatch'
       run: |
         mkdir -p app/public/processed_data
-        python scripts/process_all_data.py \
+        python scripts/process_RespiLens_data.py \
           --output-path ./app/public/processed_data \
           --flusight-hub-path ./FluSight-forecast-hub \
           --rsv-hub-path ./rsv-forecast-hub \
@@ -64,7 +63,7 @@ jobs:
       if: github.event.schedule == '0 8 * * *'
       run: |
         mkdir -p app/public/processed_data
-        python scripts/process_all_data.py \
+        python scripts/process_RespiLens_data.py \
           --output-path ./app/public/processed_data \
           --NHSN
 
