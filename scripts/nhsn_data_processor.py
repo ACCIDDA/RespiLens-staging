@@ -10,6 +10,8 @@ import os
 import pandas as pd
 import requests
 import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from helper import TEMP_NHSN_COLUMN_MASK, get_location_info, LOCATIONS_MAP
 
@@ -116,14 +118,24 @@ class NHSNDataProcessor:
         
 
     def _retrieve_data_from_endpoint_aslist(self) -> list[dict]:
-        """Downloads NHSN data from the endpoint with pagination."""
+        """Downloads NHSN data from the endpoint with pagination and retries."""
+        
+        # --- Start of new retry logic ---
+        session = requests.Session()
+        retries = Retry(total=5,
+                        backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504])
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        # --- End of new retry logic ---
+        
         all_data = []
         offset = 0
         batch_size = 1000
         while True:
             params = {"$limit": batch_size, "$offset": offset}
             try:
-                data_response = requests.get(self.data_url, params=params)
+                # Use the configured session to make the request
+                data_response = session.get(self.data_url, params=params, timeout=30)
                 data_response.raise_for_status()
                 batch_data = data_response.json()
                 if not batch_data:
@@ -134,7 +146,7 @@ class NHSNDataProcessor:
             except Exception as e:
                 logger.error(f"Error downloading data: {str(e)}")
                 raise
-        return all_data # keyed by location
+        return all_data
 
 
     def _replace_column_names(self, data: pd.DataFrame, cdc_metadata: dict) -> pd.DataFrame:
