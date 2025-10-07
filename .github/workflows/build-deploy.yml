@@ -45,7 +45,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         # Consolidated dependencies for the new script
-        pip install pandas numpy pyarrow tqdm requests hubdata-py
+        pip install pandas numpy pyarrow tqdm requests hubdata
 
     # This step runs the full script for the Thursday schedule or manual dispatch
     - name: Process All Datasets (Hubs + NHSN)
