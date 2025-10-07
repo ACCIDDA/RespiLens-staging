@@ -15,32 +15,7 @@ class RSVDataProcessor:
         self.output_dict = {}
         self.df_data = data
         self.locations_data = locations_data 
-        # Set up target data correctly
-        self.target_data = target_data[~target_data['target'].str.contains("rate", regex=True, na=False)]
-        age_group_mapping = {
-            "0-0.99": ["0-0.49", "0.5-0.99"], "1-4": ["1-1.99", "2-4"],
-            "5-64": ["5-17", "18-49", "50-64"], "65-130": ["65-130"], "0-130": ["0-130"]
-        }
-        reverse_age_map = {
-            source: target for target, sources in age_group_mapping.items() for source in sources
-        }
-        self.target_data = (self.target_data
-                            .assign(aggregated_age_group=lambda df: df['age_group'].map(reverse_age_map))
-                            .dropna(subset=['aggregated_age_group'])
-                           )
-        self.target_data = (self.target_data
-                            .groupby(['location', 'date', 'target', 'aggregated_age_group'])
-                            ['value'].sum()
-                            .reset_index()
-                           )
-        self.target_data = self.target_data.rename(columns={'aggregated_age_group': 'age_group'})
-
-        # Add the combined_targets column to combine `age_group` and `target`, drop NaNs from target data
-        self.df_data['combined_target'] = self.df_data['age_group'] + '_' + self.df_data['target']
-        self.target_data = self.target_data.dropna(subset=['value']).copy()
-        self.target_data['combined_target'] = self.target_data['age_group'] + '_' + self.target_data['target']
-        # Add target_end_date column to self.df_data
-        self.df_data['target_end_date'] = pd.to_datetime(self.df_data['origin_date']) + pd.to_timedelta(self.df_data['horizon'], unit='W')
+        self.target_data = target_data
 
         # Group Hubverse data by loc
         logger.info("Building individual RSV JSON files...")
@@ -93,34 +68,31 @@ class RSVDataProcessor:
 
     def _build_ground_truth_key(self, df: pd.DataFrame) -> dict:
         """Build ground_truth key of an individual JSON file"""
-        # 1. Perform initial filtering as before
+        # Filter gt data by current location
         location = str(df['location'].iloc[0])
-        filtered_target_data = self.target_data[self.target_data['location'] == location].copy()
+        filtered_target_data = self.target_data[
+            (self.target_data['location'] == location) & 
+            (self.target_data['target'] == 'wk inc rsv hosp')
+        ].copy()
 
+        # Ensure date columns are in datetime format for sorting
+        filtered_target_data['as_of'] = pd.to_datetime(filtered_target_data['as_of'])
         filtered_target_data['date'] = pd.to_datetime(filtered_target_data['date'])
-        filtered_target_data = filtered_target_data[filtered_target_data['date'] >= pd.Timestamp('2023-10-01')].copy()
 
-        # 2. Create a pivot table to align all targets against a common date index
-        # This automatically handles missing values by inserting NaN
-        pivot_df = filtered_target_data.pivot_table(
-            index='date',
-            columns='combined_target',
-            values='value'
-        )
+        # Select only most recently updated record for each week
+        truth = filtered_target_data.sort_values('as_of').drop_duplicates(subset=['date'], keep='last')
 
-        # 3. Create the single, shared list of dates from the pivot table's index
-        dates_list = pivot_df.index.strftime('%Y-%m-%d').tolist()
-        ground_truth = {"dates": dates_list}
+        # Filter for the relevant rsv season (can change)
+        truth = truth[truth['date'] >= pd.Timestamp('2023-10-01')]
 
-        # 4. Loop through the columns of the pivot table (each column is a target)
-        for combined_target_name in pivot_df.columns:
-            # Get the list of values for the current target
-            # Replace NaN with None so it becomes 'null' in the JSON
-            values_list = pivot_df[combined_target_name].where(pd.notna(pivot_df[combined_target_name]), None).tolist()
-            
-            # Add the list of values to the dictionary, keyed by the target name
-            ground_truth[combined_target_name] = values_list
+        # Sort before creating lists
+        truth.sort_values('date', inplace=True)
 
+        # Build and return final ground_truth dict
+        ground_truth = {
+            "dates": truth['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "wk inc rsv hosp": truth['observation'].tolist()
+        }
         return ground_truth
 
 
@@ -128,38 +100,46 @@ class RSVDataProcessor:
         """Build forecasts key of an individual JSON file"""
         forecasts = {}
 
-        # Group by all necessary columns 
-        full_gbo = df.groupby(['origin_date', 'combined_target', 'model_id', 'horizon', 'output_type'])
+        # Group by all necessary columns
+        full_gbo = df.groupby(['reference_date', 'target', 'model_id', 'horizon', 'output_type'])
         for group, grouped_df in full_gbo:
 
-            # Set constants
-            origin_date = str(grouped_df['origin_date'].iloc[0])
-            combined_target = str(grouped_df['combined_target'].iloc[0])
+            # Set constants 
+            reference_date = str(grouped_df['reference_date'].iloc[0])
+            target = str(grouped_df['target'].iloc[0])
             model = str(grouped_df['model_id'].iloc[0])
             horizon = str(grouped_df['horizon'].iloc[0])
 
-            # Separte by output_type, fill in values
+            # Separate by quanitle/pmf output_type, fill in values
             if grouped_df['output_type'].iloc[0] == 'quantile':
-                origin_date_dict = forecasts.setdefault(origin_date, {})
-                combined_target_dict = origin_date_dict.setdefault(combined_target, {})
-                model_dict = combined_target_dict.setdefault(model, {})
+                reference_date_dict = forecasts.setdefault(reference_date, {})
+                target_dict = reference_date_dict.setdefault(target, {})
+                model_dict = target_dict.setdefault(model, {})
                 model_dict["type"] = "quantile"
                 predictions_dict = model_dict.setdefault("predictions", {})
                 predictions_dict[horizon] = {
-                    "date": str(grouped_df['target_end_date'].iloc[0]), #TODO add 'target_end_date'
+                    "date": str(grouped_df['target_end_date'].iloc[0]),
                     "quantiles": list(grouped_df['output_type_id']),
                     "values": list(grouped_df['value'])
                 }
-
-            elif grouped_df['output_type'].iloc[0] == 'pmf':
-                raise ValueError(f"'pmf' `output_type` not currently supported for RSV. "
-                                 f"If RSV-forecast-hub has added 'pmf', contact RespiLens creators.")
+            elif grouped_df['output_type'].iloc[0] == 'pmf': # no pmf for rsv hub yet, but just in case
+                reference_date_dict = forecasts.setdefault(reference_date, {})
+                target_dict = reference_date_dict.setdefault(target, {})
+                model_dict = target_dict.setdefault(model, {})
+                model_dict["type"] = "pmf"
+                predictions_dict = model_dict.setdefault("predictions", {})
+                predictions_dict[horizon] = {
+                    "date": str(grouped_df['target_end_date'].iloc[0]),
+                    "categories": list(grouped_df['output_type_id']),
+                    "probabilities": list(grouped_df['value'])
+                }
             elif grouped_df['output_type'].iloc[0] == 'sample':
+                # not including 'sample' output_type in processed data
                 continue
             else:
-                raise ValueError(f"`output_type` of input data must be 'quantile', "
-                                 f"received '{grouped_df['output_type'].iloc[0]}'")
-        
+                raise ValueError(f"`output_type` of input data must either be 'quantile' or 'pmf', " 
+                                 f"received '{grouped_df['output_type'].iloc}'")
+            
         return forecasts
 
 

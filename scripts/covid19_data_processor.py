@@ -70,7 +70,10 @@ class COVIDDataProcessor:
         """Build ground_truth key of an individual JSON file"""
         # Filter gt data by current location
         location = str(df['location'].iloc[0])
-        filtered_target_data = self.target_data[self.target_data['location'] == location].copy()
+        filtered_target_data = self.target_data[
+            (self.target_data['location'] == location) & 
+            (self.target_data['target'] == 'wk inc covid hosp')
+        ].copy()
 
         # Ensure date columns are in datetime format for sorting
         filtered_target_data['as_of'] = pd.to_datetime(filtered_target_data['as_of'])

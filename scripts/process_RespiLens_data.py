@@ -88,15 +88,8 @@ def main():
         logger.info("Success ✅")
         logger.info("Collecting data from RSV repo...")
         rsv_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=rsv_hub_conn.get_dataset().to_table().to_pandas()))
-        rsv_locations_data = clean_nan_values(pd.read_csv(Path(args.rsv_hub_path) / 'auxiliary-data/location_census/locations.csv'))
-        # RSV target-data files have dynamic names based on date; find most recent one
-        rsv_base_path = Path(args.rsv_hub_path)
-        rsv_target_data_files = sorted(rsv_base_path.glob("target-data/*_rsvnet_hospitalization.csv"))
-        if not rsv_target_data_files:
-            raise FileNotFoundError("Could not find RSV target data files. Check that target-data dir exists in local RSV repo.")
-        latest_rsv_target_file_path = rsv_target_data_files[-1]
-        # Explicitly read in 'location' dtype as str b/c there are mixed values 
-        rsv_target_data = clean_nan_values(pd.read_csv(latest_rsv_target_file_path, dtype={'location': str}))
+        rsv_locations_data = clean_nan_values(pd.read_csv(Path(args.rsv_hub_path) / 'auxiliary-data/locations.csv'))
+        rsv_target_data = clean_nan_values(pd.read_parquet(Path(args.rsv_hub_path) / 'target-data/time-series.parquet'))
         # Initialize converter object
         rsv_processor_object = RSVDataProcessor(
             data=rsv_hubverse_df,

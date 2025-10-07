@@ -20,7 +20,7 @@ export const DATASETS = {
       { key: 'detailed', label: 'Time Series', value: 'rsv_ts' }
     ],
     defaultView: 'rsv_ts',
-    defaultModel: 'hub-ensemble',
+    defaultModel: 'RSVHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'rsv',
