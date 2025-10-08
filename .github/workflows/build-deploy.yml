@@ -2,8 +2,7 @@ name: Build and Deploy Site
 
 on:
   schedule:
-    - cron: '0 12 * * 4'  # Thursdays 8 AM ET (12 PM UTC) - For all datasets
-    - cron: '0 8 * * *'   # Daily at 4 AM ET (8 AM UTC) - For NHSN only
+    - cron: '0 8 * * *'   # Daily at 4 AM ET (8 AM UTC) for a full build
   workflow_dispatch:
 
 permissions:
@@ -12,16 +11,14 @@ permissions:
   id-token: write
 
 jobs:
-  # This single job replaces the previous four (process-flusight, process-rsv, process-covid19, process-nhsn)
   process-data:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout visualization repository
       uses: actions/checkout@v4
 
-    # This step runs only on the full-data schedule or manual triggers
+    # This step now runs every time
     - name: Clone Forecast Hubs
-      if: github.event.schedule == '0 12 * * 4' || github.event_name == 'workflow_dispatch'
       run: |
         git clone https://github.com/cdcepi/FluSight-forecast-hub.git
         git clone https://github.com/CDCgov/rsv-forecast-hub.git 
@@ -37,7 +34,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }} # Assuming you might add a requirements.txt
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
@@ -46,9 +43,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pandas numpy pyarrow tqdm requests hubdata
 
-    # This step runs the full script for the Thursday schedule or manual dispatch
+    # This single processing step now runs every time
     - name: Process All Datasets (Hubs + NHSN)
-      if: github.event.schedule == '0 12 * * 4' || github.event_name == 'workflow_dispatch'
       run: |
         mkdir -p app/public/processed_data
         python scripts/process_RespiLens_data.py \
@@ -56,15 +52,6 @@ jobs:
           --flusight-hub-path $GITHUB_WORKSPACE/FluSight-forecast-hub \
           --rsv-hub-path $GITHUB_WORKSPACE/rsv-forecast-hub \
           --covid-hub-path $GITHUB_WORKSPACE/covid19-forecast-hub \
-          --NHSN
-
-    # This step runs only the NHSN part of the script for the daily schedule
-    - name: Process NHSN Data Only
-      if: github.event.schedule == '0 8 * * *'
-      run: |
-        mkdir -p app/public/processed_data
-        python scripts/process_RespiLens_data.py \
-          --output-path ./app/public/processed_data \
           --NHSN
 
     - name: Upload all processed data as a single artifact
@@ -76,7 +63,6 @@ jobs:
         retention-days: 7
 
   build-and-deploy:  
-    # This job now only needs the single `process-data` job to complete
     needs: [process-data]
     if: always()
     runs-on: ubuntu-latest
@@ -85,34 +71,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
+      # ... (The build-and-deploy job remains exactly the same) ...
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: 'app/package-lock.json'
-          
-      # The separate cache-restore steps are replaced by a single artifact download
       - name: Download all processed data
         uses: actions/download-artifact@v4
         with:
           name: processed-data
           path: app/public/processed_data
-          
       - name: Install dependencies
         working-directory: ./app
         run: npm ci
-        
       - name: Clean and Reinstall
         working-directory: ./app
         run: |
           rm -rf node_modules
           rm -f package-lock.json
           npm install
-          
       - name: Build website
         working-directory: ./app
         run: |
@@ -121,16 +102,13 @@ jobs:
           else
             npm run build
           fi
-          
       - name: Copy index.html to 404.html for SPA routing
         working-directory: ./app
         run: cp dist/index.html dist/404.html
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./app/dist
-          
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
