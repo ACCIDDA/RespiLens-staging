@@ -12,7 +12,7 @@ def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
     return df.replace({np.nan: None})
 
 
-def hubverse_df_preprocessor(df: pd.DataFrame) -> pd.DataFrame: # can add **kwargs if we need modular quantile filtering
+def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True) -> pd.DataFrame: # can add **kwargs if we need modular quantile filtering
     """
     Do a number of pre-processing tasks that make a hubverse df ready to pass through a processing class.
 
@@ -33,17 +33,18 @@ def hubverse_df_preprocessor(df: pd.DataFrame) -> pd.DataFrame: # can add **kwar
     df['horizon'] = df['horizon'].astype(int)
     # Get rid of all output_type == 'sample'
     df = df[df['output_type'] != 'sample']
-    # Filter `output_type_id` values
-    # Only keep some quantiles, if pmf is implicated keep all `output_type_id` values
-    categorical_ids = ['decrease', 'increase', 'large_decrease', 'large_increase', 'stable'] 
-    numeric_ids = [0.025, 0.25, 0.5, 0.75, 0.975]
-    numeric_output_ids = pd.to_numeric(df['output_type_id'], errors='coerce')
-    is_categorical_id = df['output_type_id'].isin(categorical_ids)
-    is_numeric_id = numeric_output_ids.isin(numeric_ids)
-    df = df[is_categorical_id | is_numeric_id]
-    # Ensure quantile column is numeric (if output_type = quantile)
-    quantile_mask = df['output_type'] == 'quantile'
-    df.loc[quantile_mask, 'output_type_id'] = df.loc[quantile_mask, 'output_type_id'].astype(float)
+    if filter_quantiles:
+        # Filter `output_type_id` values
+        # Only keep some quantiles, if pmf is implicated keep all `output_type_id` values
+        categorical_ids = ['decrease', 'increase', 'large_decrease', 'large_increase', 'stable'] 
+        numeric_ids = [0.025, 0.25, 0.5, 0.75, 0.975]
+        numeric_output_ids = pd.to_numeric(df['output_type_id'], errors='coerce')
+        is_categorical_id = df['output_type_id'].isin(categorical_ids)
+        is_numeric_id = numeric_output_ids.isin(numeric_ids)
+        df = df[is_categorical_id | is_numeric_id]
+        # Ensure quantile column is numeric (if output_type = quantile)
+        quantile_mask = df['output_type'] == 'quantile'
+        df.loc[quantile_mask, 'output_type_id'] = df.loc[quantile_mask, 'output_type_id'].astype(float)
 
     return df
 
