@@ -50,12 +50,12 @@ const MyRespiLensDashboard = () => {
     const files = e.dataTransfer.files;
     if (files && files[0]) {
       const file = files[0];
-      if (file.name.endsWith('.respilens.json')) {
+      if (file.name.endsWith('.json')) {
         setUploadedFile(file);
         // Here you would process the file
-        console.log('Processing .respilens.json file:', file.name);
+        console.log('Processing .json file:', file.name);
       } else {
-        alert('Please upload a .respilens.json file');
+        alert('Please upload a .json file');
       }
     }
   }, []);
@@ -64,11 +64,12 @@ const MyRespiLensDashboard = () => {
     const files = e.target.files;
     if (files && files[0]) {
       const file = files[0];
-      if (file.name.endsWith('.respilens.json')) {
+      if (file.name.endsWith('.json')) {
         setUploadedFile(file);
-        console.log('Processing .respilens.json file:', file.name);
+        // Here you would process the file
+        console.log('Processing .json file:', file.name);
       } else {
-        alert('Please upload a .respilens.json file');
+        alert('Please upload a .json file');
       }
     }
   }, []);

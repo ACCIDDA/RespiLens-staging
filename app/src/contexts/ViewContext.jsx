@@ -33,6 +33,9 @@ export const ViewProvider = ({ children }) => {
   
 
   useEffect(() => {
+    if (location.pathname !== '/') {
+      return;
+    }
     // 1. Wait until the data for the current view has completely finished loading.
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (loading || !currentDataset || models.length === 0 || availableDates.length === 0) {
@@ -80,7 +83,7 @@ export const ViewProvider = ({ children }) => {
 
   // --- CHANGE 2: Remove the eslint-disable comment ---
   // The dependency array is now correct because urlManager is stable.
-  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
+  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams, location.pathname]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
