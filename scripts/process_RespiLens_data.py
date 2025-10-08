@@ -90,6 +90,7 @@ def main():
         rsv_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=rsv_hub_conn.get_dataset().to_table().to_pandas()))
         rsv_locations_data = clean_nan_values(pd.read_csv(Path(args.rsv_hub_path) / 'auxiliary-data/locations.csv'))
         rsv_target_data = clean_nan_values(pd.read_parquet(Path(args.rsv_hub_path) / 'target-data/time-series.parquet'))
+        logger.info("Success ✅")
         # Initialize converter object
         rsv_processor_object = RSVDataProcessor(
             data=rsv_hubverse_df,
