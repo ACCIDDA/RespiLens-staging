@@ -8,12 +8,14 @@ import {
   Stack,
   ThemeIcon,
   Paper,
-  Center
+  Center,
+  Loader
 } from '@mantine/core';
 import {
   IconUpload,
   IconFileText,
-  IconCheck
+  IconCheck,
+  IconMapPin // import an icon for the location
 } from '@tabler/icons-react';
 
 const MyRespiLensDashboard = () => {
@@ -23,7 +25,43 @@ const MyRespiLensDashboard = () => {
   }, []);
 
   const [dragActive, setDragActive] = useState(false);
+  const [fileData, setFileData] = useState(null); // hold parsed json data
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false); // track if the file is being read and parsed
+
+  // NEW: useEffect hook to read the file whenever 'uploadedFile' changes
+  useEffect(() => {
+    if (uploadedFile) {
+      setIsProcessing(true); // Start processing
+      const reader = new FileReader();
+
+      // Define what happens when the file is successfully read
+      reader.onload = (event) => {
+        try {
+          const content = event.target.result;
+          const data = JSON.parse(content);
+          setFileData(data); // Store the parsed JSON data in state
+        } catch (error) {
+          console.error("Error parsing JSON file:", error);
+          alert("Could not read the file. Please ensure it is a valid JSON file.");
+          setUploadedFile(null); // Reset on error
+          setFileData(null);
+        } finally {
+          setIsProcessing(false); // Finish processing
+        }
+      };
+
+      // Define what happens on a file read error
+      reader.onerror = (error) => {
+        console.error("Error reading file:", error);
+        alert("An error occurred while reading the file.");
+        setIsProcessing(false);
+      };
+
+      // Start reading the file as text
+      reader.readAsText(uploadedFile);
+    }
+  }, [uploadedFile]); // This effect depends on 'uploadedFile'
 
   const handleDragEnter = useCallback((e) => {
     e.preventDefault();
@@ -42,35 +80,27 @@ const MyRespiLensDashboard = () => {
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e) => {
+  const processFile = (file) => {
+    if (file && file.name.endsWith('.json')) {
+      setFileData(null); // Reset previous data
+      setUploadedFile(file); // Set the new file to trigger the useEffect
+    } else {
+      alert('Please upload a .json file');
+    }
+  };
+
+  const handleDrop = useCallback((e) => { // new handleDrop
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
-    const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      const file = files[0];
-      if (file.name.endsWith('.json')) {
-        setUploadedFile(file);
-        // Here you would process the file
-        console.log('Processing .json file:', file.name);
-      } else {
-        alert('Please upload a .json file');
-      }
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
     }
   }, []);
 
-  const handleFileSelect = useCallback((e) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      const file = files[0];
-      if (file.name.endsWith('.json')) {
-        setUploadedFile(file);
-        // Here you would process the file
-        console.log('Processing .json file:', file.name);
-      } else {
-        alert('Please upload a .json file');
-      }
+  const handleFileSelect = useCallback((e) => { // new handleFileSelect
+    if (e.target.files && e.target.files[0]) {
+      processFile(e.target.files[0]);
     }
   }, []);
 
@@ -139,6 +169,7 @@ const MyRespiLensDashboard = () => {
             />
           </Paper>
         ) : (
+          // NEW: Updated success UI that shows processing state and final data
           <Paper shadow="sm" p="xl" radius="lg" withBorder style={{ width: '100%', maxWidth: '600px' }}>
             <Stack align="center" gap="xl">
               <ThemeIcon size={80} variant="light" color="green">
@@ -147,14 +178,24 @@ const MyRespiLensDashboard = () => {
               
               <div style={{ textAlign: 'center' }}>
                 <Title order={2} mb="md" c="green">
-                  File uploaded successfully!
+                  File Uploaded
                 </Title>
-                <Text size="lg" c="dimmed" mb="sm">
-                  {uploadedFile.name}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  Processing your RespiLens data...
-                </Text>
+                
+                {isProcessing && (
+                  <Group justify="center">
+                    <Loader size="sm" />
+                    <Text c="dimmed">Processing {uploadedFile.name}...</Text>
+                  </Group>
+                )}
+
+                {fileData && !isProcessing && (
+                  <Group justify="center" gap="xs">
+                    <IconMapPin size={24} />
+                    <Text size="xl">
+                      {fileData.metadata.location_name}
+                    </Text>
+                  </Group>
+                )}
               </div>
             </Stack>
           </Paper>
