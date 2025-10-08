@@ -1,10 +1,20 @@
 """Helper functions for data conversion process."""
 
 import json 
+import jsonschema
 from typing import Literal
 import numpy as np
 import pandas as pd
 from pathlib import Path
+
+# Import schema
+_current_dir = Path(__file__).parent
+projections_schema_path = _current_dir / 'schemas' / 'RespiLens_projections.schema.json'
+timeseries_schema_path = _current_dir / 'schemas' / 'RespiLens_timeseries.schema.json'
+with open(projections_schema_path, 'r') as f:
+    projections_schema = json.load(f)
+with open(timeseries_schema_path, 'r') as f:
+    timeseries_schema = json.load(f)
 
 
 def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -122,6 +132,36 @@ def save_json_file(
     # Write output contents to file
     with open(file_path,'w') as of:
         json.dump(file_contents, of, indent=4)
+
+
+def validate_respilens_json(json_contents: dict, type: str = Literal['projections', 'timeseries']) -> bool | str:
+    """
+    Validate JSON output with RespiLens schema
+
+    Args:
+        json_contents: Contents of json file, stored as python dict
+        type: Type of RespiLens data (either projections or timeseries)
+
+    Returns:
+        True if validation is successful, str of error message if unsuccessful.
+
+    Raise:
+        ValidationError: When json contents do not match jsonschema
+    """
+    if type == 'projections':
+        try:
+            jsonschema.validate(instance=json_contents, schema=projections_schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            return str(e)
+    elif type == 'timeseries':
+        try:
+            jsonschema.validate(instance=json_contents, schema=timeseries_schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            return str(e)
+    else:
+        raise ValueError(f"`type` parameter must be one of 'projections' or 'timeseries'. Received {type}")
 
 
 TEMP_NHSN_COLUMN_MASK = ['totalconfc19newadmadult',

@@ -112,11 +112,8 @@ const MyRespiLensDashboard = () => {
               
               <div style={{ textAlign: 'center' }}>
                 <Title order={2} mb="md" c={dragActive ? 'blue' : 'dark'}>
-                  Drop your .respilens.json file here
+                  Drop your RespiLens .json file here
                 </Title>
-                <Text size="lg" c="dimmed" mb="sm">
-                  or click to browse files
-                </Text>
                 <Text size="sm" c="dimmed">
                   Upload your RespiLens data file to view your personalized dashboard
                 </Text>
@@ -127,7 +124,7 @@ const MyRespiLensDashboard = () => {
                   <IconFileText size={14} />
                 </ThemeIcon>
                 <Text size="sm" fw={500} c="blue">
-                  .respilens.json files only
+                  RespiLens projections-style .json files only
                 </Text>
               </Group>
             </Stack>
