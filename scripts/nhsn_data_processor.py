@@ -120,13 +120,11 @@ class NHSNDataProcessor:
     def _retrieve_data_from_endpoint_aslist(self) -> list[dict]:
         """Downloads NHSN data from the endpoint with pagination and retries."""
         
-        # --- Start of new retry logic ---
         session = requests.Session()
         retries = Retry(total=5,
                         backoff_factor=1,
                         status_forcelist=[500, 502, 503, 504])
         session.mount('https://', HTTPAdapter(max_retries=retries))
-        # --- End of new retry logic ---
         
         all_data = []
         offset = 0
