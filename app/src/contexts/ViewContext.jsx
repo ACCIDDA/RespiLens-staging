@@ -1,11 +1,10 @@
 // src/contexts/ViewContext.jsx
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
-
-const ViewContext = createContext(null);
+import { ViewContext } from './ViewContextObject';
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -165,10 +164,4 @@ export const ViewProvider = ({ children }) => {
       {children}
     </ViewContext.Provider>
   );
-};
-
-export const useView = () => {
-  const context = useContext(ViewContext);
-  if (!context) throw new Error('useView must be used within a ViewProvider');
-  return context;
 };

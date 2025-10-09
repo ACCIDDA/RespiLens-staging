@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Stack, ScrollArea, Button, TextInput, Text, Divider, Loader, Center, Alert } from '@mantine/core';
 import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
-import { useView } from '../contexts/ViewContext'; // 1. Import the useView hook
+import { useView } from '../hooks/useView'; // 1. Import the useView hook
 import ViewSelector from './ViewSelector';
 import { getDataPath } from '../utils/paths';
 

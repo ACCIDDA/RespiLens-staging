@@ -1,5 +1,5 @@
 import { Select, Stack, Badge, Group } from '@mantine/core';
-import { useView } from '../contexts/ViewContext';
+import { useView } from '../hooks/useView';
 import { DATASETS } from '../config/datasets';
 
 const ViewSelector = () => {

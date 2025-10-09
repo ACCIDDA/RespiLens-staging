@@ -136,7 +136,7 @@ export const useAdaptiveYRange = (
     }
     
     // For NHSN, add values from selected columns
-    if (datasetType === 'nhsn' && options.selectedColumns) {
+    if (datasetType === 'nhsn' && selectedColumns) {
       selectedColumns.forEach(column => {
         // Determine if column is preliminary or official
         const isPrelimininary = column.includes('_prelim');

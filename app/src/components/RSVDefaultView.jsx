@@ -3,7 +3,7 @@ import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
-import { useView } from '../contexts/ViewContext';
+import { useView } from '../hooks/useView';
 
 const RSVDefaultView = ({
   getModelColor = (model, selectedModels) => {

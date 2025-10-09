@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Stack, Container, Paper } from '@mantine/core';
-import { useView } from '../contexts/ViewContext';
+import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
 import DataVisualization from './DataVisualization';
 import ErrorBoundary from './ErrorBoundary';
