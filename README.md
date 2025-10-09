@@ -72,6 +72,34 @@ Features
 - [x] create consistent file naming system
 
 
+## Data Processing
+
+GitHub Actions refreshes the processed JSON nightly, but you can regenerate everything locally in two ways:
+
+- `./update_all_data_source.sh`  
+  Clones or updates the FluSight, RSV, and COVID-19 hubs and runs `scripts/process_RespiLens_data.py` to rebuild `app/public/processed_data/`.
+
+- `python scripts/external_to_projections.py`  
+  Converts a single pathogen’s Hubverse exports into RespiLens projection JSON. Supply the forecast CSV, target dataset, and locations metadata for the pathogen you want to process:
+
+  ```bash
+  python scripts/external_to_projections.py \
+      --output-path ./app/public/processed_data \
+      --pathogen flu \
+      --data-path /absolute/path/to/FluSight-forecast-hub/hub_data.csv \
+      --target-data-path /absolute/path/to/FluSight-forecast-hub/target-data/time-series.csv \
+      --locations-data-path /absolute/path/to/FluSight-forecast-hub/auxiliary-data/locations.csv \
+      --overwrite
+  ```
+
+  Swap the `--pathogen` flag and file paths to process RSV or COVID-19 hubs. Each payload is validated against `scripts/schemas/RespiLens_projections.schema.json` before being saved under `app/public/processed_data/<pathogen>/`.
+
+If you want to compare fresh output against a snapshot, stash the reference JSON (e.g., under `tmp/baseline_json_samples/`) and run:
+
+```bash
+diff -ru tmp/baseline_json_samples app/public/processed_data
+```
+
 
 ## Desired Behaviors
 

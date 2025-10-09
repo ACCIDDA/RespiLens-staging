@@ -2,6 +2,7 @@
 
 In this README.md, you will find brief guides for [RespiLens'](https://www.RespiLens.com) scripts. Jump to the script you're looking for below:
 
+* [external_to_projections](external_to_projections)
 * [process_flusight_data](process_flusight_data)
 * [process_nhsn_data](process_nhsn_data)
 * [process_rsv_data](process_rsv_data)
@@ -206,3 +207,70 @@ This script contains one function called `metadata_builder(...)` that builds Res
 | `datasetType` | The type of data. | String | No | `""` |
 
 There is an additionaly key of RespiLens metadta, `lastUpdated`, that is automatically filled in as a str of the current date. There is no CLI for this function. 
+## external_to_projections
+
+#### Overview
+
+`external_to_projections.py` is the command-line entry point for converting Hubverse exports into RespiLens projections JSON files. It pulls raw forecast, target, and location metadata files; validates the inputs; runs the appropriate processor (`flusight_data_processor`, `rsv_data_processor`, or `covid19_data_processor`); validates the JSON outputs; and writes a single JSON file per location (plus metadata) using `helper.save_json_file`.
+
+Internally it relies on `external_data.py` to load and validate the incoming files, and on `hub_dataset_processor.HubDataProcessorBase` for the shared processing workflow. Intermediate DataFrames are retained on each processor instance under the `intermediate_dataframes` attribute for optional downstream use.
+
+#### Typical Workflow
+
+1. Gather the three Hubverse exports for your pathogen:
+   * `--data-path`: Forecast CSV containing quantiles/pmf predictions.
+   * `--target-data-path`: Ground-truth time series (CSV or Parquet, depending on the hub).
+   * `--locations-data-path`: Location metadata CSV.
+2. Pick the pathogen (`flu`, `rsv`, or `covid`) so the loader can enforce pathogen-specific column requirements.
+3. Run the CLI pointing at the directory where processed JSON should be written.
+4. Each payload is checked against `schemas/RespiLens_projections.schema.json` before being saved via `helper.save_json_file`.
+5. Each processor exposes `processor.intermediate_dataframes` if you need to inspect the cleaned DataFrames in downstream tooling.
+
+#### Running `external_to_projections.py`
+
+You can run `external_to_projections.py` with the following options:
+
+| Option | Description | Value Type | Required? | Default Value |
+| :--- | :--- | :--- | :--- | :--- |
+| `--output-path` | Directory where JSON files will be saved. | String | Yes | *N/A* |
+| `--pathogen` | Pathogen to process (`flu`, `rsv`, or `covid`). Determines which processor is used. | String | Yes | *N/A* |
+| `--data-path` | Absolute path to Hubverse forecast data in CSV format. | String | Yes | *N/A* |
+| `--target-data-path` | Absolute path to Hubverse target data (CSV or Parquet). | String | Yes | *N/A* |
+| `--locations-data-path` | Absolute path to the location metadata CSV. | String | Yes | *N/A* |
+| `--overwrite` | Flag that allows overwriting existing output files. | Flag (Boolean) | No | `False` |
+| `--log-level` | Console logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). | String | No | `INFO` |
+
+Example command:
+```
+python scripts/external_to_projections.py \
+    --output-path ./app/public/processed_data \
+    --pathogen flu \
+    --data-path /absolute/path/to/FluSight-forecast-hub/hub_data.csv \
+    --target-data-path /absolute/path/to/FluSight-forecast-hub/target-data/time-series.csv \
+    --locations-data-path /absolute/path/to/FluSight-forecast-hub/auxiliary-data/locations.csv \
+    --overwrite
+```
+
+To process other hubs, adjust the pathogen flag and the file paths:
+
+```bash
+# RSV
+python scripts/external_to_projections.py \
+    --output-path ./app/public/processed_data \
+    --pathogen rsv \
+    --data-path /absolute/path/to/rsv-forecast-hub/hub_data.csv \
+    --target-data-path /absolute/path/to/rsv-forecast-hub/target-data/time-series.parquet \
+    --locations-data-path /absolute/path/to/rsv-forecast-hub/auxiliary-data/locations.csv \
+    --overwrite
+
+# COVID-19
+python scripts/external_to_projections.py \
+    --output-path ./app/public/processed_data \
+    --pathogen covid \
+    --data-path /absolute/path/to/covid19-forecast-hub/hub_data.csv \
+    --target-data-path /absolute/path/to/covid19-forecast-hub/target-data/time-series.parquet \
+    --locations-data-path /absolute/path/to/covid19-forecast-hub/auxiliary-data/locations.csv \
+    --overwrite
+```
+
+The CLI writes each pathogen into its own subdirectory under `--output-path` (`flusight`, `rsv`, `covid19`), so you can run it multiple times in a row without cleaning between runs.***
