@@ -1,3 +1,4 @@
+tests/output/
 __pycache__/
 *.pyc
 FluSight-forecast-hub/
@@ -32,3 +33,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.RData
+.Rhistory
+tests/output/
+tmp/

@@ -1,0 +1,15 @@
+{
+  "last_updated": "2025-10-09 15:40:05",
+  "models": [
+    "FluSight-ensemble",
+    "UNC_IDD-Influpaint"
+  ],
+  "locations": [
+    {
+      "location": "06",
+      "abbreviation": "CA",
+      "location_name": "California",
+      "population": 39538223.0
+    }
+  ]
+}

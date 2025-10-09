@@ -5,22 +5,19 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
-from external_data import (
-    ExternalData,
-    ExternalDataError,
-    load_projections_schema,
-    validate_against_schema,
-)
-from hubverse_data_processor import HubverseDataProcessor
+from external_data import ExternalDataError, load_inputs, load_projections_schema, validate_against_schema
+from flusight_data_processor import FlusightDataProcessor
+from rsv_data_processor import RSVDataProcessor
+from covid19_data_processor import COVIDDataProcessor
 from helper import save_json_file
 
 
-PROCESSOR_PATHOGEN_MAP: Dict[str, str] = {
-    "flu": "flusight",
-    "rsv": "rsv",
-    "covid": "covid19",
+PROCESSOR_CLASS_MAP: Dict[str, Tuple[type, str]] = {
+    "flu": (FlusightDataProcessor, "flusight"),
+    "rsv": (RSVDataProcessor, "rsv"),
+    "covid": (COVIDDataProcessor, "covid19"),
 }
 
 
@@ -30,7 +27,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--pathogen",
         required=True,
-        choices=sorted(PROCESSOR_PATHOGEN_MAP.keys()),
+        choices=sorted(PROCESSOR_CLASS_MAP.keys()),
         help="Pathogen to process (flu, rsv, covid).",
     )
     parser.add_argument("--data-path", required=True, help="Absolute path to Hubverse forecast data in CSV format.")
@@ -63,25 +60,24 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=getattr(logging, args.log_level))
     output_path = Path(args.output_path).resolve()
 
-    pathogen_key = PROCESSOR_PATHOGEN_MAP[args.pathogen]
+    processor_cls, pathogen_key = PROCESSOR_CLASS_MAP[args.pathogen]
 
     try:
-        validated = ExternalData(
-            data_path=args.data_path,
-            target_data_path=args.target_data_path,
-            locations_data_path=args.locations_data_path,
+        inputs = load_inputs(
             pathogen=args.pathogen,
+            data_path=Path(args.data_path).resolve(),
+            target_data_path=Path(args.target_data_path).resolve(),
+            locations_data_path=Path(args.locations_data_path).resolve(),
         )
     except ExternalDataError as exc:
         logging.error("Input validation failed: %s", exc)
         return 1
 
     logging.info("Starting %s projections processing...", args.pathogen.upper())
-    processor = HubverseDataProcessor(
-        data=validated.data,
-        locations_data=validated.locations_data,
-        target_data=validated.target_data,
-        hub=pathogen_key,
+    processor = processor_cls(
+        data=inputs.data,
+        locations_data=inputs.locations_data,
+        target_data=inputs.target_data,
     )
 
     try:

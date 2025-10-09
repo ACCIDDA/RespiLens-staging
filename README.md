@@ -111,6 +111,12 @@ For a quick regression check that the Python and R converters remain in sync, ru
 
 Details live in `tests/README.md`.
 
+Unit tests that exercise the shared processors against a fixed FluSight fixture are available via:
+
+```bash
+python -m pytest tests/test_processors.py
+```
+
 
 ## Desired Behaviors
 

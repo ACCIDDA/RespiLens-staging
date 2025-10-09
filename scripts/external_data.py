@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Literal, Optional, Set
+from typing import Dict, Iterable, Optional, Set
 import json
 import logging
 
@@ -184,28 +184,3 @@ def _validate_location_coverage(
             "The following locations appear in forecast data but are missing from location metadata: "
             f"{missing_locations}. Forecast file: {forecast_path}, locations file: {locations_path}"
         )
-
-
-class ExternalData:
-    """Backwards-compatible wrapper providing attribute access to validated inputs."""
-
-    def __init__(
-        self,
-        data_path: str,
-        target_data_path: str,
-        locations_data_path: str,
-        pathogen: Literal["rsv", "flu", "covid"],
-        *,
-        filter_quantiles: bool = False,
-    ) -> None:
-        inputs = load_inputs(
-            pathogen=pathogen,
-            data_path=Path(data_path),
-            target_data_path=Path(target_data_path),
-            locations_data_path=Path(locations_data_path),
-            filter_quantiles=filter_quantiles,
-        )
-        self.pathogen = pathogen
-        self.data = inputs.data
-        self.target_data = inputs.target_data
-        self.locations_data = inputs.locations_data
