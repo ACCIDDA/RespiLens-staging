@@ -10,7 +10,7 @@ const ModelSelector = ({
   allowMultiple = true,
   disabled = false
 }) => {
-  const [showAllAvailable, setShowAllAvailable] = useState(false);
+  const [showAllAvailable, setShowAllAvailable] = useState(true);
   const [search, setSearch] = useState('');
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
@@ -63,132 +63,9 @@ const ModelSelector = ({
     <Stack gap="md" mt="md">
       <Divider />
       
-      {/* Header with Toggle */}
-      <Group justify="space-between" align="center">
-        <Text size="sm" fw={500} c="dimmed">
-          Models ({selectedModels.length}/{models.length})
-        </Text>
-        <Switch
-          label="Show all available models"
-          checked={showAllAvailable}
-          onChange={(event) => setShowAllAvailable(event.currentTarget.checked)}
-          size="sm"
-          disabled={disabled}
-          thumbIcon={
-            showAllAvailable ? (
-              <IconEye size={12} stroke={2.5} />
-            ) : (
-              <IconEyeOff size={12} stroke={2.5} />
-            )
-          }
-        />
-      </Group>
-
-      {/* Bulk Actions */}
-      {allowMultiple && (
-        <Group gap="xs" wrap="wrap" justify="space-between">
-          <Group gap="xs" wrap="wrap">
-            <Tooltip label="Select all available models">
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={handleSelectAll}
-                disabled={disabled || selectedModels.length === models.length}
-              >
-                Select All
-              </Button>
-            </Tooltip>
-            <Tooltip label="Clear all selected models">
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={handleSelectNone}
-                disabled={disabled || selectedModels.length === 0}
-              >
-                Clear All
-              </Button>
-            </Tooltip>
-          </Group>
-          <Text size="xs" c="dimmed" hiddenFrom="xs">
-            {selectedModels.length > 0 && `${selectedModels.length} selected`}
-          </Text>
-        </Group>
-      )}
-
-      {/* Model Grid Display */}
-      {modelsToShow.length > 0 && (
-        <SimpleGrid 
-          cols={{ base: 1, xs: 2, sm: 3, md: 4 }}
-          spacing="xs"
-          verticalSpacing="xs"
-        >
-          {modelsToShow.map((model) => {
-            const isSelected = selectedModels.includes(model);
-            const modelColor = getModelColorByIndex(model);
-            
-            return (
-              <Card
-                key={model}
-                p="xs"
-                radius="md"
-                withBorder={!isSelected}
-                variant={isSelected ? 'filled' : 'default'}
-                style={{
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  backgroundColor: isSelected ? modelColor : undefined,
-                  borderColor: isSelected ? modelColor : undefined
-                }}
-                opacity={disabled ? 0.5 : 1}
-                onClick={() => {
-                  if (disabled) return;
-                  
-                  if (isSelected) {
-                    setSelectedModels(selectedModels.filter(m => m !== model));
-                  } else {
-                    if (allowMultiple) {
-                      setSelectedModels([...selectedModels, model]);
-                    } else {
-                      setSelectedModels([model]);
-                    }
-                  }
-                }}
-              >
-                <Group gap="xs" justify="space-between" align="center">
-                  <Group gap="xs" align="center" flex={1}>
-                    {isSelected ? (
-                      <IconCircleCheck size={16} color="white" />
-                    ) : (
-                      <IconCircle size={16} color={modelColor} />
-                    )}
-                    <Text 
-                      size="xs" 
-                      fw={isSelected ? 600 : 400}
-                      c={isSelected ? 'white' : 'inherit'}
-                      style={{ 
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1
-                      }}
-                      title={model}
-                    >
-                      {model}
-                    </Text>
-                  </Group>
-                  <Badge 
-                    size="xs" 
-                    variant="filled"
-                    color={isSelected ? 'gray.0' : undefined}
-                    style={!isSelected ? { backgroundColor: modelColor } : undefined}
-                  >
-                    •
-                  </Badge>
-                </Group>
-              </Card>
-            );
-          })}
-        </SimpleGrid>
-      )}
+      <Text size="sm" fw={500} c="dimmed">
+        Models ({selectedModels.length}/{models.length})
+      </Text>
 
       {/* Custom MultiSelect with Colored Pills */}
       <Combobox
@@ -275,6 +152,128 @@ const ModelSelector = ({
           </Combobox.Options>
         </Combobox.Dropdown>
       </Combobox>
+
+      <Group gap="xs" justify="space-between" align="center" wrap="wrap">
+        {allowMultiple && (
+          <Group gap="xs" wrap="wrap">
+            <Tooltip label="Select all available models">
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={handleSelectAll}
+                disabled={disabled || selectedModels.length === models.length}
+              >
+                Select All
+              </Button>
+            </Tooltip>
+            <Tooltip label="Clear all selected models">
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={handleSelectNone}
+                disabled={disabled || selectedModels.length === 0}
+              >
+                Clear All
+              </Button>
+            </Tooltip>
+          </Group>
+        )}
+        <Switch
+          label="Show all available models"
+          checked={showAllAvailable}
+          onChange={(event) => setShowAllAvailable(event.currentTarget.checked)}
+          size="sm"
+          disabled={disabled}
+          thumbIcon={
+            showAllAvailable ? (
+              <IconEye size={12} stroke={2.5} />
+            ) : (
+              <IconEyeOff size={12} stroke={2.5} />
+            )
+          }
+        />
+      </Group>
+
+      {allowMultiple && (
+        <Text size="xs" c="dimmed" hiddenFrom="xs">
+          {selectedModels.length > 0 && `${selectedModels.length} selected`}
+        </Text>
+      )}
+
+      {/* Model Grid Display */}
+      {modelsToShow.length > 0 && (
+        <SimpleGrid 
+          cols={{ base: 1, xs: 2, sm: 3, md: 4 }}
+          spacing="xs"
+          verticalSpacing="xs"
+        >
+          {modelsToShow.map((model) => {
+            const isSelected = selectedModels.includes(model);
+            const modelColor = getModelColorByIndex(model);
+            
+            return (
+              <Card
+                key={model}
+                p="xs"
+                radius="md"
+                withBorder={!isSelected}
+                variant={isSelected ? 'filled' : 'default'}
+                style={{
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  backgroundColor: isSelected ? modelColor : undefined,
+                  borderColor: isSelected ? modelColor : undefined
+                }}
+                opacity={disabled ? 0.5 : 1}
+                onClick={() => {
+                  if (disabled) return;
+                  
+                  if (isSelected) {
+                    setSelectedModels(selectedModels.filter(m => m !== model));
+                  } else {
+                    if (allowMultiple) {
+                      setSelectedModels([...selectedModels, model]);
+                    } else {
+                      setSelectedModels([model]);
+                    }
+                  }
+                }}
+              >
+                <Group gap="xs" justify="space-between" align="center">
+                  <Group gap="xs" align="center" flex={1}>
+                    {isSelected ? (
+                      <IconCircleCheck size={16} color="white" />
+                    ) : (
+                      <IconCircle size={16} color={modelColor} />
+                    )}
+                    <Text 
+                      size="xs" 
+                      fw={isSelected ? 600 : 400}
+                      c={isSelected ? 'white' : 'inherit'}
+                      style={{ 
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1
+                      }}
+                      title={model}
+                    >
+                      {model}
+                    </Text>
+                  </Group>
+                  <Badge 
+                    size="xs" 
+                    variant="filled"
+                    color={isSelected ? 'gray.0' : undefined}
+                    style={!isSelected ? { backgroundColor: modelColor } : undefined}
+                  >
+                    •
+                  </Badge>
+                </Group>
+              </Card>
+            );
+          })}
+        </SimpleGrid>
+      )}
     </Stack>
   );
 };

@@ -295,4 +295,4 @@ Swap the paths/pathogen exactly as in the Python example for RSV and COVID-19 hu
 install.packages(c("jsonlite", "jsonvalidate", "arrow"))
 ```
 
-The R script mirrors the Python pipeline: it validates inputs, converts them using the shared processing logic, checks every payload against `schemas/RespiLens_projections.schema.json`, and writes one JSON file per location (plus `metadata.json`) under `app/public/processed_data/<pathogen>/`.
+The R script mirrors the Python pipeline: it validates inputs, converts them using the shared processing logic, and writes one JSON file per location (plus `metadata.json`) under `app/public/processed_data/<pathogen>/`. If the optional `jsonvalidate` package is installed, schema checks are applied; otherwise the script skips them with a warning.

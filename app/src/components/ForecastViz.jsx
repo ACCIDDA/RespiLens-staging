@@ -1,11 +1,13 @@
 // src/components/ForecastViz.jsx
 
 import { useState, useEffect } from 'react';
-import { Stack, Container, Paper } from '@mantine/core';
+import { Stack, Container, Paper, Group, Button, Tooltip } from '@mantine/core';
 import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
 import DataVisualization from './DataVisualization';
 import ErrorBoundary from './ErrorBoundary';
+import { IconShare } from '@tabler/icons-react';
+import { useClipboard } from '@mantine/hooks';
 
 const ForecastViz = () => {
   // Get EVERYTHING from the single context hook
@@ -25,18 +27,36 @@ const ForecastViz = () => {
     width: window.innerWidth,
     height: window.innerHeight
   });
+  const clipboard = useClipboard({ timeout: 2000 });
 
   useEffect(() => {
     const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    clipboard.copy(url);
+  };
   
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>
+            <Group justify="flex-end">
+              <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconShare size={16} />}
+                  onClick={handleShare}
+                >
+                  {clipboard.copied ? 'Copied' : 'Share'}
+                </Button>
+              </Tooltip>
+            </Group>
             {currentDataset?.hasDateSelector && (
               <DateSelector
                 selectedDates={selectedDates}
