@@ -40,12 +40,12 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
   };
 
   const timeSeriesData = useMemo(() => {
-    if (!data || !data.ground_truth || selectedDates.length === 0) {
+    if (!data?.ground_truth?.['wk inc covid hosp'] || selectedDates.length === 0) {
       return [];
     }
     const groundTruthTrace = {
       x: data.ground_truth.dates,
-      y: data.ground_truth.values || data.ground_truth['wk inc covid hosp'],
+      y: data.ground_truth['wk inc covid hosp'],
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
