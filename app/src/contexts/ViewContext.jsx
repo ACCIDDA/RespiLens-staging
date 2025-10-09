@@ -30,9 +30,6 @@ export const ViewProvider = ({ children }) => {
   
 
   useEffect(() => {
-    if (location.pathname !== '/') {
-      return;
-    } // scopes URL management to only the forecasts page
     // 1. Wait until the data for the current view has completely finished loading.
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (loading || !currentDataset || models.length === 0 || availableDates.length === 0) {
@@ -77,10 +74,7 @@ export const ViewProvider = ({ children }) => {
     if (needsUrlUpdate) {
       updateDatasetParams({ models: modelsToSet });
     }
-
-  // --- CHANGE 2: Remove the eslint-disable comment ---
-  // The dependency array is now correct because urlManager is stable.
-  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams, location.pathname]);
+  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default

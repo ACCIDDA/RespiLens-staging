@@ -21,10 +21,6 @@ const ViewSelector = () => {
     return timeseriesView?.value || dataset.defaultView || dataset.views[0]?.value;
   };
 
-  const activeDataset = datasets.find(dataset =>
-    dataset.views.some(view => view.value === viewType)
-  );
-
   const handleDatasetSelect = (dataset) => {
     const targetView = getDefaultTimeseriesView(dataset);
     if (targetView) {
