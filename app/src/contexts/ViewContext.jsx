@@ -127,22 +127,35 @@ export const ViewProvider = ({ children }) => {
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, loading, error, availableDates, models,
-    selectedModels, setSelectedModels: (models) => {
-      const currentDataset = urlManager.getDatasetFromView(viewType);
-      const isDefault = JSON.stringify(models) === JSON.stringify([currentDataset?.defaultModel]);
+    selectedModels, setSelectedModels: (updater) => {
+      const resolveModels = (prevModels) => (
+        typeof updater === 'function' ? updater(prevModels) : updater
+      );
 
-      if (isDefault) {
-        // If the selection is now the default, update the URL by passing
-        // an empty array, which tells urlManager to DELETE the parameter.
-        updateDatasetParams({ models: [] });
-      } else {
-        // Otherwise, update the URL with the current selection.
-        updateDatasetParams({ models });
-      }
-      // Always update the state itself.
-      setSelectedModels(models);
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      setSelectedModels(prevModels => {
+        const nextModels = resolveModels(prevModels);
+        const isDefault = JSON.stringify(nextModels) === JSON.stringify([currentDataset?.defaultModel]);
+
+        if (isDefault) {
+          // If the selection is now the default, update the URL by passing
+          // an empty array, which tells urlManager to DELETE the parameter.
+          updateDatasetParams({ models: [] });
+        } else {
+          // Otherwise, update the URL with the current selection.
+          updateDatasetParams({ models: nextModels });
+        }
+
+        return nextModels;
+      });
     },
-    selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
+    selectedDates, setSelectedDates: (updater) => {
+      setSelectedDates(prevDates => {
+        const nextDates = typeof updater === 'function' ? updater(prevDates) : updater;
+        updateDatasetParams({ dates: nextDates });
+        return nextDates;
+      });
+    },
 
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
