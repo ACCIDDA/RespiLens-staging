@@ -1,26 +1,13 @@
-import React, { useState, useCallback, useEffect } from 'react'; 
+import { useState, useCallback, useEffect } from 'react'; 
 import { useSearchParams } from 'react-router-dom'; 
-import {
-  Container,
-  Title,
-  Text,
-  Group,
-  Stack,
-  ThemeIcon,
-  Paper,
-  Center
-} from '@mantine/core';
-import {
-  IconUpload,
-  IconFileText,
-  IconCheck
-} from '@tabler/icons-react';
+import { Container, Title, Text, Group, Stack, ThemeIcon, Paper, Center } from '@mantine/core';
+import { IconUpload, IconFileText, IconCheck } from '@tabler/icons-react';
 
 const MyRespiLensDashboard = () => {
   const [, setSearchParams] = useSearchParams();
   useEffect(() => {
     setSearchParams({}, { replace: true });
-  }, []);
+  }, [setSearchParams]);
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);

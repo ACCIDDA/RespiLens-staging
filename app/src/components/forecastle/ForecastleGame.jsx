@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; 
+import { useEffect } from 'react'; 
 import { useSearchParams } from 'react-router-dom'; 
 import { Container, Paper, Title, Text, Stack, ThemeIcon, Center } from '@mantine/core';
 import { IconTarget } from '@tabler/icons-react';
@@ -8,7 +8,7 @@ const ForecastleGame = () => {
   const [, setSearchParams] = useSearchParams();
   useEffect(() => {
     setSearchParams({}, { replace: true });
-  }, []);
+  }, [setSearchParams]);
   return (
     <Container size="xl" py="xl" style={{ maxWidth: '800px' }}>
       <Center style={{ minHeight: '70vh' }}>

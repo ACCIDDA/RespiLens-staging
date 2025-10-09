@@ -1,33 +1,12 @@
-import React, { useState } from 'react';
-import {
-  Stack,
-  Group,
-  Button,
-  Text,
-  Tooltip,
-  Badge,
-  Divider,
-  Switch,
-  Card,
-  SimpleGrid,
-  PillsInput,
-  Pill,
-  Combobox,
-  useCombobox
-} from '@mantine/core';
-import {
-  IconCircleCheck,
-  IconCircle,
-  IconEye,
-  IconEyeOff
-} from '@tabler/icons-react';
+import { useState } from 'react';
+import { Stack, Group, Button, Text, Tooltip, Badge, Divider, Switch, Card, SimpleGrid, PillsInput, Pill, Combobox, useCombobox } from '@mantine/core';
+import { IconCircleCheck, IconCircle, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { MODEL_COLORS } from '../config/datasets';
 
 const ModelSelector = ({ 
   models = [],
   selectedModels = [], 
   setSelectedModels,
-  getModelColor,
   allowMultiple = true,
   disabled = false
 }) => {

@@ -28,7 +28,8 @@ export const useAdaptiveYRange = (
     ageGroup = '0-130',
     target = 'inc hosp',
     paddingPercent = 10,
-    includeGroundTruth = true
+    includeGroundTruth = true,
+    selectedColumns = []
   } = options;
 
   return useCallback(() => {
@@ -98,7 +99,7 @@ export const useAdaptiveYRange = (
           
           // Handle quantile predictions
           if (forecast.type === 'quantile') {
-            Object.entries(forecast.predictions || {}).forEach(([horizon, pred]) => {
+            Object.entries(forecast.predictions || {}).forEach(([, pred]) => {
               if (pred.date >= startDate && pred.date <= endDate) {
                 const values = pred.values || [];
                 const quantiles = pred.quantiles || [];
@@ -116,7 +117,7 @@ export const useAdaptiveYRange = (
           
           // Handle sample predictions
           if (forecast.type === 'sample') {
-            Object.entries(forecast.predictions || {}).forEach(([horizon, pred]) => {
+            Object.entries(forecast.predictions || {}).forEach(([, pred]) => {
               if (pred.date >= startDate && pred.date <= endDate) {
                 const samples = pred.samples || [];
                 samples.forEach(sample => {
@@ -136,7 +137,7 @@ export const useAdaptiveYRange = (
     
     // For NHSN, add values from selected columns
     if (datasetType === 'nhsn' && options.selectedColumns) {
-      options.selectedColumns.forEach(column => {
+      selectedColumns.forEach(column => {
         // Determine if column is preliminary or official
         const isPrelimininary = column.includes('_prelim');
         const dataType = isPrelimininary ? 'preliminary' : 'official';
@@ -166,7 +167,7 @@ export const useAdaptiveYRange = (
             forecasts['wk flu hosp rate change']?.[model];
           
           if (forecast && forecast.type === 'quantile') {
-            Object.entries(forecast.predictions || {}).forEach(([horizon, pred]) => {
+            Object.entries(forecast.predictions || {}).forEach(([, pred]) => {
               if (pred.date >= startDate && pred.date <= endDate) {
                 const values = pred.values || [];
                 const quantiles = pred.quantiles || [];
@@ -215,6 +216,7 @@ export const useAdaptiveYRange = (
     ageGroup,
     target,
     paddingPercent,
-    includeGroundTruth
+    includeGroundTruth,
+    selectedColumns
   ]);
 };

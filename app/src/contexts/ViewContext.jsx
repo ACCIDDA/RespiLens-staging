@@ -1,16 +1,14 @@
 // src/contexts/ViewContext.jsx
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
-import { DATASETS } from '../config/datasets';
 
 const ViewContext = createContext(null);
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
 
   // --- CHANGE 1: Memoize urlManager ---
   // This ensures urlManager is not recreated on every render.

@@ -1,10 +1,9 @@
-import React from 'react';
-import { Select, Stack, Badge, Group, Text } from '@mantine/core';
+import { Select, Stack, Badge, Group } from '@mantine/core';
 import { useView } from '../contexts/ViewContext';
 import { DATASETS } from '../config/datasets';
 
 const ViewSelector = () => {
-  const { viewType, setViewType, currentDataset } = useView();
+  const { viewType, setViewType } = useView();
 
   // Generate all possible view options with better organization
   const viewOptions = Object.values(DATASETS).flatMap(dataset =>

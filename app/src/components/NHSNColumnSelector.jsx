@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Title, Group, Button } from '@mantine/core';
 import { MODEL_COLORS } from '../config/datasets';
 

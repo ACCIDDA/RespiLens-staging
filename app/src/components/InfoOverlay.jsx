@@ -1,4 +1,3 @@
-import React from 'react';
 import { Modal, Button, Group, Text, List, Alert, Anchor, Image, Title, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconBrandGithub, IconAlertTriangle } from '@tabler/icons-react';

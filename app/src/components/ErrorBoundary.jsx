@@ -1,10 +1,11 @@
-import React from 'react';
+import { Component } from 'react';
 import { Container, Card, Alert, Button, Group, Text, Collapse, Code } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh, IconReload } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 
 const ErrorFallback = ({ error, errorInfo, onReset }) => {
   const [opened, { toggle }] = useDisclosure(false);
+  const isDevelopment = import.meta.env.DEV;
 
   return (
     <Container size="sm" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
@@ -39,7 +40,7 @@ const ErrorFallback = ({ error, errorInfo, onReset }) => {
           </Button>
         </Group>
         
-        {process.env.NODE_ENV === 'development' && error && (
+        {isDevelopment && error && (
           <>
             <Button
               variant="subtle"
@@ -63,13 +64,13 @@ const ErrorFallback = ({ error, errorInfo, onReset }) => {
   );
 };
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 

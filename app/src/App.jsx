@@ -1,6 +1,5 @@
 // src/App.jsx
 
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ViewProvider, useView } from './contexts/ViewContext';
 import ForecastViz from './components/ForecastViz';

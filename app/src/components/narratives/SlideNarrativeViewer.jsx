@@ -1,29 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Container, 
-  Paper, 
-  Title, 
-  Text, 
-  Group, 
-  Stack,
-  Badge,
-  ThemeIcon,
-  Loader,
-  Center,
-  Button,
-  ActionIcon,
-  Box,
-  Divider
-} from '@mantine/core';
-import { 
-  IconBook,
-  IconCalendar,
-  IconUser,
-  IconChevronLeft,
-  IconChevronRight,
-  IconCode
-} from '@tabler/icons-react';
+import { Container, Paper, Title, Text, Group, Stack, Badge, ThemeIcon, Loader, Center, Button, ActionIcon, Box, Divider } from '@mantine/core';
+import { IconBook, IconCalendar, IconUser, IconChevronLeft, IconChevronRight, IconCode } from '@tabler/icons-react';
 import ForecastViz from '../ForecastViz';
 
 // Plotly Gaussian Chart Component
@@ -275,9 +253,27 @@ The final view returns to the national perspective with our latest forecasts, sh
     };
 
     loadNarrative();
-  }, [id]);
+  }, [id, parseNarrative]);
 
-  const parseNarrative = (content) => {
+  const parseVisualizationUrl = useCallback((url) => {
+    if (!url) return null;
+    if (url.startsWith('javascript:')) {
+      return { type: 'custom', code: url.replace('javascript:', '') };
+    }
+
+    const urlObj = new URL(url, window.location.origin);
+    const params = new URLSearchParams(urlObj.search);
+
+    return {
+      type: 'respilens',
+      location: params.get('location') || 'US',
+      view: params.get('view') || 'fludetailed',
+      dates: params.get('dates')?.split(',') || [],
+      models: params.get('models')?.split(',') || []
+    };
+  }, []);
+
+  const parseNarrative = useCallback((content) => {
     console.log('parseNarrative called with content length:', content?.length);
     
     try {
@@ -346,27 +342,7 @@ The final view returns to the national perspective with our latest forecasts, sh
     }
 
     setLoading(false);
-  };
-
-  const parseVisualizationUrl = (url) => {
-    if (!url) return null;
-    
-    if (url.startsWith('javascript:')) {
-      return { type: 'custom', code: url.replace('javascript:', '') };
-    }
-    
-    // Parse RespiLens URL parameters
-    const urlObj = new URL(url, window.location.origin);
-    const params = new URLSearchParams(urlObj.search);
-    
-    return {
-      type: 'respilens',
-      location: params.get('location') || 'US',
-      view: params.get('view') || 'fludetailed',
-      dates: params.get('dates')?.split(',') || [],
-      models: params.get('models')?.split(',') || []
-    };
-  };
+  }, [parseVisualizationUrl]);
 
   const renderMarkdown = (content) => {
     return content

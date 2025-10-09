@@ -1,6 +1,6 @@
 // src/components/ForecastViz.jsx
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Stack, Container, Paper } from '@mantine/core';
 import { useView } from '../contexts/ViewContext';
 import DateSelector from './DateSelector';

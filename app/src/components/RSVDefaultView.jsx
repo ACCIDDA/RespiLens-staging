@@ -1,6 +1,6 @@
-import React from 'react';
 import { Center, Text, Paper, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import { useView } from '../contexts/ViewContext';
@@ -85,7 +85,7 @@ const RSVDefaultView = ({
       selectedDates.forEach(date => {
         const forecast = data.forecasts[date]?.[target]?.[model];
         if (forecast?.type === 'quantile') {
-          Object.entries(forecast.predictions || {}).forEach(([horizon, pred]) => {
+          Object.entries(forecast.predictions || {}).forEach(([, pred]) => {
             const pointDate = new Date(pred.date);
             if (pointDate >= startDate && pointDate <= endDate) {
               const values = pred.values || [];
@@ -138,7 +138,7 @@ const RSVDefaultView = ({
       const ci50Upper = [];
       const ci50Lower = [];
 
-      predictions.forEach(([horizon, pred]) => {
+      predictions.forEach(([, pred]) => {
         forecastDates.push(pred.date);
         
         const { quantiles, values } = pred;

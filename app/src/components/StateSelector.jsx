@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Stack, ScrollArea, Button, TextInput, Text, Divider, Loader, Center, Alert } from '@mantine/core';
 import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
 import { useView } from '../contexts/ViewContext'; // 1. Import the useView hook

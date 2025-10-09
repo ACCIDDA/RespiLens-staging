@@ -1,40 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Container,
-  Card,
-  Title,
-  Text,
-  Group,
-  Badge,
-  Button,
-  Stack,
-  Loader,
-  Center,
-  ThemeIcon,
-  Paper,
-  SimpleGrid,
-  TextInput,
-  Select
-} from '@mantine/core';
-import {
-  IconBook,
-  IconCalendar,
-  IconUser,
-  IconArrowRight,
-  IconStar,
-  IconClock,
-  IconSearch
-} from '@tabler/icons-react';
-import { 
-  narrativeRegistry, 
-  getFeaturedNarratives, 
-  getRegularNarratives, 
-  getAllTags,
-  searchNarratives 
-} from '../../data/narratives/index.js';
+import { useState, useEffect } from 'react';
+import { Container, Card, Title, Text, Group, Badge, Button, Stack, Loader, Center, ThemeIcon, Paper, SimpleGrid, TextInput, Select } from '@mantine/core';
+import { IconBook, IconCalendar, IconUser, IconArrowRight, IconStar, IconClock, IconSearch } from '@tabler/icons-react';
+import { narrativeRegistry, getAllTags, searchNarratives } from '../../data/narratives/index.js';
 
 const NarrativeBrowser = ({ onNarrativeSelect }) => {
-  const [narratives, setNarratives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('');
@@ -43,7 +12,6 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
   useEffect(() => {
     // Load narratives from registry
     console.log('Loading narratives from registry:', narrativeRegistry.length);
-    setNarratives(narrativeRegistry);
     setLoading(false);
   }, []);
 
