@@ -1,10 +1,20 @@
 """Helper functions for data conversion process."""
 
 import json 
+import jsonschema
 from typing import Literal
 import numpy as np
 import pandas as pd
 from pathlib import Path
+
+# Import schema
+_current_dir = Path(__file__).parent
+projections_schema_path = _current_dir / 'schemas' / 'RespiLens_projections.schema.json'
+timeseries_schema_path = _current_dir / 'schemas' / 'RespiLens_timeseries.schema.json'
+with open(projections_schema_path, 'r') as f:
+    projections_schema = json.load(f)
+with open(timeseries_schema_path, 'r') as f:
+    timeseries_schema = json.load(f)
 
 
 def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -12,7 +22,7 @@ def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
     return df.replace({np.nan: None})
 
 
-def hubverse_df_preprocessor(df: pd.DataFrame) -> pd.DataFrame: # can add **kwargs if we need modular quantile filtering
+def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True) -> pd.DataFrame: # can add **kwargs if we need modular quantile filtering
     """
     Do a number of pre-processing tasks that make a hubverse df ready to pass through a processing class.
 
@@ -33,17 +43,18 @@ def hubverse_df_preprocessor(df: pd.DataFrame) -> pd.DataFrame: # can add **kwar
     df['horizon'] = df['horizon'].astype(int)
     # Get rid of all output_type == 'sample'
     df = df[df['output_type'] != 'sample']
-    # Filter `output_type_id` values
-    # Only keep some quantiles, if pmf is implicated keep all `output_type_id` values
-    categorical_ids = ['decrease', 'increase', 'large_decrease', 'large_increase', 'stable'] 
-    numeric_ids = [0.025, 0.25, 0.5, 0.75, 0.975]
-    numeric_output_ids = pd.to_numeric(df['output_type_id'], errors='coerce')
-    is_categorical_id = df['output_type_id'].isin(categorical_ids)
-    is_numeric_id = numeric_output_ids.isin(numeric_ids)
-    df = df[is_categorical_id | is_numeric_id]
-    # Ensure quantile column is numeric (if output_type = quantile)
-    quantile_mask = df['output_type'] == 'quantile'
-    df.loc[quantile_mask, 'output_type_id'] = df.loc[quantile_mask, 'output_type_id'].astype(float)
+    if filter_quantiles:
+        # Filter `output_type_id` values
+        # Only keep some quantiles, if pmf is implicated keep all `output_type_id` values
+        categorical_ids = ['decrease', 'increase', 'large_decrease', 'large_increase', 'stable'] 
+        numeric_ids = [0.025, 0.25, 0.5, 0.75, 0.975]
+        numeric_output_ids = pd.to_numeric(df['output_type_id'], errors='coerce')
+        is_categorical_id = df['output_type_id'].isin(categorical_ids)
+        is_numeric_id = numeric_output_ids.isin(numeric_ids)
+        df = df[is_categorical_id | is_numeric_id]
+        # Ensure quantile column is numeric (if output_type = quantile)
+        quantile_mask = df['output_type'] == 'quantile'
+        df.loc[quantile_mask, 'output_type_id'] = df.loc[quantile_mask, 'output_type_id'].astype(float)
 
     return df
 
@@ -117,6 +128,36 @@ def save_json_file(
     # Write output contents to file
     with open(file_path,'w') as of:
         json.dump(file_contents, of, indent=4)
+
+
+def validate_respilens_json(json_contents: dict, type: str = Literal['projections', 'timeseries']) -> bool | str:
+    """
+    Validate JSON output with RespiLens schema
+
+    Args:
+        json_contents: Contents of json file, stored as python dict
+        type: Type of RespiLens data (either projections or timeseries)
+
+    Returns:
+        True if validation is successful, str of error message if unsuccessful.
+
+    Raise:
+        ValidationError: When json contents do not match jsonschema
+    """
+    if type == 'projections':
+        try:
+            jsonschema.validate(instance=json_contents, schema=projections_schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            return str(e)
+    elif type == 'timeseries':
+        try:
+            jsonschema.validate(instance=json_contents, schema=timeseries_schema)
+            return True
+        except jsonschema.exceptions.ValidationError as e:
+            return str(e)
+    else:
+        raise ValueError(f"`type` parameter must be one of 'projections' or 'timeseries'. Received {type}")
 
 
 TEMP_NHSN_COLUMN_MASK = ['totalconfc19newadmadult',

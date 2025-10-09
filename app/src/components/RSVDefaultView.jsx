@@ -161,7 +161,7 @@ const RSVDefaultView = ({
       }
     },
     yaxis: {
-        title: 'Weekly Incident Cases',
+        title: 'Hospitalizations',
         range: calculateYRange(getDefaultRange())
     },
     shapes: selectedDates.map(date => ({
