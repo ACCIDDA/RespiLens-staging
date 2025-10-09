@@ -1,13 +1,15 @@
 // src/contexts/ViewContext.jsx
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
 import { ViewContext } from './ViewContextObject';
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const isForecastPage = location.pathname === '/';
 
   // --- CHANGE 1: Memoize urlManager ---
   // This ensures urlManager is not recreated on every render.
@@ -30,6 +32,9 @@ export const ViewProvider = ({ children }) => {
   
 
   useEffect(() => {
+    if (!isForecastPage) {
+      return;
+    }
     // 1. Wait until the data for the current view has completely finished loading.
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (loading || !currentDataset || models.length === 0 || availableDates.length === 0) {
@@ -74,7 +79,7 @@ export const ViewProvider = ({ children }) => {
     if (needsUrlUpdate) {
       updateDatasetParams({ models: modelsToSet });
     }
-  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
+  }, [isForecastPage, loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default

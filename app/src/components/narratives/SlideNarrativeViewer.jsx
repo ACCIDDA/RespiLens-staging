@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Paper, Title, Text, Group, Stack, Badge, ThemeIcon, Loader, Center, Button, ActionIcon, Box, Divider } from '@mantine/core';
 import { IconBook, IconCalendar, IconUser, IconChevronLeft, IconChevronRight, IconCode } from '@tabler/icons-react';
@@ -130,22 +130,99 @@ const SlideNarrativeViewer = () => {
   const [metadata, setMetadata] = useState({});
   const [currentVisualization, setCurrentVisualization] = useState(null);
 
+  const parseVisualizationUrl = useCallback((url) => {
+    if (!url) return null;
+    if (url.startsWith('javascript:')) {
+      return { type: 'custom', code: url.replace('javascript:', '') };
+    }
+
+    const urlObj = new URL(url, window.location.origin);
+    const params = new URLSearchParams(urlObj.search);
+
+    return {
+      type: 'respilens',
+      location: params.get('location') || 'US',
+      view: params.get('view') || 'fludetailed',
+      dates: params.get('dates')?.split(',') || [],
+      models: params.get('models')?.split(',') || []
+    };
+  }, []);
+
+  const parseNarrative = useCallback((content) => {
+    console.log('parseNarrative called with content length:', content?.length);
+    
+    try {
+      const parts = content.split('---');
+      console.log('Split into parts:', parts.length);
+      
+      if (parts.length >= 3) {
+        const frontmatterLines = parts[1].trim().split('\n');
+        const parsedMetadata = {};
+        frontmatterLines.forEach(line => {
+          const [key, ...valueParts] = line.split(':');
+          if (key && valueParts.length > 0) {
+            parsedMetadata[key.trim()] = valueParts.join(':').trim().replace(/"/g, '');
+          }
+        });
+        console.log('Parsed metadata:', parsedMetadata);
+        setMetadata(parsedMetadata);
+
+        const slideContent = parts.slice(2).join('---');
+        console.log('Slide content length:', slideContent.length);
+        
+        const slideMatches = slideContent.split(/\n# /).filter(s => s.trim());
+        console.log('Found slide matches:', slideMatches.length);
+        
+        const parsedSlides = slideMatches.map((slide, index) => {
+          let normalizedSlide = slide;
+          if (index === 0) {
+            normalizedSlide = normalizedSlide.replace(/^# /, '');
+          }
+          
+          const lines = normalizedSlide.split('\n');
+          const titleLine = lines[0];
+          const titleMatch = titleLine.match(/^(.*?)\s*\[(.*?)\]$/);
+          
+          const title = titleMatch ? titleMatch[1].trim() : titleLine.trim();
+          const url = titleMatch ? titleMatch[2].trim() : null;
+          const body = lines.slice(1).join('\n').trim();
+          
+          return { title, url, content: body };
+        });
+
+        console.log('Parsed slides:', parsedSlides.length, parsedSlides.map(s => s.title));
+        setSlides(parsedSlides);
+        
+        const initialVisualizationUrl = parsedSlides[0]?.url || parsedMetadata.dataset;
+        setCurrentVisualization(initialVisualizationUrl ? parseVisualizationUrl(initialVisualizationUrl) : null);
+      } else {
+        console.error('Invalid narrative format - not enough parts after splitting by ---');
+        setMetadata({});
+        setSlides([]);
+        setCurrentVisualization(null);
+      }
+    } catch (error) {
+      console.error('Error parsing narrative:', error);
+      setMetadata({});
+      setSlides([]);
+      setCurrentVisualization(null);
+    }
+
+    setLoading(false);
+  }, [parseVisualizationUrl]);
+
   useEffect(() => {
-    // Load narrative using dynamic import approach (works better with Vite)
     const narrativeId = id || 'flu-winter-2024-25-slides';
-    
     console.log('Loading narrative:', narrativeId);
-    
+
     const loadNarrative = async () => {
       try {
-        // Try to import the narrative as a module
         const narrativeModule = await import(`../../data/narratives/${narrativeId}.js`);
         console.log('Loaded narrative module');
         parseNarrative(narrativeModule.narrativeContent);
       } catch (error) {
         console.error('Error loading narrative module:', error);
-        
-        // Fallback to embedded content
+
         const fallbackContent = `---
 title: "Flu Season Winter 2024-25: A Data Story"
 authors: "RespiLens Analytics Team"
@@ -246,7 +323,7 @@ The good model agreement provides confidence for short-term planning, though lon
 3. Flexible resource distribution strategies
 
 The final view returns to the national perspective with our latest forecasts, showing the overall trajectory as we move through the peak season.`;
-        
+
         console.log('Using fallback content');
         parseNarrative(fallbackContent);
       }
@@ -254,95 +331,6 @@ The final view returns to the national perspective with our latest forecasts, sh
 
     loadNarrative();
   }, [id, parseNarrative]);
-
-  const parseVisualizationUrl = useCallback((url) => {
-    if (!url) return null;
-    if (url.startsWith('javascript:')) {
-      return { type: 'custom', code: url.replace('javascript:', '') };
-    }
-
-    const urlObj = new URL(url, window.location.origin);
-    const params = new URLSearchParams(urlObj.search);
-
-    return {
-      type: 'respilens',
-      location: params.get('location') || 'US',
-      view: params.get('view') || 'fludetailed',
-      dates: params.get('dates')?.split(',') || [],
-      models: params.get('models')?.split(',') || []
-    };
-  }, []);
-
-  const parseNarrative = useCallback((content) => {
-    console.log('parseNarrative called with content length:', content?.length);
-    
-    try {
-      // Split into frontmatter and content
-      const parts = content.split('---');
-      console.log('Split into parts:', parts.length);
-      
-      if (parts.length >= 3) {
-        // Parse YAML frontmatter
-        const frontmatterLines = parts[1].trim().split('\n');
-        const parsedMetadata = {};
-        frontmatterLines.forEach(line => {
-          const [key, ...valueParts] = line.split(':');
-          if (key && valueParts.length > 0) {
-            parsedMetadata[key.trim()] = valueParts.join(':').trim().replace(/"/g, '');
-          }
-        });
-        console.log('Parsed metadata:', parsedMetadata);
-        setMetadata(parsedMetadata);
-
-        // Parse slides
-        const slideContent = parts.slice(2).join('---');
-        console.log('Slide content length:', slideContent.length);
-        
-        const slideMatches = slideContent.split(/\n# /).filter(s => s.trim());
-        console.log('Found slide matches:', slideMatches.length);
-        
-        const parsedSlides = slideMatches.map((slide, index) => {
-          if (index === 0) {
-            slide = slide.replace(/^# /, '');
-          }
-          
-          // Extract title and URL from heading
-          const lines = slide.split('\n');
-          const titleLine = lines[0];
-          const titleMatch = titleLine.match(/^(.*?)\s*\[(.*?)\]$/);
-          
-          let title, url;
-          if (titleMatch) {
-            title = titleMatch[1].trim();
-            url = titleMatch[2].trim();
-          } else {
-            title = titleLine.trim();
-            url = null;
-          }
-
-          const content = lines.slice(1).join('\n').trim();
-          
-          return { title, url, content };
-        });
-
-        console.log('Parsed slides:', parsedSlides.length, parsedSlides.map(s => s.title));
-        setSlides(parsedSlides);
-        
-        // Set initial visualization
-        if (parsedSlides[0]?.url) {
-          setCurrentVisualization(parseVisualizationUrl(parsedSlides[0].url));
-        } else if (parsedMetadata.dataset) {
-          setCurrentVisualization(parseVisualizationUrl(parsedMetadata.dataset));
-        }
-      } else {
-        console.error('Invalid narrative format - not enough parts after splitting by ---');
-      }
-    } catch (error) {
-      console.error('Error parsing narrative:', error);
-    }
-
-    setLoading(false);
-  }, [parseVisualizationUrl]);
 
   const renderMarkdown = (content) => {
     return content
@@ -393,6 +381,34 @@ The final view returns to the national perspective with our latest forecasts, sh
     }
   };
 
+  const visualizationDetails = useMemo(() => {
+    if (!currentVisualization || currentVisualization.type !== 'respilens') {
+      return null;
+    }
+
+    const params = new URLSearchParams();
+    if (currentVisualization.location) {
+      params.set('location', currentVisualization.location);
+    }
+    if (currentVisualization.view) {
+      params.set('view', currentVisualization.view);
+    }
+    if (currentVisualization.dates?.length) {
+      params.set('dates', currentVisualization.dates.join(','));
+    }
+    if (currentVisualization.models?.length) {
+      params.set('models', currentVisualization.models.join(','));
+    }
+
+    return {
+      url: `/?${params.toString()}`,
+      location: currentVisualization.location,
+      view: currentVisualization.view,
+      dates: currentVisualization.dates,
+      models: currentVisualization.models
+    };
+  }, [currentVisualization]);
+
   const renderVisualization = () => {
     if (!currentVisualization) {
       return (
@@ -429,12 +445,22 @@ The final view returns to the national perspective with our latest forecasts, sh
 
     // Render RespiLens visualization
     return (
-      <div style={{ height: '100%', overflow: 'hidden' }}>
-        <ForecastViz 
-          location={currentVisualization.location}
-          // Additional props would be passed here to control the view
-        />
-      </div>
+      <Stack gap="sm" style={{ height: '100%' }}>
+        <Group justify="space-between" align="center">
+          <Badge variant="light" size="sm">RespiLens View</Badge>
+          {visualizationDetails?.url && (
+            <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
+              {visualizationDetails.url}
+            </Text>
+          )}
+        </Group>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <ForecastViz 
+            location={currentVisualization.location}
+            // Additional props would be passed here to control the view
+          />
+        </div>
+      </Stack>
     );
   };
 
