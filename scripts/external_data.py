@@ -1,14 +1,12 @@
-"""
-Utilities for loading and validating external Hubverse datasets before conversion.
-"""
+"""Utilities for loading and validating external Hubverse datasets."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Set, Tuple
-import logging
+from typing import Dict, Iterable, Literal, Optional, Set
 import json
+import logging
 
 import pandas as pd
 
@@ -57,10 +55,11 @@ def load_inputs(
     data_path: Path,
     target_data_path: Path,
     locations_data_path: Path,
+    *,
+    filter_quantiles: bool = True,
 ) -> ExternalInputs:
-    """
-    Load and validate the three core datasets required to build RespiLens projections.
-    """
+    """Load and validate the three core datasets required to build RespiLens projections."""
+
     _validate_pathogen(pathogen)
 
     forecast_df = _load_forecast_data(data_path)
@@ -72,44 +71,45 @@ def load_inputs(
     _validate_location_columns(locations_df, LOCATION_REQUIRED_COLUMNS, locations_data_path)
     _validate_location_coverage(forecast_df, locations_df, data_path, locations_data_path)
 
+    processed_data = hubverse_df_preprocessor(forecast_df, filter_quantiles=filter_quantiles)
+
     return ExternalInputs(
-        data=hubverse_df_preprocessor(forecast_df),
+        data=clean_nan_values(processed_data),
         target_data=clean_nan_values(target_df),
         locations_data=clean_nan_values(locations_df),
     )
 
 
 def load_projections_schema() -> Dict:
-    """
-    Load the RespiLens projections JSON schema.
-    """
+    """Load the RespiLens projections JSON schema."""
+
     schema_path = Path(__file__).resolve().parent / "schemas" / "RespiLens_projections.schema.json"
-    with schema_path.open("r") as handle:
+    with schema_path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def validate_against_schema(payload: Dict, schema: Dict) -> None:
-    """
-    Validate a payload against the RespiLens projections schema.
+    """Validate a payload against the RespiLens projections schema."""
 
-    Raises:
-        ExternalDataError: if validation fails or jsonschema is unavailable.
-    """
     try:
         from jsonschema import Draft202012Validator
-    except ImportError as exc:
+    except ImportError as exc:  # pragma: no cover - dependency is optional at runtime
         raise ExternalDataError("jsonschema is required to validate outputs. Please install jsonschema.") from exc
 
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(payload), key=lambda e: e.path)
     if errors:
         first_error = errors[0]
-        raise ExternalDataError(f"Schema validation failed: {first_error.message} at path {list(first_error.path)}")
+        raise ExternalDataError(
+            f"Schema validation failed: {first_error.message} at path {list(first_error.path)}"
+        )
 
 
 def _validate_pathogen(pathogen: str) -> None:
     if pathogen not in PATHOGEN_TARGET_REQUIREMENTS:
-        raise ExternalDataError(f"Unsupported pathogen '{pathogen}'. Supported options are: {list(PATHOGEN_TARGET_REQUIREMENTS)}")
+        raise ExternalDataError(
+            f"Unsupported pathogen '{pathogen}'. Supported options are: {list(PATHOGEN_TARGET_REQUIREMENTS)}"
+        )
 
 
 def _load_forecast_data(data_path: Path) -> pd.DataFrame:
@@ -117,7 +117,7 @@ def _load_forecast_data(data_path: Path) -> pd.DataFrame:
         raise ExternalDataError(f"Forecast data path does not exist: {data_path}")
     logger.info("Loading forecast data from %s", data_path)
     df = pd.read_csv(data_path, dtype={"location": str})
-    return clean_nan_values(df)
+    return df
 
 
 def _load_target_data(target_data_path: Path, pathogen: str) -> pd.DataFrame:
@@ -133,8 +133,10 @@ def _load_target_data(target_data_path: Path, pathogen: str) -> pd.DataFrame:
         if "location" in df.columns:
             df["location"] = df["location"].astype(str)
     else:
-        raise ExternalDataError(f"Unsupported target data file extension '{suffix}' for {target_data_path}")
-    return clean_nan_values(df)
+        raise ExternalDataError(
+            f"Unsupported target data file extension '{suffix}' for {target_data_path}"
+        )
+    return df
 
 
 def _load_locations_data(locations_data_path: Path) -> pd.DataFrame:
@@ -142,7 +144,7 @@ def _load_locations_data(locations_data_path: Path) -> pd.DataFrame:
         raise ExternalDataError(f"Locations data path does not exist: {locations_data_path}")
     logger.info("Loading location metadata from %s", locations_data_path)
     df = pd.read_csv(locations_data_path, dtype={"location": str})
-    return clean_nan_values(df)
+    return df
 
 
 def _validate_forecast_columns(df: pd.DataFrame, required: Iterable[str], data_path: Path) -> None:
@@ -182,3 +184,28 @@ def _validate_location_coverage(
             "The following locations appear in forecast data but are missing from location metadata: "
             f"{missing_locations}. Forecast file: {forecast_path}, locations file: {locations_path}"
         )
+
+
+class ExternalData:
+    """Backwards-compatible wrapper providing attribute access to validated inputs."""
+
+    def __init__(
+        self,
+        data_path: str,
+        target_data_path: str,
+        locations_data_path: str,
+        pathogen: Literal["rsv", "flu", "covid"],
+        *,
+        filter_quantiles: bool = False,
+    ) -> None:
+        inputs = load_inputs(
+            pathogen=pathogen,
+            data_path=Path(data_path),
+            target_data_path=Path(target_data_path),
+            locations_data_path=Path(locations_data_path),
+            filter_quantiles=filter_quantiles,
+        )
+        self.pathogen = pathogen
+        self.data = inputs.data
+        self.target_data = inputs.target_data
+        self.locations_data = inputs.locations_data

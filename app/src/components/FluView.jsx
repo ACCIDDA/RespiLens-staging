@@ -47,9 +47,13 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     if (!groundTruth || !forecasts || selectedDates.length === 0) {
       return [];
     }
+    const groundTruthValues = groundTruth.values || groundTruth['wk inc flu hosp'];
+    if (!groundTruthValues) {
+      return [];
+    }
     const groundTruthTrace = {
-      x: groundTruth.dates,
-      y: groundTruth.values || groundTruth['wk inc flu hosp'],
+      x: groundTruth.dates || [],
+      y: groundTruthValues,
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',

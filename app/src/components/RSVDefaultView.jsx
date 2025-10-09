@@ -14,15 +14,12 @@ const RSVDefaultView = ({
   const { data, models, selectedModels, setSelectedModels, selectedDates } = useView();
   const { colorScheme } = useMantineColorScheme();
 
-  // Find the primary target key from the ground_truth data (e.g., 'wk inc rsv hosp')
-  const target = data?.ground_truth ? Object.keys(data.ground_truth).find(k => k !== 'dates' && Array.isArray(data.ground_truth[k])) : null;
-
-  if (!data || !data.ground_truth || !data.forecasts || !target) {
+  if (!data?.ground_truth?.['wk inc rsv hosp'] || !data.forecasts) {
     return (
       <Center h="100%" w="100%">
         <Paper p="xl" withBorder>
           <Text c="dimmed" ta="center">
-            No RSV forecast data available for this location
+            No RSV hospitalization forecast data available for this location
           </Text>
         </Paper>
       </Center>
@@ -53,9 +50,8 @@ const RSVDefaultView = ({
     return [startDate, endDate];
   };
 
-  // Calculate y-range for visible data
   const calculateYRange = (xRange) => {
-    if (!data || !xRange || !target) return null;
+    if (!data || !xRange) return null;
 
     const [startX, endX] = xRange;
     const startDate = new Date(startX);
@@ -63,9 +59,8 @@ const RSVDefaultView = ({
     let minY = Infinity;
     let maxY = -Infinity;
 
-    // Add ground truth values
     const groundTruthDates = data.ground_truth.dates;
-    const groundTruthValues = data.ground_truth[target];
+    const groundTruthValues = data.ground_truth['wk inc rsv hosp'];
 
     if (groundTruthDates && groundTruthValues) {
         groundTruthDates.forEach((date, index) => {
@@ -80,12 +75,11 @@ const RSVDefaultView = ({
         });
     }
     
-    // Add forecast values
     selectedModels.forEach(model => {
       selectedDates.forEach(date => {
-        const forecast = data.forecasts[date]?.[target]?.[model];
+        const forecast = data.forecasts[date]?.['wk inc rsv hosp']?.[model];
         if (forecast?.type === 'quantile') {
-          Object.entries(forecast.predictions || {}).forEach(([, pred]) => {
+          Object.values(forecast.predictions || {}).forEach((pred) => {
             const pointDate = new Date(pred.date);
             if (pointDate >= startDate && pointDate <= endDate) {
               const values = pred.values || [];
@@ -108,87 +102,37 @@ const RSVDefaultView = ({
     return null;
   };
 
-  // Create the ground truth trace
   const groundTruthTrace = {
       x: data.ground_truth.dates || [],
-      y: data.ground_truth[target] || [],
+      y: data.ground_truth['wk inc rsv hosp'] || [],
       type: 'scatter',
       mode: 'lines+markers',
       name: 'Observed',
       line: { color: '#8884d8', width: 2 }
   };
 
-  // Get model traces
   const modelTraces = selectedModels.flatMap(model => {
     const modelColor = getModelColor(model, selectedModels);
     
     return selectedDates.flatMap(forecastDate => {
-      const forecastData = data.forecasts[forecastDate]?.[target]?.[model];
+      const forecastData = data.forecasts[forecastDate]?.['wk inc rsv hosp']?.[model];
       if (!forecastData || forecastData.type !== 'quantile' || !forecastData.predictions) {
         return [];
       }
       
-      const predictions = Object.entries(forecastData.predictions || {})
-        .sort((a, b) => new Date(a[1].date) - new Date(b[1].date)); // Sort by prediction date
-
-      const forecastDates = [];
-      const medianValues = [];
-      const ci95Upper = [];
-      const ci95Lower = [];
-      const ci50Upper = [];
-      const ci50Lower = [];
-
-      predictions.forEach(([, pred]) => {
-        forecastDates.push(pred.date);
-        
-        const { quantiles, values } = pred;
-        if (!quantiles || !values) return;
-
-        const q95Lower = values[quantiles.indexOf(0.025)] ?? 0;
-        const q50Lower = values[quantiles.indexOf(0.25)] ?? 0;
-        const median = values[quantiles.indexOf(0.5)] ?? 0;
-        const q50Upper = values[quantiles.indexOf(0.75)] ?? 0;
-        const q95Upper = values[quantiles.indexOf(0.975)] ?? 0;
-
-        ci95Lower.push(q95Lower);
-        ci50Lower.push(q50Lower);
-        medianValues.push(median);
-        ci50Upper.push(q50Upper);
-        ci95Upper.push(q95Upper);
+      const predictions = Object.values(forecastData.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
+      const forecastDates = predictions.map(pred => pred.date);
+      const getQuantile = (q) => predictions.map(pred => {
+        if (!pred.quantiles || !pred.values) return 0;
+        const index = pred.quantiles.indexOf(q);
+        return index !== -1 ? (pred.values[index] ?? 0) : 0;
       });
 
       return [
-        {
-          x: [...forecastDates, ...forecastDates.slice().reverse()],
-          y: [...ci95Upper, ...ci95Lower.slice().reverse()],
-          fill: 'toself',
-          fillcolor: `${modelColor}10`,
-          line: { color: 'transparent' },
-          showlegend: false,
-          type: 'scatter',
-          name: `${model} 95% CI`,
-          hoverinfo: 'none'
-        },
-        {
-          x: [...forecastDates, ...forecastDates.slice().reverse()],
-          y: [...ci50Upper, ...ci50Lower.slice().reverse()],
-          fill: 'toself',
-          fillcolor: `${modelColor}30`,
-          line: { color: 'transparent' },
-          showlegend: false,
-          type: 'scatter',
-          name: `${model} 50% CI`,
-          hoverinfo: 'none'
-        },
-        {
-          x: forecastDates,
-          y: medianValues,
-          name: `${model}`,
-          type: 'scatter',
-          mode: 'lines+markers',
-          line: { color: modelColor, width: 2 },
-          marker: { size: 6 }
-        }];
+        { x: [...forecastDates, ...[...forecastDates].reverse()], y: [...getQuantile(0.975), ...[...getQuantile(0.025)].reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none' },
+        { x: [...forecastDates, ...[...forecastDates].reverse()], y: [...getQuantile(0.75), ...[...getQuantile(0.25)].reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, hoverinfo: 'none' },
+        { x: forecastDates, y: getQuantile(0.5), name: model, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2 }, marker: { size: 6 } }
+      ];
     });
   });
 
@@ -214,14 +158,14 @@ const RSVDefaultView = ({
       range: getDefaultRange(),
       rangeselector: {
         buttons: [
-          { count: 3, label: '3m', step: 'month', stepmode: 'backward' },
-          { count: 6, label: '6m', step: 'month', stepmode: 'backward' },
-          { step: 'all', label: 'All' }
+          {count: 1, label: '1m', step: 'month', stepmode: 'backward'},
+          {count: 6, label: '6m', step: 'month', stepmode: 'backward'},
+          {step: 'all', label: 'all'}
         ]
       }
     },
     yaxis: {
-        title: 'Weekly Incident Cases',
+        title: 'Hospitalizations',
         range: calculateYRange(getDefaultRange())
     },
     shapes: selectedDates.map(date => ({

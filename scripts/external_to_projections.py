@@ -1,42 +1,39 @@
-"""
-CLI entry point for converting Hubverse exports into RespiLens projection JSON files.
-"""
+"""Convert Hubverse exports into RespiLens projection JSON files."""
 
 from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
+from typing import Dict
 
+from external_data import (
+    ExternalData,
+    ExternalDataError,
+    load_projections_schema,
+    validate_against_schema,
+)
+from hubverse_data_processor import HubverseDataProcessor
 from helper import save_json_file
-from external_data import ExternalDataError, load_inputs, load_projections_schema, validate_against_schema
-from flusight_data_processor import FlusightDataProcessor
-from rsv_data_processor import RSVDataProcessor
-from covid19_data_processor import COVIDDataProcessor
 
 
-PROCESSOR_MAP = {
-    "flu": FlusightDataProcessor,
-    "rsv": RSVDataProcessor,
-    "covid": COVIDDataProcessor,
+PROCESSOR_PATHOGEN_MAP: Dict[str, str] = {
+    "flu": "flusight",
+    "rsv": "rsv",
+    "covid": "covid19",
 }
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Convert Hubverse data into RespiLens projections JSON.")
+    parser = argparse.ArgumentParser(description="Convert Hubverse data into RespiLens projection JSON.")
     parser.add_argument("--output-path", required=True, help="Directory where JSON files will be written.")
     parser.add_argument(
         "--pathogen",
         required=True,
-        choices=sorted(PROCESSOR_MAP.keys()),
-        help="Pathogen to process (determines schema checks and processor).",
+        choices=sorted(PROCESSOR_PATHOGEN_MAP.keys()),
+        help="Pathogen to process (flu, rsv, covid).",
     )
-    parser.add_argument(
-        "--data-path",
-        required=True,
-        help="Absolute path to Hubverse forecast data in CSV format.",
-    )
+    parser.add_argument("--data-path", required=True, help="Absolute path to Hubverse forecast data in CSV format.")
     parser.add_argument(
         "--target-data-path",
         required=True,
@@ -45,7 +42,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--locations-data-path",
         required=True,
-        help="Absolute path to location metadata CSV.",
+        help="Absolute path to the location metadata CSV.",
     )
     parser.add_argument(
         "--overwrite",
@@ -63,30 +60,36 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    logging.basicConfig(level=getattr(logging, args.log_level.upper()))
+    logging.basicConfig(level=getattr(logging, args.log_level))
     output_path = Path(args.output_path).resolve()
 
+    pathogen_key = PROCESSOR_PATHOGEN_MAP[args.pathogen]
+
     try:
-        inputs = load_inputs(
+        validated = ExternalData(
+            data_path=args.data_path,
+            target_data_path=args.target_data_path,
+            locations_data_path=args.locations_data_path,
             pathogen=args.pathogen,
-            data_path=Path(args.data_path).resolve(),
-            target_data_path=Path(args.target_data_path).resolve(),
-            locations_data_path=Path(args.locations_data_path).resolve(),
         )
     except ExternalDataError as exc:
         logging.error("Input validation failed: %s", exc)
         return 1
 
-    processor_cls = PROCESSOR_MAP[args.pathogen]
-
     logging.info("Starting %s projections processing...", args.pathogen.upper())
-    processor = processor_cls(
-        data=inputs.data,
-        locations_data=inputs.locations_data,
-        target_data=inputs.target_data,
+    processor = HubverseDataProcessor(
+        data=validated.data,
+        locations_data=validated.locations_data,
+        target_data=validated.target_data,
+        hub=pathogen_key,
     )
 
-    schema = load_projections_schema()
+    try:
+        schema = load_projections_schema()
+    except FileNotFoundError as exc:
+        logging.error("Unable to load projections schema: %s", exc)
+        return 1
+
     for filename, payload in processor.output_dict.items():
         if filename != "metadata.json":
             try:
@@ -95,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
                 logging.error("Skipping %s due to schema validation error: %s", filename, exc)
                 return 1
         save_json_file(
-            pathogen=args.pathogen,
+            pathogen=pathogen_key,
             output_path=str(output_path),
             output_filename=filename,
             file_contents=payload,
@@ -108,4 +111,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

@@ -46,9 +46,13 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     if (!groundTruth || !forecasts || selectedDates.length === 0) {
       return [];
     }
+    const groundTruthValues = groundTruth.values || groundTruth['wk inc covid hosp'];
+    if (!groundTruthValues) {
+      return [];
+    }
     const groundTruthTrace = {
-      x: groundTruth.dates,
-      y: groundTruth.values || groundTruth['wk inc covid hosp'],
+      x: groundTruth.dates || [],
+      y: groundTruthValues,
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
