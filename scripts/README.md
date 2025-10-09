@@ -66,7 +66,7 @@ python process_nhsn_data.py --locations-path ./FluSight-forecast-hub/auxiliary-d
 
 #### Overview
 
-This script is designed to process RSV hospitalization forecast data from the [RSV Forecast Hub](https://github.com/HopkinsIDD/rsv-forecast-hub). It reads raw forecast files (in Parquet format) and ground truth data, standardizes it, and aggregates the data into specific age groups. The primary output is a collection of JSON files saved to a single directory at `<output_path>/rsv/`. This output includes a `metadata.json` file, and a separate JSON file for each location (e.g., `GA_rsv.json`) containing its specific ground truth and forecast data, structured for use in visualizations.
+This script is designed to process RSV hospitalization forecast data from the [RSV Forecast Hub](https://github.com/HopkinsIDD/rsv-forecast-hub). It reads raw forecast files (in Parquet format) and ground truth data, standardizes it, and aggregates the data into specific age groups. The primary output is a collection of JSON files saved to a single directory at `<output_path>/rsvforecasthub/`. This output includes a `metadata.json` file, and a separate JSON file for each location (e.g., `GA_rsvforecasthub.json`) containing its specific ground truth and forecast data, structured for use in visualizations.
 
 #### Running `process_rsv_data.py`
 
@@ -150,7 +150,7 @@ You can run `validation_plots_rsv.py` with the following options:
 
 Example command:
 ```
-python validation_plots_rsv.py --data-dir ./processed_data/rsv --output-dir ./validation_output
+python validation_plots_rsv.py --data-dir ./processed_data/rsvforecasthub --output-dir ./validation_output
 ```
 
 
@@ -211,7 +211,7 @@ There is an additionaly key of RespiLens metadta, `lastUpdated`, that is automat
 
 #### Overview
 
-`external_to_projections.py` is the command-line entry point for converting Hubverse exports into RespiLens projections JSON files. It pulls raw forecast, target, and location metadata files; validates the inputs; runs the appropriate processor (`processors.flusight`, `processors.rsv`, or `processors.covid`); validates the JSON outputs; and writes a single JSON file per location (plus metadata) using `helper.save_json_file`.
+`external_to_projections.py` is the command-line entry point for converting Hubverse exports into RespiLens projections JSON files. It pulls raw forecast, target, and location metadata files; validates the inputs; runs the appropriate processor (`processors.flusight`, `processors.rsv_forecast_hub`, or `processors.covid19_forecast_hub`); validates the JSON outputs; and writes a single JSON file per location (plus metadata) using `helper.save_json_file`.
 
 Internally it relies on `external_data.py` to load and validate the incoming files, and on `hub_dataset_processor.HubDataProcessorBase` for the shared processing workflow. Intermediate DataFrames are retained on each processor instance under the `intermediate_dataframes` attribute for optional downstream use.
 
@@ -221,7 +221,7 @@ Internally it relies on `external_data.py` to load and validate the incoming fil
    * `--data-path`: Forecast CSV containing quantiles/pmf predictions.
    * `--target-data-path`: Ground-truth time series (CSV or Parquet, depending on the hub).
    * `--locations-data-path`: Location metadata CSV.
-2. Pick the pathogen (`flu`, `rsv`, or `covid`) so the loader can enforce pathogen-specific column requirements.
+2. Pick the pathogen (`flu`, `rsvforecasthub`, or `covid19forecasthub`) so the loader can enforce pathogen-specific column requirements.
 3. Run the CLI pointing at the directory where processed JSON should be written.
 4. Each payload is checked against `schemas/RespiLens_projections.schema.json` before being saved via `helper.save_json_file`.
 5. Each processor exposes `processor.intermediate_dataframes` if you need to inspect the cleaned DataFrames in downstream tooling.
@@ -233,7 +233,7 @@ You can run `external_to_projections.py` with the following options:
 | Option | Description | Value Type | Required? | Default Value |
 | :--- | :--- | :--- | :--- | :--- |
 | `--output-path` | Directory where JSON files will be saved. | String | Yes | *N/A* |
-| `--pathogen` | Pathogen to process (`flu`, `rsv`, or `covid`). Determines which processor is used. | String | Yes | *N/A* |
+| `--pathogen` | Pathogen to process (`flu`, `rsvforecasthub`, or `covid19forecasthub`). Determines which processor is used. | String | Yes | *N/A* |
 | `--data-path` | Absolute path to Hubverse forecast data in CSV format. | String | Yes | *N/A* |
 | `--target-data-path` | Absolute path to Hubverse target data (CSV or Parquet). | String | Yes | *N/A* |
 | `--locations-data-path` | Absolute path to the location metadata CSV. | String | Yes | *N/A* |
@@ -254,26 +254,26 @@ python scripts/external_to_projections.py \
 To process other hubs, adjust the pathogen flag and the file paths:
 
 ```bash
-# RSV
+# RSV Forecast Hub
 python scripts/external_to_projections.py \
     --output-path ./app/public/processed_data \
-    --pathogen rsv \
+    --pathogen rsvforecasthub \
     --data-path /absolute/path/to/rsv-forecast-hub/hub_data.csv \
     --target-data-path /absolute/path/to/rsv-forecast-hub/target-data/time-series.parquet \
     --locations-data-path /absolute/path/to/rsv-forecast-hub/auxiliary-data/locations.csv \
     --overwrite
 
-# COVID-19
+# COVID-19 Forecast Hub
 python scripts/external_to_projections.py \
     --output-path ./app/public/processed_data \
-    --pathogen covid \
+    --pathogen covid19forecasthub \
     --data-path /absolute/path/to/covid19-forecast-hub/hub_data.csv \
     --target-data-path /absolute/path/to/covid19-forecast-hub/target-data/time-series.parquet \
     --locations-data-path /absolute/path/to/covid19-forecast-hub/auxiliary-data/locations.csv \
     --overwrite
 ```
 
-The CLI writes each pathogen into its own subdirectory under `--output-path` (`flusight`, `rsv`, `covid19`), so you can run it multiple times in a row without cleaning between runs.
+The CLI writes each pathogen into its own subdirectory under `--output-path` (`flusight`, `rsvforecasthub`, `covid19forecasthub`), so you can run it multiple times in a row without cleaning between runs.
 
 #### R implementation (`external_to_projections.R`)
 
@@ -289,7 +289,7 @@ Rscript scripts/external_to_projections.R \
     --overwrite
 ```
 
-Swap the paths/pathogen exactly as in the Python example for RSV and COVID-19 hubs. Install dependencies once per machine:
+Swap the paths/pathogen exactly as in the Python example for RSV and COVID-19 Forecast Hubs (use `--pathogen rsvforecasthub` or `--pathogen covid19forecasthub`). Install dependencies once per machine:
 
 ```r
 install.packages(c("jsonlite", "jsonvalidate", "arrow"))

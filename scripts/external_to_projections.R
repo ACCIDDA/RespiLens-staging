@@ -425,9 +425,9 @@ main <- function() {
       series_type = "projection",
       drop_output_types = c("sample")
     ),
-    rsv = list(
-      file_suffix = "rsv",
-      dataset_label = "rsv forecasts",
+    rsvforecasthub = list(
+      file_suffix = "rsvforecasthub",
+      dataset_label = "rsv forecast hub",
       ground_truth_value_key = "wk inc rsv hosp",
       ground_truth_date_column = "date",
       ground_truth_target = "wk inc rsv hosp",
@@ -435,9 +435,9 @@ main <- function() {
       series_type = "projection",
       drop_output_types = c("sample")
     ),
-    covid = list(
-      file_suffix = "covid19",
-      dataset_label = "covid19 forecasts",
+    covid19forecasthub = list(
+      file_suffix = "covid19forecasthub",
+      dataset_label = "covid19 forecast hub",
       ground_truth_value_key = "wk inc covid hosp",
       ground_truth_date_column = "date",
       ground_truth_target = "wk inc covid hosp",
@@ -447,14 +447,16 @@ main <- function() {
     )
   )
 
-  if (!args$pathogen %in% names(dataset_configs)) {
+  pathogen_aliases <- c(rsv = "rsvforecasthub", covid = "covid19forecasthub", covid19 = "covid19forecasthub")
+  canonical_pathogen <- if (args$pathogen %in% names(dataset_configs)) args$pathogen else pathogen_aliases[[args$pathogen]]
+  if (is.na(canonical_pathogen)) {
     stop(sprintf("Unsupported pathogen '%s'. Supported options are: %s",
                  args$pathogen,
                  paste(names(dataset_configs), collapse = ", ")), call. = FALSE)
   }
 
-  config <- dataset_configs[[args$pathogen]]
-  log_message("INFO", sprintf("Starting %s projections processing...", toupper(args$pathogen)), context)
+  config <- dataset_configs[[canonical_pathogen]]
+  log_message("INFO", sprintf("Starting %s projections processing...", toupper(canonical_pathogen)), context)
 
   forecast_required_columns <- c(
     "location", "reference_date", "target", "model_id", "horizon",
@@ -462,8 +464,8 @@ main <- function() {
   )
   target_required_columns <- list(
     flu = c("as_of", "target_end_date", "location", "observation"),
-    rsv = c("as_of", "date", "location", "observation", "target"),
-    covid = c("as_of", "date", "location", "observation", "target")
+    rsvforecasthub = c("as_of", "date", "location", "observation", "target"),
+    covid19forecasthub = c("as_of", "date", "location", "observation", "target")
   )
   location_required_columns <- c("location", "abbreviation", "location_name", "population")
 
@@ -472,7 +474,7 @@ main <- function() {
   forecast_df <- hubverse_df_preprocessor(forecast_df)
 
   target_df <- load_target_data(args$target_data_path)
-  check_required_columns(target_df, target_required_columns[[args$pathogen]], args$target_data_path)
+  check_required_columns(target_df, target_required_columns[[canonical_pathogen]], args$target_data_path)
 
   locations_df <- load_locations_data(args$locations_data_path)
   check_required_columns(locations_df, location_required_columns, args$locations_data_path)
@@ -495,8 +497,8 @@ main <- function() {
   }
 
   outputs <- process_dataset(forecast_df, locations_df, target_df, config)
-  path_mapping <- list(flu = "flusight", rsv = "rsv", covid = "covid19")
-  target_subdir <- path_mapping[[args$pathogen]]
+  path_mapping <- list(flu = "flusight", rsvforecasthub = "rsvforecasthub", covid19forecasthub = "covid19forecasthub")
+  target_subdir <- path_mapping[[canonical_pathogen]]
   output_dir <- file.path(args$output_path, target_subdir)
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 

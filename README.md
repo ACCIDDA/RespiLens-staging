@@ -95,7 +95,7 @@ GitHub Actions refreshes the processed JSON nightly, but you can regenerate ever
 - `Rscript scripts/external_to_projections.R`  
   The R companion script accepts the same arguments and produces byte-for-byte identical JSON (after installing `jsonlite` and `arrow`). If `jsonvalidate` is available it will also run schema checks, otherwise it skips them with a warning. Use it when working entirely in the R ecosystem or Hubverse R tooling.
 
-  Swap the `--pathogen` flag and file paths to process RSV or COVID-19 hubs. Each payload is validated against `scripts/schemas/RespiLens_projections.schema.json` before being saved under `app/public/processed_data/<pathogen>/`.
+  Swap the `--pathogen` flag to `rsvforecasthub` or `covid19forecasthub` (file paths adjusted to the respective Hubverse clones). Each payload is validated against `scripts/schemas/RespiLens_projections.schema.json` before being saved under `app/public/processed_data/<pathogen>/`.
 
 If you want to compare fresh output against a snapshot, stash the reference JSON (e.g., under `tmp/baseline_json_samples/`) and run:
 

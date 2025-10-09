@@ -99,7 +99,7 @@ def main():
         logger.info("Saving RSV JSON files...")
         for filename, contents in rsv_processor_object.output_dict.items():
             save_json_file(
-                pathogen='rsv',
+                pathogen='rsvforecasthub',
                 output_path=args.output_path,
                 output_filename=filename,
                 file_contents=contents,
@@ -127,7 +127,7 @@ def main():
         logger.info("Saving covid19 JSON files...")
         for filename, contents in covid_processor_object.output_dict.items():
             save_json_file(
-                pathogen='covid19',
+                pathogen='covid19forecasthub',
                 output_path=args.output_path,
                 output_filename=filename,
                 file_contents=contents,

@@ -14,8 +14,13 @@ from helper import save_json_file
 
 PROCESSOR_CLASS_MAP: Dict[str, Tuple[type, str]] = {
     "flu": (FlusightDataProcessor, "flusight"),
-    "rsv": (RSVDataProcessor, "rsv"),
-    "covid": (COVIDDataProcessor, "covid19"),
+    "rsvforecasthub": (RSVDataProcessor, "rsvforecasthub"),
+    "covid19forecasthub": (COVIDDataProcessor, "covid19forecasthub"),
+}
+
+PATHOGEN_ALIASES = {
+    "rsv": "rsvforecasthub",
+    "covid": "covid19forecasthub",
 }
 
 
@@ -25,8 +30,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--pathogen",
         required=True,
-        choices=sorted(PROCESSOR_CLASS_MAP.keys()),
-        help="Pathogen to process (flu, rsv, covid).",
+        help="Pathogen to process (flu, rsvforecasthub, covid19forecasthub).",
     )
     parser.add_argument("--data-path", required=True, help="Absolute path to Hubverse forecast data in CSV format.")
     parser.add_argument(
@@ -58,11 +62,18 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=getattr(logging, args.log_level))
     output_path = Path(args.output_path).resolve()
 
-    processor_cls, pathogen_key = PROCESSOR_CLASS_MAP[args.pathogen]
+    pathogen_arg = args.pathogen.lower()
+    canonical_key = PATHOGEN_ALIASES.get(pathogen_arg, pathogen_arg)
+    if canonical_key not in PROCESSOR_CLASS_MAP:
+        valid = ", ".join(sorted(PROCESSOR_CLASS_MAP))
+        logging.error("Unsupported pathogen '%s'. Choose one of: %s", args.pathogen, valid)
+        return 1
+
+    processor_cls, pathogen_key = PROCESSOR_CLASS_MAP[canonical_key]
 
     try:
         inputs = load_inputs(
-            pathogen=args.pathogen,
+            pathogen=canonical_key,
             data_path=Path(args.data_path).resolve(),
             target_data_path=Path(args.target_data_path).resolve(),
             locations_data_path=Path(args.locations_data_path).resolve(),
@@ -71,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         logging.error("Input validation failed: %s", exc)
         return 1
 
-    logging.info("Starting %s projections processing...", args.pathogen.upper())
+    logging.info("Starting %s projections processing...", canonical_key.upper())
     processor = processor_cls(
         data=inputs.data,
         locations_data=inputs.locations_data,
