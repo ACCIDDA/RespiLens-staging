@@ -211,7 +211,7 @@ There is an additionaly key of RespiLens metadta, `lastUpdated`, that is automat
 
 #### Overview
 
-`external_to_projections.py` is the command-line entry point for converting Hubverse exports into RespiLens projections JSON files. It pulls raw forecast, target, and location metadata files; validates the inputs; runs the appropriate processor (`flusight_data_processor`, `rsv_data_processor`, or `covid19_data_processor`); validates the JSON outputs; and writes a single JSON file per location (plus metadata) using `helper.save_json_file`.
+`external_to_projections.py` is the command-line entry point for converting Hubverse exports into RespiLens projections JSON files. It pulls raw forecast, target, and location metadata files; validates the inputs; runs the appropriate processor (`processors.flusight`, `processors.rsv`, or `processors.covid`); validates the JSON outputs; and writes a single JSON file per location (plus metadata) using `helper.save_json_file`.
 
 Internally it relies on `external_data.py` to load and validate the incoming files, and on `hub_dataset_processor.HubDataProcessorBase` for the shared processing workflow. Intermediate DataFrames are retained on each processor instance under the `intermediate_dataframes` attribute for optional downstream use.
 

@@ -8,9 +8,7 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 from external_data import ExternalDataError, load_inputs, load_projections_schema, validate_against_schema
-from flusight_data_processor import FlusightDataProcessor
-from rsv_data_processor import RSVDataProcessor
-from covid19_data_processor import COVIDDataProcessor
+from processors import COVIDDataProcessor, FlusightDataProcessor, RSVDataProcessor
 from helper import save_json_file
 
 

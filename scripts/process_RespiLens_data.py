@@ -8,9 +8,7 @@ from pathlib import Path
 from hubdata import connect_hub
 
 
-from flusight_data_processor import FlusightDataProcessor
-from rsv_data_processor import RSVDataProcessor
-from covid19_data_processor import COVIDDataProcessor
+from processors import FlusightDataProcessor, RSVDataProcessor, COVIDDataProcessor
 from nhsn_data_processor import NHSNDataProcessor
 from helper import save_json_file, hubverse_df_preprocessor, clean_nan_values
 

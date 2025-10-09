@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / "scripts"))
 
 from external_data import load_inputs
-from flusight_data_processor import FlusightDataProcessor
+from processors import FlusightDataProcessor
 
 
 def _load_expected(filename: str) -> dict:

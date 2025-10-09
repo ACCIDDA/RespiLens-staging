@@ -1,6 +1,4 @@
-"""
-Class to process FluSight data (pd.DataFrame) into RespiLens-style JSON output.
-"""
+"""RespiLens processor for FluSight Hubverse exports."""
 
 import pandas as pd
 
