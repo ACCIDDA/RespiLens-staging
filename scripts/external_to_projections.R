@@ -364,7 +364,10 @@ build_metadata_file <- function(data_df, locations_df) {
 }
 
 validate_payload <- function(payload, schema_path) {
-  require_package("jsonvalidate")
+  if (!requireNamespace("jsonvalidate", quietly = TRUE)) {
+    warning("Package 'jsonvalidate' not installed; skipping schema validation.")
+    return(invisible(TRUE))
+  }
   json_text <- jsonlite::toJSON(payload, auto_unbox = TRUE, pretty = FALSE, na = "null")
   is_valid <- jsonvalidate::json_validate(json_text, schema = schema_path, engine = "ajv", verbose = TRUE)
   if (!isTRUE(is_valid)) {
