@@ -38,7 +38,7 @@ const ViewSelector = () => {
 
   return (
     <Stack gap="xs">
-      <Stack gap="xs" w="100%">
+      <Group gap="xs" wrap="wrap">
         {datasets.map(dataset => {
           const isActive = dataset.views.some(view => view.value === viewType);
 
@@ -51,8 +51,14 @@ const ViewSelector = () => {
                   leftSection={<IconChevronRight size={14} />}
                   onClick={() => handleDatasetSelect(dataset)}
                   radius="md"
-                  fullWidth
-                  style={{ justifyContent: 'flex-start', gap: '0.5rem', paddingLeft: '0.75rem', paddingRight: '0.75rem' }}
+                  styles={{
+                    root: {
+                      minWidth: 160,
+                      justifyContent: 'flex-start',
+                      gap: '0.5rem',
+                      padding: '0.4rem 0.75rem'
+                    }
+                  }}
                 >
                   {dataset.fullName}
                 </Button>
@@ -66,8 +72,13 @@ const ViewSelector = () => {
                       size="xs"
                       leftSection={<IconChevronRight size={12} />}
                       onClick={() => handleViewSelect(view.value)}
-                      fullWidth
-                      style={{ justifyContent: 'flex-start', gap: '0.5rem', paddingLeft: '0.75rem', paddingRight: '0.75rem' }}
+                      styles={{
+                        root: {
+                          justifyContent: 'flex-start',
+                          gap: '0.5rem',
+                          padding: '0.35rem 0.75rem'
+                        }
+                      }}
                     >
                       <Group gap="xs" wrap="nowrap">
                         <Text size="sm">{view.label}</Text>
@@ -79,7 +90,7 @@ const ViewSelector = () => {
             </HoverCard>
           );
         })}
-      </Stack>
+      </Group>
     </Stack>
   );
 };

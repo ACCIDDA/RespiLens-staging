@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Stack, Group, Button, Text, Tooltip, Badge, Divider, Switch, Card, SimpleGrid, PillsInput, Pill, Combobox, useCombobox } from '@mantine/core';
+import { Stack, Group, Button, Text, Tooltip, Divider, Switch, Card, SimpleGrid, PillsInput, Pill, Combobox, useCombobox } from '@mantine/core';
 import { IconCircleCheck, IconCircle, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { MODEL_COLORS } from '../config/datasets';
 
@@ -26,9 +26,9 @@ const ModelSelector = ({
   };
 
   const getModelColorByIndex = (model) => {
-    // Use the same color logic as graphs: index-based from MODEL_COLORS
+    // Only color selected models to avoid mismatched palette hints
     const index = selectedModels.indexOf(model);
-    return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : MODEL_COLORS[models.indexOf(model) % MODEL_COLORS.length];
+    return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : undefined;
   };
 
   const modelsToShow = showAllAvailable ? models : selectedModels;
@@ -74,10 +74,7 @@ const ModelSelector = ({
         withinPortal
       >
         <Combobox.DropdownTarget>
-          <PillsInput
-            onClick={() => combobox.openDropdown()}
-            size="sm"
-          >
+          <PillsInput onClick={() => combobox.openDropdown()} size="sm">
             <Pill.Group>
               {selectedModels.map((model) => {
                 const modelColor = getModelColorByIndex(model);
@@ -88,7 +85,9 @@ const ModelSelector = ({
                     onRemove={() => handleValueRemove(model)}
                     style={{
                       backgroundColor: modelColor,
-                      color: 'white'
+                      color: 'white',
+                      padding: '2px 6px',
+                      fontSize: '0.75rem'
                     }}
                   >
                     {model}
@@ -124,27 +123,23 @@ const ModelSelector = ({
               const modelColor = getModelColorByIndex(model);
               const isSelected = selectedModels.includes(model);
               return (
-                <Combobox.Option value={model} key={model}>
-                  <Group gap="sm">
-                    {isSelected ? (
-                      <IconCircleCheck size={16} style={{ color: modelColor }} />
-                    ) : (
-                      <IconCircle size={16} style={{ color: modelColor, opacity: 0.5 }} />
-                    )}
-                    <span style={{ 
-                      color: isSelected ? modelColor : 'inherit',
-                      fontWeight: isSelected ? 600 : 400
-                    }}>
-                      {model}
-                    </span>
-                    <Badge 
-                      size="xs" 
-                      variant="filled"
-                      style={{ backgroundColor: modelColor }}
-                      ml="auto"
-                    >
-                      •
-                    </Badge>
+                <Combobox.Option value={model} key={model} style={{ padding: '4px 8px' }}>
+                  <Group gap="xs" justify="space-between">
+                    <Group gap="xs" align="center">
+                      {isSelected ? (
+                        <IconCircleCheck size={16} style={{ color: modelColor }} />
+                      ) : (
+                        <IconCircle size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
+                      )}
+                      <span
+                        style={{
+                          color: isSelected ? modelColor : 'inherit',
+                          fontWeight: isSelected ? 600 : 400
+                        }}
+                      >
+                        {model}
+                      </span>
+                    </Group>
                   </Group>
                 </Combobox.Option>
               );
@@ -203,13 +198,14 @@ const ModelSelector = ({
       {/* Model Grid Display */}
       {modelsToShow.length > 0 && (
         <SimpleGrid 
-          cols={{ base: 1, xs: 2, sm: 3, md: 4 }}
+          cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 5 }}
           spacing="xs"
           verticalSpacing="xs"
         >
           {modelsToShow.map((model) => {
             const isSelected = selectedModels.includes(model);
             const modelColor = getModelColorByIndex(model);
+            const inactiveColor = 'var(--mantine-color-gray-5)';
             
             return (
               <Card
@@ -221,7 +217,8 @@ const ModelSelector = ({
                 style={{
                   cursor: disabled ? 'not-allowed' : 'pointer',
                   backgroundColor: isSelected ? modelColor : undefined,
-                  borderColor: isSelected ? modelColor : undefined
+                  borderColor: isSelected ? modelColor : undefined,
+                  minWidth: 0
                 }}
                 opacity={disabled ? 0.5 : 1}
                 onClick={() => {
@@ -243,7 +240,7 @@ const ModelSelector = ({
                     {isSelected ? (
                       <IconCircleCheck size={16} color="white" />
                     ) : (
-                      <IconCircle size={16} color={modelColor} />
+                      <IconCircle size={16} color={inactiveColor} />
                     )}
                     <Text 
                       size="xs" 
@@ -260,14 +257,6 @@ const ModelSelector = ({
                       {model}
                     </Text>
                   </Group>
-                  <Badge 
-                    size="xs" 
-                    variant="filled"
-                    color={isSelected ? 'gray.0' : undefined}
-                    style={!isSelected ? { backgroundColor: modelColor } : undefined}
-                  >
-                    •
-                  </Badge>
                 </Group>
               </Card>
             );
