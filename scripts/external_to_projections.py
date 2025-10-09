@@ -3,9 +3,7 @@
 import argparse
 import logging
 
-from flusight_data_processor import FlusightDataProcessor
-from rsv_data_processor import RSVDataProcessor
-from covid19_data_processor import COVIDDataProcessor
+from hubverse_data_processor import HubverseDataProcessor
 from external_data import ExternalData
 from helper import save_json_file, validate_respilens_json
 
@@ -45,7 +43,7 @@ def main():
     args = parser.parse_args()
     
     # Validate all input data
-    ValidatedData = ExternalData(
+    validated_data = ExternalData(
         data_path=args.data_path,
         target_data_path=args.target_data_path,
         locations_data_path=args.locations_data_path,
@@ -55,10 +53,11 @@ def main():
 
     # Convert based on pathogen, validate, and save 
     if args.pathogen == 'flu':
-        flu_processor_object = FlusightDataProcessor(
-            data=ValidatedData.data,
-            locations_data=ValidatedData.locations_data,
-            target_data=ValidatedData.target_data
+        flu_processor_object = HubverseDataProcessor(
+            data=validated_data.data,
+            locations_data=validated_data.locations_data,
+            target_data=validated_data.target_data,
+            hub='flusight'
         )
         logger.info("Validating converted flu JSON files...")
         validation_dict = {}
@@ -80,7 +79,7 @@ def main():
         logger.info("Saving converted flu JSON files...")
         for filename, contents in flu_processor_object.output_dict.items():
             save_json_file(
-                pathogen='flu',
+                pathogen='flusight',
                 output_path=args.output_path,
                 output_filename=filename,
                 file_contents=contents,
@@ -88,10 +87,11 @@ def main():
             )
         logger.info("Success ✅")
     elif args.pathogen == 'covid':
-        covid_processor_object = COVIDDataProcessor(
-            data=ValidatedData.data,
-            locations_data=ValidatedData.locations_data,
-            target_data=ValidatedData.target_data
+        covid_processor_object = HubverseDataProcessor(
+            data=validated_data.data,
+            locations_data=validated_data.locations_data,
+            target_data=validated_data.target_data,
+            hub='covid19'
         )
         logger.info("Validating converted COVID19 JSON files...")
         validation_dict = {}
@@ -113,7 +113,7 @@ def main():
         logger.info("Saving converted COVID19 JSON files...")
         for filename, contents in covid_processor_object.output_dict.items():
             save_json_file(
-                pathogen='covid',
+                pathogen='covid19',
                 output_path=args.output_path,
                 output_filename=filename,
                 file_contents=contents,
@@ -121,10 +121,11 @@ def main():
             )
         logger.info("Success ✅")
     elif args.pathogen == 'rsv':
-        rsv_processor_object = RSVDataProcessor(
-            data=ValidatedData.data,
-            locations_data=ValidatedData.locations_data,
-            target_data=ValidatedData.target_data
+        rsv_processor_object = HubverseDataProcessor(
+            data=validated_data.data,
+            locations_data=validated_data.locations_data,
+            target_data=validated_data.target_data,
+            hub='rsv'
         )
         logger.info("Validating converted RSV JSON files...")
         validation_dict = {}
