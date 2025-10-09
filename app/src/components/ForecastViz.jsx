@@ -40,33 +40,38 @@ const ForecastViz = () => {
     clipboard.copy(url);
   };
   
+  const dateShareJustify = currentDataset?.hasDateSelector ? 'space-between' : 'flex-end';
+
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>
-            <Group justify="flex-end">
+            <Group justify={dateShareJustify} align="flex-start" gap="sm" wrap="wrap">
+              {currentDataset?.hasDateSelector && (
+                <div style={{ flex: 1, minWidth: 260 }}>
+                  <DateSelector
+                    selectedDates={selectedDates}
+                    setSelectedDates={setSelectedDates}
+                    availableDates={availableDates}
+                    activeDate={activeDate}
+                    setActiveDate={setActiveDate}
+                    loading={loading}
+                  />
+                </div>
+              )}
               <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
                 <Button
                   variant="light"
                   size="xs"
                   leftSection={<IconShare size={16} />}
                   onClick={handleShare}
+                  style={{ alignSelf: 'center' }}
                 >
                   {clipboard.copied ? 'Copied' : 'Share'}
                 </Button>
               </Tooltip>
             </Group>
-            {currentDataset?.hasDateSelector && (
-              <DateSelector
-                selectedDates={selectedDates}
-                setSelectedDates={setSelectedDates}
-                availableDates={availableDates}
-                activeDate={activeDate}
-                setActiveDate={setActiveDate}
-                loading={loading}
-              />
-            )}
             <div style={{ flex: 1, minHeight: 0 }}>
               <DataVisualization
                 // DataVisualization now receives all its data as props
