@@ -35,7 +35,7 @@ export const ViewProvider = ({ children }) => {
   useEffect(() => {
     if (location.pathname !== '/') {
       return;
-    }
+    } // scopes URL management to only the forecasts page
     // 1. Wait until the data for the current view has completely finished loading.
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (loading || !currentDataset || models.length === 0 || availableDates.length === 0) {
