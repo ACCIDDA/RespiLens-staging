@@ -116,7 +116,7 @@ def _load_forecast_data(data_path: Path) -> pd.DataFrame:
     if not data_path.exists():
         raise ExternalDataError(f"Forecast data path does not exist: {data_path}")
     logger.info("Loading forecast data from %s", data_path)
-    df = pd.read_csv(data_path)
+    df = pd.read_csv(data_path, dtype={"location": str})
     return clean_nan_values(df)
 
 
@@ -127,9 +127,11 @@ def _load_target_data(target_data_path: Path, pathogen: str) -> pd.DataFrame:
     logger.info("Loading %s target data from %s", pathogen, target_data_path)
     suffix = target_data_path.suffix.lower()
     if suffix == ".csv":
-        df = pd.read_csv(target_data_path)
+        df = pd.read_csv(target_data_path, dtype={"location": str})
     elif suffix in {".parquet", ".pq"}:
         df = pd.read_parquet(target_data_path)
+        if "location" in df.columns:
+            df["location"] = df["location"].astype(str)
     else:
         raise ExternalDataError(f"Unsupported target data file extension '{suffix}' for {target_data_path}")
     return clean_nan_values(df)
@@ -139,7 +141,7 @@ def _load_locations_data(locations_data_path: Path) -> pd.DataFrame:
     if not locations_data_path.exists():
         raise ExternalDataError(f"Locations data path does not exist: {locations_data_path}")
     logger.info("Loading location metadata from %s", locations_data_path)
-    df = pd.read_csv(locations_data_path)
+    df = pd.read_csv(locations_data_path, dtype={"location": str})
     return clean_nan_values(df)
 
 

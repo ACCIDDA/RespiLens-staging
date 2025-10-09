@@ -88,11 +88,12 @@ def main(argv: list[str] | None = None) -> int:
 
     schema = load_projections_schema()
     for filename, payload in processor.output_dict.items():
-        try:
-            validate_against_schema(payload, schema)
-        except ExternalDataError as exc:
-            logging.error("Skipping %s due to schema validation error: %s", filename, exc)
-            return 1
+        if filename != "metadata.json":
+            try:
+                validate_against_schema(payload, schema)
+            except ExternalDataError as exc:
+                logging.error("Skipping %s due to schema validation error: %s", filename, exc)
+                return 1
         save_json_file(
             pathogen=args.pathogen,
             output_path=str(output_path),

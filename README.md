@@ -92,6 +92,9 @@ GitHub Actions refreshes the processed JSON nightly, but you can regenerate ever
       --overwrite
   ```
 
+- `Rscript scripts/external_to_projections.R`  
+  The R companion script accepts the same arguments and produces byte-for-byte identical JSON (after installing `jsonlite`, `jsonvalidate`, and `arrow`). Use it when working entirely in the R ecosystem or Hubverse R tooling.
+
   Swap the `--pathogen` flag and file paths to process RSV or COVID-19 hubs. Each payload is validated against `scripts/schemas/RespiLens_projections.schema.json` before being saved under `app/public/processed_data/<pathogen>/`.
 
 If you want to compare fresh output against a snapshot, stash the reference JSON (e.g., under `tmp/baseline_json_samples/`) and run:
@@ -99,6 +102,14 @@ If you want to compare fresh output against a snapshot, stash the reference JSON
 ```bash
 diff -ru tmp/baseline_json_samples app/public/processed_data
 ```
+
+For a quick regression check that the Python and R converters remain in sync, run the bundled parity script:
+
+```bash
+./tests/run_projection_parity_test.sh
+```
+
+Details live in `tests/README.md`.
 
 
 ## Desired Behaviors

@@ -273,4 +273,26 @@ python scripts/external_to_projections.py \
     --overwrite
 ```
 
-The CLI writes each pathogen into its own subdirectory under `--output-path` (`flusight`, `rsv`, `covid19`), so you can run it multiple times in a row without cleaning between runs.***
+The CLI writes each pathogen into its own subdirectory under `--output-path` (`flusight`, `rsv`, `covid19`), so you can run it multiple times in a row without cleaning between runs.
+
+#### R implementation (`external_to_projections.R`)
+
+If you prefer R, run the companion script with the same flags:
+
+```
+Rscript scripts/external_to_projections.R \
+    --output-path ./app/public/processed_data \
+    --pathogen flu \
+    --data-path /absolute/path/to/FluSight-forecast-hub/hub_data.csv \
+    --target-data-path /absolute/path/to/FluSight-forecast-hub/target-data/time-series.csv \
+    --locations-data-path /absolute/path/to/FluSight-forecast-hub/auxiliary-data/locations.csv \
+    --overwrite
+```
+
+Swap the paths/pathogen exactly as in the Python example for RSV and COVID-19 hubs. Install dependencies once per machine:
+
+```r
+install.packages(c("jsonlite", "jsonvalidate", "arrow"))
+```
+
+The R script mirrors the Python pipeline: it validates inputs, converts them using the shared processing logic, checks every payload against `schemas/RespiLens_projections.schema.json`, and writes one JSON file per location (plus `metadata.json`) under `app/public/processed_data/<pathogen>/`.
