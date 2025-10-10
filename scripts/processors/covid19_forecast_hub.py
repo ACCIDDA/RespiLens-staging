@@ -8,7 +8,7 @@ from hub_dataset_processor import HubDataProcessorBase, HubDatasetConfig
 class COVIDDataProcessor(HubDataProcessorBase):
     def __init__(self, data: pd.DataFrame, locations_data: pd.DataFrame, target_data: pd.DataFrame):
         config = HubDatasetConfig(
-            file_suffix="covid19forecasthub",
+            file_suffix="covid19",
             dataset_label="covid19 forecast hub",
             ground_truth_value_key="wk inc covid hosp",
             ground_truth_date_column="date",

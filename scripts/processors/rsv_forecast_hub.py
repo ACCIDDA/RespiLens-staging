@@ -8,7 +8,7 @@ from hub_dataset_processor import HubDataProcessorBase, HubDatasetConfig
 class RSVDataProcessor(HubDataProcessorBase):
     def __init__(self, data: pd.DataFrame, locations_data: pd.DataFrame, target_data: pd.DataFrame):
         config = HubDatasetConfig(
-            file_suffix="rsvforecasthub",
+            file_suffix="rsv",
             dataset_label="rsv forecast hub",
             ground_truth_value_key="wk inc rsv hosp",
             ground_truth_date_column="date",

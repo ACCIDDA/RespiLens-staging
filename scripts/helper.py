@@ -110,11 +110,11 @@ def save_json_file(
 
     canonical_map = {
         'flusight': 'flusight',
-        'rsv': 'rsvforecasthub',
-        'rsvforecasthub': 'rsvforecasthub',
-        'covid': 'covid19forecasthub',
-        'covid19': 'covid19forecasthub',
-        'covid19forecasthub': 'covid19forecasthub',
+        'rsv': 'rsv',
+        'rsvforecasthub': 'rsv',
+        'covid': 'covid19',
+        'covid19': 'covid19',
+        'covid19forecasthub': 'covid19',
         'nhsn': 'nhsn',
     }
 
@@ -123,8 +123,8 @@ def save_json_file(
 
     canonical = canonical_map[pathogen]
     alias_targets = {
-        'rsvforecasthub': ['rsv'],
-        'covid19forecasthub': ['covid', 'covid19'],
+        'rsv': ['rsvforecasthub'],
+        'covid19': ['covid19forecasthub'],
     }
 
     target_dirs = [canonical] + alias_targets.get(canonical, [])
