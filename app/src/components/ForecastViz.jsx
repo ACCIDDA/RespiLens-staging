@@ -68,7 +68,7 @@ const ForecastViz = () => {
                   onClick={handleShare}
                   style={{ alignSelf: 'center' }}
                 >
-                  {clipboard.copied ? 'Copied' : 'Share'}
+                  {clipboard.copied ? 'URL Copied' : 'Share View'}
                 </Button>
               </Tooltip>
             </Group>
