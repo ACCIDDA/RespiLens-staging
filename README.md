@@ -2,6 +2,8 @@
 
 https://www.RespiLens.com (formerly called RespiView)
 
+[![Lint](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml)  [![Build and Deploy Site](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml)  [![Python Tests](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml)
+
 Hey, there are other flusight vizualization but realized most of them are geared towards CDC/academics instead of state health department and public. Moreover, these hub data remains not accesssible enough. The goal is to make one more with these users in mind, and to have the following important (to me only) features:
 - **ability to link a certain view to a URL to share forecast**
 - static and updated everyweek
