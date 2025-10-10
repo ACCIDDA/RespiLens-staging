@@ -1,8 +1,9 @@
-# RespiLens ![respilens-logo](https://github.com/user-attachments/assets/f4b54c2a-9d27-4453-9a85-72b1b2f965a2)
+# [RespiLens.com](http://www.respilens.com) [![Lint](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml)  [![Build and Deploy Site](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml)  [![Python Tests](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml)
+Authors: **Emily Przykucki**, Joseph Lemaitre and others within ACCIDDA, the Atlantic Coast Center for Infectious Disease Dynamics and Analytics.
 
-https://www.RespiLens.com (formerly called RespiView)
+* **stable version** https://www.RespiLens.com
+* **new features are developped on** https://staging.RespiLens.com
 
-[![Lint](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml)  [![Build and Deploy Site](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml)  [![Python Tests](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml)
 
 Hey, there are other flusight vizualization but realized most of them are geared towards CDC/academics instead of state health department and public. Moreover, these hub data remains not accesssible enough. The goal is to make one more with these users in mind, and to have the following important (to me only) features:
 - **ability to link a certain view to a URL to share forecast**
