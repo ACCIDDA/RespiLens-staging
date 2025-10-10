@@ -1,162 +1,119 @@
-"""Convert external .csv data into RespiLens.projections.json style"""
+"""Convert Hubverse exports into RespiLens projection JSON files."""
+
+from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
+from typing import Dict, Tuple
 
-from hubverse_data_processor import HubverseDataProcessor
-from external_data import ExternalData
-from helper import save_json_file, validate_respilens_json
-
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from external_data import ExternalDataError, load_inputs, load_projections_schema, validate_against_schema
+from processors import COVIDDataProcessor, FlusightDataProcessor, RSVDataProcessor
+from helper import save_json_file
 
 
-def main():
-    """Main execution function"""
-    parser = argparse.ArgumentParser(description="Convert .csv data to RespiLens.projetions.json format")
-    parser.add_argument("--output-path",
-                        type=str,
-                        required=True,
-                        help="Absoute path to where you want to save data to.")
-    parser.add_argument("--pathogen",
-                    type=str,
-                    required=True,
-                    choices=['covid', 'flu', 'rsv'], 
-                    help="The pathogen the data describes.")
-    parser.add_argument("--data-path",
-                        type=str,
-                        required=True,
-                        help="Absoluste path to data to be converted.")
-    parser.add_argument("--target-data-path",
-                        type=str,
-                        required=True,
-                        help="Absolute path to related ground truth/target data.")
-    parser.add_argument("--locations-data-path",
-                        type=str,
-                        required=True,
-                        help="Absolute path to related location metadata.")
-    parser.add_argument("--overwrite",
-                        action='store_true',
-                        required=False,
-                        help="If set, overwrite files with the same name in output directory.")
-    args = parser.parse_args()
-    
-    # Validate all input data
-    validated_data = ExternalData(
-        data_path=args.data_path,
-        target_data_path=args.target_data_path,
-        locations_data_path=args.locations_data_path,
-        pathogen=args.pathogen
-    ) 
-    overwrite = args.overwrite
+PROCESSOR_CLASS_MAP: Dict[str, Tuple[type, str]] = {
+    "flu": (FlusightDataProcessor, "flusight"),
+    "rsvforecasthub": (RSVDataProcessor, "rsvforecasthub"),
+    "covid19forecasthub": (COVIDDataProcessor, "covid19forecasthub"),
+}
 
-    # Convert based on pathogen, validate, and save 
-    if args.pathogen == 'flu':
-        flu_processor_object = HubverseDataProcessor(
-            data=validated_data.data,
-            locations_data=validated_data.locations_data,
-            target_data=validated_data.target_data,
-            hub='flusight'
+PATHOGEN_ALIASES = {
+    "rsv": "rsvforecasthub",
+    "covid": "covid19forecasthub",
+}
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Convert Hubverse data into RespiLens projection JSON.")
+    parser.add_argument("--output-path", required=True, help="Directory where JSON files will be written.")
+    parser.add_argument(
+        "--pathogen",
+        required=True,
+        help="Pathogen to process (flu, rsvforecasthub, covid19forecasthub).",
+    )
+    parser.add_argument("--data-path", required=True, help="Absolute path to Hubverse forecast data in CSV format.")
+    parser.add_argument(
+        "--target-data-path",
+        required=True,
+        help="Absolute path to Hubverse ground truth target data (CSV or Parquet).",
+    )
+    parser.add_argument(
+        "--locations-data-path",
+        required=True,
+        help="Absolute path to the location metadata CSV.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing files in the output directory if set.",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Console logging verbosity.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    logging.basicConfig(level=getattr(logging, args.log_level))
+    output_path = Path(args.output_path).resolve()
+
+    pathogen_arg = args.pathogen.lower()
+    canonical_key = PATHOGEN_ALIASES.get(pathogen_arg, pathogen_arg)
+    if canonical_key not in PROCESSOR_CLASS_MAP:
+        valid = ", ".join(sorted(PROCESSOR_CLASS_MAP))
+        logging.error("Unsupported pathogen '%s'. Choose one of: %s", args.pathogen, valid)
+        return 1
+
+    processor_cls, pathogen_key = PROCESSOR_CLASS_MAP[canonical_key]
+
+    try:
+        inputs = load_inputs(
+            pathogen=canonical_key,
+            data_path=Path(args.data_path).resolve(),
+            target_data_path=Path(args.target_data_path).resolve(),
+            locations_data_path=Path(args.locations_data_path).resolve(),
         )
-        logger.info("Validating converted flu JSON files...")
-        validation_dict = {}
-        for filename, contents in flu_processor_object.output_dict.items():
-            if filename == 'metadata.json':
-                continue
-            else:
-                validation_dict[filename] = (validate_respilens_json(json_contents=contents, type='projections'))
-        bad_files = []
-        for fn, validation_status in validation_dict.items():
-            if validation_status != True:
-                bad_files.append(fn)
-            else:
-                continue
-        if bad_files:
-            logger.warning(f"⚠️ Files {bad_files} failed RespiLens projections schema json validation (but will not be excluded from saving)")
-            logger.warning(f"Check contents of json files for bad json or incorrect data types.")
-        else: logger.info("Success ✅")
-        logger.info("Saving converted flu JSON files...")
-        for filename, contents in flu_processor_object.output_dict.items():
-            save_json_file(
-                pathogen='flusight',
-                output_path=args.output_path,
-                output_filename=filename,
-                file_contents=contents,
-                overwrite=overwrite
-            )
-        logger.info("Success ✅")
-    elif args.pathogen == 'covid':
-        covid_processor_object = HubverseDataProcessor(
-            data=validated_data.data,
-            locations_data=validated_data.locations_data,
-            target_data=validated_data.target_data,
-            hub='covid19'
-        )
-        logger.info("Validating converted COVID19 JSON files...")
-        validation_dict = {}
-        for filename, contents in covid_processor_object.output_dict.items():
-            if filename == 'metadata.json':
-                continue
-            else:
-                validation_dict[filename] = (validate_respilens_json(json_contents=contents, type='projections'))
-        bad_files = []
-        for fn, validation_status in validation_dict.items():
-            if validation_status != True:
-                bad_files.append(fn)
-            else:
-                continue
-        if bad_files:
-            logger.warning(f"⚠️ Files {bad_files} failed RespiLens projections schema json validation (but will not be excluded from saving)")
-            logger.warning(f"Check contents of json files for bad json or incorrect data types.")
-        else: logger.info("Success ✅")
-        logger.info("Saving converted COVID19 JSON files...")
-        for filename, contents in covid_processor_object.output_dict.items():
-            save_json_file(
-                pathogen='covid19',
-                output_path=args.output_path,
-                output_filename=filename,
-                file_contents=contents,
-                overwrite=overwrite
-            )
-        logger.info("Success ✅")
-    elif args.pathogen == 'rsv':
-        rsv_processor_object = HubverseDataProcessor(
-            data=validated_data.data,
-            locations_data=validated_data.locations_data,
-            target_data=validated_data.target_data,
-            hub='rsv'
-        )
-        logger.info("Validating converted RSV JSON files...")
-        validation_dict = {}
-        for filename, contents in rsv_processor_object.output_dict.items():
-            if filename == 'metadata.json':
-                continue
-            else:
-                validation_dict[filename] = (validate_respilens_json(json_contents=contents, type='projections'))
-        bad_files = []
-        for fn, validation_status in validation_dict.items():
-            if validation_status != True:
-                bad_files.append(fn)
-            else:
-                continue
-        if bad_files:
-            logger.warning(f"⚠️ Files {bad_files} failed RespiLens projections schema json validation (but will not be excluded from saving)")
-            logger.warning(f"Check contents of json files for bad json or incorrect data types.")
-        else: logger.info("Success ✅")
-        logger.info("Saving converted RSV JSON files...")
-        for filename, contents in rsv_processor_object.output_dict.items():
-            save_json_file(
-                pathogen='rsv',
-                output_path=args.output_path,
-                output_filename=filename,
-                file_contents=contents,
-                overwrite=overwrite
-            )
-        logger.info("Success ✅")
+    except ExternalDataError as exc:
+        logging.error("Input validation failed: %s", exc)
+        return 1
 
-    logger.info("Process complete.")
+    logging.info("Starting %s projections processing...", canonical_key.upper())
+    processor = processor_cls(
+        data=inputs.data,
+        locations_data=inputs.locations_data,
+        target_data=inputs.target_data,
+    )
+
+    try:
+        schema = load_projections_schema()
+    except FileNotFoundError as exc:
+        logging.error("Unable to load projections schema: %s", exc)
+        return 1
+
+    for filename, payload in processor.output_dict.items():
+        if filename != "metadata.json":
+            try:
+                validate_against_schema(payload, schema)
+            except ExternalDataError as exc:
+                logging.error("Skipping %s due to schema validation error: %s", filename, exc)
+                return 1
+        save_json_file(
+            pathogen=pathogen_key,
+            output_path=str(output_path),
+            output_filename=filename,
+            file_contents=payload,
+            overwrite=args.overwrite,
+        )
+        logging.debug("Saved %s", filename)
+
+    logging.info("Completed processing. Files saved to %s", output_path)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

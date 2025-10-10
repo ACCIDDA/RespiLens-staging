@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
@@ -9,6 +10,8 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
+  const groundTruth = data?.ground_truth;
+  const forecasts = data?.forecasts;
 
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
@@ -41,12 +44,16 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
   };
 
   const timeSeriesData = useMemo(() => {
-    if (!data?.ground_truth?.['wk inc flu hosp'] || selectedDates.length === 0) {
+    if (!groundTruth || !forecasts || selectedDates.length === 0) {
+      return [];
+    }
+    const groundTruthValues = groundTruth.values || groundTruth['wk inc flu hosp'];
+    if (!groundTruthValues) {
       return [];
     }
     const groundTruthTrace = {
-      x: data.ground_truth.dates,
-      y: data.ground_truth['wk inc flu hosp'],
+      x: groundTruth.dates || [],
+      y: groundTruthValues,
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
@@ -55,14 +62,14 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     };
     const modelTraces = selectedModels.flatMap(model => 
       selectedDates.flatMap((date) => {
-        const forecasts = data.forecasts[date] || {};
+        const forecastsForDate = forecasts[date] || {};
         const forecast = 
-          forecasts['wk inc flu hosp']?.[model] || 
-          forecasts['wk flu hosp rate change']?.[model];
+          forecastsForDate['wk inc flu hosp']?.[model] || 
+          forecastsForDate['wk flu hosp rate change']?.[model];
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
         const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
-        sortedPredictions.forEach(([horizon, pred]) => {
+        sortedPredictions.forEach(([, pred]) => {
           forecastDates.push(pred.date);
           if (forecast.type !== 'quantile') return;
           const { quantiles = [], values = [] } = pred;
@@ -81,14 +88,14 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
       })
     );
     return [groundTruthTrace, ...modelTraces];
-  }, [data, selectedDates, selectedModels]);
+  }, [groundTruth, forecasts, selectedDates, selectedModels]);
 
   const rateChangeData = useMemo(() => {
-    if (!data || !data.forecasts || selectedDates.length === 0) return [];
+    if (!forecasts || selectedDates.length === 0) return [];
     const categoryOrder = RATE_CHANGE_CATEGORIES;
     const lastSelectedDate = selectedDates.slice().sort().pop();
     return selectedModels.map(model => {
-      const forecast = data.forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
+      const forecast = forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
       if (!forecast) return null;
       const horizon0 = forecast.predictions['0'];
       if (!horizon0) return null;
@@ -99,9 +106,9 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
       }));
       return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
     }).filter(Boolean);
-  }, [data, selectedDates, selectedModels]);
+  }, [forecasts, selectedDates, selectedModels]);
 
-  const defaultRange = useMemo(() => getDefaultRange(), [data, selectedDates, getDefaultRange]);
+  const defaultRange = getDefaultRange();
 
   useEffect(() => {
     if (timeSeriesData.length > 0 && defaultRange) {

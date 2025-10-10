@@ -1,16 +1,19 @@
 // src/components/COVID19View.jsx
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 
-const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
+const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
+  const groundTruth = data?.ground_truth;
+  const forecasts = data?.forecasts;
 
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
@@ -40,12 +43,16 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
   };
 
   const timeSeriesData = useMemo(() => {
-    if (!data?.ground_truth?.['wk inc covid hosp'] || selectedDates.length === 0) {
+    if (!groundTruth || !forecasts || selectedDates.length === 0) {
+      return [];
+    }
+    const groundTruthValues = groundTruth.values || groundTruth['wk inc covid hosp'];
+    if (!groundTruthValues) {
       return [];
     }
     const groundTruthTrace = {
-      x: data.ground_truth.dates,
-      y: data.ground_truth['wk inc covid hosp'],
+      x: groundTruth.dates || [],
+      y: groundTruthValues,
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
@@ -54,12 +61,12 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     };
     const modelTraces = selectedModels.flatMap(model => 
       selectedDates.flatMap((date) => {
-        const forecasts = data.forecasts[date] || {};
-        const forecast = forecasts['wk inc covid hosp']?.[model]; // Simplified to only look for time series data
+        const forecastsForDate = forecasts[date] || {};
+        const forecast = forecastsForDate['wk inc covid hosp']?.[model]; // Simplified to only look for time series data
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
         const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
-        sortedPredictions.forEach(([horizon, pred]) => {
+        sortedPredictions.forEach(([, pred]) => {
           forecastDates.push(pred.date);
           if (forecast.type !== 'quantile') return;
           const { quantiles = [], values = [] } = pred;
@@ -78,9 +85,9 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
       })
     );
     return [groundTruthTrace, ...modelTraces];
-  }, [data, selectedDates, selectedModels]);
+  }, [groundTruth, forecasts, selectedDates, selectedModels]);
 
-  const defaultRange = useMemo(() => getDefaultRange(), [data, selectedDates, getDefaultRange]);
+  const defaultRange = getDefaultRange();
 
   useEffect(() => {
     if (timeSeriesData.length > 0 && defaultRange) {

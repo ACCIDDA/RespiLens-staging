@@ -8,7 +8,7 @@ from pathlib import Path
 from hubdata import connect_hub
 
 
-from hubverse_data_processor import HubverseDataProcessor
+from processors import FlusightDataProcessor, RSVDataProcessor, COVIDDataProcessor
 from nhsn_data_processor import NHSNDataProcessor
 from helper import save_json_file, hubverse_df_preprocessor, clean_nan_values
 
@@ -61,11 +61,10 @@ def main():
         flu_target_data = clean_nan_values(pd.read_csv(Path(args.flusight_hub_path) / 'target-data/time-series.csv'))
         logger.info("Success ✅")
         # Initialize converter object
-        flu_processor_object = HubverseDataProcessor(
+        flu_processor_object = FlusightDataProcessor(
             data=flu_hubverse_df,
             locations_data=flu_locations_data,
             target_data=flu_target_data,
-            hub='flusight'
         )
         # Iteratively save output files
         logger.info("Saving flu JSON files...")
@@ -91,17 +90,16 @@ def main():
         rsv_target_data = clean_nan_values(pd.read_parquet(Path(args.rsv_hub_path) / 'target-data/time-series.parquet'))
         logger.info("Success ✅")
         # Initialize converter object
-        rsv_processor_object = HubverseDataProcessor(
+        rsv_processor_object = RSVDataProcessor(
             data=rsv_hubverse_df,
             locations_data=rsv_locations_data,
             target_data=rsv_target_data,
-            hub='rsv'
         )
         # Iteratively save output files
         logger.info("Saving RSV JSON files...")
         for filename, contents in rsv_processor_object.output_dict.items():
             save_json_file(
-                pathogen='rsv',
+                pathogen='rsvforecasthub',
                 output_path=args.output_path,
                 output_filename=filename,
                 file_contents=contents,
@@ -120,17 +118,16 @@ def main():
         covid_target_data = clean_nan_values(pd.read_parquet(Path(args.covid_hub_path) / 'target-data/time-series.parquet'))
         logger.info("Success ✅")
         # Initialize converter object
-        covid_processor_object = HubverseDataProcessor(
+        covid_processor_object = COVIDDataProcessor(
             data=covid_hubverse_df,
             locations_data=covid_locations_data,
             target_data=covid_target_data,
-            hub='covid19'
         )
         # Iteratively save output files
         logger.info("Saving covid19 JSON files...")
         for filename, contents in covid_processor_object.output_dict.items():
             save_json_file(
-                pathogen='covid19',
+                pathogen='covid19forecasthub',
                 output_path=args.output_path,
                 output_filename=filename,
                 file_contents=contents,

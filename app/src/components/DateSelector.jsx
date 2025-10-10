@@ -1,11 +1,10 @@
-import React from 'react';
 import { Group, Text, ActionIcon, Button } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
 const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeDate, setActiveDate }) => {
   return (
     <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
-      {selectedDates.map((date, index) => (
+      {selectedDates.map((date) => (
         <Group key={date} gap="xs" align="center" wrap="nowrap">
           <ActionIcon
             onClick={() => {

@@ -1,8 +1,6 @@
-import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppShell, Center } from '@mantine/core';
 import MainNavigation from './MainNavigation';
-import DashboardNavigation from './DashboardNavigation';
 import StateSelector from '../StateSelector';
 
 const getShellConfig = (pathname) => {
@@ -24,7 +22,7 @@ const getShellConfig = (pathname) => {
   };
 };
 
-const UnifiedAppShell = ({ children, dashboardProps = {}, forecastProps = {} }) => {
+const UnifiedAppShell = ({ children, forecastProps = {} }) => {
   const location = useLocation();
   const config = getShellConfig(location.pathname);
 

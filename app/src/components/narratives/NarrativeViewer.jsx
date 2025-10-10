@@ -1,21 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Container, 
-  Paper, 
-  Title, 
-  Text, 
-  Group, 
-  Stack,
-  Badge,
-  ThemeIcon,
-  Loader,
-  Center
-} from '@mantine/core';
-import { 
-  IconBook,
-  IconCalendar,
-  IconUser
-} from '@tabler/icons-react';
+import { useState, useEffect } from 'react';
+import { Container, Paper, Title, Text, Group, Stack, Badge, ThemeIcon, Loader, Center } from '@mantine/core';
+import { IconBook, IconCalendar, IconUser } from '@tabler/icons-react';
 
 const NarrativeViewer = () => {
   const [content, setContent] = useState('');
@@ -34,7 +19,8 @@ const NarrativeViewer = () => {
 
   useEffect(() => {
     // Load markdown content directly
-    const markdownContent = `# Flu Season Winter 2024-25: A Data Story
+    try {
+      const markdownContent = `# Flu Season Winter 2024-25: A Data Story
 
 *An interactive narrative exploring the 2024-25 flu season trends, forecasting insights, and public health implications.*
 
@@ -104,8 +90,13 @@ This narrative is built upon data from:
 *Last updated: December 24, 2024*  
 *Authors: RespiLens Analytics Team*`;
 
-    setContent(markdownContent);
-    setLoading(false);
+      setContent(markdownContent);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load narrative content', err);
+      setError('Unable to load narrative content at this time.');
+      setLoading(false);
+    }
   }, []);
 
   const renderMarkdown = (content) => {

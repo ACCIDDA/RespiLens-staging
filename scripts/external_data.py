@@ -1,95 +1,186 @@
-"""Logic to validate external data to be converted to RespiLens data."""
+"""Utilities for loading and validating external Hubverse datasets."""
 
-import logging
-from typing import Literal
-import pandas as pd
+from __future__ import annotations
+
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, Iterable, Optional, Set
+import json
+import logging
+
+import pandas as pd
 
 from helper import clean_nan_values, hubverse_df_preprocessor
+
 
 logger = logging.getLogger(__name__)
 
 
-class ExternalData:
-    def __init__(
-            self,
-            data_path: str,
-            target_data_path: str,
-            locations_data_path: str,
-            pathogen: str = Literal['rsv', 'flu', 'covid'],
-            type: str = Literal['projections'] # potentially to be expanded to 'timeseries' later
-        ):
-        # Confirm pathogen input
-        if pathogen not in ['rsv', 'flu', 'covid']:
-            raise ValueError(f"`--pathogen` must be one of 'rsv', 'flu', 'covid'. Received: {pathogen}")
-        self.pathogen = pathogen 
-
-        # Load data from path
-        logger.info("Loading input data...")
-        self.data = self._confirm_path_and_load(data_path)
-        self.target_data = self._confirm_path_and_load(target_data_path)
-        self.locations_data = self._confirm_path_and_load(locations_data_path)
-        logger.info("Success ✅")
-
-        # Validate data
-        logger.info("Confirming required columns and values...")
-        self._check_data_columns()
-        self._check_target_data_columns()
-        self._check_locations_data_columns()
-        logger.info("Success ✅")
+class ExternalDataError(ValueError):
+    """Raised when user-supplied data fails validation."""
 
 
-    def _confirm_path_and_load(
-            self, 
-            path: str, 
-            which: str = Literal['data', 'locations data', 'target data']
-        ) -> pd.DataFrame:
-        path = Path(path)
-        ext = path.suffix.lower()
-        if (not path.is_file()) or (ext not in ['.csv', '.parquet']):
-            raise FileExistsError(f"{which} path must point to a valid .csv or .parquet file. "
-                                  f"Received {path} with file extension {path.suffix.lower()}")
-        if not path.exists():
-            raise FileNotFoundError(f"Could not find {which} at path {path}")
-        if ext == '.csv':
-            df_data = pd.read_csv(path)
-        elif ext == '.parquet':
-            df_data = pd.read_parquet(path)
-        return df_data
-    
+@dataclass(frozen=True)
+class ExternalInputs:
+    """Container for validated external inputs."""
 
-    def _check_data_columns(self) -> None:
-        # Check existence of required columns
-        hubverse_cols = ['reference_date', 'location', 'horizon', 'target_end_date', 'target',
-       'output_type', 'output_type_id', 'value', 'model_id']
-        if missing_cols := (set(hubverse_cols) - set(self.data.columns)):
-            raise ValueError(f"Input data is missing required columns: {missing_cols}")
-        self.data = clean_nan_values(hubverse_df_preprocessor(df=self.data, filter_quantiles=False)) # TODO, add modular quantile filtering
+    data: pd.DataFrame
+    target_data: pd.DataFrame
+    locations_data: pd.DataFrame
 
 
-    def _check_target_data_columns(self) -> None:
-        # Check existence of required columns
-        flu_target_data_cols = ['as_of', 'target', 'target_end_date', 'location', 'observation'] # don't need weekly_rate and location_name
-        covid_target_data_cols = ['date', 'observation', 'location', 'as_of', 'target']
-        rsv_target_data_cols = ['date', 'as_of', 'location', 'target', 'observation']
-        if self.pathogen == 'flu':
-            if missing_cols := (set(flu_target_data_cols) - set(self.target_data.columns)):
-                raise ValueError(f"Input target data is missing required columns: {missing_cols}")
-        elif self.pathogen == 'covid':
-            if missing_cols := (set(covid_target_data_cols) - set(self.target_data.columns)):
-                raise ValueError(f"Input target data is missing required columns: {missing_cols}")
-        elif self.pathogen == 'rsv':
-            if missing_cols := (set(rsv_target_data_cols) - set(self.target_data.columns)):
-                raise ValueError(f"Input target data is missing required columns: {missing_cols}")
-        self.target_data = clean_nan_values(self.target_data)
+FORECAST_REQUIRED_COLUMNS: Set[str] = {
+    "location",
+    "reference_date",
+    "target",
+    "model_id",
+    "horizon",
+    "output_type",
+    "output_type_id",
+    "value",
+    "target_end_date",
+}
+
+PATHOGEN_TARGET_REQUIREMENTS: Dict[str, Set[str]] = {
+    "flu": {"as_of", "target_end_date", "location", "observation"},
+    "rsv": {"as_of", "date", "location", "observation", "target"},
+    "covid": {"as_of", "date", "location", "observation", "target"},
+}
+
+LOCATION_REQUIRED_COLUMNS: Set[str] = {"location", "abbreviation", "location_name", "population"}
 
 
-    def _check_locations_data_columns(self) -> None:
-        # Check existence of required columns
-        location_data_cols = ['abbreviation', 'location', 'location_name', 'population']
-        if missing_cols := (set(location_data_cols) - set(self.locations_data.columns)):
-            raise ValueError(f"Input location data is missing required columns: {missing_cols}")
-        # Check esitence of required locations
-        if missing_locations := (set(self.data['location']) - set(self.locations_data['location'])):
-            raise ValueError(f"Input location data is missing data for locations {missing_locations}")
-        
+def load_inputs(
+    pathogen: str,
+    data_path: Path,
+    target_data_path: Path,
+    locations_data_path: Path,
+    *,
+    filter_quantiles: bool = True,
+) -> ExternalInputs:
+    """Load and validate the three core datasets required to build RespiLens projections."""
+
+    _validate_pathogen(pathogen)
+
+    forecast_df = _load_forecast_data(data_path)
+    target_df = _load_target_data(target_data_path, pathogen)
+    locations_df = _load_locations_data(locations_data_path)
+
+    _validate_forecast_columns(forecast_df, FORECAST_REQUIRED_COLUMNS, data_path)
+    _validate_target_columns(target_df, PATHOGEN_TARGET_REQUIREMENTS[pathogen], target_data_path)
+    _validate_location_columns(locations_df, LOCATION_REQUIRED_COLUMNS, locations_data_path)
+    _validate_location_coverage(forecast_df, locations_df, data_path, locations_data_path)
+
+    processed_data = hubverse_df_preprocessor(forecast_df, filter_quantiles=filter_quantiles)
+
+    return ExternalInputs(
+        data=clean_nan_values(processed_data),
+        target_data=clean_nan_values(target_df),
+        locations_data=clean_nan_values(locations_df),
+    )
+
+
+def load_projections_schema() -> Dict:
+    """Load the RespiLens projections JSON schema."""
+
+    schema_path = Path(__file__).resolve().parent / "schemas" / "RespiLens_projections.schema.json"
+    with schema_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def validate_against_schema(payload: Dict, schema: Dict) -> None:
+    """Validate a payload against the RespiLens projections schema."""
+
+    try:
+        from jsonschema import Draft202012Validator
+    except ImportError as exc:  # pragma: no cover - dependency is optional at runtime
+        raise ExternalDataError("jsonschema is required to validate outputs. Please install jsonschema.") from exc
+
+    validator = Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(payload), key=lambda e: e.path)
+    if errors:
+        first_error = errors[0]
+        raise ExternalDataError(
+            f"Schema validation failed: {first_error.message} at path {list(first_error.path)}"
+        )
+
+
+def _validate_pathogen(pathogen: str) -> None:
+    if pathogen not in PATHOGEN_TARGET_REQUIREMENTS:
+        raise ExternalDataError(
+            f"Unsupported pathogen '{pathogen}'. Supported options are: {list(PATHOGEN_TARGET_REQUIREMENTS)}"
+        )
+
+
+def _load_forecast_data(data_path: Path) -> pd.DataFrame:
+    if not data_path.exists():
+        raise ExternalDataError(f"Forecast data path does not exist: {data_path}")
+    logger.info("Loading forecast data from %s", data_path)
+    df = pd.read_csv(data_path, dtype={"location": str})
+    return df
+
+
+def _load_target_data(target_data_path: Path, pathogen: str) -> pd.DataFrame:
+    if not target_data_path.exists():
+        raise ExternalDataError(f"Target data path does not exist: {target_data_path}")
+
+    logger.info("Loading %s target data from %s", pathogen, target_data_path)
+    suffix = target_data_path.suffix.lower()
+    if suffix == ".csv":
+        df = pd.read_csv(target_data_path, dtype={"location": str})
+    elif suffix in {".parquet", ".pq"}:
+        df = pd.read_parquet(target_data_path)
+        if "location" in df.columns:
+            df["location"] = df["location"].astype(str)
+    else:
+        raise ExternalDataError(
+            f"Unsupported target data file extension '{suffix}' for {target_data_path}"
+        )
+    return df
+
+
+def _load_locations_data(locations_data_path: Path) -> pd.DataFrame:
+    if not locations_data_path.exists():
+        raise ExternalDataError(f"Locations data path does not exist: {locations_data_path}")
+    logger.info("Loading location metadata from %s", locations_data_path)
+    df = pd.read_csv(locations_data_path, dtype={"location": str})
+    return df
+
+
+def _validate_forecast_columns(df: pd.DataFrame, required: Iterable[str], data_path: Path) -> None:
+    missing = set(required) - set(df.columns)
+    if missing:
+        raise ExternalDataError(
+            f"Forecast data at {data_path} is missing required columns: {sorted(missing)}"
+        )
+
+
+def _validate_target_columns(df: pd.DataFrame, required: Iterable[str], data_path: Path) -> None:
+    missing = set(required) - set(df.columns)
+    if missing:
+        raise ExternalDataError(
+            f"Target data at {data_path} is missing required columns: {sorted(missing)}"
+        )
+
+
+def _validate_location_columns(df: pd.DataFrame, required: Iterable[str], data_path: Path) -> None:
+    missing = set(required) - set(df.columns)
+    if missing:
+        raise ExternalDataError(
+            f"Location metadata at {data_path} is missing required columns: {sorted(missing)}"
+        )
+
+
+def _validate_location_coverage(
+    forecast_df: pd.DataFrame,
+    locations_df: pd.DataFrame,
+    forecast_path: Path,
+    locations_path: Path,
+) -> None:
+    known_locations = set(locations_df["location"].astype(str))
+    missing_locations = sorted(set(forecast_df["location"].astype(str)) - known_locations)
+    if missing_locations:
+        raise ExternalDataError(
+            "The following locations appear in forecast data but are missing from location metadata: "
+            f"{missing_locations}. Forecast file: {forecast_path}, locations file: {locations_path}"
+        )

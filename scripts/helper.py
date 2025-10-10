@@ -96,7 +96,7 @@ def save_json_file(
         overwrite: bool
 ) -> None:
     """
-    Save an already-validated JSON to output_path/pathogen-ext/file_name.json
+    Save an already-validated JSON to output_path/pathogen-ext/file_name.json.
 
     Args:
         pathogen: Type of data in JSON payload (canonical slug or legacy alias)
@@ -110,11 +110,11 @@ def save_json_file(
 
     canonical_map = {
         'flusight': 'flusight',
-        'rsv': 'rsv',
-        'rsvforecasthub': 'rsv',
-        'covid': 'covid19',
-        'covid19': 'covid19',
-        'covid19forecasthub': 'covid19',
+        'rsv': 'rsvforecasthub',
+        'rsvforecasthub': 'rsvforecasthub',
+        'covid': 'covid19forecasthub',
+        'covid19': 'covid19forecasthub',
+        'covid19forecasthub': 'covid19forecasthub',
         'nhsn': 'nhsn',
     }
 
@@ -122,22 +122,25 @@ def save_json_file(
         raise ValueError(f"Invalid pathogen ('{pathogen}') provided; must be one of {list(canonical_map.keys())}")
 
     canonical = canonical_map[pathogen]
-    aliases = {
-        'rsv': ['rsvforecasthub'],
-        'covid19': ['covid19forecasthub'],
+    alias_targets = {
+        'rsvforecasthub': ['rsv'],
+        'covid19forecasthub': ['covid', 'covid19'],
     }
 
-    target_dirs = [canonical] + aliases.get(canonical, [])
+    target_dirs = [canonical] + alias_targets.get(canonical, [])
 
     for target in target_dirs:
         target_dir = Path(output_path) / target
         target_dir.mkdir(parents=True, exist_ok=True)
         file_path = target_dir / output_filename
         if (not overwrite) and file_path.exists():
-            raise FileExistsError(f"Error saving {output_filename}; file already found at {file_path}."
-                                  "Remove or move file and try again.")
+            raise FileExistsError(
+                f"Error saving {output_filename}; file already found at {file_path}."
+                "Remove or move file and try again."
+            )
         with open(file_path, 'w') as of:
             json.dump(file_contents, of, indent=4)
+
 
 
 def validate_respilens_json(json_contents: dict, type: str = Literal['projections', 'timeseries']) -> bool | str:

@@ -1,16 +1,5 @@
-import React, { useState } from 'react';
 import { Group, ThemeIcon, Title, ActionIcon, Menu, Avatar, Text, Stack, Button, Divider } from '@mantine/core';
-import { 
-  IconDashboard, 
-  IconActivity, 
-  IconTarget, 
-  IconBookmark, 
-  IconSettings, 
-  IconBell, 
-  IconUser, 
-  IconLogout,
-  IconChartLine
-} from '@tabler/icons-react';
+import { IconDashboard, IconActivity, IconTarget, IconBookmark, IconSettings, IconBell, IconUser, IconLogout, IconChartLine } from '@tabler/icons-react';
 
 const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }) => {
   if (inHeader) {
