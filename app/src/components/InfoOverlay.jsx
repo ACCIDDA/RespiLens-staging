@@ -84,11 +84,11 @@ const InfoOverlay = () => {
           </div>
 
           <Text size="sm">
-            Made by{' '}
+            Made by Emily Przykucki (UNC Chapel Hill), {' '} 
             <Anchor href="https://josephlemaitre.com" target="_blank" rel="noopener">
               Joseph Lemaitre
             </Anchor>{' '}
-            (UNC Chapel Hill) and ACCIDDA, the Atlantic Coast Center
+            (UNC Chapel Hill) and others within ACCIDDA, the Atlantic Coast Center
             for Infectious Disease Dynamics and Analytics.
           </Text>
 
