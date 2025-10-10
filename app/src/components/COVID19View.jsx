@@ -188,8 +188,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const lastUpdatedTimestamp = metadata?.last_updated;
   let formattedDate = null;
   if (lastUpdatedTimestamp) {
-    // Append 'Z' to treat the string as UTC and convert to local time
-    const date = new Date(lastUpdatedTimestamp + 'Z'); 
+    const date = new Date(lastUpdatedTimestamp); 
     formattedDate = date.toLocaleString(undefined, {
       year: 'numeric',
       month: 'long',
