@@ -142,12 +142,8 @@ const DataVisualization = ({
 
     case 'nhsnall':
       return (
-        <NHSNRawView 
-          // data={data}?
-          // metadata={metadata}?
+        <NHSNRawView // gets its data from within NHSNRawView.jsx file
           location={location}
-          selectedColumns={selectedColumns}
-          setSelectedColumns={setSelectedColumns}
         />
       );
 

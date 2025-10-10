@@ -10,6 +10,7 @@ import { MODEL_COLORS } from '../config/datasets';
 // --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
 const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
+  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
@@ -24,26 +25,36 @@ const NHSNRawView = ({ location }) => {
         setLoading(true);
         // Reset state for new location to prevent showing old data
         setData(null);
+        setMetadata(null);
         setAvailableColumns([]);
         setSelectedColumns([]);
 
-        const url = getDataPath(`nhsn/${location}_nhsn.json`);
-        const response = await fetch(url);
+        const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
+        const metadataUrl = getDataPath('nhsn/metadata.json');
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('No NHSN data available for this location');
-          }
+        const [dataResponse, metadataResponse] = await Promise.all([
+          fetch(dataUrl),
+          fetch(metadataUrl)
+        ]);
+
+        if (!dataResponse.ok) {
+          if (dataResponse.status === 404) throw new Error('No NHSN data available for this location');
           throw new Error('Failed to load NHSN data');
         }
+        if (!metadataResponse.ok) throw new Error('Failed to load NHSN metadata');
 
-        const jsonData = await response.json();
+        const jsonData = await dataResponse.json();
+        const jsonMetadata = await metadataResponse.json();
 
         if (!jsonData.series || !jsonData.series.dates) {
           throw new Error('Invalid data format');
         }
+        if (!jsonMetadata.last_updated) {
+          throw new Error('Invalid metadata format');
+        }
 
         setData(jsonData);
+        setMetadata(jsonMetadata);
 
         const dataColumns = Object.keys(jsonData.series)
           .filter(key => key !== 'dates')
@@ -51,13 +62,12 @@ const NHSNRawView = ({ location }) => {
         
         setAvailableColumns(dataColumns);
 
-        // --- CHANGE 3: Set a default column selection when data loads ---
+        // Set a default column selection when data loads ---
         if (dataColumns.length > 0) {
           // You can make this smarter, but for now, we'll select the first column by default.
           const defaultColumn = dataColumns.find(c => c.includes("COVID-19")) || dataColumns[0];
           setSelectedColumns([defaultColumn]);
         }
-        // --- END OF CHANGE 3 ---
 
       } catch (err) {
         setError(err.message);
@@ -135,8 +145,27 @@ const NHSNRawView = ({ location }) => {
     margin: { t: 40, r: 10, l: 60, b: 120 }
   };
 
+  const lastUpdatedTimestamp = metadata?.last_updated;
+  let formattedDate = null;
+  if (lastUpdatedTimestamp) {
+    // Append 'Z' to treat the string as UTC and convert to local time
+    const date = new Date(lastUpdatedTimestamp + 'Z'); 
+    formattedDate = date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
   return (
     <Stack gap="md" w="100%">
+      {formattedDate && (
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: {formattedDate}
+        </Text>
+      )}
       <AboutHubOverlay 
       title={
         <Group gap="sm">
