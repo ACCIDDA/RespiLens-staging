@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Group, Title, Anchor, List } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Group, Title } from '@mantine/core';
 import Plot from 'react-plotly.js';
-import { IconBrandGithub } from '@tabler/icons-react'
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import AboutHubOverlay from './AboutHubOverlay';

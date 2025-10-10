@@ -1,4 +1,3 @@
-import React from 'react';
 import { useDisclosure } from '@mantine/hooks';
 import { Modal, Group, Button } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';

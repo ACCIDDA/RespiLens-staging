@@ -12,8 +12,7 @@ import {
   ScatterController,
   Tooltip,
 } from 'chart.js';
-// import { Chart } from 'react-chartjs-2';
-import { CHART_CONSTANTS } from '../../constants/chart.js';
+import { Chart } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,

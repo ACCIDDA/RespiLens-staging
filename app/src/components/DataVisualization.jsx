@@ -16,17 +16,11 @@ const DataVisualization = ({
   metadata,
   loading,
   error,
-  availableDates,
   models,
   selectedDates,
   selectedModels,
-  setSelectedDates,
-  setActiveDate,
   setSelectedModels,
-  selectedColumns,
-  setSelectedColumns,
   windowSize,
-  searchParams
 }) => {
   // Show loading state
   if (loading) {
