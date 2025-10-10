@@ -13,6 +13,7 @@ const DataVisualization = ({
   viewType,
   location,
   data,
+  metadata,
   loading,
   error,
   availableDates,
@@ -98,6 +99,7 @@ const DataVisualization = ({
       return (
         <FluView
           data={data}
+          metadata={metadata}
           selectedDates={selectedDates}
           selectedModels={selectedModels}
           models={models}
@@ -111,6 +113,8 @@ const DataVisualization = ({
     case 'rsv_ts':
       return (
         <RSVDefaultView
+          // data={data}? why isn't this here
+          // metadata={metadata}? why isn't this here
           location={location}
           selectedDates={selectedDates}
           availableDates={availableDates}
@@ -126,6 +130,7 @@ const DataVisualization = ({
       return(
         <COVID19View
           data={data}
+          metadata={metadata}
           selectedDates={selectedDates}
           selectedModels={selectedModels}
           models={models}
@@ -139,6 +144,8 @@ const DataVisualization = ({
     case 'nhsnall':
       return (
         <NHSNRawView 
+          // data={data}?
+          // metadata={metadata}?
           location={location}
           selectedColumns={selectedColumns}
           setSelectedColumns={setSelectedColumns}

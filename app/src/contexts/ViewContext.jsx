@@ -23,7 +23,7 @@ export const ViewProvider = ({ children }) => {
   const [activeDate, setActiveDate] = useState(null);
 
   // --- Data fetching remains centralized ---
-  const { data, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
+  const { data, metadata, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
   
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
@@ -125,7 +125,7 @@ export const ViewProvider = ({ children }) => {
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
-    data, loading, error, availableDates, models,
+    data, metadata, loading, error, availableDates, models,
     selectedModels, setSelectedModels: (updater) => {
       const resolveModels = (prevModels) => (
         typeof updater === 'function' ? updater(prevModels) : updater

@@ -1,7 +1,7 @@
 // src/components/COVID19View.jsx
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMantineColorScheme, Stack, Group, Title, Anchor, List } from '@mantine/core';
+import { useMantineColorScheme, Stack, Group, Title, Anchor, List, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import { IconBrandGithub } from '@tabler/icons-react'
@@ -10,7 +10,7 @@ import AboutHubOverlay from './AboutHubOverlay';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 
-const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange }) => {
+const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
@@ -185,8 +185,27 @@ const COVID19View = ({ data, selectedDates, selectedModels, models, setSelectedM
     }]
   };
 
+  const lastUpdatedTimestamp = metadata?.last_updated;
+  let formattedDate = null;
+  if (lastUpdatedTimestamp) {
+    // Append 'Z' to treat the string as UTC and convert to local time
+    const date = new Date(lastUpdatedTimestamp + 'Z'); 
+    formattedDate = date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
   return (
     <Stack>
+      {formattedDate && (
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: {formattedDate}
+        </Text>
+      )}
       <AboutHubOverlay 
       title={
         <Group gap="sm">
