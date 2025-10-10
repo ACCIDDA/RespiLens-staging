@@ -1,16 +1,15 @@
 // src/contexts/ViewContext.jsx
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
-import { DATASETS } from '../config/datasets';
-
-const ViewContext = createContext(null);
+import { ViewContext } from './ViewContextObject';
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const isForecastPage = location.pathname === '/';
 
   // --- CHANGE 1: Memoize urlManager ---
   // This ensures urlManager is not recreated on every render.
@@ -33,9 +32,9 @@ export const ViewProvider = ({ children }) => {
   
 
   useEffect(() => {
-    if (location.pathname !== '/') {
+    if (!isForecastPage) {
       return;
-    } // scopes URL management to only the forecasts page
+    }
     // 1. Wait until the data for the current view has completely finished loading.
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (loading || !currentDataset || models.length === 0 || availableDates.length === 0) {
@@ -80,10 +79,7 @@ export const ViewProvider = ({ children }) => {
     if (needsUrlUpdate) {
       updateDatasetParams({ models: modelsToSet });
     }
-
-  // --- CHANGE 2: Remove the eslint-disable comment ---
-  // The dependency array is now correct because urlManager is stable.
-  }, [loading, viewType, models, availableDates, urlManager, updateDatasetParams, location.pathname]);
+  }, [isForecastPage, loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
@@ -130,22 +126,35 @@ export const ViewProvider = ({ children }) => {
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, loading, error, availableDates, models,
-    selectedModels, setSelectedModels: (models) => {
-      const currentDataset = urlManager.getDatasetFromView(viewType);
-      const isDefault = JSON.stringify(models) === JSON.stringify([currentDataset?.defaultModel]);
+    selectedModels, setSelectedModels: (updater) => {
+      const resolveModels = (prevModels) => (
+        typeof updater === 'function' ? updater(prevModels) : updater
+      );
 
-      if (isDefault) {
-        // If the selection is now the default, update the URL by passing
-        // an empty array, which tells urlManager to DELETE the parameter.
-        updateDatasetParams({ models: [] });
-      } else {
-        // Otherwise, update the URL with the current selection.
-        updateDatasetParams({ models });
-      }
-      // Always update the state itself.
-      setSelectedModels(models);
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      setSelectedModels(prevModels => {
+        const nextModels = resolveModels(prevModels);
+        const isDefault = JSON.stringify(nextModels) === JSON.stringify([currentDataset?.defaultModel]);
+
+        if (isDefault) {
+          // If the selection is now the default, update the URL by passing
+          // an empty array, which tells urlManager to DELETE the parameter.
+          updateDatasetParams({ models: [] });
+        } else {
+          // Otherwise, update the URL with the current selection.
+          updateDatasetParams({ models: nextModels });
+        }
+
+        return nextModels;
+      });
     },
-    selectedDates, setSelectedDates: (dates) => { setSelectedDates(dates); updateDatasetParams({ dates }); },
+    selectedDates, setSelectedDates: (updater) => {
+      setSelectedDates(prevDates => {
+        const nextDates = typeof updater === 'function' ? updater(prevDates) : updater;
+        updateDatasetParams({ dates: nextDates });
+        return nextDates;
+      });
+    },
 
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
@@ -157,10 +166,4 @@ export const ViewProvider = ({ children }) => {
       {children}
     </ViewContext.Provider>
   );
-};
-
-export const useView = () => {
-  const context = useContext(ViewContext);
-  if (!context) throw new Error('useView must be used within a ViewProvider');
-  return context;
 };

@@ -1,9 +1,9 @@
-import React from 'react';
 import { Center, Text, Paper, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
-import { useView } from '../contexts/ViewContext';
+import { useView } from '../hooks/useView';
 
 const RSVDefaultView = ({
   getModelColor = (model, selectedModels) => {
@@ -120,9 +120,13 @@ const RSVDefaultView = ({
         return [];
       }
       
-      const predictions = Object.values(forecastData.predictions).sort((a, b) => new Date(a.date) - new Date(b.date));
-      const forecastDates = predictions.map(p => p.date);
-      const getQuantile = (q) => predictions.map(p => p.values[p.quantiles.indexOf(q)] ?? 0);
+      const predictions = Object.values(forecastData.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
+      const forecastDates = predictions.map(pred => pred.date);
+      const getQuantile = (q) => predictions.map(pred => {
+        if (!pred.quantiles || !pred.values) return 0;
+        const index = pred.quantiles.indexOf(q);
+        return index !== -1 ? (pred.values[index] ?? 0) : 0;
+      });
 
       return [
         { x: [...forecastDates, ...[...forecastDates].reverse()], y: [...getQuantile(0.975), ...[...getQuantile(0.025)].reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none' },

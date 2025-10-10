@@ -1,13 +1,10 @@
-import React from 'react';
 import { Center, Stack, Loader, Text, Alert, Button } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
-import Plot from 'react-plotly.js';
 import FluView from './FluView';
 import RSVDefaultView from './RSVDefaultView';
-import COVID19View from './COVID19View'
+import COVID19View from './COVID19View';
 import NHSNRawView from './NHSNRawView';
-import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
-import { MODEL_COLORS, getModelColor } from '../config/datasets';
+import { CHART_CONSTANTS } from '../constants/chart';
 
 /**
  * Component that handles rendering different data visualization types
@@ -27,7 +24,6 @@ const DataVisualization = ({
   setSelectedModels,
   selectedColumns,
   setSelectedColumns,
-  activeDate,
   windowSize,
   searchParams
 }) => {

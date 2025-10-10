@@ -1,8 +1,8 @@
 // src/App.jsx
 
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { ViewProvider, useView } from './contexts/ViewContext';
+import { ViewProvider } from './contexts/ViewContext';
+import { useView } from './hooks/useView';
 import ForecastViz from './components/ForecastViz';
 import NarrativeBrowser from './components/narratives/NarrativeBrowser';
 import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';

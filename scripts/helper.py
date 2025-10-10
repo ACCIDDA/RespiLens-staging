@@ -89,7 +89,7 @@ def get_location_info(
     
 
 def save_json_file( 
-        pathogen: Literal['flusight','rsv','covid19'],
+        pathogen: Literal['flusight','rsvforecasthub','covid19forecasthub','nhsn'],
         output_path: str,
         output_filename: str,
         file_contents: dict,
@@ -111,12 +111,18 @@ def save_json_file(
         FileExistsError: If file already exists at the full output path and overwrite is set to False.
     """
     # Validate the pathogen input
-    valid_pathogens = ['flusight', 'rsv', 'covid19', 'nhsn']
-    if pathogen not in valid_pathogens:
-         raise ValueError(f"Invalid pathogen ('{pathogen}') provided; must be one of {valid_pathogens}")
+    valid_pathogens = ['flusight', 'rsvforecasthub', 'covid19forecasthub', 'nhsn']
+    alias_map = {
+        'rsv': 'rsvforecasthub',
+        'covid': 'covid19forecasthub',
+        'covid19': 'covid19forecasthub',
+    }
+    canonical_pathogen = alias_map.get(pathogen, pathogen)
+    if canonical_pathogen not in valid_pathogens:
+         raise ValueError(f"Invalid pathogen ('{pathogen}') provided; must be one of {valid_pathogens + list(alias_map)}")
     
     # Directly use the pathogen name as the subdirectory
-    target_dir = Path(output_path) / pathogen
+    target_dir = Path(output_path) / canonical_pathogen
     
     # Create dir, construct full path for the output file, fail if overwrite will occur
     target_dir.mkdir(parents=True, exist_ok=True)

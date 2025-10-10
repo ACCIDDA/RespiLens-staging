@@ -1,4 +1,4 @@
-import { DATASETS, getAllViewValues } from '../config/datasets';
+import { DATASETS } from '../config/datasets';
 
 export class URLParameterManager {
   constructor(searchParams, setSearchParams) {
@@ -8,7 +8,7 @@ export class URLParameterManager {
 
   // Get dataset from view type
   getDatasetFromView(viewType) {
-    for (const [key, dataset] of Object.entries(DATASETS)) {
+    for (const dataset of Object.values(DATASETS)) {
       const hasMatchingView = dataset.views.some(view => view.value === viewType);
       if (hasMatchingView) {
         return dataset;
@@ -42,6 +42,9 @@ export class URLParameterManager {
 
   // Clear parameters for a specific dataset
   clearDatasetParams(dataset) {
+    if (!dataset) {
+      return;
+    }
     const newParams = new URLSearchParams(this.searchParams);
     const prefix = dataset.prefix;
 
@@ -60,22 +63,37 @@ export class URLParameterManager {
 
   // Update parameters for a dataset
   updateDatasetParams(dataset, newParams) {
+    if (!dataset) {
+      return;
+    }
     const updatedParams = new URLSearchParams(this.searchParams);
     const prefix = dataset.prefix;
 
     // Update dates if present and dataset supports it
     if (dataset.hasDateSelector && newParams.dates) {
-      updatedParams.set(`${prefix}_dates`, newParams.dates.join(','));
+      if (newParams.dates.length > 0) {
+        updatedParams.set(`${prefix}_dates`, newParams.dates.join(','));
+      } else {
+        updatedParams.delete(`${prefix}_dates`);
+      }
     }
 
     // Update models if present and dataset supports it
     if (dataset.hasModelSelector && newParams.models) {
-      updatedParams.set(`${prefix}_models`, newParams.models.join(','));
+      if (newParams.models.length > 0) {
+        updatedParams.set(`${prefix}_models`, newParams.models.join(','));
+      } else {
+        updatedParams.delete(`${prefix}_models`);
+      }
     }
 
     // Special case for NHSN columns
     if (dataset.shortName === 'nhsn' && newParams.columns) {
-      updatedParams.set('nhsn_columns', newParams.columns.join(','));
+      if (newParams.columns.length > 0) {
+        updatedParams.set('nhsn_columns', newParams.columns.join(','));
+      } else {
+        updatedParams.delete('nhsn_columns');
+      }
     }
 
     this.setSearchParams(updatedParams, { replace: true });

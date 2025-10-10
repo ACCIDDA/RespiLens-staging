@@ -1,14 +1,18 @@
-import React, { useEffect } from 'react'; 
+import { useEffect } from 'react'; 
 import { useSearchParams } from 'react-router-dom'; 
 import { Container, Paper, Title, Text, Stack, ThemeIcon, Center } from '@mantine/core';
 import { IconTarget } from '@tabler/icons-react';
 
 const ForecastleGame = () => {
   // Add this hook to clear irrelevant URL parameters when the component loads
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryString = searchParams.toString();
+
   useEffect(() => {
-    setSearchParams({}, { replace: true });
-  }, []);
+    if (queryString.length > 0) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [queryString, setSearchParams]);
   return (
     <Container size="xl" py="xl" style={{ maxWidth: '800px' }}>
       <Center style={{ minHeight: '70vh' }}>
