@@ -113,16 +113,15 @@ const DataVisualization = ({
     case 'rsv_ts':
       return (
         <RSVDefaultView
-          // data={data}? why isn't this here
-          // metadata={metadata}? why isn't this here
-          location={location}
+          data={data}
+          metadata={metadata}
           selectedDates={selectedDates}
-          availableDates={availableDates}
-          setSelectedDates={setSelectedDates}
-          setActiveDate={setActiveDate}
           selectedModels={selectedModels}
+          models={models}
           setSelectedModels={setSelectedModels}
-          searchParams={searchParams}
+          viewType={viewType}
+          windowSize={windowSize}
+          getDefaultRange={getDefaultRange}
         />
       );
 

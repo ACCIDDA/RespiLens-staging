@@ -17,7 +17,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
-
     let minY = Infinity;
     let maxY = -Infinity;
     const [startX, endX] = xRange;
