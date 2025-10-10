@@ -3,6 +3,7 @@ import { getDataPath } from '../utils/paths';
 
 export const useForecastData = (location, viewType) => {
   const [data, setData] = useState(null);
+  const [metadata, setMetadata] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
@@ -14,68 +15,46 @@ export const useForecastData = (location, viewType) => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      setData(null);
+      setMetadata(null); 
 
       try {
-        // Determine the data path based on view type
         const datasetMap = {
-          'fludetailed': 'flusight',
-          'flu_ts': 'flusight', 
-          'covid_ts': 'covid19',
-          'rsv_ts': 'rsv',
+          'fludetailed': 'flusight', 'flu_ts': 'flusight',
+          'covid_ts': 'covid19', 'rsv_ts': 'rsv',
           'nhsnall': 'nhsn'
         };
-
         const dataset = datasetMap[viewType];
-        if (!dataset) {
-          throw new Error(`Unknown view type: ${viewType}`);
-        }
+        if (!dataset) throw new Error(`Unknown view type: ${viewType}`);
 
-        console.log('ForecastViz useEffect triggered:', { viewType, location });
         const dataPath = getDataPath(`${dataset}/${location}_${dataset}.json`);
-        console.log('Attempting to fetch:', dataPath);
+        const metadataPath = getDataPath(`${dataset}/metadata.json`);
+        
+        const [dataResponse, metadataResponse] = await Promise.all([
+          fetch(dataPath),
+          fetch(metadataPath)
+        ]);
 
-        const response = await fetch(dataPath);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
-        }
+        if (!dataResponse.ok) throw new Error(`Failed to fetch data: ${dataResponse.status}`);
+        if (!metadataResponse.ok) throw new Error(`Failed to fetch metadata: ${metadataResponse.status}`);
 
-        const rawText = await response.text();
-        console.log('Raw response text:', rawText.substring(0, 200) + '...');
-
-        const jsonData = JSON.parse(rawText);
-        console.log('Parsed JSON structure:', {
-          hasMetadata: !!jsonData.metadata,
-          hasGroundTruth: !!jsonData.ground_truth,
-          topLevelKeys: Object.keys(jsonData)
-        });
+        const jsonData = await dataResponse.json();
+        const jsonMetadata = await metadataResponse.json();
 
         setData(jsonData);
+        setMetadata(jsonMetadata); 
 
-        // Extract available dates and models
         if (jsonData.forecasts) {
           const dates = Object.keys(jsonData.forecasts).sort();
           setAvailableDates(dates);
           
-          // Make available dates accessible globally for reset functionality
-          window.availableDates = dates;
-
-          // Extract models from the data
           const modelSet = new Set();
           Object.values(jsonData.forecasts).forEach(dateData => {
             Object.values(dateData).forEach(targetData => {
-              Object.keys(targetData).forEach(model => {
-                modelSet.add(model);
-              });
+              Object.keys(targetData).forEach(model => modelSet.add(model));
             });
           });
-
-          const modelList = Array.from(modelSet).sort();
-          setModels(modelList);
-
-          console.log('Extracted models from data:', {
-            modelList,
-            dates
-          });
+          setModels(Array.from(modelSet).sort());
         }
 
       } catch (err) {
@@ -89,12 +68,5 @@ export const useForecastData = (location, viewType) => {
     fetchData();
   }, [location, viewType]);
 
-  return {
-    data,
-    loading,
-    error,
-    availableDates,
-    models,
-    locationMetadata: data?.metadata
-  };
+  return { data, metadata, loading, error, availableDates, models };
 };

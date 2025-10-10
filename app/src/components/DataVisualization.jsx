@@ -13,19 +13,14 @@ const DataVisualization = ({
   viewType,
   location,
   data,
+  metadata,
   loading,
   error,
-  availableDates,
   models,
   selectedDates,
   selectedModels,
-  setSelectedDates,
-  setActiveDate,
   setSelectedModels,
-  selectedColumns,
-  setSelectedColumns,
   windowSize,
-  searchParams
 }) => {
   // Show loading state
   if (loading) {
@@ -98,6 +93,7 @@ const DataVisualization = ({
       return (
         <FluView
           data={data}
+          metadata={metadata}
           selectedDates={selectedDates}
           selectedModels={selectedModels}
           models={models}
@@ -111,14 +107,15 @@ const DataVisualization = ({
     case 'rsv_ts':
       return (
         <RSVDefaultView
-          location={location}
+          data={data}
+          metadata={metadata}
           selectedDates={selectedDates}
-          availableDates={availableDates}
-          setSelectedDates={setSelectedDates}
-          setActiveDate={setActiveDate}
           selectedModels={selectedModels}
+          models={models}
           setSelectedModels={setSelectedModels}
-          searchParams={searchParams}
+          viewType={viewType}
+          windowSize={windowSize}
+          getDefaultRange={getDefaultRange}
         />
       );
 
@@ -126,6 +123,7 @@ const DataVisualization = ({
       return(
         <COVID19View
           data={data}
+          metadata={metadata}
           selectedDates={selectedDates}
           selectedModels={selectedModels}
           models={models}
@@ -138,10 +136,8 @@ const DataVisualization = ({
 
     case 'nhsnall':
       return (
-        <NHSNRawView 
+        <NHSNRawView // gets its data from within NHSNRawView.jsx file
           location={location}
-          selectedColumns={selectedColumns}
-          setSelectedColumns={setSelectedColumns}
         />
       );
 

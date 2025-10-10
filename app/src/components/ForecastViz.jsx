@@ -13,7 +13,7 @@ const ForecastViz = () => {
   // Get EVERYTHING from the single context hook
   const {
     selectedLocation,
-    data, loading, error, availableDates, models,
+    data, metadata, loading, error, availableDates, models,
     selectedModels, setSelectedModels,
     selectedDates, setSelectedDates,
     activeDate, setActiveDate,
@@ -78,6 +78,7 @@ const ForecastViz = () => {
                 viewType={viewType}
                 location={selectedLocation}
                 data={data}
+                metadata={metadata}
                 loading={loading}
                 error={error}
                 availableDates={availableDates}

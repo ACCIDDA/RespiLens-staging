@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMantineColorScheme } from '@mantine/core';
+import { useMantineColorScheme, Stack, Group, Title, Anchor, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
+import { IconBrandGithub } from '@tabler/icons-react'
 import ModelSelector from './ModelSelector';
+import AboutHubOverlay from './AboutHubOverlay'; 
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
-const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
+const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
@@ -15,7 +17,6 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
 
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
-
     let minY = Infinity;
     let maxY = -Infinity;
     const [startX, endX] = xRange;
@@ -224,8 +225,62 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
     }]
   };
 
+  const lastUpdatedTimestamp = metadata?.last_updated;
+  let formattedDate = null;
+  if (lastUpdatedTimestamp) {
+    // Append 'Z' to treat the string as UTC and convert to local time
+    const date = new Date(lastUpdatedTimestamp); 
+    formattedDate = date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
   return (
-    <div>
+    <Stack>
+      {formattedDate && (
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: {formattedDate}
+        </Text>
+      )}
+      <AboutHubOverlay 
+      title={
+        <Group gap="sm">
+          <Title order={4}>FluSight Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/cdcepi/FluSight-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      }
+      buttonLabel="About FluSight Hub"
+    >
+      <p>
+        FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
+        Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+      </p>
+      <div>
+        <Title order={4} mb="xs">Forecasts</Title>
+        <p>
+          Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+          The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow. 
+        </p>
+      </div>
+      <div>
+        <Title order={4} mb="xs">Targets</Title>
+        <p>
+          Participating models submit "target" data, which is plotted by selecting a model.
+          Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+        </p>
+      </div>
+    </AboutHubOverlay>
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}
@@ -255,7 +310,7 @@ const FluView = ({ data, selectedDates, selectedModels, models, setSelectedModel
           return MODEL_COLORS[index % MODEL_COLORS.length];
         }}
       />
-    </div>
+    </Stack>
   );
 };
 

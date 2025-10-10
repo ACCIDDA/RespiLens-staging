@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Group, Title } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
+import AboutHubOverlay from './AboutHubOverlay';
 import { MODEL_COLORS } from '../config/datasets';
 
 // --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
 const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
+  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
@@ -22,26 +24,36 @@ const NHSNRawView = ({ location }) => {
         setLoading(true);
         // Reset state for new location to prevent showing old data
         setData(null);
+        setMetadata(null);
         setAvailableColumns([]);
         setSelectedColumns([]);
 
-        const url = getDataPath(`nhsn/${location}_nhsn.json`);
-        const response = await fetch(url);
+        const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
+        const metadataUrl = getDataPath('nhsn/metadata.json');
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('No NHSN data available for this location');
-          }
+        const [dataResponse, metadataResponse] = await Promise.all([
+          fetch(dataUrl),
+          fetch(metadataUrl)
+        ]);
+
+        if (!dataResponse.ok) {
+          if (dataResponse.status === 404) throw new Error('No NHSN data available for this location');
           throw new Error('Failed to load NHSN data');
         }
+        if (!metadataResponse.ok) throw new Error('Failed to load NHSN metadata');
 
-        const jsonData = await response.json();
+        const jsonData = await dataResponse.json();
+        const jsonMetadata = await metadataResponse.json();
 
         if (!jsonData.series || !jsonData.series.dates) {
           throw new Error('Invalid data format');
         }
+        if (!jsonMetadata.last_updated) {
+          throw new Error('Invalid metadata format');
+        }
 
         setData(jsonData);
+        setMetadata(jsonMetadata);
 
         const dataColumns = Object.keys(jsonData.series)
           .filter(key => key !== 'dates')
@@ -49,13 +61,12 @@ const NHSNRawView = ({ location }) => {
         
         setAvailableColumns(dataColumns);
 
-        // --- CHANGE 3: Set a default column selection when data loads ---
+        // Set a default column selection when data loads ---
         if (dataColumns.length > 0) {
           // You can make this smarter, but for now, we'll select the first column by default.
           const defaultColumn = dataColumns.find(c => c.includes("COVID-19")) || dataColumns[0];
           setSelectedColumns([defaultColumn]);
         }
-        // --- END OF CHANGE 3 ---
 
       } catch (err) {
         setError(err.message);
@@ -125,7 +136,7 @@ const NHSNRawView = ({ location }) => {
       ]
     },
     yaxis: {
-      title: 'Value',
+      title: 'Patient count',
       range: calculateNHSNYRange()
     },
     height: 600,
@@ -133,8 +144,48 @@ const NHSNRawView = ({ location }) => {
     margin: { t: 40, r: 10, l: 60, b: 120 }
   };
 
+  const lastUpdatedTimestamp = metadata?.last_updated;
+  let formattedDate = null;
+  if (lastUpdatedTimestamp) {
+    const date = new Date(lastUpdatedTimestamp); 
+    formattedDate = date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
   return (
     <Stack gap="md" w="100%">
+      {formattedDate && (
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: {formattedDate}
+        </Text>
+      )}
+      <AboutHubOverlay 
+      title={
+        <Group gap="sm">
+          <Title order={4}>National Healthcare Safety Network (NHSN)</Title>
+        </Group>
+      }
+      buttonLabel="About NHSN Data"
+    >
+      <p>
+        Data for the RespiLens NHSN view comes from the CDC's <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noopener noreferrer">National Healthcare Safety Network</a> weekly "Hosptial Respiratory Data" (HRD) dataset.
+        This dataset represents metrics aggregated to national and state/territory levels beginning in August 2020. To plot data, you can select
+        NHSN column(s).
+      </p>
+      <div>
+        <Title order={4} mb="xs">Columns</Title>
+        <p>
+          The NHSN dataset contains ~300 columns for plotting data with a variety of scales, including hospitalization admission counts, percent of
+          admissions by pathogen, hospitalization rates, number of hospitals reporting, raw bed capacity numbers, bed capacity percents, and absolute 
+          percentage of change. Presently on RespiLens, you are only able to plot NHSN columns relating to raw patient counts.
+        </p>
+      </div>
+    </AboutHubOverlay>
       <Plot
         data={traces}
         layout={layout}
