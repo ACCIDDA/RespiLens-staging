@@ -209,18 +209,19 @@ get_location_row <- function(locations_df, location) {
 
 prepare_ground_truth_df <- function(target_data, location, config) {
   df <- target_data[target_data$location == location, , drop = FALSE]
-  if (!is.null(config$ground_truth_target) && "target" %in% names(df)) {
-    df <- df[df$target == config$ground_truth_target, , drop = FALSE]
-  }
   if (nrow(df) == 0) {
     return(df)
   }
-
   date_col <- config$ground_truth_date_column
+  if (!date_col %in% names(df)) {
+    return(data.frame()) 
+  }
   df$as_of <- as.character(df$as_of)
   df[[date_col]] <- as.Date(df[[date_col]])
+  df <- df[!is.na(df[[date_col]]), , drop = FALSE]
+  
   df <- df[order(df$as_of), , drop = FALSE]
-  df <- df[!duplicated(df[[date_col]], fromLast = TRUE), , drop = FALSE]
+  df <- df[!duplicated(df[, c(date_col, "target")], fromLast = TRUE), , drop = FALSE]
   if (!is.null(config$ground_truth_min_date)) {
     df <- df[df[[date_col]] >= config$ground_truth_min_date, , drop = FALSE]
   }
@@ -230,19 +231,26 @@ prepare_ground_truth_df <- function(target_data, location, config) {
 
 format_ground_truth_output <- function(ground_truth_df, config) {
   if (nrow(ground_truth_df) == 0) {
-    result <- list(
-      dates = list()
-    )
-    result[[config$ground_truth_value_key]] <- list()
-    return(result)
+    return(list(dates = list()))
   }
   date_col <- config$ground_truth_date_column
-  dates <- format(ground_truth_df[[date_col]], "%Y-%m-%d")
-  observations <- as.numeric(ground_truth_df$observation)
-  result <- list(
-    dates = unname(dates)
+  df_to_pivot <- ground_truth_df[, c(date_col, "target", "observation")]
+  pivot_df <- reshape(
+    df_to_pivot,
+    idvar = date_col,
+    timevar = "target",
+    direction = "wide"
   )
-  result[[config$ground_truth_value_key]] <- unname(observations)
+  names(pivot_df) <- sub("observation\\.", "", names(pivot_df))
+  pivot_df <- pivot_df[order(pivot_df[[date_col]]), , drop = FALSE]
+  result <- list(
+    dates = format(pivot_df[[date_col]], "%Y-%m-%d")
+  )
+  target_cols <- names(pivot_df)[names(pivot_df) != date_col]
+  for (target_name in target_cols) {
+    result[[target_name]] <- unname(pivot_df[[target_name]])
+  }
+  
   result
 }
 
