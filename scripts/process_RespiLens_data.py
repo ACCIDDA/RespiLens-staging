@@ -36,7 +36,7 @@ def main():
     parser.add_argument("--covid-hub-path",
                         type=str,
                         required=False,
-                        help="Absolute path to local clone of COVID19 forecaast repo.")
+                        help="Absolute path to local clone of COVID19 forecast repo.")
     parser.add_argument("--NHSN",
                         action='store_true',
                         required=False,
