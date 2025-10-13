@@ -506,13 +506,13 @@ main <- function() {
     validate_payload(item$payload, schema_path)
     target_path <- file.path(output_dir, item$file_name)
     save_json_payload(item$payload, target_path, args$overwrite)
-    log_message("INFO", sprintf("Saved %s", target_path), context)
   }
+  log_message("INFO", sprintf("Successfully saved JSON output."), context)
 
   metadata_payload <- build_metadata_file(forecast_df, locations_df)
   metadata_path <- file.path(output_dir, "metadata.json")
   save_json_payload(metadata_payload, metadata_path, TRUE)
-  log_message("INFO", sprintf("Saved %s", metadata_path), context)
+  log_message("INFO", sprintf("Successfully saved metadata.json"), context)
 
   log_message("INFO", "Processing complete.", context)
   invisible(0)
