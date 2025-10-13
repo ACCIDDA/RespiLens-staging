@@ -11,9 +11,12 @@ import {
   Center,
   Loader,
   useMantineColorScheme,
-  Button
+  Button,
+  Modal,
+  Anchor
 } from '@mantine/core';
-import { IconUpload, IconFileText, IconArrowLeft } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { IconUpload, IconFileText, IconArrowLeft, IconInfoCircle, IconDashboard } from '@tabler/icons-react';
 import Plot from 'react-plotly.js';
 import ModelSelector from '../ModelSelector';
 import DateSelector from '../DateSelector';
@@ -24,6 +27,8 @@ const MyRespiLensDashboard = () => {
   useEffect(() => {
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
+
+  const [opened, { open, close }] = useDisclosure(false);
 
   const { colorScheme } = useMantineColorScheme();
 
@@ -287,51 +292,101 @@ const MyRespiLensDashboard = () => {
   return (
     <Container size="xl" py="xl" style={{ maxWidth: '800px' }}>
       <Center style={{ minHeight: '70vh' }}>
-        <Paper
-          shadow="sm"
-          p="xl"
-          radius="lg"
-          withBorder
-          style={{
-            width: '100%',
-            maxWidth: '600px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            border: dragActive ? '2px dashed var(--mantine-primary-color-filled)' : '2px dashed var(--mantine-color-gray-4)',
-            backgroundColor: dragActive ? 'var(--mantine-primary-color-light)' : 'transparent'
-          }}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={() => document.getElementById('file-input')?.click()}
-        >
-          <Stack align="center" gap="xl">
-            <ThemeIcon size={80} variant="light" color={dragActive ? 'blue' : 'gray'} style={{ transition: 'all 0.2s ease' }}>
-              <IconUpload size={40} />
-            </ThemeIcon>
-
-            <div style={{ textAlign: 'center' }}>
-              <Title order={2} mb="md" c={dragActive ? 'blue' : 'dark'}>
-                Drop your RespiLens .json file here
-              </Title>
-              <Text size="sm" c="dimmed">
-                Upload your RespiLens data file to view your personalized dashboard
+        <Stack align="center" gap="xl" style={{ width: '100%', maxWidth: '600px' }}>
+          <Modal 
+            opened={opened} 
+            onClose={close} 
+            title={
+              <Group gap="xs">
+                <IconDashboard color="var(--mantine-color-blue-6)" />
+                <Text fw={700} size="lg">MyRespiLens</Text>
+              </Group>
+            } 
+            centered
+          >
+            <Stack>
+              <Title order={4}>About</Title>
+              <Text>
+                MyRespiLens is a secure feature within the RespiLens platform that allows users to 
+                visualize their own public health data directly in their browser. All processing happens locally on
+                your machine, meaning your data is never uploaded or shared. This ensures privacy and removes
+                the need for data-sharing agreements.
               </Text>
-            </div>
+              <Title order={4}>Data Structure</Title>
+              <Text>MyRespiLens expects uploaded data to be valid JSON and in RespiLens projections format.</Text>
+              <Text fw={700}>
+                RespiLens projections format is the internally-defined JSON style for
+                forecast data. JSON schema for this format can be found in the 
+                <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/blob/main/scripts/schemas/RespiLens_projections.schema.json" target="_blank" rel="noopener noreferrer"> RespiLens GitHub repository</Anchor>.
+                You can convert your .csv Hubverse-style data to .json RespiLens projections-style data using either:
+              </Text>
+              <Text><code>external_to_projections.py</code> using python, or</Text>
+              <Text><code>external_to_projections.R</code> using R.</Text>
+              <Text>
+                Both files can be found in the <code>scripts/</code> directory of the RespiLens GitHub repository,
+                and have functionality documented  
+                <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/tree/main/scripts#readme" target="_blank" rel="noopener noreferrer"> here.</Anchor>
+              </Text>
+            </Stack>
+          </Modal>
 
-            <Group gap="sm">
-              <ThemeIcon size="sm" variant="light" color="blue">
-                <IconFileText size={14} />
+          <Group justify="center" style={{ width: '100%' }}>
+            <Button
+              variant="light"
+              size="xs"
+              color='red'
+              onClick={open}
+              leftSection={<IconInfoCircle size={16} />}
+            >
+              What is MyRespiLens?
+            </Button>
+          </Group>
+
+          <Paper
+            shadow="sm"
+            p="xl"
+            radius="lg"
+            withBorder
+            style={{
+              width: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              border: dragActive ? '2px dashed var(--mantine-primary-color-filled)' : '2px dashed var(--mantine-color-gray-4)',
+              backgroundColor: dragActive ? 'var(--mantine-primary-color-light)' : 'transparent'
+            }}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById('file-input')?.click()}
+          >
+            <Stack align="center" gap="xl">
+              <ThemeIcon size={80} variant="light" color={dragActive ? 'blue' : 'gray'} style={{ transition: 'all 0.2s ease' }}>
+                <IconUpload size={40} />
               </ThemeIcon>
-              <Text size="sm" fw={500} c="blue">
-                RespiLens projections-style .json files only
-              </Text>
-            </Group>
-          </Stack>
 
-          <input id="file-input" type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileSelect} />
-        </Paper>
+              <div style={{ textAlign: 'center' }}>
+                <Title order={2} mb="md" c={dragActive ? 'blue' : 'dark'}>
+                  Drop your RespiLens .json file here
+                </Title>
+                <Text size="sm" c="dimmed">
+                  Upload your RespiLens data file to view your personalized dashboard
+                </Text>
+              </div>
+
+              <Group gap="sm">
+                <ThemeIcon size="sm" variant="light" color="blue">
+                  <IconFileText size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={500} c="blue">
+                  RespiLens projections-style .json files only
+                </Text>
+              </Group>
+            </Stack>
+
+            <input id="file-input" type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileSelect} />
+          </Paper>
+        </Stack>
       </Center>
     </Container>
   );
