@@ -471,7 +471,7 @@ main <- function() {
     "output_type", "output_type_id", "value", "target_end_date"
   )
   target_required_columns <- list(
-    flu = c("as_of", "target_end_date", "location", "observation"),
+    flu = c("as_of", "target_end_date", "location", "observation", "target"),
     rsvforecasthub = c("as_of", "date", "location", "observation", "target"),
     covid19forecasthub = c("as_of", "date", "location", "observation", "target")
   )
