@@ -45,7 +45,7 @@ def compare_payload(filename: str) -> None:
     if py_data != r_data:
         raise AssertionError(f"Payload mismatch for {filename}")
 
-compare_payload("CA_flusight.json")
+compare_payload("CA_flu.json")
 
 py_meta = load(py_dir / "metadata.json")
 r_meta = load(r_dir / "metadata.json")
