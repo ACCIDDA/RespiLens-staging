@@ -126,7 +126,7 @@ const MyRespiLensDashboard = () => {
     if(fileData) {
       setDataRevision(d => d + 1);
     }
-  }, [selectedModels, selectedDates, selectedTarget]);
+  }, [fileData, selectedModels, selectedDates, selectedTarget]);
 
 
   const handleDragEnter = useCallback((event) => {

@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu } from '@mantine/core';
-import { IconChartLine, IconBook, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
+import { IconChartLine, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import InfoOverlay from '../InfoOverlay';
 
