@@ -20,9 +20,7 @@ class HubDatasetConfig:
 
     file_suffix: str
     dataset_label: str
-    ground_truth_value_key: str
     ground_truth_date_column: str
-    ground_truth_target: Optional[str] = None
     ground_truth_min_date: Optional[pd.Timestamp] = None
     series_type: str = "projection"
     observation_column: str = "observation"
@@ -121,21 +119,37 @@ class HubDataProcessorBase:
         return metadata
 
     def _prepare_ground_truth_df(self, location: str) -> pd.DataFrame:
-        """Filter and prepare ground truth observations for a location."""
-        filtered = self.target_data[self.target_data["location"] == location]
-        if self.config.ground_truth_target is not None and "target" in filtered.columns:
-            filtered = filtered[filtered["target"] == self.config.ground_truth_target]
+        """Filter and prepare ground truth observations for a location for ALL targets."""
+        filtered = self.target_data[self.target_data["location"] == location].copy()
 
-        filtered = filtered.copy()
+        if "target" not in filtered.columns:
+            if self.config.ground_truth_value_key:
+                filtered["target"] = self.config.ground_truth_value_key
+            else:
+                raise KeyError(
+                    "A 'target' column is missing from the ground truth data, and no "
+                    "'ground_truth_value_key' is configured to serve as a default."
+                )
+
         if filtered.empty:
             return filtered
 
-        filtered["as_of"] = pd.to_datetime(filtered["as_of"])
         date_col = self.config.ground_truth_date_column
+        
+        filtered["as_of"] = pd.to_datetime(filtered["as_of"])
         filtered[date_col] = pd.to_datetime(filtered[date_col])
 
+        # --- CORRECTED REVISION LOGIC ---
+        # 1. Sort by as_of date to get the most recent records last.
         filtered.sort_values("as_of", inplace=True)
-        filtered = filtered.drop_duplicates(subset=[date_col], keep="last")
+
+        # 2. IMPORTANT: Drop rows where the observation is null. This prioritizes
+        #    records with actual data during the deduplication step.
+        filtered.dropna(subset=[self.config.observation_column], inplace=True)
+
+        # 3. Now, drop duplicates, keeping the last (most recent) record that has a valid observation.
+        filtered.drop_duplicates(subset=[date_col, "target"], keep="last", inplace=True)
+        # --- END OF CORRECTIONS ---
 
         if self.config.ground_truth_min_date is not None:
             min_date = self.config.ground_truth_min_date
@@ -147,13 +161,26 @@ class HubDataProcessorBase:
         return filtered
 
     def _format_ground_truth_output(self, ground_truth_df: pd.DataFrame) -> Dict[str, Any]:
-        """Format ground truth DataFrame as JSON-ready dictionary."""
+        """Format ground truth DataFrame as a multi-target JSON-ready dictionary."""
         if ground_truth_df.empty:
-            return {"dates": [], self.config.ground_truth_value_key: []}
+            return {"dates": []}
 
-        dates = ground_truth_df[self.config.ground_truth_date_column].dt.strftime("%Y-%m-%d").tolist()
-        values = ground_truth_df[self.config.observation_column].tolist()
-        return {"dates": dates, self.config.ground_truth_value_key: values}
+        date_col = self.config.ground_truth_date_column
+        pivot_truth = ground_truth_df.pivot(
+            index=date_col, 
+            columns="target", 
+            values=self.config.observation_column
+        )
+        pivot_truth.sort_index(inplace=True)
+
+        ground_truth = {
+            "dates": pivot_truth.index.strftime('%Y-%m-%d').tolist()
+        }
+        for target_column in pivot_truth.columns:
+            values_list = pivot_truth[target_column].tolist()
+            ground_truth[target_column] = [None if pd.isna(v) else v for v in values_list]
+
+        return ground_truth
 
     def _build_forecasts_key(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Build the forecasts section of an individual JSON file."""

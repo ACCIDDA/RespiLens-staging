@@ -10,9 +10,7 @@ class COVIDDataProcessor(HubDataProcessorBase):
         config = HubDatasetConfig(
             file_suffix="covid19",
             dataset_label="covid19 forecast hub",
-            ground_truth_value_key="wk inc covid hosp",
             ground_truth_date_column="date",
-            ground_truth_target="wk inc covid hosp",
             ground_truth_min_date=pd.Timestamp("2023-10-01"),
         )
         super().__init__(
