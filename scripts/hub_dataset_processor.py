@@ -138,18 +138,9 @@ class HubDataProcessorBase:
         
         filtered["as_of"] = pd.to_datetime(filtered["as_of"])
         filtered[date_col] = pd.to_datetime(filtered[date_col])
-
-        # --- CORRECTED REVISION LOGIC ---
-        # 1. Sort by as_of date to get the most recent records last.
         filtered.sort_values("as_of", inplace=True)
-
-        # 2. IMPORTANT: Drop rows where the observation is null. This prioritizes
-        #    records with actual data during the deduplication step.
         filtered.dropna(subset=[self.config.observation_column], inplace=True)
-
-        # 3. Now, drop duplicates, keeping the last (most recent) record that has a valid observation.
         filtered.drop_duplicates(subset=[date_col, "target"], keep="last", inplace=True)
-        # --- END OF CORRECTIONS ---
 
         if self.config.ground_truth_min_date is not None:
             min_date = self.config.ground_truth_min_date
