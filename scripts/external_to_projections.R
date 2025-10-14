@@ -416,7 +416,7 @@ main <- function() {
 
   dataset_configs <- list(
     flu = list(
-      file_suffix = "flusight",
+      file_suffix = "flu",
       dataset_label = "flusight forecasts",
       ground_truth_value_key = "wk inc flu hosp",
       ground_truth_date_column = "target_end_date",
@@ -426,7 +426,7 @@ main <- function() {
       drop_output_types = c("sample")
     ),
     rsvforecasthub = list(
-      file_suffix = "rsvforecasthub",
+      file_suffix = "rsv",
       dataset_label = "rsv forecast hub",
       ground_truth_value_key = "wk inc rsv hosp",
       ground_truth_date_column = "date",
@@ -436,7 +436,7 @@ main <- function() {
       drop_output_types = c("sample")
     ),
     covid19forecasthub = list(
-      file_suffix = "covid19forecasthub",
+      file_suffix = "covid19",
       dataset_label = "covid19 forecast hub",
       ground_truth_value_key = "wk inc covid hosp",
       ground_truth_date_column = "date",
