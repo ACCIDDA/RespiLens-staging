@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu } from '@mantine/core';
-import { IconChartLine, IconBook, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
+import { IconChartLine, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import InfoOverlay from '../InfoOverlay';
 
@@ -13,7 +13,7 @@ const MainNavigation = () => {
   
   const navigationItems = [
     { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
-    { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },
+    // { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },   disable narratives for now
     { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: isActive('/forecastle') },
     { href: '/dashboard', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/dashboard') }
   ];
