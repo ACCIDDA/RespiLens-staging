@@ -13,7 +13,9 @@ import {
   useMantineColorScheme,
   Button,
   Modal,
-  Anchor
+  Anchor,
+  // MODIFICATION: Import Select component from Mantine
+  Select
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUpload, IconFileText, IconArrowLeft, IconInfoCircle, IconDashboard } from '@tabler/icons-react';
@@ -21,6 +23,11 @@ import Plot from 'react-plotly.js';
 import ModelSelector from '../ModelSelector';
 import DateSelector from '../DateSelector';
 import { MODEL_COLORS } from '../../config/datasets';
+
+const formatTargetNameForTitle = (name) => {
+  if (!name) return 'Value';
+  return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
 
 const MyRespiLensDashboard = () => {
   const [, setSearchParams] = useSearchParams();
@@ -42,6 +49,10 @@ const MyRespiLensDashboard = () => {
   const [availableDates, setAvailableDates] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
+
+  const [availableTargets, setAvailableTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+
 
   useEffect(() => {
     if (!uploadedFile) return;
@@ -75,6 +86,16 @@ const MyRespiLensDashboard = () => {
           setSelectedDates([]);
           setActiveDate(null);
         }
+
+        const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
+        setAvailableTargets(targets);
+        // Set the first target as the default selection
+        if (targets.length > 0) {
+          setSelectedTarget(targets[0]);
+        } else {
+          setSelectedTarget(null);
+        }
+
       } catch (error) {
         console.error('Error parsing JSON file:', error);
         alert('Could not read the file. Please ensure it is a valid JSON file.');
@@ -141,6 +162,7 @@ const MyRespiLensDashboard = () => {
     [processFile]
   );
 
+  // MODIFICATION: Add new states to the reset handler
   const handleReset = useCallback(() => {
     setUploadedFile(null);
     setFileData(null);
@@ -149,6 +171,8 @@ const MyRespiLensDashboard = () => {
     setAvailableDates([]);
     setSelectedDates([]);
     setActiveDate(null);
+    setAvailableTargets([]);
+    setSelectedTarget(null);
   }, []);
 
   if (isProcessing) {
@@ -166,11 +190,10 @@ const MyRespiLensDashboard = () => {
       const index = models.indexOf(model);
       return MODEL_COLORS[index % MODEL_COLORS.length];
     };
-    const target = Object.keys(fileData.ground_truth || {}).find(key => key !== 'dates' && Array.isArray(fileData.ground_truth[key]));
-
+    
     const groundTruthTrace = {
       x: fileData.ground_truth?.dates || [],
-      y: target ? fileData.ground_truth?.[target] || [] : [],
+      y: selectedTarget ? fileData.ground_truth?.[selectedTarget] || [] : [],
       type: 'scatter',
       mode: 'lines+markers',
       name: 'Observed',
@@ -180,7 +203,7 @@ const MyRespiLensDashboard = () => {
     const modelTraces = selectedModels.flatMap(model => {
       const modelColor = getModelColor(model);
       return selectedDates.flatMap(forecastDate => {
-        const forecastData = fileData.forecasts?.[forecastDate]?.[target]?.[model];
+        const forecastData = fileData.forecasts?.[forecastDate]?.[selectedTarget]?.[model];
         if (!forecastData || forecastData.type !== 'quantile' || !forecastData.predictions) {
           return [];
         }
@@ -239,7 +262,7 @@ const MyRespiLensDashboard = () => {
       margin: { l: 60, r: 30, t: 50, b: 80 },
       showlegend: false,
       xaxis: { rangeslider: { thickness: 0.05 } },
-      yaxis: { title: 'Hospitalizations' },
+      yaxis: { title: formatTargetNameForTitle(selectedTarget) },
       shapes: selectedDates.map(date => ({
         type: 'line',
         x0: date,
@@ -265,13 +288,26 @@ const MyRespiLensDashboard = () => {
 
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>
-            <DateSelector
-              availableDates={availableDates}
-              selectedDates={selectedDates}
-              setSelectedDates={setSelectedDates}
-              activeDate={activeDate}
-              setActiveDate={setActiveDate}
-            />
+            <Group justify='center'>
+                <DateSelector
+                  availableDates={availableDates}
+                  selectedDates={selectedDates}
+                  setSelectedDates={setSelectedDates}
+                  activeDate={activeDate}
+                  setActiveDate={setActiveDate}
+                />
+                
+                <Select
+                  label="Select Target"
+                  placeholder="Pick a target to display"
+                  data={availableTargets}
+                  value={selectedTarget}
+                  onChange={(value) => setSelectedTarget(value)}
+                  disabled={availableTargets.length <= 1}
+                  style={{ minWidth: 250 }}
+                  allowDeselect={false}
+                />
+            </Group>
 
             <div style={{ flex: 1, minHeight: 0 }}>
               <Plot data={traces} layout={layout} style={{ width: '100%' }} config={{ responsive: true, displaylogo: false }} />
