@@ -14,7 +14,6 @@ import {
   Button,
   Modal,
   Anchor,
-  // MODIFICATION: Import Select component from Mantine
   Select
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -53,6 +52,9 @@ const MyRespiLensDashboard = () => {
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
+  const [plotRevision, setPlotRevision] = useState(0);
+  const [dataRevision, setDataRevision] = useState(0);
+
 
   useEffect(() => {
     if (!uploadedFile) return;
@@ -89,7 +91,6 @@ const MyRespiLensDashboard = () => {
 
         const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
         setAvailableTargets(targets);
-        // Set the first target as the default selection
         if (targets.length > 0) {
           setSelectedTarget(targets[0]);
         } else {
@@ -114,6 +115,19 @@ const MyRespiLensDashboard = () => {
 
     reader.readAsText(uploadedFile);
   }, [uploadedFile]);
+
+  useEffect(() => {
+    if (fileData) {
+      setPlotRevision(p => p + 1);
+    }
+  }, [fileData, selectedTarget]);
+
+  useEffect(() => {
+    if(fileData) {
+      setDataRevision(d => d + 1);
+    }
+  }, [selectedModels, selectedDates, selectedTarget]);
+
 
   const handleDragEnter = useCallback((event) => {
     event.preventDefault();
@@ -162,7 +176,6 @@ const MyRespiLensDashboard = () => {
     [processFile]
   );
 
-  // MODIFICATION: Add new states to the reset handler
   const handleReset = useCallback(() => {
     setUploadedFile(null);
     setFileData(null);
@@ -271,7 +284,8 @@ const MyRespiLensDashboard = () => {
         y1: 1,
         yref: 'paper',
         line: { color: 'red', width: 1, dash: 'dash' }
-      }))
+      })),
+      uirevision: plotRevision,
     };
 
     return (
@@ -288,7 +302,7 @@ const MyRespiLensDashboard = () => {
 
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>
-            <Group justify='center'>
+            <Group justify="center">
                 <DateSelector
                   availableDates={availableDates}
                   selectedDates={selectedDates}
@@ -310,7 +324,13 @@ const MyRespiLensDashboard = () => {
             </Group>
 
             <div style={{ flex: 1, minHeight: 0 }}>
-              <Plot data={traces} layout={layout} style={{ width: '100%' }} config={{ responsive: true, displaylogo: false }} />
+              <Plot 
+                data={traces} 
+                layout={layout} 
+                style={{ width: '100%' }} 
+                config={{ responsive: true, displaylogo: false }}
+                revision={dataRevision}
+              />
             </div>
 
             <ModelSelector
