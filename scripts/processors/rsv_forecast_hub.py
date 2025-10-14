@@ -10,9 +10,7 @@ class RSVDataProcessor(HubDataProcessorBase):
         config = HubDatasetConfig(
             file_suffix="rsv",
             dataset_label="rsv forecast hub",
-            ground_truth_value_key="wk inc rsv hosp",
             ground_truth_date_column="date",
-            ground_truth_target="wk inc rsv hosp",
             ground_truth_min_date=pd.Timestamp("2023-10-01"),
         )
         super().__init__(

@@ -108,38 +108,37 @@ def save_json_file(
         FileExistsError: If file already exists at the full output path and overwrite is set to False.
     """
 
-    canonical_map = {
+    # This single dictionary maps every possible input to the desired output directory.
+    output_dir_map = {
+        'flu': 'flusight',
         'flusight': 'flusight',
-        'rsv': 'rsv',
-        'rsvforecasthub': 'rsv',
-        'covid': 'covid19',
-        'covid19': 'covid19',
-        'covid19forecasthub': 'covid19',
+        'rsv': 'rsvforecasthub',
+        'rsvforecasthub': 'rsvforecasthub',
+        'covid': 'covid19forecasthub',
+        'covid19': 'covid19forecasthub',
+        'covid19forecasthub': 'covid19forecasthub',
         'nhsn': 'nhsn',
     }
 
-    if pathogen not in canonical_map:
-        raise ValueError(f"Invalid pathogen ('{pathogen}') provided; must be one of {list(canonical_map.keys())}")
+    if pathogen not in output_dir_map:
+        raise ValueError(f"Invalid pathogen ('{pathogen}') provided; must be one of {list(output_dir_map.keys())}")
 
-    canonical = canonical_map[pathogen]
-    alias_targets = {
-        'rsv': ['rsvforecasthub'],
-        'covid19': ['covid19forecasthub'],
-    }
-
-    target_dirs = [canonical] + alias_targets.get(canonical, [])
-
-    for target in target_dirs:
-        target_dir = Path(output_path) / target
-        target_dir.mkdir(parents=True, exist_ok=True)
-        file_path = target_dir / output_filename
-        if (not overwrite) and file_path.exists():
-            raise FileExistsError(
-                f"Error saving {output_filename}; file already found at {file_path}."
-                "Remove or move file and try again."
-            )
-        with open(file_path, 'w') as of:
-            json.dump(file_contents, of, indent=4)
+    # Get the single, correct directory name
+    target_name = output_dir_map[pathogen]
+    
+    # Create the full path and save the file (no loop needed)
+    target_dir = Path(output_path) / target_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+    file_path = target_dir / output_filename
+    
+    if (not overwrite) and file_path.exists():
+        raise FileExistsError(
+            f"Error saving {output_filename}; file already found at {file_path}."
+            "Remove or move file and try again."
+        )
+    
+    with open(file_path, 'w') as of:
+        json.dump(file_contents, of, indent=4)
 
 
 

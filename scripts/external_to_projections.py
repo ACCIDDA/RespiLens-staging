@@ -13,9 +13,9 @@ from helper import save_json_file
 
 
 PROCESSOR_CLASS_MAP: Dict[str, Tuple[type, str]] = {
-    "flu": (FlusightDataProcessor, "flusight"),
-    "rsvforecasthub": (RSVDataProcessor, "rsvforecasthub"),
-    "covid19forecasthub": (COVIDDataProcessor, "covid19forecasthub"),
+    "flu": (FlusightDataProcessor, "flu"),
+    "rsvforecasthub": (RSVDataProcessor, "rsv"),
+    "covid19forecasthub": (COVIDDataProcessor, "covid19"),
 }
 
 PATHOGEN_ALIASES = {

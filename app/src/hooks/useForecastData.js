@@ -3,7 +3,7 @@ import { getDataPath } from '../utils/paths';
 
 export const useForecastData = (location, viewType) => {
   const [data, setData] = useState(null);
-  const [metadata, setMetadata] = useState(null); 
+  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
@@ -16,19 +16,24 @@ export const useForecastData = (location, viewType) => {
       setLoading(true);
       setError(null);
       setData(null);
-      setMetadata(null); 
+      setMetadata(null);
 
       try {
+        // Updated map to hold both the directory name and the file suffix
         const datasetMap = {
-          'fludetailed': 'flusight', 'flu_ts': 'flusight',
-          'covid_ts': 'covid19', 'rsv_ts': 'rsv',
-          'nhsnall': 'nhsn'
+          'fludetailed': { directory: 'flusight', suffix: 'flu' },
+          'flu_ts': { directory: 'flusight', suffix: 'flu' },
+          'covid_ts': { directory: 'covid19forecasthub', suffix: 'covid19' },
+          'rsv_ts': { directory: 'rsvforecasthub', suffix: 'rsv' },
+          'nhsnall': { directory: 'nhsn', suffix: 'nhsn' }
         };
-        const dataset = datasetMap[viewType];
-        if (!dataset) throw new Error(`Unknown view type: ${viewType}`);
 
-        const dataPath = getDataPath(`${dataset}/${location}_${dataset}.json`);
-        const metadataPath = getDataPath(`${dataset}/metadata.json`);
+        const datasetConfig = datasetMap[viewType];
+        if (!datasetConfig) throw new Error(`Unknown view type: ${viewType}`);
+
+        // Build paths using the new directory and suffix properties
+        const dataPath = getDataPath(`${datasetConfig.directory}/${location}_${datasetConfig.suffix}.json`);
+        const metadataPath = getDataPath(`${datasetConfig.directory}/metadata.json`);
         
         const [dataResponse, metadataResponse] = await Promise.all([
           fetch(dataPath),
@@ -42,7 +47,7 @@ export const useForecastData = (location, viewType) => {
         const jsonMetadata = await metadataResponse.json();
 
         setData(jsonData);
-        setMetadata(jsonMetadata); 
+        setMetadata(jsonMetadata);
 
         if (jsonData.forecasts) {
           const dates = Object.keys(jsonData.forecasts).sort();
