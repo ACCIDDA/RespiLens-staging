@@ -110,6 +110,7 @@ def save_json_file(
 
     # This single dictionary maps every possible input to the desired output directory.
     output_dir_map = {
+        'flu': 'flusight',
         'flusight': 'flusight',
         'rsv': 'rsvforecasthub',
         'rsvforecasthub': 'rsvforecasthub',
