@@ -47,8 +47,8 @@ def test_flusight_processor_matches_expected():
         target_data=inputs.target_data,
     )
 
-    actual = _sanitize(processor.output_dict["CA_flusight.json"])
-    expected = _sanitize(_load_expected("CA_flusight.json"))
+    actual = _sanitize(processor.output_dict["CA_flu.json"])
+    expected = _sanitize(_load_expected("CA_flu.json"))
     assert actual == expected
 
     actual_meta = _sanitize(processor.output_dict["metadata.json"])
