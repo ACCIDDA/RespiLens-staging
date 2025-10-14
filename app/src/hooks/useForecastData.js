@@ -21,8 +21,8 @@ export const useForecastData = (location, viewType) => {
       try {
         // Updated map to hold both the directory name and the file suffix
         const datasetMap = {
-          'fludetailed': { directory: 'flusight', suffix: 'flusight' },
-          'flu_ts': { directory: 'flusight', suffix: 'flusight' },
+          'fludetailed': { directory: 'flusight', suffix: 'flu' },
+          'flu_ts': { directory: 'flusight', suffix: 'flu' },
           'covid_ts': { directory: 'covid19forecasthub', suffix: 'covid19' },
           'rsv_ts': { directory: 'rsvforecasthub', suffix: 'rsv' },
           'nhsnall': { directory: 'nhsn', suffix: 'nhsn' }
