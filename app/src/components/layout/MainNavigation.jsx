@@ -28,8 +28,8 @@ const MainNavigation = () => {
         </Title>
       </Group>
       
-      {/* Desktop Navigation */}
-      <Group gap="xs" visibleFrom="md">
+      {/* Desktop Navigation - Full Buttons */}
+      <Group gap="xs" visibleFrom="lg">
         {navigationItems.map((item) => (
           <Button
             key={item.href}
@@ -44,38 +44,22 @@ const MainNavigation = () => {
         ))}
       </Group>
 
-      {/* Mobile Menu */}
-      <Menu 
-        opened={opened} 
-        onClose={close} 
-        shadow="md" 
-        width={200}
-        hiddenFrom="md"
-      >
-        <Menu.Target>
+      {/* Tablet/Mobile Navigation - Icon Only */}
+      <Group gap="xs" hiddenFrom="lg">
+        {navigationItems.map((item) => (
           <ActionIcon
-            onClick={toggle}
-            variant="subtle"
+            key={item.href}
+            component="a"
+            href={item.href}
+            variant={item.active ? 'filled' : 'subtle'}
             size="lg"
-            hiddenFrom="md"
+            aria-label={item.label}
+            title={item.label}
           >
-            <IconMenu2 size={18} />
+            <item.icon size={18} />
           </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {navigationItems.map((item) => (
-            <Menu.Item
-              key={item.href}
-              component="a"
-              href={item.href}
-              leftSection={<item.icon size={16} />}
-              onClick={close}
-            >
-              {item.label}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
+        ))}
+      </Group>
 
       {/* Actions */}
       <Group gap="xs">

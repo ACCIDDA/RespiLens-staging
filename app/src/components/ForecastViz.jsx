@@ -195,6 +195,31 @@ const ForecastViz = () => {
           </div>
         </>
       )
+    },
+    'nhsnall': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>National Healthcare Safety Network (NHSN)</Title>
+        </Group>
+      ),
+      buttonLabel: "About NHSN Data",
+      content: (
+        <>
+          <p>
+            Data for the RespiLens NHSN view comes from the CDC's <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noopener noreferrer">National Healthcare Safety Network</a> weekly "Hospital Respiratory Data" (HRD) dataset.
+            This dataset represents metrics aggregated to national and state/territory levels beginning in August 2020. To plot data, you can select
+            NHSN column(s).
+          </p>
+          <div>
+            <Title order={4} mb="xs">Columns</Title>
+            <p>
+              The NHSN dataset contains ~300 columns for plotting data with a variety of scales, including hospitalization admission counts, percent of
+              admissions by pathogen, hospitalization rates, number of hospitals reporting, raw bed capacity numbers, bed capacity percents, and absolute
+              percentage of change. Presently on RespiLens, you are only able to plot NHSN columns relating to raw patient counts.
+            </p>
+          </div>
+        </>
+      )
     }
   };
 

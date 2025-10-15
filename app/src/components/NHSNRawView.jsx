@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Group, Title } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Group, Title, Button, Tooltip } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import AboutHubOverlay from './AboutHubOverlay';
 import { MODEL_COLORS } from '../config/datasets';
+import { IconShare } from '@tabler/icons-react';
+import { useClipboard } from '@mantine/hooks';
 
 // --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
 const NHSNRawView = ({ location }) => {
@@ -14,9 +16,15 @@ const NHSNRawView = ({ location }) => {
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
   const [availableColumns, setAvailableColumns] = useState([]);
+  const clipboard = useClipboard({ timeout: 2000 });
 
   // --- CHANGE 2: Add state for selectedColumns inside this component ---
   const [selectedColumns, setSelectedColumns] = useState([]);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    clipboard.copy(url);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -164,28 +172,6 @@ const NHSNRawView = ({ location }) => {
           last updated: {formattedDate}
         </Text>
       )}
-      <AboutHubOverlay 
-      title={
-        <Group gap="sm">
-          <Title order={4}>National Healthcare Safety Network (NHSN)</Title>
-        </Group>
-      }
-      buttonLabel="About NHSN Data"
-    >
-      <p>
-        Data for the RespiLens NHSN view comes from the CDC's <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noopener noreferrer">National Healthcare Safety Network</a> weekly "Hosptial Respiratory Data" (HRD) dataset.
-        This dataset represents metrics aggregated to national and state/territory levels beginning in August 2020. To plot data, you can select
-        NHSN column(s).
-      </p>
-      <div>
-        <Title order={4} mb="xs">Columns</Title>
-        <p>
-          The NHSN dataset contains ~300 columns for plotting data with a variety of scales, including hospitalization admission counts, percent of
-          admissions by pathogen, hospitalization rates, number of hospitals reporting, raw bed capacity numbers, bed capacity percents, and absolute 
-          percentage of change. Presently on RespiLens, you are only able to plot NHSN columns relating to raw patient counts.
-        </p>
-      </div>
-    </AboutHubOverlay>
       <Plot
         data={traces}
         layout={layout}

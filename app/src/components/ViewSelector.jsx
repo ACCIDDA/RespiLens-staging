@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Stack, Button, Text, Group, HoverCard } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { Stack, Button, Text, Group, Menu, Paper } from '@mantine/core';
+import { IconChevronRight, IconChevronDown } from '@tabler/icons-react';
 import { useView } from '../hooks/useView';
 import { DATASETS } from '../config/datasets';
 
@@ -33,61 +33,69 @@ const ViewSelector = () => {
   };
 
   return (
-    <Stack gap="xs">
-      <Group gap="xs" wrap="wrap">
+    <Paper shadow="sm" radius="md" withBorder style={{ display: 'inline-block' }}>
+      <Stack gap={0}>
         {datasets.map(dataset => {
           const isActive = dataset.views.some(view => view.value === viewType);
 
           return (
-            <HoverCard key={dataset.shortName} shadow="md" withinPortal openDelay={80} closeDelay={120}>
-              <HoverCard.Target>
+            <Menu
+              key={dataset.shortName}
+              shadow="md"
+              position="right-start"
+              offset={5}
+              withinPortal
+              trigger="hover"
+            >
+              <Menu.Target>
                 <Button
-                  variant={isActive ? 'filled' : 'subtle'}
+                  variant={isActive ? 'light' : 'subtle'}
+                  color={isActive ? 'blue' : 'gray'}
                   size="sm"
-                  leftSection={<IconChevronRight size={14} />}
+                  rightSection={<IconChevronRight size={14} />}
+                  radius={0}
+                  fullWidth
                   onClick={() => handleDatasetSelect(dataset)}
-                  radius="md"
                   styles={{
                     root: {
-                      minWidth: 160,
-                      justifyContent: 'flex-start',
-                      gap: '0.5rem',
-                      padding: '0.4rem 0.75rem'
+                      height: 36,
+                      borderBottom: '1px solid var(--mantine-color-gray-3)',
+                      '&:last-of-type': {
+                        borderBottom: 'none'
+                      }
+                    },
+                    inner: {
+                      width: '100%',
+                      justifyContent: 'space-between'
+                    },
+                    label: {
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }
                   }}
                 >
                   {dataset.fullName}
                 </Button>
-              </HoverCard.Target>
-              <HoverCard.Dropdown p="xs" style={{ minWidth: 220 }}>
-                <Stack gap="xs">
-                  {dataset.views.map(view => (
-                    <Button
-                      key={view.value}
-                      variant={view.value === viewType ? 'filled' : 'light'}
-                      size="xs"
-                      leftSection={<IconChevronRight size={12} />}
-                      onClick={() => handleViewSelect(view.value)}
-                      styles={{
-                        root: {
-                          justifyContent: 'flex-start',
-                          gap: '0.5rem',
-                          padding: '0.35rem 0.75rem'
-                        }
-                      }}
-                    >
-                      <Group gap="xs" wrap="nowrap">
-                        <Text size="sm">{view.label}</Text>
-                      </Group>
-                    </Button>
-                  ))}
-                </Stack>
-              </HoverCard.Dropdown>
-            </HoverCard>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {dataset.views.map(view => (
+                  <Menu.Item
+                    key={view.value}
+                    onClick={() => handleViewSelect(view.value)}
+                    color={view.value === viewType ? 'blue' : undefined}
+                    leftSection={view.value === viewType ? <IconChevronRight size={14} /> : null}
+                  >
+                    {view.label}
+                  </Menu.Item>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
           );
         })}
-      </Group>
-    </Stack>
+      </Stack>
+    </Paper>
   );
 };
 
