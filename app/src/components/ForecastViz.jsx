@@ -216,17 +216,41 @@ const ForecastViz = () => {
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>
-            <Group justify="space-between" align="center" gap="sm" wrap="nowrap">
-              {currentAboutConfig && (
-                <AboutHubOverlay
-                  title={currentAboutConfig.title}
-                  buttonLabel={currentAboutConfig.buttonLabel}
-                >
-                  {currentAboutConfig.content}
-                </AboutHubOverlay>
-              )}
-              {currentDataset?.hasDateSelector && (
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: windowSize.width > 800 ? 'auto 1fr auto' : '1fr',
+              gap: '0.5rem',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gridColumn: windowSize.width > 800 ? 'auto' : '1'
+              }}>
+                {currentAboutConfig && (
+                  <AboutHubOverlay
+                    title={currentAboutConfig.title}
+                    buttonLabel={currentAboutConfig.buttonLabel}
+                  >
+                    {currentAboutConfig.content}
+                  </AboutHubOverlay>
+                )}
+                {windowSize.width <= 800 && (
+                  <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconShare size={16} />}
+                      onClick={handleShare}
+                    >
+                      {clipboard.copied ? 'URL Copied' : 'Share View'}
+                    </Button>
+                  </Tooltip>
+                )}
+              </div>
+              {currentDataset?.hasDateSelector && windowSize.width > 800 && (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <DateSelector
                     selectedDates={selectedDates}
                     setSelectedDates={setSelectedDates}
@@ -237,18 +261,33 @@ const ForecastViz = () => {
                   />
                 </div>
               )}
-              <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
-                <Button
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconShare size={16} />}
-                  onClick={handleShare}
-                  style={{ alignSelf: 'center' }}
-                >
-                  {clipboard.copied ? 'URL Copied' : 'Share View'}
-                </Button>
-              </Tooltip>
-            </Group>
+              {windowSize.width > 800 && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconShare size={16} />}
+                      onClick={handleShare}
+                    >
+                      {clipboard.copied ? 'URL Copied' : 'Share View'}
+                    </Button>
+                  </Tooltip>
+                </div>
+              )}
+              {currentDataset?.hasDateSelector && windowSize.width <= 800 && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+                  <DateSelector
+                    selectedDates={selectedDates}
+                    setSelectedDates={setSelectedDates}
+                    availableDates={availableDates}
+                    activeDate={activeDate}
+                    setActiveDate={setActiveDate}
+                    loading={loading}
+                  />
+                </div>
+              )}
+            </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <DataVisualization
                 // DataVisualization now receives all its data as props
