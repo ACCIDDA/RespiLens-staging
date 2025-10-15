@@ -1,12 +1,13 @@
 // src/components/ForecastViz.jsx
 
 import { useState, useEffect } from 'react';
-import { Stack, Container, Paper, Group, Button, Tooltip } from '@mantine/core';
+import { Stack, Container, Paper, Group, Button, Tooltip, Title, Anchor, List } from '@mantine/core';
 import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
 import DataVisualization from './DataVisualization';
 import ErrorBoundary from './ErrorBoundary';
-import { IconShare } from '@tabler/icons-react';
+import AboutHubOverlay from './AboutHubOverlay';
+import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
 const ForecastViz = () => {
@@ -22,12 +23,182 @@ const ForecastViz = () => {
     selectedColumns,
     setSelectedColumns,
   } = useView();
-  
+
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
   });
   const clipboard = useClipboard({ timeout: 2000 });
+
+  // Configuration for AboutHubOverlay based on viewType
+  const aboutHubConfig = {
+    'covid_ts': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>COVID-19 Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/CDCgov/covid19-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About COVID-19 Forecast Hub",
+      content: (
+        <>
+          <p>
+            The COVID-19 Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
+            <p></p>
+            <List spacing="xs" size="sm">
+              <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
+              <List.Item>Weekly incident percentage of emergency department visits due to COVID-19</List.Item>
+            </List>
+            <p></p>
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit forecasts for "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the COVID-19 target "weekly incident of COVID-19 hospitalizations".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'rsv_ts': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>RSV Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/CDCgov/rsv-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About RSV Forecast Hub",
+      content: (
+        <>
+          <p>
+            The RSV Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
+            <p></p>
+            <List spacing="xs" size="sm">
+              <List.Item>Weekly new hospitalizations due to RSV</List.Item>
+              <List.Item>Weekly incident percentage of emergency department visits due to RSV</List.Item>
+            </List>
+            <p></p>
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit forecasts for "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the RSV target "weekly incident of RSV hospitalizations".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'flu_ts': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>FluSight Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/cdcepi/FluSight-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About FluSight",
+      content: (
+        <>
+          <p>
+            FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'fludetailed': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>FluSight Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/cdcepi/FluSight-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About FluSight",
+      content: (
+        <>
+          <p>
+            FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+            </p>
+          </div>
+        </>
+      )
+    }
+  };
+
+  const currentAboutConfig = aboutHubConfig[viewType];
 
   useEffect(() => {
     const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -40,16 +211,22 @@ const ForecastViz = () => {
     clipboard.copy(url);
   };
   
-  const dateShareJustify = currentDataset?.hasDateSelector ? 'space-between' : 'flex-end';
-
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>
-            <Group justify={dateShareJustify} align="flex-start" gap="sm" wrap="wrap">
+            <Group justify="space-between" align="center" gap="sm" wrap="nowrap">
+              {currentAboutConfig && (
+                <AboutHubOverlay
+                  title={currentAboutConfig.title}
+                  buttonLabel={currentAboutConfig.buttonLabel}
+                >
+                  {currentAboutConfig.content}
+                </AboutHubOverlay>
+              )}
               {currentDataset?.hasDateSelector && (
-                <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
                   <DateSelector
                     selectedDates={selectedDates}
                     setSelectedDates={setSelectedDates}

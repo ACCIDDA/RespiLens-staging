@@ -1,12 +1,10 @@
 // src/components/COVID19View.jsx
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMantineColorScheme, Stack, Group, Title, Anchor, List, Text } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
-import { IconBrandGithub } from '@tabler/icons-react'
 import ModelSelector from './ModelSelector';
-import AboutHubOverlay from './AboutHubOverlay';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 
@@ -205,47 +203,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           last updated: {formattedDate}
         </Text>
       )}
-      <AboutHubOverlay 
-      title={
-        <Group gap="sm">
-          <Title order={4}>COVID-19 Forecast Hub</Title>
-          <Anchor
-            href="https://github.com/CDCgov/covid19-forecast-hub"
-            target="_blank"
-            rel="noopener noreferrer"
-            c="dimmed"
-          >
-            <IconBrandGithub size={20} />
-          </Anchor>
-        </Group>
-      }
-      buttonLabel="About COVID-19 Forecast Hub"
-    >
-      <p>
-        The COVID-19 Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
-        <p></p>
-        <List spacing="xs" size="sm">
-          <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
-          <List.Item>Weekly incident percentage of emergency department visits due to COVID-19</List.Item>
-        </List>
-        <p></p>
-        Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
-      </p>
-      <div>
-        <Title order={4} mb="xs">Forecasts</Title>
-        <p>
-          Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
-          The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow. 
-        </p>
-      </div>
-      <div>
-        <Title order={4} mb="xs">Targets</Title>
-        <p>
-          Participating models submit forecasts for "target" data, which is plotted by selecting a model.
-          Presently, RespiLens plots projections for the COVID-19 target "weekly incident of COVID-19 hospitalizations".
-        </p>
-      </div>
-    </AboutHubOverlay>
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}
