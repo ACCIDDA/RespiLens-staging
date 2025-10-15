@@ -1,6 +1,6 @@
-import { Modal, Button, Group, Text, List, Alert, Anchor, Image, Title, Stack } from '@mantine/core';
+import { Modal, Button, Group, Text, List, Alert, Anchor, Image, Title, Stack, Badge } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconInfoCircle, IconBrandGithub, IconAlertTriangle } from '@tabler/icons-react';
+import { IconInfoCircle, IconBrandGithub, IconAlertTriangle, IconWorld } from '@tabler/icons-react';
 
 const InfoOverlay = () => {
   const [opened, { open, close }] = useDisclosure(false);
@@ -25,20 +25,70 @@ const InfoOverlay = () => {
           <Group gap="md">
             <Image src="respilens-logo.svg" alt="RespiLens logo" h={32} w={32} />
             <Title order={2} c="blue">RespiLens</Title>
-            <Anchor
-              href="https://github.com/ACCIDDA/RespiLens"
-              target="_blank"
-              rel="noopener"
-              c="dimmed"
-            >
-              <IconBrandGithub size={24} />
-            </Anchor>
           </Group>
         }
         size="lg"
         scrollAreaComponent={Modal.NativeScrollArea}
       >
         <Stack gap="md">
+          <div>
+            <Text size="sm" fw={500} mb="xs">Deployments</Text>
+            <List spacing="xs" size="sm">
+              <List.Item>
+                <Group gap="xs" wrap="wrap">
+                  <Badge size="xs" color="green" variant="light">Stable</Badge>
+                  <Anchor
+                    href="https://github.com/ACCIDDA/RespiLens"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <Group gap={4}>
+                      <IconBrandGithub size={14} />
+                      <Text size="sm">ACCIDDA/RespiLens</Text>
+                    </Group>
+                  </Anchor>
+                  <Text size="sm">deployed to</Text>
+                  <Anchor
+                    href="https://respilens.com"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <Group gap={4}>
+                      <IconWorld size={14} />
+                      <Text size="sm">respilens.com</Text>
+                    </Group>
+                  </Anchor>
+                </Group>
+              </List.Item>
+              <List.Item>
+                <Group gap="xs" wrap="wrap">
+                  <Badge size="xs" color="yellow" variant="light">Staging</Badge>
+                  <Anchor
+                    href="https://github.com/ACCIDDA/RespiLens-staging"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <Group gap={4}>
+                      <IconBrandGithub size={14} />
+                      <Text size="sm">ACCIDDA/RespiLens-staging</Text>
+                    </Group>
+                  </Anchor>
+                  <Text size="sm">deployed to</Text>
+                  <Anchor
+                    href="https://staging.respilens.com"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <Group gap={4}>
+                      <IconWorld size={14} />
+                      <Text size="sm">staging.respilens.com</Text>
+                    </Group>
+                  </Anchor>
+                </Group>
+              </List.Item>
+            </List>
+          </div>
+
           <Alert
             icon={<IconAlertTriangle size={20} />}
             title="Alpha Version"
