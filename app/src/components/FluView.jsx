@@ -260,7 +260,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           </Anchor>
         </Group>
       }
-      buttonLabel="About FluSight Hub"
+      buttonLabel="About FluSight"
     >
       <p>
         FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.

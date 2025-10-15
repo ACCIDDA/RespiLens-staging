@@ -217,7 +217,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
           </Anchor>
         </Group>
       }
-      buttonLabel="About RSV Hub"
+      buttonLabel="About RSV Forecast Hub"
     >
       <p>
         The RSV Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:

@@ -219,7 +219,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           </Anchor>
         </Group>
       }
-      buttonLabel="About COVID-19 Hub"
+      buttonLabel="About COVID-19 Forecast Hub"
     >
       <p>
         The COVID-19 Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
