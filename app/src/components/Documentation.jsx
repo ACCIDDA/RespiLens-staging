@@ -1,6 +1,8 @@
 import {
+  Anchor,
   Container,
   Stack,
+  Code,
   Paper,
   Title,
   Text,
@@ -8,7 +10,7 @@ import {
   ThemeIcon,
   Table
 } from '@mantine/core';
-import { IconBinaryTree, IconClipboard, IconChartScatter } from '@tabler/icons-react';
+import { IconBinaryTree, IconClipboard, IconChartScatter, IconTransformFilled } from '@tabler/icons-react';
 import JsonView from '@uiw/react-json-view';
 
 const glossaryItems = [
@@ -16,6 +18,7 @@ const glossaryItems = [
   { term: 'ground_truth', definition: 'Data that has actually been observed (past and present)'},
   { term: 'horizon', definition: 'Time horizon from original date, in weeks (e.g. horizon = 1 is 1 week past original date)' },
   { term: 'hubverse_keys', definition: 'Metadata for data that comes from a Hubverse hub.'},
+  { term: 'hubverse data', definition: '.csv data pulled from a Hubverse hub.'},
   { term: 'model', definition: 'Name of the model used for submitted data, e.g. "CovidHub-ensemble".'},
   { term: 'projections', definition: 'A style of RespiLens JSON data used for data forecasts.' },
   { term: 'quantile', definition: 'Confidence intervals that corresponding values represent.' },
@@ -125,8 +128,8 @@ const Documentation = () => {
 
             <Text size="sm">
               This page details the standardized JSON data models for the RespiLens platform. 
-              It covers the projections and timeseries structures. Use the collapsible views to explore 
-              the architecture of each model, and refer to the glossary below for frequently-used terms.
+              It covers the projections and timeseries structures, as well as scripts that can be used to convert your data to RespiLens.projections format.
+              Use the collapsible views to explore the architecture of each structure, and refer to the glossary below for frequently-used terms.
             </Text>
             
             <GlossaryTable />
@@ -151,7 +154,7 @@ const Documentation = () => {
                 value={projectionsJsonData}
                 displayDataTypes={false}
                 displayObjectSize={false}
-                collapsed={true}
+                collapsed={1}
                 enableClipboard={false}
               />
             )}
@@ -176,10 +179,69 @@ const Documentation = () => {
               value={timeseriesJsonData}
               displayDataTypes={false}
               displayObjectSize={false} 
-              collapsed={true}
+              collapsed={1}
               enableClipboard={false} 
               />
             )}
+          </Stack>
+        </Paper>
+
+        <Paper id="convert-data" shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <IconTransformFilled size={20} />
+              </ThemeIcon>
+              <div>
+                <Title order={2}>convert your data</Title>
+                <Text size="sm" c="dimmed">
+                  Learn how to convert your Hubverse-style .csv data to the RespiLens projections format.
+                </Text>
+              </div>
+            </Group>
+            <Text>
+              The RespiLens backend framework provides both an <Code>R</Code> and <Code>python</Code> pipeline
+              for converting <Anchor href="https://hubverse.io/" target="_blank" rel="noopener noreferrer"> Hubverse</Anchor> <Code>.csv</Code> data to the RespiLens projections JSON format.
+              Once converted, this data can be used in the MyRespiLens feature. Running data conversion scripts assumes
+              a local clone of the <Anchor href="https://github.com/ACCIDDA/RespiLens-staging" target="_blank" rel="noopener noreferrer"> RespiLens-staging</Anchor> GitHub. 
+              All scripts are located in the <code>scripts/</code> directory of <code>RespiLens-staging</code>.
+            </Text>
+            <Text>
+              <strong>Using <code>external_to_projections.R</code></strong> (run in <code>scripts/</code> directory):
+            </Text>
+            <Code block>
+        {`Rscript external_to_projections.R \\
+          --output-path <path/to/output-directory> \\
+          --pathogen flu \\
+          --data-path <path/to/hubverse-data.csv> \\
+          --target-data-path <path/to/target-data.csv> \\
+          --locations-data-path <path/to/locations.csv> \\
+          `}
+            </Code>
+            <Text>
+              <strong>Using <code>external_to_projections.py</code></strong> (run in <code>scripts/</code> directory):
+            </Text>
+            <Code block>
+        {`python external_to_projections.py \\
+          --output-path <path/to/output-directory> \\
+          --pathogen flu \\
+          --data-path <path/to/hubverse-data.csv> \\
+          --target-data-path <path/to/target-data.csv> \\
+          --locations-data-path <path/to/locations.csv> 
+          `}
+            </Code>
+            <Text>
+              Where:
+              <Text><code>--output-path</code> is the absolute path to the directory where you would like converted data to be saved</Text>
+              <Text><code>--data-path</code> is the absolute path to data to be converted</Text>
+              <Text><code>--target-data-path</code> is the absolute path to corresponding ground truth data</Text>
+              <Text><code>--locations-data-path</code> is the absolute path to corresponding location metadata</Text>
+              <Text>and <code>--pathogen</code> is the pathogen the hub data describes (flu, covid, or rsv).</Text>
+            </Text>
+            <Text>
+              Once converted, individual projections JSON files can be drag'n'dropped into MyRespiLens. 
+            </Text>
+            <Text><strong> Note: MyRespiLens does not work for RespiLens timeseries data.</strong></Text>
           </Stack>
         </Paper>
 
