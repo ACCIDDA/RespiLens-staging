@@ -159,7 +159,27 @@ const ensureValidScenario = async (rng, datasetMeta) => {
       return Number.isFinite(entryTime) && entryTime <= forecastTimestamp;
     });
 
-    const recentSeries = historicalSeries.slice(-26);
+    // Determine how much history to show based on dataset type
+    let recentSeries;
+    if (datasetMeta.definition.key === 'flusight' || datasetMeta.definition.key === 'rsv') {
+      // For flu and RSV: show since start of season (approximately July 1st)
+      const forecastDateObj = new Date(forecastDate);
+      const year = forecastDateObj.getFullYear();
+      // If we're in Jan-Jun, season started previous year
+      const seasonStartYear = forecastDateObj.getMonth() < 6 ? year - 1 : year;
+      const seasonStart = new Date(`${seasonStartYear}-07-01`).getTime();
+
+      recentSeries = historicalSeries.filter((entry) => {
+        const entryTime = new Date(entry.date).getTime();
+        return entryTime >= seasonStart;
+      });
+    } else if (datasetMeta.definition.key === 'covid19') {
+      // For COVID: show last 5 months (approximately 20 weeks)
+      recentSeries = historicalSeries.slice(-20);
+    } else {
+      // Default: 6 months
+      recentSeries = historicalSeries.slice(-26);
+    }
 
     if (recentSeries.length === 0) {
       continue;

@@ -4,6 +4,7 @@ import {
   BarController,
   CategoryScale,
   Chart as ChartJS,
+  Filler,
   Legend,
   LinearScale,
   LineController,
@@ -25,13 +26,14 @@ ChartJS.register(
   BarController,
   Tooltip,
   Legend,
+  Filler,
 );
 
-const INTERVAL95_COLOR = 'rgba(199, 241, 17, 0.35)'; // #c7f111 with alpha
+const INTERVAL95_COLOR = 'rgba(199, 241, 17, 0.35)';
 const INTERVAL50_COLOR = 'rgba(199, 241, 17, 0.65)';
+const MEDIAN_COLOR = '#000000';
+const HANDLE_MEDIAN = '#c7f111';
 const HANDLE_OUTLINE = '#000000';
-const HANDLE_FILL = '#c7f111';
-const LINE_COLOR = '#000000';
 
 const buildLabels = (groundTruthSeries, horizonDates) => {
   const observedLabels = groundTruthSeries.map((entry) => entry.date);
@@ -52,82 +54,107 @@ const ForecastleChartCanvasInner = ({
   maxValue,
   onAdjust,
   height = 380,
+  showIntervals = true,
+  zoomedView = false,
 }) => {
   const chartRef = useRef(null);
   const [dragState, setDragState] = useState(null);
 
-  const labels = useMemo(() => buildLabels(groundTruthSeries, horizonDates), [groundTruthSeries, horizonDates]);
+  // For zoomed view, only show last 3 observed data points
+  const visibleGroundTruth = useMemo(() => {
+    if (!zoomedView) return groundTruthSeries;
+    return groundTruthSeries.slice(-3);
+  }, [groundTruthSeries, zoomedView]);
+
+  const labels = useMemo(() => buildLabels(visibleGroundTruth, horizonDates), [visibleGroundTruth, horizonDates]);
 
   const observedDataset = useMemo(() => {
-    const valueMap = new Map(groundTruthSeries.map((entry) => [entry.date, entry.value]));
+    const valueMap = new Map(visibleGroundTruth.map((entry) => [entry.date, entry.value]));
     return labels.map((label) => {
       if (valueMap.has(label)) {
         return { x: label, y: valueMap.get(label) ?? null };
       }
       return { x: label, y: null };
     });
-  }, [groundTruthSeries, labels]);
+  }, [visibleGroundTruth, labels]);
 
-  const interval95Data = useMemo(
+  // Calculate interval bounds as separate upper/lower datasets for fill
+  const interval95Upper = useMemo(
     () =>
       horizonDates.map((date, idx) => ({
         x: date,
-        y: [entries[idx]?.interval95.lower ?? 0, entries[idx]?.interval95.upper ?? 0],
+        y: (entries[idx]?.median ?? 0) + (entries[idx]?.width95 ?? 0),
       })),
     [entries, horizonDates],
   );
 
-  const interval50Data = useMemo(
+  const interval95Lower = useMemo(
     () =>
       horizonDates.map((date, idx) => ({
         x: date,
-        y: [entries[idx]?.interval50.lower ?? 0, entries[idx]?.interval50.upper ?? 0],
+        y: Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width95 ?? 0)),
       })),
     [entries, horizonDates],
   );
 
-  const handlePoints = useMemo(() => {
-    const points = [];
+  const interval50Upper = useMemo(
+    () =>
+      horizonDates.map((date, idx) => ({
+        x: date,
+        y: (entries[idx]?.median ?? 0) + (entries[idx]?.width50 ?? 0),
+      })),
+    [entries, horizonDates],
+  );
+
+  const interval50Lower = useMemo(
+    () =>
+      horizonDates.map((date, idx) => ({
+        x: date,
+        y: Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width50 ?? 0)),
+      })),
+    [entries, horizonDates],
+  );
+
+  // Median line data - start from last observed point
+  const medianData = useMemo(() => {
+    const data = [];
+    // Add the last observed point to connect the forecast line
+    if (groundTruthSeries.length > 0) {
+      const lastObserved = groundTruthSeries[groundTruthSeries.length - 1];
+      data.push({
+        x: lastObserved.date,
+        y: lastObserved.value,
+      });
+    }
+    // Add the forecast points
     horizonDates.forEach((date, idx) => {
-      const entry = entries[idx];
-      if (!entry) return;
-      points.push({
+      data.push({
         x: date,
-        y: entry.interval95.upper,
-        meta: { index: idx, band: 'interval95', edge: 'upper' },
-        radius: 7,
-      });
-      points.push({
-        x: date,
-        y: entry.interval95.lower,
-        meta: { index: idx, band: 'interval95', edge: 'lower' },
-        radius: 7,
-      });
-      points.push({
-        x: date,
-        y: entry.interval50.upper,
-        meta: { index: idx, band: 'interval50', edge: 'upper' },
-        radius: 6,
-      });
-      points.push({
-        x: date,
-        y: entry.interval50.lower,
-        meta: { index: idx, band: 'interval50', edge: 'lower' },
-        radius: 6,
+        y: entries[idx]?.median ?? 0,
       });
     });
-    return points;
+    return data;
+  }, [entries, horizonDates, groundTruthSeries]);
+
+  // Draggable median handles
+  const medianHandles = useMemo(() => {
+    return horizonDates.map((date, idx) => ({
+      x: date,
+      y: entries[idx]?.median ?? 0,
+      meta: { index: idx, type: 'median' },
+      radius: 8,
+    }));
   }, [entries, horizonDates]);
 
   const handleIndicesRef = useRef([]);
   useEffect(() => {
-    handleIndicesRef.current = handlePoints.map((point) => point.meta);
-  }, [handlePoints]);
+    handleIndicesRef.current = medianHandles.map((point) => point.meta);
+  }, [medianHandles]);
 
   const dynamicMax = useMemo(() => {
     const entryMax = Math.max(
       maxValue,
-      ...entries.map((entry) => Math.max(entry.interval95.upper, entry.interval50.upper)),
+      ...entries.map((entry) => (entry.median ?? 0) + (entry.width95 ?? 0)),
     );
     return entryMax > 0 ? entryMax * 1.1 : 1;
   }, [entries, maxValue]);
@@ -139,8 +166,12 @@ const ForecastleChartCanvasInner = ({
     const canvas = chart.canvas;
     if (!canvas) return undefined;
 
-    const getBandMeta = (activeElement) => {
-      if (!activeElement || activeElement.datasetIndex !== 3) return null;
+    const getHandleMeta = (activeElement) => {
+      if (!activeElement) return null;
+      // Find the "Median Handles" dataset - it's always the last dataset
+      const chart = chartRef.current;
+      const handleDatasetIndex = chart.data.datasets.findIndex(ds => ds.label === 'Median Handles');
+      if (activeElement.datasetIndex !== handleDatasetIndex) return null;
       const meta = handleIndicesRef.current[activeElement.index];
       return meta || null;
     };
@@ -153,8 +184,8 @@ const ForecastleChartCanvasInner = ({
         const yScale = chart.scales.y;
         const bounds = canvas.getBoundingClientRect();
         const offsetY = event.clientY - bounds.top;
-        const nextValue = yScale.getValueForPixel(offsetY);
-        onAdjust(dragState.index, dragState.band, dragState.edge, nextValue);
+        const nextValue = Math.max(0, yScale.getValueForPixel(offsetY));
+        onAdjust(dragState.index, 'median', Math.round(nextValue));
       });
     };
 
@@ -169,7 +200,7 @@ const ForecastleChartCanvasInner = ({
         setDragState(null);
         return;
       }
-      const meta = getBandMeta(elements[0]);
+      const meta = getHandleMeta(elements[0]);
       if (!meta) {
         setDragState(null);
         return;
@@ -192,71 +223,113 @@ const ForecastleChartCanvasInner = ({
   }, [dragState, onAdjust]);
 
   const chartData = useMemo(
-    () => ({
-      datasets: [
+    () => {
+      const datasets = [
         {
           type: 'line',
           label: 'Observed',
           data: observedDataset,
           parsing: false,
-          tension: 0.2,
+          tension: 0, // No smoothing - straight lines between points
           spanGaps: true,
-          borderColor: LINE_COLOR,
-          backgroundColor: LINE_COLOR,
+          borderColor: MEDIAN_COLOR,
+          backgroundColor: MEDIAN_COLOR,
           borderWidth: 2,
+          pointRadius: 4, // Show dots
+          pointHoverRadius: 6,
+          pointBackgroundColor: MEDIAN_COLOR,
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1,
+        },
+      ];
+
+      // Only show intervals when in interval mode - use filled areas
+      if (showIntervals) {
+        datasets.push(
+          // 95% interval lower bound (invisible line, used for fill)
+          {
+            type: 'line',
+            label: '95% lower',
+            data: interval95Lower,
+            parsing: false,
+            tension: 0,
+            borderColor: 'transparent',
+            backgroundColor: 'transparent',
+            pointRadius: 0,
+            fill: false,
+          },
+          // 95% interval upper bound (fills down to previous dataset)
+          {
+            type: 'line',
+            label: '95% interval',
+            data: interval95Upper,
+            parsing: false,
+            tension: 0,
+            borderColor: 'rgba(199, 241, 17, 0.6)',
+            backgroundColor: INTERVAL95_COLOR,
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: '-1', // Fill to previous dataset (95% lower)
+          },
+          // 50% interval lower bound (invisible line)
+          {
+            type: 'line',
+            label: '50% lower',
+            data: interval50Lower,
+            parsing: false,
+            tension: 0,
+            borderColor: 'transparent',
+            backgroundColor: 'transparent',
+            pointRadius: 0,
+            fill: false,
+          },
+          // 50% interval upper bound (fills down to previous dataset)
+          {
+            type: 'line',
+            label: '50% interval',
+            data: interval50Upper,
+            parsing: false,
+            tension: 0,
+            borderColor: 'rgba(199, 241, 17, 0.8)',
+            backgroundColor: INTERVAL50_COLOR,
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: '-1', // Fill to previous dataset (50% lower)
+          }
+        );
+      }
+
+      datasets.push(
+        {
+          type: 'line',
+          label: 'Median',
+          data: medianData,
+          parsing: false,
+          tension: 0, // No smoothing - straight lines
+          borderColor: MEDIAN_COLOR,
+          backgroundColor: MEDIAN_COLOR,
+          borderWidth: 3,
           pointRadius: 0,
-        },
-        {
-          type: 'bar',
-          label: '95% interval',
-          data: interval95Data,
-          parsing: {
-            xAxisKey: 'x',
-            yAxisKey: 'y',
-          },
-          backgroundColor: INTERVAL95_COLOR,
-          borderColor: 'rgba(199, 241, 17, 0.55)',
-          borderWidth: 1,
-          borderRadius: 8,
-          barPercentage: 0.6,
-          categoryPercentage: 0.8,
-        },
-        {
-          type: 'bar',
-          label: '50% interval',
-          data: interval50Data,
-          parsing: {
-            xAxisKey: 'x',
-            yAxisKey: 'y',
-          },
-          backgroundColor: INTERVAL50_COLOR,
-          borderColor: 'rgba(199, 241, 17, 0.8)',
-          borderWidth: 1,
-          borderRadius: 8,
-          barPercentage: 0.35,
-          categoryPercentage: 0.8,
+          borderDash: [5, 5],
         },
         {
           type: 'scatter',
-          label: 'Handles',
-          data: handlePoints,
+          label: 'Median Handles',
+          data: medianHandles,
           parsing: false,
-          pointBackgroundColor: (context) => {
-            const meta = handlePoints[context.dataIndex]?.meta;
-            if (!meta) return HANDLE_FILL;
-            return meta.band === 'interval95' ? HANDLE_FILL : '#7a8f00';
-          },
+          pointBackgroundColor: HANDLE_MEDIAN,
           pointBorderColor: HANDLE_OUTLINE,
           pointBorderWidth: 2,
-          pointHoverRadius: (context) => handlePoints[context.dataIndex]?.radius ?? 6,
-          pointRadius: (context) => handlePoints[context.dataIndex]?.radius ?? 6,
+          pointHoverRadius: 10,
+          pointRadius: 8,
           showLine: false,
-          hitRadius: 12,
-        },
-      ],
-      labels,
-    }),
-    [handlePoints, interval50Data, interval95Data, labels, observedDataset],
+          hitRadius: 15,
+        }
+      );
+
+      return { datasets, labels };
+    },
+    [medianHandles, interval50Upper, interval50Lower, interval95Upper, interval95Lower, medianData, labels, observedDataset, showIntervals],
   );
 
   const options = useMemo(
@@ -285,8 +358,8 @@ const ForecastleChartCanvasInner = ({
                 }
                 return datasetLabel;
               }
-              if (datasetLabel === 'Handles') {
-                return `${Math.round(context.parsed.y)}`;
+              if (datasetLabel === 'Median' || datasetLabel === 'Median Handles') {
+                return `Median: ${Math.round(context.parsed.y)}`;
               }
               return datasetLabel;
             },

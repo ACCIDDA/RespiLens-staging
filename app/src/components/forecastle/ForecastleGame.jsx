@@ -8,19 +8,24 @@ import {
   Center,
   Container,
   Divider,
+  Grid,
   Group,
   Loader,
   Paper,
+  SegmentedControl,
   Stack,
+  Stepper,
+  Switch,
   Text,
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconCheck } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
-import { initialiseForecastInputs } from '../../utils/forecastleInputs';
+import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
 import ForecastleChartCanvas from './ForecastleChartCanvas';
+import ForecastleInputControls from './ForecastleInputControls';
 
 const addWeeksToDate = (dateString, weeks) => {
   const base = new Date(`${dateString}T00:00:00Z`);
@@ -57,6 +62,8 @@ const ForecastleGame = () => {
   const [forecastEntries, setForecastEntries] = useState(initialInputs);
   const [submissionErrors, setSubmissionErrors] = useState({});
   const [submittedPayload, setSubmittedPayload] = useState(null);
+  const [inputMode, setInputMode] = useState('median'); // 'median' or 'intervals'
+  const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view for easier input
 
   useEffect(() => {
     setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
@@ -65,13 +72,15 @@ const ForecastleGame = () => {
   }, [scenario?.horizons, latestObservationValue]);
 
   const handleSubmit = () => {
-    const { valid, errors } = validateForecastSubmission(forecastEntries);
+    // Convert to intervals for validation
+    const intervalsForValidation = convertToIntervals(forecastEntries);
+    const { valid, errors } = validateForecastSubmission(intervalsForValidation);
     setSubmissionErrors(errors);
     if (!valid) {
       setSubmittedPayload(null);
       return;
     }
-    const payload = forecastEntries.map(({ horizon, interval50, interval95 }) => ({
+    const payload = intervalsForValidation.map(({ horizon, interval50, interval95 }) => ({
       horizon,
       interval50: [interval50.lower, interval50.upper],
       interval95: [interval95.lower, interval95.upper],
@@ -109,76 +118,21 @@ const ForecastleGame = () => {
     const latestValue = Number.isFinite(latestObservationValue) ? latestObservationValue : 0;
     const baseMax = latestValue > 0 ? latestValue * 5 : 1;
     const userMaxCandidate = Math.max(
-      ...forecastEntries.flatMap((entry) => [entry.interval50.upper, entry.interval95.upper]),
+      ...forecastEntries.map((entry) => (entry.median ?? 0) + (entry.width95 ?? 0)),
       0,
     );
     const yAxisMax = Math.max(baseMax, userMaxCandidate * 1.1 || 0, latestObservationValue, 1);
 
     const horizonDates = scenario.horizons.map((horizon) => addWeeksToDate(scenario.forecastDate, horizon));
 
-    const handleIntervalAdjust = (index, band, edge, rawValue) => {
-      const clampedValue = Math.max(Math.round(rawValue), 0);
+    const handleMedianAdjust = (index, field, value) => {
       setForecastEntries((prevEntries) =>
         prevEntries.map((entry, idx) => {
           if (idx !== index) return entry;
-          const nextEntry = {
+          return {
             ...entry,
-            interval50: { ...entry.interval50 },
-            interval95: { ...entry.interval95 },
+            [field]: Math.max(0, value),
           };
-
-          if (band === 'interval95') {
-            if (edge === 'lower') {
-              const nextLower = Math.min(clampedValue, nextEntry.interval95.upper);
-              nextEntry.interval95.lower = nextLower;
-              if (nextEntry.interval50.lower < nextLower) {
-                nextEntry.interval50.lower = nextLower;
-              }
-              if (nextEntry.interval50.upper < nextLower) {
-                nextEntry.interval50.upper = nextLower;
-              }
-            } else {
-              const nextUpper = Math.max(clampedValue, nextEntry.interval95.lower);
-              nextEntry.interval95.upper = nextUpper;
-              if (nextEntry.interval50.upper > nextUpper) {
-                nextEntry.interval50.upper = nextUpper;
-              }
-              if (nextEntry.interval50.lower > nextUpper) {
-                nextEntry.interval50.lower = nextUpper;
-              }
-            }
-          } else if (band === 'interval50') {
-            if (edge === 'lower') {
-              const lowerBound = nextEntry.interval95.lower;
-              const nextLower = Math.min(Math.max(clampedValue, lowerBound), nextEntry.interval50.upper);
-              nextEntry.interval50.lower = nextLower;
-            } else {
-              const upperBound = nextEntry.interval95.upper;
-              const nextUpper = Math.min(Math.max(clampedValue, nextEntry.interval50.lower), upperBound);
-              nextEntry.interval50.upper = nextUpper;
-            }
-          }
-
-          if (nextEntry.interval95.lower > nextEntry.interval95.upper) {
-            const midpoint = (nextEntry.interval95.lower + nextEntry.interval95.upper) / 2;
-            nextEntry.interval95.lower = midpoint;
-            nextEntry.interval95.upper = midpoint;
-          }
-
-          if (nextEntry.interval50.lower < nextEntry.interval95.lower) {
-            nextEntry.interval50.lower = nextEntry.interval95.lower;
-          }
-          if (nextEntry.interval50.upper > nextEntry.interval95.upper) {
-            nextEntry.interval50.upper = nextEntry.interval95.upper;
-          }
-
-          if (nextEntry.interval50.lower > nextEntry.interval50.upper) {
-            const center = (nextEntry.interval95.lower + nextEntry.interval95.upper) / 2;
-            nextEntry.interval50.lower = center;
-            nextEntry.interval50.upper = center;
-          }
-
-          return nextEntry;
         }),
       );
       setSubmissionErrors({});
@@ -216,7 +170,9 @@ const ForecastleGame = () => {
             </Group>
 
             <Text size="sm">
-              Drag the circle handles on the chart to set your 50% (inner) and 95% (outer) prediction intervals for each horizon.
+              {inputMode === 'median'
+                ? 'Step 1: Set your median forecast for each horizon by dragging the handles or using the controls below.'
+                : 'Step 2: Adjust the uncertainty intervals (50% and 95% widths) for each forecast.'}
             </Text>
 
             {latestObservation && (
@@ -228,24 +184,110 @@ const ForecastleGame = () => {
         </Paper>
 
         <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Title order={4}>Interactive forecast canvas</Title>
-            <Box style={{ width: '100%', height: 380 }}>
-              <ForecastleChartCanvas
-                groundTruthSeries={scenario.groundTruthSeries}
-                horizonDates={horizonDates}
-                entries={forecastEntries}
-                maxValue={yAxisMax}
-                onAdjust={handleIntervalAdjust}
-                height={380}
+          <Stack gap="lg">
+            <Stepper
+              active={inputMode === 'median' ? 0 : 1}
+              onStepClick={(step) => setInputMode(step === 0 ? 'median' : 'intervals')}
+              allowNextStepsSelect={false}
+            >
+              <Stepper.Step
+                label="Set Median"
+                description="Point forecasts"
+                completedIcon={<IconCheck size={18} />}
               />
-            </Box>
+              <Stepper.Step
+                label="Set Intervals"
+                description="Uncertainty bands"
+                completedIcon={<IconCheck size={18} />}
+              />
+            </Stepper>
+
+            <Grid gutter="lg">
+              {/* Left Panel - Chart */}
+              <Grid.Col span={{ base: 12, lg: 7 }}>
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Title order={5}>Interactive Chart</Title>
+                    <Switch
+                      label="Show Full History"
+                      checked={!zoomedView}
+                      onChange={(event) => setZoomedView(!event.currentTarget.checked)}
+                      color="red"
+                      size="md"
+                    />
+                  </Group>
+                  <Box style={{ width: '100%', height: 380 }}>
+                    <ForecastleChartCanvas
+                      groundTruthSeries={scenario.groundTruthSeries}
+                      horizonDates={horizonDates}
+                      entries={forecastEntries}
+                      maxValue={yAxisMax}
+                      onAdjust={handleMedianAdjust}
+                      height={380}
+                      showIntervals={inputMode === 'intervals'}
+                      zoomedView={zoomedView}
+                    />
+                  </Box>
+                  <Text size="sm" c="dimmed">
+                    {inputMode === 'median'
+                      ? 'Drag the yellow handles to set your median forecast for each week ahead.'
+                      : 'The filled areas show your 95% (outer) and 50% (inner) prediction intervals.'}
+                  </Text>
+                </Stack>
+              </Grid.Col>
+
+              {/* Right Panel - Controls */}
+              <Grid.Col span={{ base: 12, lg: 5 }}>
+                <Stack gap="md" h="100%">
+                  <Title order={5}>
+                    {inputMode === 'median' ? 'Median Forecasts' : 'Uncertainty Intervals'}
+                  </Title>
+                  <ForecastleInputControls
+                    entries={forecastEntries}
+                    onChange={setForecastEntries}
+                    maxValue={yAxisMax}
+                    mode={inputMode}
+                  />
+                  <Box mt="auto">
+                    {inputMode === 'median' ? (
+                      <Button
+                        onClick={() => setInputMode('intervals')}
+                        size="md"
+                        fullWidth
+                        rightSection="→"
+                      >
+                        Next: Set Uncertainty Intervals
+                      </Button>
+                    ) : (
+                      <Group>
+                        <Button
+                          onClick={() => setInputMode('median')}
+                          variant="default"
+                          leftSection="←"
+                        >
+                          Back
+                        </Button>
+                      </Group>
+                    )}
+                  </Box>
+                </Stack>
+              </Grid.Col>
+            </Grid>
+
+            <Divider my="xs" />
             <Stack gap={4}>
-              {forecastEntries.map((entry) => (
-                <Text key={entry.horizon} size="sm" c="dimmed">
-                  {`${entry.horizon}w ahead → 50% [${entry.interval50.lower}, ${entry.interval50.upper}] · 95% [${entry.interval95.lower}, ${entry.interval95.upper}]`}
-                </Text>
-              ))}
+              <Text size="sm" fw={500}>Current Forecast Summary:</Text>
+              {forecastEntries.map((entry) => {
+                const interval50Lower = Math.max(0, entry.median - entry.width50);
+                const interval50Upper = entry.median + entry.width50;
+                const interval95Lower = Math.max(0, entry.median - entry.width95);
+                const interval95Upper = entry.median + entry.width95;
+                return (
+                  <Text key={entry.horizon} size="sm" c="dimmed">
+                    {`${entry.horizon}w ahead → Median: ${Math.round(entry.median)} · 50% [${Math.round(interval50Lower)}, ${Math.round(interval50Upper)}] · 95% [${Math.round(interval95Lower)}, ${Math.round(interval95Upper)}]`}
+                  </Text>
+                );
+              })}
             </Stack>
             {Object.keys(submissionErrors).length > 0 && (
               <Alert color="red" variant="light" title="Please adjust your intervals">
