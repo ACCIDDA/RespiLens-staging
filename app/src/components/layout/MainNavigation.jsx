@@ -1,13 +1,11 @@
 import { useLocation } from 'react-router-dom';
-import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme, Menu } from '@mantine/core';
-import { IconChartLine, IconTarget, IconDashboard, IconSun, IconMoon, IconMenu2, IconClipboard } from '@tabler/icons-react';
-import { useDisclosure } from '@mantine/hooks';
+import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme } from '@mantine/core';
+import { IconChartLine, IconTarget, IconDashboard, IconSun, IconMoon, IconClipboard } from '@tabler/icons-react';
 import InfoOverlay from '../InfoOverlay';
 
 const MainNavigation = () => {
   const location = useLocation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const [opened, { toggle, close }] = useDisclosure(false);
   
   const isActive = (path) => location.pathname.startsWith(path);
   

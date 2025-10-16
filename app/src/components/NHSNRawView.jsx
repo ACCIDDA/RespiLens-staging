@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Group, Title, Button, Tooltip } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
-import AboutHubOverlay from './AboutHubOverlay';
 import { MODEL_COLORS } from '../config/datasets';
-import { IconShare } from '@tabler/icons-react';
-import { useClipboard } from '@mantine/hooks';
 
 // --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
 const NHSNRawView = ({ location }) => {
@@ -16,15 +13,9 @@ const NHSNRawView = ({ location }) => {
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
   const [availableColumns, setAvailableColumns] = useState([]);
-  const clipboard = useClipboard({ timeout: 2000 });
 
   // --- CHANGE 2: Add state for selectedColumns inside this component ---
   const [selectedColumns, setSelectedColumns] = useState([]);
-
-  const handleShare = () => {
-    const url = window.location.href;
-    clipboard.copy(url);
-  };
 
   useEffect(() => {
     const fetchData = async () => {
