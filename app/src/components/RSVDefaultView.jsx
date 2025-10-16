@@ -186,11 +186,13 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   if (lastUpdatedTimestamp) {
     const date = new Date(lastUpdatedTimestamp); 
     formattedDate = date.toLocaleString(undefined, {
+      timeZone: 'America/New_York', 
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: 'numeric',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZoneName: 'short'
     });
   }
 
