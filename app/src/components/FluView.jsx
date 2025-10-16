@@ -226,14 +226,15 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const lastUpdatedTimestamp = metadata?.last_updated;
   let formattedDate = null;
   if (lastUpdatedTimestamp) {
-    // Append 'Z' to treat the string as UTC and convert to local time
     const date = new Date(lastUpdatedTimestamp); 
     formattedDate = date.toLocaleString(undefined, {
+      timeZone: 'America/New_York', 
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: 'numeric',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZoneName: 'short'
     });
   }
 
