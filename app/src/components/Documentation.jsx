@@ -20,7 +20,9 @@ import {
   IconChartScatter, 
   IconTransformFilled,
   IconCopy,
-  IconCheck
+  IconCheck,
+  IconTarget,
+  IconBook
 } from '@tabler/icons-react';
 import JsonView from '@uiw/react-json-view';
 
@@ -40,13 +42,12 @@ const glossaryItems = [
 const GlossaryTable = () => {
   const rows = glossaryItems.map((item) => (
     <Table.Tr key={item.term}>
-      <Table.Td><strong>{item.term}</strong></Table.Td>
+      <Table.Td>{item.term}</Table.Td>
       <Table.Td>{item.definition}</Table.Td>
     </Table.Tr>
   ));
   return (
     <>
-      <Title order={3}>Glossary</Title>
       <Table withTableBorder withColumnBorders>
         <Table.Thead>
           <Table.Tr>
@@ -125,11 +126,11 @@ const Documentation = () => {
               </div>
             </Group>
             <Text size="sm">
-              This page details the standardized JSON data models for the RespiLens platform. 
-              It covers the projections and timeseries structures, as well as scripts that can be used to convert your data to RespiLens.projections format.
-              Use the collapsible views to explore the architecture of each structure, and refer to the glossary below for frequently-used terms.
+              This page details the standardized JSON data models for the RespiLens platform (projections and timeseries), 
+              as well as scripts that can be used to convert your data to RespiLens projections format.
+              You can use the collapsible views to explore the architecture of each structure. Refer to the glossary at
+              the bottom of the page for frequently-used RespiLens terms.
             </Text>
-            <GlossaryTable />
           </Stack>
         </Paper>
 
@@ -231,6 +232,40 @@ const Documentation = () => {
               Once converted, individual projections JSON files can be drag'n'dropped into MyRespiLens. 
             </Text>
             <Text><strong> Note: MyRespiLens does not work for RespiLens timeseries data.</strong></Text>
+          </Stack>
+        </Paper>
+
+        <Paper id="forecastle" shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <IconTarget size={20} />
+              </ThemeIcon>
+              <div>
+                <Title order={2}>forecastle</Title>
+                <Text size="sm" c="dimmed">
+                  How to play the Forecastle.
+                </Text>
+              </div>
+            </Group>
+            <Text>🚧 COMING SOON 🚧</Text>
+          </Stack>
+        </Paper>
+
+        <Paper id="glossary" shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <IconBook size={20} />
+              </ThemeIcon>
+              <div>
+                <Title order={2}>glossary</Title>
+                <Text size="sm" c="dimmed">
+                  Learn your RespiLens words!
+                </Text>
+              </div>
+            </Group>
+            <GlossaryTable />
           </Stack>
         </Paper>
 
