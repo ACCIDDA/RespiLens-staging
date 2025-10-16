@@ -184,7 +184,7 @@ const Documentation = () => {
                 </Text>
               </div>
             </Group>
-            <Text>COMING SOON</Text>
+            <Text>🚧 COMING SOON 🚧</Text>
           </Stack>
         </Paper>
 
@@ -206,25 +206,25 @@ const Documentation = () => {
               for converting <Anchor href="https://hubverse.io/" target="_blank" rel="noopener noreferrer"> Hubverse</Anchor> <Code>.csv</Code> data to the RespiLens projections JSON format.
               Once converted, this data can be used in the MyRespiLens feature. Running data conversion scripts assumes
               a local clone of the <Anchor href="https://github.com/ACCIDDA/RespiLens-staging" target="_blank" rel="noopener noreferrer"> RespiLens-staging</Anchor> GitHub. 
-              All scripts are located in the <code>scripts/</code> directory of <code>RespiLens-staging</code>.
+              All scripts are located in the <Code>scripts/</Code> directory of <Code>RespiLens-staging</Code>.
             </Text>
             <Text>
-              <strong>Using <code>external_to_projections.R</code></strong> (run in <code>scripts/</code> directory):
+              <strong>Using <Code>external_to_projections.R</Code></strong> (run in <Code>scripts/</Code> directory):
             </Text>
             <CopyableCodeBlock code={rScriptCommand} />
 
             <Text>
-              <strong>Using <code>external_to_projections.py</code></strong> (run in <code>scripts/</code> directory):
+              <strong>Using <Code>external_to_projections.py</Code></strong> (run in <Code>scripts/</Code> directory):
             </Text>
             <CopyableCodeBlock code={pythonScriptCommand} />
             
             <Stack gap={2}>
               <Text>Where:</Text>
-              <Text><code>--output-path</code> is the absolute path to the directory where you would like converted data to be saved</Text>
-              <Text><code>--data-path</code> is the absolute path to data to be converted</Text>
-              <Text><code>--target-data-path</code> is the absolute path to corresponding ground truth data</Text>
-              <Text><code>--locations-data-path</code> is the absolute path to corresponding location metadata</Text>
-              <Text>and <code>--pathogen</code> is the pathogen the hub data describes (flu, covid, or rsv).</Text>
+              <Text><Code>--output-path</Code> is the absolute path to the directory where you would like converted data to be saved</Text>
+              <Text><Code>--data-path</Code> is the absolute path to data to be converted</Text>
+              <Text><Code>--target-data-path</Code> is the absolute path to corresponding ground truth data</Text>
+              <Text><Code>--locations-data-path</Code> is the absolute path to corresponding location metadata</Text>
+              <Text>and <Code>--pathogen</Code> is the pathogen the hub data describes (flu, covid, or rsv).</Text>
             </Stack>
             
             <Text>
