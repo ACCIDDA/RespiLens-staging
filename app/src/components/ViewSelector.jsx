@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Stack, Button, Text, Group, Menu, Paper } from '@mantine/core';
-import { IconChevronRight, IconChevronDown } from '@tabler/icons-react';
+import { Stack, Button, Menu, Paper } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useView } from '../hooks/useView';
 import { DATASETS } from '../config/datasets';
 

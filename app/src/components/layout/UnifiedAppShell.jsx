@@ -29,7 +29,7 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
   const location = useLocation();
   const config = getShellConfig(location.pathname);
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
-  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const [desktopOpened] = useDisclosure(true);
 
   const renderHeaderNavigation = () => {
     return (
