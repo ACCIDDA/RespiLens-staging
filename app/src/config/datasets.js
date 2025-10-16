@@ -6,7 +6,7 @@ export const DATASETS = {
       { key: 'detailed', label: 'Detailed View', value: 'fludetailed' },
       { key: 'timeseries', label: 'Time Series', value: 'flu_ts' }
     ],
-    defaultView: 'fludetailed',
+    defaultView: 'flu_ts',
     defaultModel: 'FluSight-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,

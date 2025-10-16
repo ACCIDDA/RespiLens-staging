@@ -129,7 +129,7 @@ export class URLParameterManager {
 
   // Get current view from URL
   getView() {
-    return this.searchParams.get('view') || 'fludetailed';
+    return this.searchParams.get('view') || 'flu_ts';
   }
 
   // Initialize URL with defaults if missing
@@ -138,7 +138,7 @@ export class URLParameterManager {
     let updated = false;
 
     if (!this.searchParams.get('view')) {
-      newParams.set('view', 'fludetailed');
+      newParams.set('view', 'flu_ts');
       updated = true;
     }
 
