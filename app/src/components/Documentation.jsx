@@ -171,6 +171,23 @@ const Documentation = () => {
           </Stack>
         </Paper>
 
+        <Paper id="toy plot" shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <IconChartScatter size={20} />
+              </ThemeIcon>
+              <div>
+                <Title order={2}>toy plot</Title>
+                <Text size="sm" c="dimmed">
+                  Toggle the features of a toy RespiLens plot.
+                </Text>
+              </div>
+            </Group>
+            <Text>COMING SOON</Text>
+          </Stack>
+        </Paper>
+
         <Paper id="convert-data" shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md">
             <Group gap="sm">
@@ -217,22 +234,6 @@ const Documentation = () => {
           </Stack>
         </Paper>
 
-        <Paper id="toy plot" shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Group gap="sm">
-              <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                <IconChartScatter size={20} />
-              </ThemeIcon>
-              <div>
-                <Title order={2}>toy plot</Title>
-                <Text size="sm" c="dimmed">
-                  Toggle the features of a toy RespiLens plot.
-                </Text>
-              </div>
-            </Group>
-            <Text>COMING SOON</Text>
-          </Stack>
-        </Paper>
       </Stack>
     </Container>
   );
