@@ -372,8 +372,8 @@ const MyRespiLensDashboard = () => {
               <Text>MyRespiLens expects uploaded data to be valid JSON and in RespiLens projections format.</Text>
               <Text fw={700}>
                 RespiLens projections format is the internally-defined JSON style for
-                forecast data. JSON schema for this format can be found in the 
-                <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/blob/main/scripts/schemas/RespiLens_projections.schema.json" target="_blank" rel="noopener noreferrer"> RespiLens GitHub repository</Anchor>.
+                forecast data. Documentation for this JSON format can be found on the RespiLens
+                <Anchor href="https://staging.respilens.com/documentation" target="_blank" rel="noopener noreferrer"> documentation</Anchor> page.
                 You can convert your .csv Hubverse-style data to .json RespiLens projections-style data using either:
               </Text>
               <Text><code>external_to_projections.py</code> using python, or</Text>
@@ -381,7 +381,8 @@ const MyRespiLensDashboard = () => {
               <Text>
                 Both files can be found in the <code>scripts/</code> directory of the RespiLens GitHub repository,
                 and have functionality documented  
-                <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/tree/main/scripts#readme" target="_blank" rel="noopener noreferrer"> here.</Anchor>
+                <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/tree/main/scripts#readme" target="_blank" rel="noopener noreferrer"> on GitHub.</Anchor>,
+                or on the RespiLens <Anchor href="https://staging.respilens.com/documentation" target="_blank" rel="noopener noreferrer"> documentation</Anchor> page.
               </Text>
             </Stack>
           </Modal>

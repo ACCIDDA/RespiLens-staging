@@ -9,6 +9,7 @@ import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
 import ForecastleGame from './components/forecastle/ForecastleGame';
 import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
+import Documentation from './components/Documentation'
 import { Center, Text } from '@mantine/core';
 
 const ForecastApp = () => {
@@ -38,6 +39,7 @@ const AppLayout = () => {
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />
         <Route path="/dashboard" element={<MyRespiLensDashboard />} />
+        <Route path="/documentation" element={<Documentation />} />
       </Routes>
     </UnifiedAppShell>
   );
