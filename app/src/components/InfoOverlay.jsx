@@ -1,4 +1,4 @@
-import { Modal, Button, Group, Text, List, Alert, Anchor, Image, Title, Stack, Badge } from '@mantine/core';
+import { Modal, Button, Group, Text, List, Alert, Anchor, Image, Title, Stack, Badge, ActionIcon } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconBrandGithub, IconAlertTriangle, IconWorld } from '@tabler/icons-react';
 
@@ -7,6 +7,7 @@ const InfoOverlay = () => {
 
   return (
     <>
+      {/* Desktop - Full button with text */}
       <Button
         variant="subtle"
         color="red"
@@ -14,9 +15,22 @@ const InfoOverlay = () => {
         leftSection={<IconInfoCircle size={20} />}
         onClick={open}
         radius="xl"
+        visibleFrom="sm"
       >
         Info
       </Button>
+
+      {/* Mobile - Icon only */}
+      <ActionIcon
+        variant="subtle"
+        color="red"
+        size="lg"
+        onClick={open}
+        aria-label="Info"
+        hiddenFrom="sm"
+      >
+        <IconInfoCircle size={20} />
+      </ActionIcon>
 
       <Modal
         opened={opened}

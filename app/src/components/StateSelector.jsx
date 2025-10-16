@@ -56,15 +56,15 @@ const StateSelector = () => {
 
   // This component will live inside the AppShell's Navbar, so we return the layout directly.
   return (
-    <Stack gap="md" h="100%">
-      <Stack gap="xs">
+    <Stack gap="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Stack gap="xs" style={{ flexShrink: 0 }}>
         <Text fw={500} size="sm" c="dimmed">View</Text>
         <ViewSelector />
       </Stack>
-      
+
       <Divider />
-      
-      <Stack gap="xs" flex={1} style={{ overflow: 'hidden' }}>
+
+      <Stack gap="xs" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Text fw={500} size="sm" c="dimmed">Location</Text>
         <TextInput
           placeholder="Search states..."
@@ -72,7 +72,7 @@ const StateSelector = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           leftSection={<IconSearch size={16} />}
         />
-        <ScrollArea flex={1}>
+        <ScrollArea style={{ flex: 1 }} type="auto">
           <Stack gap="xs">
             {filteredStates.map((state) => (
               <Button

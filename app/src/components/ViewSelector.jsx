@@ -35,8 +35,9 @@ const ViewSelector = () => {
   return (
     <Paper shadow="sm" radius="md" withBorder style={{ display: 'inline-block' }}>
       <Stack gap={0}>
-        {datasets.map(dataset => {
+        {datasets.map((dataset, index) => {
           const isActive = dataset.views.some(view => view.value === viewType);
+          const isLast = index === datasets.length - 1;
 
           return (
             <Menu
@@ -59,10 +60,7 @@ const ViewSelector = () => {
                   styles={{
                     root: {
                       height: 36,
-                      borderBottom: '1px solid var(--mantine-color-gray-3)',
-                      '&:last-of-type': {
-                        borderBottom: 'none'
-                      }
+                      borderBottom: isLast ? 'none' : '1px solid var(--mantine-color-gray-3)'
                     },
                     inner: {
                       width: '100%',
