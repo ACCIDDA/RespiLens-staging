@@ -20,10 +20,15 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconCheck } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
+import {
+  extractGroundTruthForHorizons,
+  scoreUserForecast,
+  scoreModels,
+} from '../../utils/forecastleScoring';
 import ForecastleChartCanvas from './ForecastleChartCanvas';
 import ForecastleInputControls from './ForecastleInputControls';
 
@@ -62,13 +67,16 @@ const ForecastleGame = () => {
   const [forecastEntries, setForecastEntries] = useState(initialInputs);
   const [submissionErrors, setSubmissionErrors] = useState({});
   const [submittedPayload, setSubmittedPayload] = useState(null);
-  const [inputMode, setInputMode] = useState('median'); // 'median' or 'intervals'
+  const [scores, setScores] = useState(null);
+  const [inputMode, setInputMode] = useState('median'); // 'median', 'intervals', or 'scoring'
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view for easier input
 
   useEffect(() => {
     setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
     setSubmissionErrors({});
     setSubmittedPayload(null);
+    setScores(null);
+    setInputMode('median');
   }, [scenario?.horizons, latestObservationValue]);
 
   const handleSubmit = () => {
@@ -86,6 +94,35 @@ const ForecastleGame = () => {
       interval95: [interval95.lower, interval95.upper],
     }));
     setSubmittedPayload({ submittedAt: new Date().toISOString(), payload });
+
+    // Calculate scores if ground truth is available
+    if (scenario?.fullGroundTruthSeries) {
+      const horizonDates = scenario.horizons.map((horizon) =>
+        addWeeksToDate(scenario.forecastDate, horizon)
+      );
+      const groundTruthValues = extractGroundTruthForHorizons(
+        scenario.fullGroundTruthSeries,
+        horizonDates
+      );
+
+      // Score user forecast
+      const userMedians = forecastEntries.map((entry) => entry.median);
+      const userScore = scoreUserForecast(userMedians, groundTruthValues);
+
+      // Score models
+      const modelScores = scoreModels(
+        scenario.modelForecasts || {},
+        scenario.horizons,
+        groundTruthValues
+      );
+
+      setScores({
+        user: userScore,
+        models: modelScores,
+        groundTruth: groundTruthValues,
+        horizonDates,
+      });
+    }
   };
 
   const renderContent = () => {
@@ -172,7 +209,9 @@ const ForecastleGame = () => {
             <Text size="sm">
               {inputMode === 'median'
                 ? 'Step 1: Set your median forecast for each horizon by dragging the handles or using the controls below.'
-                : 'Step 2: Adjust the uncertainty intervals (50% and 95% widths) for each forecast.'}
+                : inputMode === 'intervals'
+                ? 'Step 2: Adjust the uncertainty intervals (50% and 95% widths) for each forecast.'
+                : 'Step 3: View your RMSE score and compare with model forecasts.'}
             </Text>
 
             {latestObservation && (
@@ -186,8 +225,12 @@ const ForecastleGame = () => {
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="lg">
             <Stepper
-              active={inputMode === 'median' ? 0 : 1}
-              onStepClick={(step) => setInputMode(step === 0 ? 'median' : 'intervals')}
+              active={inputMode === 'median' ? 0 : inputMode === 'intervals' ? 1 : 2}
+              onStepClick={(step) => {
+                if (step === 0) setInputMode('median');
+                else if (step === 1) setInputMode('intervals');
+                else if (step === 2 && scores) setInputMode('scoring');
+              }}
               allowNextStepsSelect={false}
             >
               <Stepper.Step
@@ -200,132 +243,226 @@ const ForecastleGame = () => {
                 description="Uncertainty bands"
                 completedIcon={<IconCheck size={18} />}
               />
+              <Stepper.Step
+                label="View Scores"
+                description="RMSE comparison"
+                completedIcon={<IconTrophy size={18} />}
+              />
             </Stepper>
 
-            <Grid gutter="lg">
-              {/* Left Panel - Chart */}
-              <Grid.Col span={{ base: 12, lg: 7 }}>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <Title order={5}>Interactive Chart</Title>
-                    <Switch
-                      label="Show Full History"
-                      checked={!zoomedView}
-                      onChange={(event) => setZoomedView(!event.currentTarget.checked)}
-                      color="red"
-                      size="md"
-                    />
-                  </Group>
-                  <Box style={{ width: '100%', height: 380 }}>
-                    <ForecastleChartCanvas
-                      groundTruthSeries={scenario.groundTruthSeries}
-                      horizonDates={horizonDates}
-                      entries={forecastEntries}
-                      maxValue={yAxisMax}
-                      onAdjust={handleMedianAdjust}
-                      height={380}
-                      showIntervals={inputMode === 'intervals'}
-                      zoomedView={zoomedView}
-                    />
-                  </Box>
-                  <Text size="sm" c="dimmed">
-                    {inputMode === 'median'
-                      ? 'Drag the yellow handles to set your median forecast for each week ahead.'
-                      : 'The filled areas show your 95% (outer) and 50% (inner) prediction intervals.'}
-                  </Text>
-                </Stack>
-              </Grid.Col>
+            {inputMode === 'scoring' && scores ? (
+              <Stack gap="lg">
+                {scores.user.rmse !== null ? (
+                  <>
+                    {/* Hub Ensemble Comparison */}
+                    {(() => {
+                      const hubEnsemble = scores.models.find(m =>
+                        m.modelName.toLowerCase().includes('hub') ||
+                        m.modelName.toLowerCase().includes('ensemble')
+                      );
+                      const userBetterThanHub = hubEnsemble && scores.user.rmse < hubEnsemble.rmse;
 
-              {/* Right Panel - Controls */}
-              <Grid.Col span={{ base: 12, lg: 5 }}>
-                <Stack gap="md" h="100%">
-                  <Title order={5}>
-                    {inputMode === 'median' ? 'Median Forecasts' : 'Uncertainty Intervals'}
-                  </Title>
-                  <ForecastleInputControls
-                    entries={forecastEntries}
-                    onChange={setForecastEntries}
-                    maxValue={yAxisMax}
-                    mode={inputMode}
-                  />
-                  <Box mt="auto">
-                    {inputMode === 'median' ? (
-                      <Button
-                        onClick={() => setInputMode('intervals')}
-                        size="md"
-                        fullWidth
-                        rightSection="→"
-                      >
-                        Next: Set Uncertainty Intervals
-                      </Button>
-                    ) : (
-                      <Group>
-                        <Button
-                          onClick={() => setInputMode('median')}
-                          variant="default"
-                          leftSection="←"
-                        >
-                          Back
-                        </Button>
-                      </Group>
+                      return hubEnsemble ? (
+                        <Paper p="md" withBorder style={{ backgroundColor: userBetterThanHub ? '#d4f4dd' : '#fff3cd' }}>
+                          <Stack gap="xs">
+                            <Group justify="space-between" align="center">
+                              <div>
+                                <Text size="lg" fw={700}>
+                                  Your RMSE: {scores.user.rmse.toFixed(2)}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                  Hub Ensemble: {hubEnsemble.rmse.toFixed(2)}
+                                </Text>
+                              </div>
+                              <Badge
+                                size="lg"
+                                color={userBetterThanHub ? 'green' : 'yellow'}
+                                variant="filled"
+                              >
+                                {userBetterThanHub
+                                  ? `${((1 - scores.user.rmse / hubEnsemble.rmse) * 100).toFixed(1)}% better`
+                                  : `${((hubEnsemble.rmse / scores.user.rmse - 1) * 100).toFixed(1)}% worse`}
+                              </Badge>
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
+                            </Text>
+                          </Stack>
+                        </Paper>
+                      ) : (
+                        <Paper p="md" withBorder style={{ backgroundColor: '#f0f9ff' }}>
+                          <Stack gap="xs">
+                            <Text size="lg" fw={700}>
+                              Your RMSE: {scores.user.rmse.toFixed(2)}
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                              Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
+                            </Text>
+                          </Stack>
+                        </Paper>
+                      );
+                    })()}
+
+                    {/* Full Model Ranking */}
+                    {scores.models.length > 0 && (
+                      <>
+                        <Divider />
+                        <Title order={4}>Full Model Ranking</Title>
+                        <Text size="sm" c="dimmed">
+                          Your forecast compared to {scores.models.length} models that submitted forecasts for this date
+                        </Text>
+                        <Stack gap="xs">
+                          {scores.models.slice(0, 10).map((model, idx) => {
+                            const isUserBetter = scores.user.rmse < model.rmse;
+                            const isHubModel = model.modelName.toLowerCase().includes('hub') ||
+                                             model.modelName.toLowerCase().includes('ensemble');
+                            return (
+                              <Paper
+                                key={model.modelName}
+                                p="sm"
+                                withBorder
+                                style={{
+                                  backgroundColor: isHubModel ? '#f0f9ff' : undefined,
+                                  borderColor: isHubModel ? '#1e90ff' : undefined,
+                                  borderWidth: isHubModel ? 2 : 1
+                                }}
+                              >
+                                <Group justify="space-between">
+                                  <Group gap="xs">
+                                    <Text size="sm" fw={500}>
+                                      #{idx + 1}
+                                    </Text>
+                                    <Text size="sm" fw={isHubModel ? 600 : 400}>
+                                      {model.modelName}
+                                      {isHubModel && ' 🏆'}
+                                    </Text>
+                                  </Group>
+                                  <Badge color={isUserBetter ? 'red' : 'green'} variant="light">
+                                    RMSE: {model.rmse.toFixed(2)}
+                                  </Badge>
+                                </Group>
+                              </Paper>
+                            );
+                          })}
+                        </Stack>
+                        {scores.models.length > 10 && (
+                          <Text size="sm" c="dimmed" ta="center">
+                            Showing top 10 of {scores.models.length} models
+                          </Text>
+                        )}
+                      </>
                     )}
-                  </Box>
-                </Stack>
-              </Grid.Col>
-            </Grid>
+                  </>
+                ) : (
+                  <Alert color="yellow">
+                    Ground truth data is not yet available for these forecast horizons.
+                  </Alert>
+                )}
 
-            <Divider my="xs" />
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>Current Forecast Summary:</Text>
-              {forecastEntries.map((entry) => {
-                const interval50Lower = Math.max(0, entry.median - entry.width50);
-                const interval50Upper = entry.median + entry.width50;
-                const interval95Lower = Math.max(0, entry.median - entry.width95);
-                const interval95Upper = entry.median + entry.width95;
-                return (
-                  <Text key={entry.horizon} size="sm" c="dimmed">
-                    {`${entry.horizon}w ahead → Median: ${Math.round(entry.median)} · 50% [${Math.round(interval50Lower)}, ${Math.round(interval50Upper)}] · 95% [${Math.round(interval95Lower)}, ${Math.round(interval95Upper)}]`}
-                  </Text>
-                );
-              })}
-            </Stack>
-            {Object.keys(submissionErrors).length > 0 && (
-              <Alert color="red" variant="light" title="Please adjust your intervals">
-                <Stack gap={4}>
-                  {Object.entries(submissionErrors).map(([horizon, messages]) => (
-                    <Text key={horizon} size="sm">
-                      {`Horizon ${horizon}: ${messages.join(', ')}`}
+                <Group justify="space-between">
+                  <Button
+                    onClick={() => setInputMode('intervals')}
+                    variant="default"
+                    leftSection="←"
+                  >
+                    Back to Intervals
+                  </Button>
+                </Group>
+              </Stack>
+            ) : (
+              <Grid gutter="lg">
+                {/* Left Panel - Chart */}
+                <Grid.Col span={{ base: 12, lg: 7 }}>
+                  <Stack gap="md">
+                    <Group justify="space-between">
+                      <Title order={5}>Interactive Chart</Title>
+                      <Switch
+                        label="Show Full History"
+                        checked={!zoomedView}
+                        onChange={(event) => setZoomedView(!event.currentTarget.checked)}
+                        color="red"
+                        size="md"
+                      />
+                    </Group>
+                    <Box style={{ width: '100%', height: 380 }}>
+                      <ForecastleChartCanvas
+                        groundTruthSeries={scenario.groundTruthSeries}
+                        horizonDates={horizonDates}
+                        entries={forecastEntries}
+                        maxValue={yAxisMax}
+                        onAdjust={handleMedianAdjust}
+                        height={380}
+                        showIntervals={inputMode === 'intervals'}
+                        zoomedView={zoomedView}
+                      />
+                    </Box>
+                    <Text size="sm" c="dimmed">
+                      {inputMode === 'median'
+                        ? 'Drag the yellow handles to set your median forecast for each week ahead.'
+                        : 'The filled areas show your 95% (outer) and 50% (inner) prediction intervals.'}
                     </Text>
-                  ))}
-                </Stack>
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
+                  </Stack>
+                </Grid.Col>
 
-        <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Title order={4}>Submit your forecast</Title>
-            <Text size="sm">
-              When you’re happy with the intervals, submit to store today’s guess locally. Weighted Interval Score (WIS) feedback is coming soon.
-            </Text>
-            <Group justify="flex-end">
-              <Button onClick={handleSubmit}>Submit forecast</Button>
-            </Group>
-            {submittedPayload && (
-              <Alert title="Submission recorded" color="green" variant="light">
-                <Text size="sm">
-                  We stored your intervals locally. WIS scoring against ensemble models is coming soon.
-                </Text>
-                <Text size="xs" c="dimmed" mt="xs">
-                  Payload: {JSON.stringify(submittedPayload.payload)}
-                </Text>
-              </Alert>
+                {/* Right Panel - Controls */}
+                <Grid.Col span={{ base: 12, lg: 5 }}>
+                  <Stack gap="md" h="100%">
+                    <Title order={5}>
+                      {inputMode === 'median' ? 'Median Forecasts' : 'Uncertainty Intervals'}
+                    </Title>
+                    <ForecastleInputControls
+                      entries={forecastEntries}
+                      onChange={setForecastEntries}
+                      maxValue={yAxisMax}
+                      mode={inputMode}
+                    />
+                    <Box mt="auto">
+                      {inputMode === 'median' ? (
+                        <Button
+                          onClick={() => setInputMode('intervals')}
+                          size="md"
+                          fullWidth
+                          rightSection="→"
+                        >
+                          Next: Set Uncertainty Intervals
+                        </Button>
+                      ) : (
+                        <Stack gap="sm">
+                          <Button
+                            onClick={() => {
+                              handleSubmit();
+                              if (scenario?.fullGroundTruthSeries) {
+                                setTimeout(() => setInputMode('scoring'), 100);
+                              }
+                            }}
+                            size="md"
+                            fullWidth
+                            disabled={inputMode === 'scoring'}
+                          >
+                            {submittedPayload ? 'Resubmit & View Scores' : 'Submit & View Scores'}
+                          </Button>
+                          <Button
+                            onClick={() => setInputMode('median')}
+                            variant="default"
+                            size="sm"
+                            fullWidth
+                            leftSection="←"
+                          >
+                            Back to Median
+                          </Button>
+                          {Object.keys(submissionErrors).length > 0 && (
+                            <Alert color="red" variant="light" title="Invalid intervals" p="xs">
+                              <Text size="xs">Please adjust your intervals to continue.</Text>
+                            </Alert>
+                          )}
+                        </Stack>
+                      )}
+                    </Box>
+                  </Stack>
+                </Grid.Col>
+              </Grid>
             )}
-            <Divider my="xs" />
-            <Text size="xs" c="dimmed">
-              Challenge seed: {scenario.challengeDate} · Dataset file: {scenario.dataFilePath}
-            </Text>
+
           </Stack>
         </Paper>
       </Stack>

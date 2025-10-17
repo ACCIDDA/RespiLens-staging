@@ -91,6 +91,20 @@ const extractPositiveHorizons = (forecastsForDate, targetKey) => {
   return horizons;
 };
 
+const addWeeksToDate = (dateString, weeks) => {
+  const base = new Date(`${dateString}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) {
+    return null;
+  }
+  base.setUTCDate(base.getUTCDate() + weeks * 7);
+  return base.toISOString().slice(0, 10);
+};
+
+const countModelsForTarget = (targetForecasts) => {
+  if (!targetForecasts) return 0;
+  return Object.keys(targetForecasts).length;
+};
+
 // Deterministically select a scenario for the daily challenge.
 // We only consider forecast dates/locations that contain the required
 // target and horizons so the user always receives a fully-specified task.
@@ -122,13 +136,45 @@ const ensureValidScenario = async (rng, datasetMeta) => {
       continue;
     }
 
-    const validForecasts = forecastsEntries.filter(([, targets]) => {
+    // Prepare ground truth lookup
+    const groundTruthDates = locationData.ground_truth?.dates || [];
+    const groundTruthValues = locationData.ground_truth?.[datasetMeta.definition.targetKey] || [];
+    const groundTruthMap = new Map();
+    groundTruthDates.forEach((date, index) => {
+      const value = groundTruthValues[index];
+      if (Number.isFinite(value)) {
+        groundTruthMap.set(date, value);
+      }
+    });
+
+    const validForecasts = forecastsEntries.filter(([forecastDate, targets]) => {
+      const targetForecasts = targets?.[datasetMeta.definition.targetKey];
+
+      // Check if there are at least 5 models
+      const modelCount = countModelsForTarget(targetForecasts);
+      if (modelCount < 5) {
+        return false;
+      }
+
       const horizonSet = extractPositiveHorizons(targets, datasetMeta.definition.targetKey);
       if (horizonSet.size === 0) {
         return false;
       }
       const requiredHorizons = datasetMeta.requiredHorizons;
-      return requiredHorizons.every((horizon) => horizonSet.has(horizon));
+
+      // Check if all required horizons are present
+      if (!requiredHorizons.every((horizon) => horizonSet.has(horizon))) {
+        return false;
+      }
+
+      // Check if ground truth is available for all required horizons
+      const allHorizonsHaveGroundTruth = requiredHorizons.every((horizon) => {
+        const horizonDate = addWeeksToDate(forecastDate, horizon);
+        if (!horizonDate) return false;
+        return groundTruthMap.has(horizonDate);
+      });
+
+      return allHorizonsHaveGroundTruth;
     });
 
     if (validForecasts.length === 0) {
@@ -143,14 +189,17 @@ const ensureValidScenario = async (rng, datasetMeta) => {
     const horizonSet = extractPositiveHorizons(forecastTargets, datasetMeta.definition.targetKey);
     const availableHorizons = Array.from(horizonSet.values()).sort((a, b) => a - b);
 
-    const groundTruthDates = locationData.ground_truth?.dates || [];
-    const groundTruthValues = locationData.ground_truth?.[datasetMeta.definition.targetKey] || [];
+    // Reuse groundTruthDates and groundTruthValues from earlier in the function
     const groundTruthSeries = groundTruthDates.map((date, index) => ({
       date,
       value: groundTruthValues[index] ?? null,
     }));
 
     const filteredSeries = groundTruthSeries.filter((entry) => entry.value !== null);
+
+    // Keep the full series for scoring (including future ground truth)
+    const fullGroundTruthSeries = filteredSeries;
+
     // Only surface observations at or before the forecast date so the player
     // never sees future ground truth when making their guess.
     const forecastTimestamp = new Date(forecastDate).getTime();
@@ -192,7 +241,8 @@ const ensureValidScenario = async (rng, datasetMeta) => {
       forecastDate,
       availableHorizons,
       groundTruthSeries: recentSeries,
-      fullGroundTruthSeries: historicalSeries,
+      fullGroundTruthSeries: fullGroundTruthSeries,
+      modelForecasts: forecastTargets?.[datasetMeta.definition.targetKey] || {},
       dataFilePath: filePath,
     };
   }
@@ -255,6 +305,8 @@ export const useForecastleScenario = () => {
               forecastDate: candidate.forecastDate,
               horizons: candidate.availableHorizons,
               groundTruthSeries: candidate.groundTruthSeries,
+              fullGroundTruthSeries: candidate.fullGroundTruthSeries,
+              modelForecasts: candidate.modelForecasts,
               dataFilePath: candidate.dataFilePath,
             };
             break;
