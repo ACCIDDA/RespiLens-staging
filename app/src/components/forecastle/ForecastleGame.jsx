@@ -19,8 +19,10 @@ import {
   Text,
   ThemeIcon,
   Title,
+  ActionIcon,
+  Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
@@ -71,6 +73,7 @@ const ForecastleGame = () => {
   const [inputMode, setInputMode] = useState('median'); // 'median', 'intervals', or 'scoring'
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view for easier input
   const [visibleRankings, setVisibleRankings] = useState(0); // For animated reveal
+  const [copied, setCopied] = useState(false); // For copy button feedback
 
   useEffect(() => {
     setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
@@ -259,129 +262,275 @@ const ForecastleGame = () => {
               <Stack gap="lg">
                 {scores.user.rmse !== null ? (
                   <>
-                    <Group justify="space-between" align="center">
-                      <div>
-                        <Title order={4}>Results Comparison</Title>
-                        <Text size="sm" c="dimmed">
-                          Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
-                        </Text>
-                      </div>
-                      <Switch
-                        label="Show Full History"
-                        checked={!zoomedView}
-                        onChange={(event) => setZoomedView(!event.currentTarget.checked)}
-                        color="red"
-                        size="md"
-                      />
-                    </Group>
+                    <Text size="sm" c="dimmed">
+                      Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
+                    </Text>
 
-                    {/* Visualization Chart */}
-                    <Box style={{ width: '100%', height: 400 }}>
-                      <ForecastleChartCanvas
-                        groundTruthSeries={scenario.groundTruthSeries}
-                        horizonDates={horizonDates}
-                        entries={forecastEntries}
-                        maxValue={yAxisMax}
-                        onAdjust={() => {}} // Read-only
-                        height={400}
-                        showIntervals={false}
-                        zoomedView={zoomedView}
-                        scores={scores}
-                        showScoring={true}
-                        fullGroundTruthSeries={scenario.fullGroundTruthSeries}
-                      />
-                    </Box>
+                    <Grid gutter="lg">
+                      {/* Left Panel - Leaderboard */}
+                      <Grid.Col span={{ base: 12, lg: 5 }}>
+                        <Stack gap="md">
+                          <Title order={4}>Leaderboard</Title>
 
-                    <Divider />
+                          <Stack gap="xs">
+                            {(() => {
+                              // Create unified leaderboard with user and models
+                              const allEntries = [
+                                {
+                                  name: 'You',
+                                  rmse: scores.user.rmse,
+                                  isUser: true,
+                                },
+                                ...scores.models.map(m => ({
+                                  name: m.modelName,
+                                  rmse: m.rmse,
+                                  isUser: false,
+                                  isHub: m.modelName.toLowerCase().includes('hub') ||
+                                         m.modelName.toLowerCase().includes('ensemble'),
+                                }))
+                              ].sort((a, b) => a.rmse - b.rmse);
 
-                    <Title order={4}>Leaderboard</Title>
-
-                    <Stack gap="xs">
-                      {(() => {
-                        // Create unified leaderboard with user and models
-                        const allEntries = [
-                          {
-                            name: 'You',
-                            rmse: scores.user.rmse,
-                            isUser: true,
-                          },
-                          ...scores.models.map(m => ({
-                            name: m.modelName,
-                            rmse: m.rmse,
-                            isUser: false,
-                            isHub: m.modelName.toLowerCase().includes('hub') ||
-                                   m.modelName.toLowerCase().includes('ensemble'),
-                          }))
-                        ].sort((a, b) => a.rmse - b.rmse);
-
-                        const userRank = allEntries.findIndex(e => e.isUser) + 1;
-                        const totalEntries = allEntries.length;
-
-                        return (
-                          <>
-                            {allEntries.slice(0, 15).map((entry, idx) => {
-                              if (idx >= visibleRankings) return null;
+                              const userRank = allEntries.findIndex(e => e.isUser) + 1;
+                              const totalEntries = allEntries.length;
 
                               return (
-                                <Paper
-                                  key={entry.name}
-                                  p="md"
-                                  withBorder
-                                  style={{
-                                    backgroundColor: entry.isUser
-                                      ? '#d4f4dd'
-                                      : entry.isHub
-                                      ? '#f0f9ff'
-                                      : undefined,
-                                    borderColor: entry.isUser
-                                      ? '#2e7d32'
-                                      : entry.isHub
-                                      ? '#1e90ff'
-                                      : undefined,
-                                    borderWidth: entry.isUser || entry.isHub ? 2 : 1,
-                                    transform: `translateY(${visibleRankings > idx ? 0 : 20}px)`,
-                                    opacity: visibleRankings > idx ? 1 : 0,
-                                    transition: 'all 0.3s ease-out',
-                                  }}
-                                >
-                                  <Group justify="space-between" align="center">
-                                    <Group gap="md">
-                                      <Text size="xl" fw={700} c={idx === 0 ? 'yellow.7' : idx === 1 ? 'gray.5' : idx === 2 ? 'orange.7' : undefined}>
-                                        #{idx + 1}
-                                      </Text>
-                                      <div>
-                                        <Text size="sm" fw={entry.isUser || entry.isHub ? 700 : 500}>
-                                          {entry.name}
-                                          {entry.isUser && ' 👤'}
-                                          {entry.isHub && ' 🏆'}
-                                        </Text>
-                                        {entry.isUser && (
-                                          <Text size="xs" c="dimmed">
-                                            Rank {userRank} of {totalEntries}
-                                          </Text>
-                                        )}
-                                      </div>
-                                    </Group>
-                                    <Badge
-                                      size="lg"
-                                      color={entry.isUser ? 'green' : entry.isHub ? 'blue' : 'gray'}
-                                      variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
-                                    >
-                                      RMSE: {entry.rmse.toFixed(2)}
-                                    </Badge>
-                                  </Group>
-                                </Paper>
+                                <>
+                                  {allEntries.slice(0, 15).map((entry, idx) => {
+                                    if (idx >= visibleRankings) return null;
+
+                                    return (
+                                      <Paper
+                                        key={entry.name}
+                                        p="md"
+                                        withBorder
+                                        style={{
+                                          backgroundColor: entry.isUser
+                                            ? '#d4f4dd'
+                                            : entry.isHub
+                                            ? '#f0f9ff'
+                                            : undefined,
+                                          borderColor: entry.isUser
+                                            ? '#2e7d32'
+                                            : entry.isHub
+                                            ? '#1e90ff'
+                                            : undefined,
+                                          borderWidth: entry.isUser || entry.isHub ? 2 : 1,
+                                          transform: `translateY(${visibleRankings > idx ? 0 : 20}px)`,
+                                          opacity: visibleRankings > idx ? 1 : 0,
+                                          transition: 'all 0.3s ease-out',
+                                        }}
+                                      >
+                                        <Group justify="space-between" align="center">
+                                          <Group gap="md">
+                                            <Text size="xl" fw={700} c={idx === 0 ? 'yellow.7' : idx === 1 ? 'gray.5' : idx === 2 ? 'orange.7' : undefined}>
+                                              #{idx + 1}
+                                            </Text>
+                                            <div>
+                                              <Text size="sm" fw={entry.isUser || entry.isHub ? 700 : 500}>
+                                                {entry.name}
+                                                {entry.isUser && ' 👤'}
+                                                {entry.isHub && ' 🏆'}
+                                              </Text>
+                                              {entry.isUser && (
+                                                <Text size="xs" c="dimmed">
+                                                  Rank {userRank} of {totalEntries}
+                                                </Text>
+                                              )}
+                                            </div>
+                                          </Group>
+                                          <Badge
+                                            size="lg"
+                                            color={entry.isUser ? 'green' : entry.isHub ? 'blue' : 'gray'}
+                                            variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
+                                          >
+                                            RMSE: {entry.rmse.toFixed(2)}
+                                          </Badge>
+                                        </Group>
+                                      </Paper>
+                                    );
+                                  })}
+                                  {allEntries.length > 15 && (
+                                    <Text size="sm" c="dimmed" ta="center">
+                                      Showing top 15 of {allEntries.length} entries
+                                    </Text>
+                                  )}
+                                </>
                               );
-                            })}
-                            {allEntries.length > 15 && (
-                              <Text size="sm" c="dimmed" ta="center">
-                                Showing top 15 of {allEntries.length} entries
-                              </Text>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </Stack>
+                            })()}
+                          </Stack>
+                        </Stack>
+                      </Grid.Col>
+
+                      {/* Right Panel - Visualization Chart */}
+                      <Grid.Col span={{ base: 12, lg: 7 }}>
+                        <Stack gap="md">
+                          <Group justify="space-between">
+                            <Title order={4}>Results Comparison</Title>
+                            <Switch
+                              label="Show Full History"
+                              checked={!zoomedView}
+                              onChange={(event) => setZoomedView(!event.currentTarget.checked)}
+                              color="red"
+                              size="md"
+                            />
+                          </Group>
+
+                          {/* Shareable Ranking Summary Card */}
+                          {(() => {
+                            const allEntries = [
+                              { name: 'You', rmse: scores.user.rmse, isUser: true },
+                              ...scores.models.map(m => ({
+                                name: m.modelName,
+                                rmse: m.rmse,
+                                isUser: false,
+                                isHub: m.modelName.toLowerCase().includes('hub') ||
+                                       m.modelName.toLowerCase().includes('ensemble'),
+                              }))
+                            ].sort((a, b) => a.rmse - b.rmse);
+
+                            const userRank = allEntries.findIndex(e => e.isUser) + 1;
+                            const totalModels = scores.models.length;
+                            const hubEntry = allEntries.find(e => e.isHub);
+                            const hubRank = hubEntry ? allEntries.findIndex(e => e.isHub) + 1 : null;
+
+                            let comparisonText = '';
+                            let emojiIndicator = '';
+                            if (hubRank !== null) {
+                              const spotsDiff = Math.abs(userRank - hubRank);
+                              if (userRank < hubRank) {
+                                comparisonText = `${spotsDiff} spot${spotsDiff !== 1 ? 's' : ''} above the ensemble`;
+                                emojiIndicator = '🟢';
+                              } else if (userRank > hubRank) {
+                                comparisonText = `${spotsDiff} spot${spotsDiff !== 1 ? 's' : ''} below the ensemble`;
+                                emojiIndicator = '🔴';
+                              } else {
+                                comparisonText = 'tied with the ensemble';
+                                emojiIndicator = '🟡';
+                              }
+                            }
+
+                            // Generate wordle-style emoji summary
+                            const generateEmojiSummary = () => {
+                              const topN = 15;
+                              const displayEntries = allEntries.slice(0, topN);
+                              const emojis = displayEntries.map(entry => {
+                                if (entry.isUser) return '🟩'; // User in green
+                                if (entry.isHub) return '🟦'; // Hub in blue
+                                return '⬜'; // Other models in gray
+                              });
+
+                              // Simplify dataset label for copy
+                              let datasetLabel = scenario.dataset.label;
+                              if (datasetLabel.includes('(') && datasetLabel.includes(')')) {
+                                // Extract text within parentheses
+                                const match = datasetLabel.match(/\(([^)]+)\)/);
+                                if (match) {
+                                  datasetLabel = match[1];
+                                }
+                              }
+
+                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • RMSE: ${scores.user.rmse.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
+                            };
+
+                            const handleCopy = async () => {
+                              const textToCopy = generateEmojiSummary();
+                              try {
+                                await navigator.clipboard.writeText(textToCopy);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              } catch (err) {
+                                console.error('Failed to copy:', err);
+                              }
+                            };
+
+                            return (
+                              <Paper
+                                p="md"
+                                withBorder
+                                shadow="md"
+                                style={{
+                                  background: 'linear-gradient(135deg, #f9d77e 0%, #f5c842 25%, #e6b800 50%, #f5c842 75%, #f9d77e 100%)',
+                                  borderWidth: 2,
+                                  borderColor: '#d4af37',
+                                  position: 'relative',
+                                  boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+                                  backdropFilter: 'blur(10px)',
+                                }}
+                              >
+                                <Stack gap="xs">
+                                  <Group justify="space-between" align="flex-start">
+                                    <div style={{ flex: 1 }}>
+                                      <Text
+                                        size="lg"
+                                        fw={700}
+                                        ta="center"
+                                        style={{
+                                          color: '#1a1a1a',
+                                          textShadow: '0 1px 2px rgba(255, 255, 255, 0.8), 0 -1px 1px rgba(0, 0, 0, 0.3)',
+                                        }}
+                                      >
+                                        {emojiIndicator} You ranked #{userRank} across {totalModels} models
+                                      </Text>
+                                    </div>
+                                    <Tooltip label={copied ? "Copied!" : "Copy results"} position="left">
+                                      <ActionIcon
+                                        variant="filled"
+                                        color={copied ? "teal" : "yellow"}
+                                        size="lg"
+                                        onClick={handleCopy}
+                                        style={{ flexShrink: 0 }}
+                                      >
+                                        {copied ? <IconCheckCircle size={18} /> : <IconCopy size={18} />}
+                                      </ActionIcon>
+                                    </Tooltip>
+                                  </Group>
+                                  {comparisonText && (
+                                    <Text
+                                      size="md"
+                                      fw={600}
+                                      ta="center"
+                                      style={{
+                                        color: '#2d2d2d',
+                                        textShadow: '0 1px 2px rgba(255, 255, 255, 0.7), 0 -1px 1px rgba(0, 0, 0, 0.2)',
+                                      }}
+                                    >
+                                      {comparisonText}
+                                    </Text>
+                                  )}
+                                  <Text
+                                    size="xs"
+                                    fw={600}
+                                    ta="center"
+                                    style={{
+                                      color: '#3d3d3d',
+                                      textShadow: '0 1px 1px rgba(255, 255, 255, 0.6)',
+                                    }}
+                                  >
+                                    RMSE: {scores.user.rmse.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
+                                  </Text>
+                                </Stack>
+                              </Paper>
+                            );
+                          })()}
+
+                          <Box style={{ width: '100%', height: 500 }}>
+                            <ForecastleChartCanvas
+                              groundTruthSeries={scenario.groundTruthSeries}
+                              horizonDates={horizonDates}
+                              entries={forecastEntries}
+                              maxValue={yAxisMax}
+                              onAdjust={() => {}} // Read-only
+                              height={500}
+                              showIntervals={false}
+                              zoomedView={zoomedView}
+                              scores={scores}
+                              showScoring={true}
+                              fullGroundTruthSeries={scenario.fullGroundTruthSeries}
+                            />
+                          </Box>
+                        </Stack>
+                      </Grid.Col>
+                    </Grid>
                   </>
                 ) : (
                   <Alert color="yellow">
