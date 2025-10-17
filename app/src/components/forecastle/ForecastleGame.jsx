@@ -70,6 +70,7 @@ const ForecastleGame = () => {
   const [scores, setScores] = useState(null);
   const [inputMode, setInputMode] = useState('median'); // 'median', 'intervals', or 'scoring'
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view for easier input
+  const [visibleRankings, setVisibleRankings] = useState(0); // For animated reveal
 
   useEffect(() => {
     setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
@@ -77,7 +78,26 @@ const ForecastleGame = () => {
     setSubmittedPayload(null);
     setScores(null);
     setInputMode('median');
+    setVisibleRankings(0);
   }, [scenario?.horizons, latestObservationValue]);
+
+  // Animated reveal of leaderboard when entering scoring mode
+  useEffect(() => {
+    if (inputMode === 'scoring' && scores) {
+      setVisibleRankings(0);
+      const totalEntries = scores.models.length + 1; // models + user
+      const interval = setInterval(() => {
+        setVisibleRankings(prev => {
+          if (prev >= totalEntries) {
+            clearInterval(interval);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 150); // Reveal one every 150ms
+      return () => clearInterval(interval);
+    }
+  }, [inputMode, scores]);
 
   const handleSubmit = () => {
     // Convert to intervals for validation
@@ -254,104 +274,97 @@ const ForecastleGame = () => {
               <Stack gap="lg">
                 {scores.user.rmse !== null ? (
                   <>
-                    {/* Hub Ensemble Comparison */}
-                    {(() => {
-                      const hubEnsemble = scores.models.find(m =>
-                        m.modelName.toLowerCase().includes('hub') ||
-                        m.modelName.toLowerCase().includes('ensemble')
-                      );
-                      const userBetterThanHub = hubEnsemble && scores.user.rmse < hubEnsemble.rmse;
+                    <Title order={4}>Leaderboard</Title>
+                    <Text size="sm" c="dimmed">
+                      Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
+                    </Text>
 
-                      return hubEnsemble ? (
-                        <Paper p="md" withBorder style={{ backgroundColor: userBetterThanHub ? '#d4f4dd' : '#fff3cd' }}>
-                          <Stack gap="xs">
-                            <Group justify="space-between" align="center">
-                              <div>
-                                <Text size="lg" fw={700}>
-                                  Your RMSE: {scores.user.rmse.toFixed(2)}
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                  Hub Ensemble: {hubEnsemble.rmse.toFixed(2)}
-                                </Text>
-                              </div>
-                              <Badge
-                                size="lg"
-                                color={userBetterThanHub ? 'green' : 'yellow'}
-                                variant="filled"
-                              >
-                                {userBetterThanHub
-                                  ? `${((1 - scores.user.rmse / hubEnsemble.rmse) * 100).toFixed(1)}% better`
-                                  : `${((hubEnsemble.rmse / scores.user.rmse - 1) * 100).toFixed(1)}% worse`}
-                              </Badge>
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                              Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
-                            </Text>
-                          </Stack>
-                        </Paper>
-                      ) : (
-                        <Paper p="md" withBorder style={{ backgroundColor: '#f0f9ff' }}>
-                          <Stack gap="xs">
-                            <Text size="lg" fw={700}>
-                              Your RMSE: {scores.user.rmse.toFixed(2)}
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                              Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
-                            </Text>
-                          </Stack>
-                        </Paper>
-                      );
-                    })()}
+                    <Stack gap="xs">
+                      {(() => {
+                        // Create unified leaderboard with user and models
+                        const allEntries = [
+                          {
+                            name: 'You',
+                            rmse: scores.user.rmse,
+                            isUser: true,
+                          },
+                          ...scores.models.map(m => ({
+                            name: m.modelName,
+                            rmse: m.rmse,
+                            isUser: false,
+                            isHub: m.modelName.toLowerCase().includes('hub') ||
+                                   m.modelName.toLowerCase().includes('ensemble'),
+                          }))
+                        ].sort((a, b) => a.rmse - b.rmse);
 
-                    {/* Full Model Ranking */}
-                    {scores.models.length > 0 && (
-                      <>
-                        <Divider />
-                        <Title order={4}>Full Model Ranking</Title>
-                        <Text size="sm" c="dimmed">
-                          Your forecast compared to {scores.models.length} models that submitted forecasts for this date
-                        </Text>
-                        <Stack gap="xs">
-                          {scores.models.slice(0, 10).map((model, idx) => {
-                            const isUserBetter = scores.user.rmse < model.rmse;
-                            const isHubModel = model.modelName.toLowerCase().includes('hub') ||
-                                             model.modelName.toLowerCase().includes('ensemble');
-                            return (
-                              <Paper
-                                key={model.modelName}
-                                p="sm"
-                                withBorder
-                                style={{
-                                  backgroundColor: isHubModel ? '#f0f9ff' : undefined,
-                                  borderColor: isHubModel ? '#1e90ff' : undefined,
-                                  borderWidth: isHubModel ? 2 : 1
-                                }}
-                              >
-                                <Group justify="space-between">
-                                  <Group gap="xs">
-                                    <Text size="sm" fw={500}>
-                                      #{idx + 1}
-                                    </Text>
-                                    <Text size="sm" fw={isHubModel ? 600 : 400}>
-                                      {model.modelName}
-                                      {isHubModel && ' 🏆'}
-                                    </Text>
+                        const userRank = allEntries.findIndex(e => e.isUser) + 1;
+                        const totalEntries = allEntries.length;
+
+                        return (
+                          <>
+                            {allEntries.slice(0, 15).map((entry, idx) => {
+                              if (idx >= visibleRankings) return null;
+
+                              return (
+                                <Paper
+                                  key={entry.name}
+                                  p="md"
+                                  withBorder
+                                  style={{
+                                    backgroundColor: entry.isUser
+                                      ? '#d4f4dd'
+                                      : entry.isHub
+                                      ? '#f0f9ff'
+                                      : undefined,
+                                    borderColor: entry.isUser
+                                      ? '#2e7d32'
+                                      : entry.isHub
+                                      ? '#1e90ff'
+                                      : undefined,
+                                    borderWidth: entry.isUser || entry.isHub ? 2 : 1,
+                                    transform: `translateY(${visibleRankings > idx ? 0 : 20}px)`,
+                                    opacity: visibleRankings > idx ? 1 : 0,
+                                    transition: 'all 0.3s ease-out',
+                                  }}
+                                >
+                                  <Group justify="space-between" align="center">
+                                    <Group gap="md">
+                                      <Text size="xl" fw={700} c={idx === 0 ? 'yellow.7' : idx === 1 ? 'gray.5' : idx === 2 ? 'orange.7' : undefined}>
+                                        #{idx + 1}
+                                      </Text>
+                                      <div>
+                                        <Text size="sm" fw={entry.isUser || entry.isHub ? 700 : 500}>
+                                          {entry.name}
+                                          {entry.isUser && ' 👤'}
+                                          {entry.isHub && ' 🏆'}
+                                        </Text>
+                                        {entry.isUser && (
+                                          <Text size="xs" c="dimmed">
+                                            Rank {userRank} of {totalEntries}
+                                          </Text>
+                                        )}
+                                      </div>
+                                    </Group>
+                                    <Badge
+                                      size="lg"
+                                      color={entry.isUser ? 'green' : entry.isHub ? 'blue' : 'gray'}
+                                      variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
+                                    >
+                                      RMSE: {entry.rmse.toFixed(2)}
+                                    </Badge>
                                   </Group>
-                                  <Badge color={isUserBetter ? 'red' : 'green'} variant="light">
-                                    RMSE: {model.rmse.toFixed(2)}
-                                  </Badge>
-                                </Group>
-                              </Paper>
-                            );
-                          })}
-                        </Stack>
-                        {scores.models.length > 10 && (
-                          <Text size="sm" c="dimmed" ta="center">
-                            Showing top 10 of {scores.models.length} models
-                          </Text>
-                        )}
-                      </>
-                    )}
+                                </Paper>
+                              );
+                            })}
+                            {allEntries.length > 15 && (
+                              <Text size="sm" c="dimmed" ta="center">
+                                Showing top 15 of {allEntries.length} entries
+                              </Text>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </Stack>
                   </>
                 ) : (
                   <Alert color="yellow">
