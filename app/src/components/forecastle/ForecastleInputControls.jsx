@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Box, Group, NumberInput, Slider, Stack, Text } from '@mantine/core';
+import { Group, NumberInput, Slider, Stack, Text } from '@mantine/core';
 
 const formatHorizonLabel = (horizon) => {
   if (horizon === 1) return '1 week ahead';

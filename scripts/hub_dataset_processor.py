@@ -228,7 +228,7 @@ class HubDataProcessorBase:
     def _build_metadata_file(self, all_models: list[str]) -> Dict[str, Any]:
         """Build dataset-level metadata.json contents."""
         metadata_file_contents = {
-            "last_updated": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "last_updated": pd.Timestamp.now(tz='UTC').strftime("%Y-%m-%dT%H:%M:%SZ"),
             "models": sorted(all_models),
             "locations": [],
         }

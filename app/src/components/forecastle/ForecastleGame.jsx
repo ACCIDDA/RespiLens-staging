@@ -12,7 +12,6 @@ import {
   Group,
   Loader,
   Paper,
-  SegmentedControl,
   Stack,
   Stepper,
   Switch,
