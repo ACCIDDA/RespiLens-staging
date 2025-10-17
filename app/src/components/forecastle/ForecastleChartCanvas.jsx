@@ -29,10 +29,10 @@ ChartJS.register(
   Filler,
 );
 
-const INTERVAL95_COLOR = 'rgba(199, 241, 17, 0.35)';
-const INTERVAL50_COLOR = 'rgba(199, 241, 17, 0.65)';
+const INTERVAL95_COLOR = 'rgba(220, 20, 60, 0.25)'; // Crimson with transparency
+const INTERVAL50_COLOR = 'rgba(220, 20, 60, 0.45)'; // Crimson with more opacity
 const MEDIAN_COLOR = '#000000';
-const HANDLE_MEDIAN = '#c7f111';
+const HANDLE_MEDIAN = '#dc143c'; // Crimson
 const HANDLE_OUTLINE = '#000000';
 
 const buildLabels = (groundTruthSeries, horizonDates) => {
@@ -82,11 +82,12 @@ const ForecastleChartCanvasInner = ({
   }, [visibleGroundTruth, labels]);
 
   // Calculate interval bounds as separate upper/lower datasets for fill
+  // Support both symmetric (width-based) and asymmetric (lower/upper) intervals
   const interval95Upper = useMemo(
     () =>
       horizonDates.map((date, idx) => ({
         x: date,
-        y: (entries[idx]?.median ?? 0) + (entries[idx]?.width95 ?? 0),
+        y: entries[idx]?.upper95 ?? ((entries[idx]?.median ?? 0) + (entries[idx]?.width95 ?? 0)),
       })),
     [entries, horizonDates],
   );
@@ -95,7 +96,7 @@ const ForecastleChartCanvasInner = ({
     () =>
       horizonDates.map((date, idx) => ({
         x: date,
-        y: Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width95 ?? 0)),
+        y: entries[idx]?.lower95 ?? Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width95 ?? 0)),
       })),
     [entries, horizonDates],
   );
@@ -104,7 +105,7 @@ const ForecastleChartCanvasInner = ({
     () =>
       horizonDates.map((date, idx) => ({
         x: date,
-        y: (entries[idx]?.median ?? 0) + (entries[idx]?.width50 ?? 0),
+        y: entries[idx]?.upper50 ?? ((entries[idx]?.median ?? 0) + (entries[idx]?.width50 ?? 0)),
       })),
     [entries, horizonDates],
   );
@@ -113,7 +114,7 @@ const ForecastleChartCanvasInner = ({
     () =>
       horizonDates.map((date, idx) => ({
         x: date,
-        y: Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width50 ?? 0)),
+        y: entries[idx]?.lower50 ?? Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width50 ?? 0)),
       })),
     [entries, horizonDates],
   );
@@ -139,7 +140,7 @@ const ForecastleChartCanvasInner = ({
     return data;
   }, [entries, horizonDates, groundTruthSeries]);
 
-  // Draggable median handles
+  // Draggable handles for median and interval bounds
   const medianHandles = useMemo(() => {
     return horizonDates.map((date, idx) => ({
       x: date,
@@ -149,10 +150,49 @@ const ForecastleChartCanvasInner = ({
     }));
   }, [entries, horizonDates]);
 
+  // Draggable handles for interval bounds (only in interval mode)
+  const intervalHandles = useMemo(() => {
+    if (!showIntervals) return [];
+    const handles = [];
+    horizonDates.forEach((date, idx) => {
+      // 95% upper bound
+      handles.push({
+        x: date,
+        y: entries[idx]?.upper95 ?? ((entries[idx]?.median ?? 0) + (entries[idx]?.width95 ?? 0)),
+        meta: { index: idx, type: 'upper95' },
+        radius: 6,
+      });
+      // 95% lower bound
+      handles.push({
+        x: date,
+        y: entries[idx]?.lower95 ?? Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width95 ?? 0)),
+        meta: { index: idx, type: 'lower95' },
+        radius: 6,
+      });
+      // 50% upper bound
+      handles.push({
+        x: date,
+        y: entries[idx]?.upper50 ?? ((entries[idx]?.median ?? 0) + (entries[idx]?.width50 ?? 0)),
+        meta: { index: idx, type: 'upper50' },
+        radius: 5,
+      });
+      // 50% lower bound
+      handles.push({
+        x: date,
+        y: entries[idx]?.lower50 ?? Math.max(0, (entries[idx]?.median ?? 0) - (entries[idx]?.width50 ?? 0)),
+        meta: { index: idx, type: 'lower50' },
+        radius: 5,
+      });
+    });
+    return handles;
+  }, [entries, horizonDates, showIntervals]);
+
   const handleIndicesRef = useRef([]);
   useEffect(() => {
-    handleIndicesRef.current = medianHandles.map((point) => point.meta);
-  }, [medianHandles]);
+    // Combine median and interval handles metadata
+    const allHandles = [...medianHandles, ...intervalHandles];
+    handleIndicesRef.current = allHandles.map((point) => point.meta);
+  }, [medianHandles, intervalHandles]);
 
   const dynamicMax = useMemo(() => {
     if (zoomedView) {
@@ -193,12 +233,18 @@ const ForecastleChartCanvasInner = ({
 
     const getHandleMeta = (activeElement) => {
       if (!activeElement) return null;
-      // Find the "Median Handles" dataset - it's always the last dataset
       const chart = chartRef.current;
-      const handleDatasetIndex = chart.data.datasets.findIndex(ds => ds.label === 'Median Handles');
-      if (activeElement.datasetIndex !== handleDatasetIndex) return null;
-      const meta = handleIndicesRef.current[activeElement.index];
-      return meta || null;
+      const dataset = chart.data.datasets[activeElement.datasetIndex];
+      if (!dataset) return null;
+
+      // Get the correct metadata based on which dataset was clicked
+      if (dataset.label === 'Median Handles') {
+        return medianHandles[activeElement.index]?.meta || null;
+      } else if (dataset.label === 'Interval Handles') {
+        return intervalHandles[activeElement.index]?.meta || null;
+      }
+
+      return null;
     };
 
     let animationFrame = null;
@@ -210,7 +256,24 @@ const ForecastleChartCanvasInner = ({
         const bounds = canvas.getBoundingClientRect();
         const offsetY = event.clientY - bounds.top;
         const nextValue = Math.max(0, yScale.getValueForPixel(offsetY));
-        onAdjust(dragState.index, 'median', Math.round(nextValue));
+        const roundedValue = Math.round(nextValue);
+
+        // Handle different types of adjustments
+        if (dragState.type === 'median') {
+          onAdjust(dragState.index, 'median', roundedValue);
+        } else if (dragState.type === 'upper95') {
+          const entry = entries[dragState.index];
+          onAdjust(dragState.index, 'interval95', [entry.lower95, roundedValue]);
+        } else if (dragState.type === 'lower95') {
+          const entry = entries[dragState.index];
+          onAdjust(dragState.index, 'interval95', [roundedValue, entry.upper95]);
+        } else if (dragState.type === 'upper50') {
+          const entry = entries[dragState.index];
+          onAdjust(dragState.index, 'interval50', [entry.lower50, roundedValue]);
+        } else if (dragState.type === 'lower50') {
+          const entry = entries[dragState.index];
+          onAdjust(dragState.index, 'interval50', [roundedValue, entry.upper50]);
+        }
       });
     };
 
@@ -245,7 +308,7 @@ const ForecastleChartCanvasInner = ({
       window.removeEventListener('pointerup', pointerUp);
       window.removeEventListener('pointercancel', pointerUp);
     };
-  }, [dragState, onAdjust]);
+  }, [dragState, onAdjust, entries, medianHandles, intervalHandles]);
 
   // Ground truth for forecast horizons (scoring mode only)
   const groundTruthForecastPoints = useMemo(() => {
@@ -260,16 +323,22 @@ const ForecastleChartCanvasInner = ({
   const topModelForecasts = useMemo(() => {
     if (!showScoring || !scores?.models) return [];
     // Show top 3 models
-    return scores.models.slice(0, 3).map((model, idx) => ({
-      modelName: model.modelName,
-      data: horizonDates.map((date, horizonIdx) => ({
-        x: date,
-        y: model.medians[horizonIdx],
-      })).filter(point => point.y !== null),
-      color: idx === 0 ? 'rgba(30, 144, 255, 0.8)' : // Blue for best model (likely Hub)
-             idx === 1 ? 'rgba(255, 99, 71, 0.6)' : // Tomato for 2nd
-             'rgba(255, 165, 0, 0.6)', // Orange for 3rd
-    }));
+    return scores.models.slice(0, 3).map((model, idx) => {
+      const isHub = model.modelName.toLowerCase().includes('hub') ||
+                    model.modelName.toLowerCase().includes('ensemble');
+      return {
+        modelName: model.modelName,
+        data: horizonDates.map((date, horizonIdx) => ({
+          x: date,
+          y: model.medians[horizonIdx],
+        })).filter(point => point.y !== null),
+        // Green for ensemble/hub, otherwise use other colors
+        color: isHub ? 'rgba(34, 139, 34, 0.8)' : // Forest green for ensemble
+               idx === 0 ? 'rgba(30, 144, 255, 0.8)' : // Blue for best
+               idx === 1 ? 'rgba(255, 99, 71, 0.6)' : // Tomato for 2nd
+               'rgba(255, 165, 0, 0.6)', // Orange for 3rd
+      };
+    });
   }, [showScoring, scores, horizonDates]);
 
   const chartData = useMemo(
@@ -315,9 +384,9 @@ const ForecastleChartCanvasInner = ({
             data: interval95Upper,
             parsing: false,
             tension: 0,
-            borderColor: 'rgba(199, 241, 17, 0.6)',
+            borderColor: 'transparent', // No border line
             backgroundColor: INTERVAL95_COLOR,
-            borderWidth: 2,
+            borderWidth: 0,
             pointRadius: 0,
             fill: '-1', // Fill to previous dataset (95% lower)
           },
@@ -340,28 +409,35 @@ const ForecastleChartCanvasInner = ({
             data: interval50Upper,
             parsing: false,
             tension: 0,
-            borderColor: 'rgba(199, 241, 17, 0.8)',
+            borderColor: 'transparent', // No border line
             backgroundColor: INTERVAL50_COLOR,
-            borderWidth: 2,
+            borderWidth: 0,
             pointRadius: 0,
             fill: '-1', // Fill to previous dataset (50% lower)
           }
         );
       }
 
-      // In scoring mode, show ground truth points for forecast horizons
+      // In scoring mode, show ground truth as a connected line (like observed data)
       if (showScoring && groundTruthForecastPoints.length > 0) {
+        // Combine observed data with ground truth for forecast period
+        const fullGroundTruthLine = [...observedDataset.filter(d => d.y !== null), ...groundTruthForecastPoints];
+
         datasets.push({
-          type: 'scatter',
-          label: 'Ground Truth (Forecast Period)',
-          data: groundTruthForecastPoints,
+          type: 'line',
+          label: 'Ground Truth',
+          data: fullGroundTruthLine,
           parsing: false,
-          pointBackgroundColor: '#2e7d32',
+          tension: 0,
+          spanGaps: false,
+          borderColor: MEDIAN_COLOR,
+          backgroundColor: MEDIAN_COLOR,
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: MEDIAN_COLOR,
           pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
-          pointRadius: 8,
-          pointHoverRadius: 10,
-          showLine: false,
+          pointBorderWidth: 1,
         });
       }
 
@@ -372,14 +448,14 @@ const ForecastleChartCanvasInner = ({
         data: medianData,
         parsing: false,
         tension: 0, // No smoothing - straight lines
-        borderColor: showScoring ? '#c7f111' : MEDIAN_COLOR,
-        backgroundColor: showScoring ? '#c7f111' : MEDIAN_COLOR,
-        borderWidth: showScoring ? 4 : 3,
-        pointRadius: showScoring ? 6 : 0,
-        pointBackgroundColor: '#c7f111',
-        pointBorderColor: '#000000',
-        pointBorderWidth: 2,
-        borderDash: showScoring ? [] : [5, 5],
+        borderColor: showScoring ? '#dc143c' : MEDIAN_COLOR,
+        backgroundColor: showScoring ? '#dc143c' : MEDIAN_COLOR,
+        borderWidth: showScoring ? 3 : 3,
+        pointRadius: showScoring ? 5 : 0,
+        pointBackgroundColor: showScoring ? '#dc143c' : HANDLE_MEDIAN,
+        pointBorderColor: showScoring ? '#ffffff' : '#000000',
+        pointBorderWidth: showScoring ? 1 : 2,
+        borderDash: [5, 5], // Always dashed for forecasts
       });
 
       // Top model forecasts (scoring mode only)
@@ -398,12 +474,14 @@ const ForecastleChartCanvasInner = ({
             pointBackgroundColor: model.color,
             pointBorderColor: '#ffffff',
             pointBorderWidth: 1,
+            borderDash: [5, 5], // Dashed for all forecasts
           });
         });
       }
 
       // Only show draggable handles when not in scoring mode
       if (!showScoring) {
+        // Median handles (always visible when not scoring)
         datasets.push({
           type: 'scatter',
           label: 'Median Handles',
@@ -417,11 +495,38 @@ const ForecastleChartCanvasInner = ({
           showLine: false,
           hitRadius: 15,
         });
+
+        // Interval bound handles (only in interval mode)
+        if (showIntervals && intervalHandles.length > 0) {
+          datasets.push({
+            type: 'scatter',
+            label: 'Interval Handles',
+            data: intervalHandles,
+            parsing: false,
+            pointBackgroundColor: (context) => {
+              const meta = intervalHandles[context.dataIndex]?.meta;
+              if (!meta) return 'rgba(220, 20, 60, 0.8)';
+              // Color-code by interval type - lighter for 95%
+              if (meta.type === 'upper95' || meta.type === 'lower95') {
+                return 'rgba(255, 182, 193, 0.9)'; // Light pink for 95%
+              }
+              return 'rgba(220, 20, 60, 0.9)'; // Crimson for 50%
+            },
+            pointBorderColor: HANDLE_OUTLINE,
+            pointBorderWidth: 2,
+            pointHoverRadius: 8,
+            pointRadius: (context) => {
+              return intervalHandles[context.dataIndex]?.radius ?? 6;
+            },
+            showLine: false,
+            hitRadius: 12,
+          });
+        }
       }
 
       return { datasets, labels };
     },
-    [medianHandles, interval50Upper, interval50Lower, interval95Upper, interval95Lower, medianData, labels, observedDataset, showIntervals, showScoring, groundTruthForecastPoints, topModelForecasts],
+    [medianHandles, intervalHandles, interval50Upper, interval50Lower, interval95Upper, interval95Lower, medianData, labels, observedDataset, showIntervals, showScoring, groundTruthForecastPoints, topModelForecasts],
   );
 
   const options = useMemo(

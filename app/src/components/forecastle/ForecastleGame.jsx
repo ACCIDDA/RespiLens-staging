@@ -189,10 +189,48 @@ const ForecastleGame = () => {
       setForecastEntries((prevEntries) =>
         prevEntries.map((entry, idx) => {
           if (idx !== index) return entry;
-          return {
-            ...entry,
-            [field]: Math.max(0, value),
-          };
+
+          const nextEntry = { ...entry };
+
+          if (field === 'median') {
+            const oldMedian = entry.median;
+            const newMedian = Math.max(0, value);
+            const medianShift = newMedian - oldMedian;
+
+            nextEntry.median = newMedian;
+
+            // Shift intervals to maintain their widths relative to new median
+            if (entry.lower95 !== undefined && entry.upper95 !== undefined) {
+              nextEntry.lower95 = Math.max(0, entry.lower95 + medianShift);
+              nextEntry.upper95 = entry.upper95 + medianShift;
+            }
+            if (entry.lower50 !== undefined && entry.upper50 !== undefined) {
+              nextEntry.lower50 = Math.max(0, entry.lower50 + medianShift);
+              nextEntry.upper50 = entry.upper50 + medianShift;
+            }
+          } else if (field === 'interval95') {
+            // Handle two-point interval adjustment
+            const [lower, upper] = value;
+            nextEntry.lower95 = Math.max(0, lower);
+            nextEntry.upper95 = Math.max(lower, upper);
+            // Ensure 50% interval stays within 95% bounds
+            if (nextEntry.lower50 < nextEntry.lower95) nextEntry.lower50 = nextEntry.lower95;
+            if (nextEntry.upper50 > nextEntry.upper95) nextEntry.upper50 = nextEntry.upper95;
+            // Update widths for backward compatibility
+            nextEntry.width95 = Math.max(nextEntry.upper95 - entry.median, entry.median - nextEntry.lower95);
+          } else if (field === 'interval50') {
+            // Handle two-point interval adjustment
+            const [lower, upper] = value;
+            nextEntry.lower50 = Math.max(nextEntry.lower95 || 0, lower);
+            nextEntry.upper50 = Math.min(nextEntry.upper95 || 99999, Math.max(lower, upper));
+            // Update widths for backward compatibility
+            nextEntry.width50 = Math.max(nextEntry.upper50 - entry.median, entry.median - nextEntry.lower50);
+          } else {
+            // Legacy field support
+            nextEntry[field] = Math.max(0, value);
+          }
+
+          return nextEntry;
         }),
       );
       setSubmissionErrors({});
@@ -305,14 +343,14 @@ const ForecastleGame = () => {
                                         withBorder
                                         style={{
                                           backgroundColor: entry.isUser
-                                            ? '#d4f4dd'
+                                            ? '#ffe0e6'
                                             : entry.isHub
-                                            ? '#f0f9ff'
+                                            ? '#e8f5e9'
                                             : undefined,
                                           borderColor: entry.isUser
-                                            ? '#2e7d32'
+                                            ? '#dc143c'
                                             : entry.isHub
-                                            ? '#1e90ff'
+                                            ? '#228b22'
                                             : undefined,
                                           borderWidth: entry.isUser || entry.isHub ? 2 : 1,
                                           transform: `translateY(${visibleRankings > idx ? 0 : 20}px)`,
@@ -323,7 +361,7 @@ const ForecastleGame = () => {
                                         <Group justify="space-between" align="center">
                                           <Group gap="md">
                                             <Text size="xl" fw={700} c={idx === 0 ? 'yellow.7' : idx === 1 ? 'gray.5' : idx === 2 ? 'orange.7' : undefined}>
-                                              #{idx + 1}
+                                              {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                                             </Text>
                                             <div>
                                               <Text size="sm" fw={entry.isUser || entry.isHub ? 700 : 500}>
@@ -340,7 +378,7 @@ const ForecastleGame = () => {
                                           </Group>
                                           <Badge
                                             size="lg"
-                                            color={entry.isUser ? 'green' : entry.isHub ? 'blue' : 'gray'}
+                                            color={entry.isUser ? 'red' : entry.isHub ? 'green' : 'gray'}
                                             variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
                                           >
                                             RMSE: {entry.rmse.toFixed(2)}
@@ -577,8 +615,8 @@ const ForecastleGame = () => {
                     </Box>
                     <Text size="sm" c="dimmed">
                       {inputMode === 'median'
-                        ? 'Drag the yellow handles to set your median forecast for each week ahead.'
-                        : 'The filled areas show your 95% (outer) and 50% (inner) prediction intervals.'}
+                        ? 'Drag the crimson handles to set your median forecast for each week ahead.'
+                        : 'Drag the crimson handles to adjust interval bounds, or use the sliders for precise control.'}
                     </Text>
                   </Stack>
                 </Grid.Col>

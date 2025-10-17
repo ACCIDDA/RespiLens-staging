@@ -17,6 +17,11 @@ export const initialiseForecastInputs = (horizons = [], baselineValue = 0) => {
     median: mean,
     width95: interval95.width,
     width50: interval50.width,
+    // For asymmetric intervals: store actual lower/upper bounds
+    lower95: Math.max(0, mean - interval95.width),
+    upper95: mean + interval95.width,
+    lower50: Math.max(0, mean - interval50.width),
+    upper50: mean + interval50.width,
   }));
 };
 
@@ -25,12 +30,13 @@ export const convertToIntervals = (entries) => {
   return entries.map(entry => ({
     horizon: entry.horizon,
     interval50: {
-      lower: Math.max(0, entry.median - entry.width50),
-      upper: entry.median + entry.width50,
+      // Use asymmetric bounds if available, otherwise fall back to symmetric widths
+      lower: entry.lower50 !== undefined ? entry.lower50 : Math.max(0, entry.median - entry.width50),
+      upper: entry.upper50 !== undefined ? entry.upper50 : entry.median + entry.width50,
     },
     interval95: {
-      lower: Math.max(0, entry.median - entry.width95),
-      upper: entry.median + entry.width95,
+      lower: entry.lower95 !== undefined ? entry.lower95 : Math.max(0, entry.median - entry.width95),
+      upper: entry.upper95 !== undefined ? entry.upper95 : entry.median + entry.width95,
     },
   }));
 };
