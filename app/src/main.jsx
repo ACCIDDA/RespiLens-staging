@@ -16,7 +16,11 @@ const colorSchemeManager = localStorageColorSchemeManager({
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <MantineProvider theme={theme} colorSchemeManager={colorSchemeManager}>
+    <MantineProvider
+      theme={theme}
+      colorSchemeManager={colorSchemeManager}
+      defaultColorScheme="light"
+    >
       <Notifications />
       <App />
     </MantineProvider>
