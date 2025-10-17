@@ -259,10 +259,21 @@ const ForecastleGame = () => {
               <Stack gap="lg">
                 {scores.user.rmse !== null ? (
                   <>
-                    <Title order={4}>Results Comparison</Title>
-                    <Text size="sm" c="dimmed">
-                      Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
-                    </Text>
+                    <Group justify="space-between" align="center">
+                      <div>
+                        <Title order={4}>Results Comparison</Title>
+                        <Text size="sm" c="dimmed">
+                          Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
+                        </Text>
+                      </div>
+                      <Switch
+                        label="Show Full History"
+                        checked={!zoomedView}
+                        onChange={(event) => setZoomedView(!event.currentTarget.checked)}
+                        color="red"
+                        size="md"
+                      />
+                    </Group>
 
                     {/* Visualization Chart */}
                     <Box style={{ width: '100%', height: 400 }}>
@@ -274,9 +285,10 @@ const ForecastleGame = () => {
                         onAdjust={() => {}} // Read-only
                         height={400}
                         showIntervals={false}
-                        zoomedView={false}
+                        zoomedView={zoomedView}
                         scores={scores}
                         showScoring={true}
+                        fullGroundTruthSeries={scenario.fullGroundTruthSeries}
                       />
                     </Box>
 

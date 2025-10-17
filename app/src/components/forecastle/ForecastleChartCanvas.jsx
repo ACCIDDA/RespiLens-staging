@@ -58,6 +58,7 @@ const ForecastleChartCanvasInner = ({
   zoomedView = false,
   scores = null,
   showScoring = false,
+  fullGroundTruthSeries = null,
 }) => {
   const chartRef = useRef(null);
   const [dragState, setDragState] = useState(null);
@@ -154,12 +155,34 @@ const ForecastleChartCanvasInner = ({
   }, [medianHandles]);
 
   const dynamicMax = useMemo(() => {
+    if (zoomedView) {
+      // In zoomed view, calculate 50% higher than the last observed data point
+      const lastObserved = groundTruthSeries[groundTruthSeries.length - 1];
+      const lastValue = lastObserved?.value ?? 0;
+
+      // Also consider forecast values and ground truth in scoring mode
+      const forecastMax = Math.max(
+        ...entries.map((entry) => (entry.median ?? 0) + (entry.width95 ?? 0)),
+      );
+
+      let groundTruthMax = 0;
+      if (showScoring && scores?.groundTruth) {
+        groundTruthMax = Math.max(...scores.groundTruth.filter(v => v !== null));
+      }
+
+      // Get the maximum of all visible values
+      const visibleMax = Math.max(lastValue, forecastMax, groundTruthMax);
+
+      return visibleMax > 0 ? visibleMax * 1.5 : 1;
+    }
+
+    // In full view, use existing logic
     const entryMax = Math.max(
       maxValue,
       ...entries.map((entry) => (entry.median ?? 0) + (entry.width95 ?? 0)),
     );
     return entryMax > 0 ? entryMax * 1.1 : 1;
-  }, [entries, maxValue]);
+  }, [entries, maxValue, zoomedView, groundTruthSeries, showScoring, scores]);
 
   useEffect(() => {
     const chart = chartRef.current;
