@@ -201,49 +201,34 @@ const ForecastleGame = () => {
     return (
       <Stack gap="lg">
         <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Group gap="sm">
-              <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                <IconTarget size={20} />
-              </ThemeIcon>
-              <div>
-                <Title order={2}>Forecastle Daily Challenge</Title>
-                <Text size="sm" c="dimmed">
-                  {`Generated for ${scenario.challengeDate} (Eastern)`}
-                </Text>
-              </div>
-            </Group>
-
-            <Group gap="xs">
-              <Badge variant="light" color="blue">
-                {scenario.dataset.label}
-              </Badge>
-              <Badge variant="light" color="grape">
-                {`${scenario.location.name} (${scenario.location.abbreviation})`}
-              </Badge>
-              <Badge variant="light" color="teal">
-                {`Forecast date ${scenario.forecastDate}`}
-              </Badge>
-            </Group>
-
-            <Text size="sm">
-              {inputMode === 'median'
-                ? 'Step 1: Set your median forecast for each horizon by dragging the handles or using the controls below.'
-                : inputMode === 'intervals'
-                ? 'Step 2: Adjust the uncertainty intervals (50% and 95% widths) for each forecast.'
-                : 'Step 3: View your RMSE score and compare with model forecasts.'}
-            </Text>
-
-            {latestObservation && (
-              <Text size="sm" c="dimmed">
-                {`Latest observation (${latestObservation.date}): ${latestObservation.value.toLocaleString('en-US')} hospitalizations`}
-              </Text>
-            )}
-          </Stack>
-        </Paper>
-
-        <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="lg">
+            <Group justify="space-between" wrap="wrap" align="flex-start">
+              <Group gap="sm">
+                <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                  <IconTarget size={20} />
+                </ThemeIcon>
+                <div>
+                  <Title order={2}>Forecastle Daily Challenge</Title>
+                  <Text size="sm" c="dimmed">
+                    {`Generated for ${scenario.challengeDate} (Eastern)`}
+                  </Text>
+                </div>
+              </Group>
+              <Group gap="xs" wrap="wrap">
+                <Badge variant="light" color="blue">
+                  {scenario.dataset.label}
+                </Badge>
+                <Badge variant="light" color="grape">
+                  {`${scenario.location.name} (${scenario.location.abbreviation})`}
+                </Badge>
+                <Badge variant="light" color="teal">
+                  {`Forecast date ${scenario.forecastDate}`}
+                </Badge>
+              </Group>
+            </Group>
+
+            <Divider />
+
             <Stepper
               active={inputMode === 'median' ? 0 : inputMode === 'intervals' ? 1 : 2}
               onStepClick={(step) => {
@@ -274,10 +259,30 @@ const ForecastleGame = () => {
               <Stack gap="lg">
                 {scores.user.rmse !== null ? (
                   <>
-                    <Title order={4}>Leaderboard</Title>
+                    <Title order={4}>Results Comparison</Title>
                     <Text size="sm" c="dimmed">
                       Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
                     </Text>
+
+                    {/* Visualization Chart */}
+                    <Box style={{ width: '100%', height: 400 }}>
+                      <ForecastleChartCanvas
+                        groundTruthSeries={scenario.groundTruthSeries}
+                        horizonDates={horizonDates}
+                        entries={forecastEntries}
+                        maxValue={yAxisMax}
+                        onAdjust={() => {}} // Read-only
+                        height={400}
+                        showIntervals={false}
+                        zoomedView={false}
+                        scores={scores}
+                        showScoring={true}
+                      />
+                    </Box>
+
+                    <Divider />
+
+                    <Title order={4}>Leaderboard</Title>
 
                     <Stack gap="xs">
                       {(() => {

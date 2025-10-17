@@ -56,6 +56,8 @@ const ForecastleChartCanvasInner = ({
   height = 380,
   showIntervals = true,
   zoomedView = false,
+  scores = null,
+  showScoring = false,
 }) => {
   const chartRef = useRef(null);
   const [dragState, setDragState] = useState(null);
@@ -222,6 +224,31 @@ const ForecastleChartCanvasInner = ({
     };
   }, [dragState, onAdjust]);
 
+  // Ground truth for forecast horizons (scoring mode only)
+  const groundTruthForecastPoints = useMemo(() => {
+    if (!showScoring || !scores?.groundTruth) return [];
+    return horizonDates.map((date, idx) => ({
+      x: date,
+      y: scores.groundTruth[idx],
+    })).filter(point => point.y !== null);
+  }, [showScoring, scores, horizonDates]);
+
+  // Top model forecasts (scoring mode only)
+  const topModelForecasts = useMemo(() => {
+    if (!showScoring || !scores?.models) return [];
+    // Show top 3 models
+    return scores.models.slice(0, 3).map((model, idx) => ({
+      modelName: model.modelName,
+      data: horizonDates.map((date, horizonIdx) => ({
+        x: date,
+        y: model.medians[horizonIdx],
+      })).filter(point => point.y !== null),
+      color: idx === 0 ? 'rgba(30, 144, 255, 0.8)' : // Blue for best model (likely Hub)
+             idx === 1 ? 'rgba(255, 99, 71, 0.6)' : // Tomato for 2nd
+             'rgba(255, 165, 0, 0.6)', // Orange for 3rd
+    }));
+  }, [showScoring, scores, horizonDates]);
+
   const chartData = useMemo(
     () => {
       const datasets = [
@@ -299,20 +326,62 @@ const ForecastleChartCanvasInner = ({
         );
       }
 
-      datasets.push(
-        {
-          type: 'line',
-          label: 'Median',
-          data: medianData,
+      // In scoring mode, show ground truth points for forecast horizons
+      if (showScoring && groundTruthForecastPoints.length > 0) {
+        datasets.push({
+          type: 'scatter',
+          label: 'Ground Truth (Forecast Period)',
+          data: groundTruthForecastPoints,
           parsing: false,
-          tension: 0, // No smoothing - straight lines
-          borderColor: MEDIAN_COLOR,
-          backgroundColor: MEDIAN_COLOR,
-          borderWidth: 3,
-          pointRadius: 0,
-          borderDash: [5, 5],
-        },
-        {
+          pointBackgroundColor: '#2e7d32',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 8,
+          pointHoverRadius: 10,
+          showLine: false,
+        });
+      }
+
+      // User's forecast
+      datasets.push({
+        type: 'line',
+        label: showScoring ? 'Your Forecast' : 'Median',
+        data: medianData,
+        parsing: false,
+        tension: 0, // No smoothing - straight lines
+        borderColor: showScoring ? '#c7f111' : MEDIAN_COLOR,
+        backgroundColor: showScoring ? '#c7f111' : MEDIAN_COLOR,
+        borderWidth: showScoring ? 4 : 3,
+        pointRadius: showScoring ? 6 : 0,
+        pointBackgroundColor: '#c7f111',
+        pointBorderColor: '#000000',
+        pointBorderWidth: 2,
+        borderDash: showScoring ? [] : [5, 5],
+      });
+
+      // Top model forecasts (scoring mode only)
+      if (showScoring) {
+        topModelForecasts.forEach((model) => {
+          datasets.push({
+            type: 'line',
+            label: model.modelName,
+            data: model.data,
+            parsing: false,
+            tension: 0,
+            borderColor: model.color,
+            backgroundColor: model.color,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: model.color,
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1,
+          });
+        });
+      }
+
+      // Only show draggable handles when not in scoring mode
+      if (!showScoring) {
+        datasets.push({
           type: 'scatter',
           label: 'Median Handles',
           data: medianHandles,
@@ -324,12 +393,12 @@ const ForecastleChartCanvasInner = ({
           pointRadius: 8,
           showLine: false,
           hitRadius: 15,
-        }
-      );
+        });
+      }
 
       return { datasets, labels };
     },
-    [medianHandles, interval50Upper, interval50Lower, interval95Upper, interval95Lower, medianData, labels, observedDataset, showIntervals],
+    [medianHandles, interval50Upper, interval50Lower, interval95Upper, interval95Lower, medianData, labels, observedDataset, showIntervals, showScoring, groundTruthForecastPoints, topModelForecasts],
   );
 
   const options = useMemo(
@@ -342,7 +411,20 @@ const ForecastleChartCanvasInner = ({
       },
       plugins: {
         legend: {
-          display: false,
+          display: showScoring,
+          position: 'bottom',
+          labels: {
+            filter: (legendItem) => {
+              // Hide helper datasets from legend
+              return !legendItem.text.includes('lower') &&
+                     !legendItem.text.includes('Handles');
+            },
+            usePointStyle: true,
+            padding: 12,
+            font: {
+              size: 11,
+            },
+          },
         },
         tooltip: {
           callbacks: {
@@ -398,7 +480,7 @@ const ForecastleChartCanvasInner = ({
         },
       },
     }),
-    [dynamicMax],
+    [dynamicMax, showScoring],
   );
 
   return (
