@@ -89,10 +89,6 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
               step={1}
               color="lime"
               size="sm"
-              marks={[
-                { value: 0, label: '0' },
-                { value: Math.round(sliderMax / 4), label: Math.round(sliderMax / 4).toString() },
-              ]}
             />
             <Text size="xs" c="dimmed" ta="center">
               [{Math.max(0, Math.round(entry.median - entry.width95))}, {Math.round(entry.median + entry.width95)}]
