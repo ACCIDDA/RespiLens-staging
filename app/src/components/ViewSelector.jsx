@@ -16,13 +16,13 @@ const ViewSelector = () => {
     [datasetOrder]
   );
 
-  const getDefaultTimeseriesView = (dataset) => {
-    const timeseriesView = dataset.views.find(view => view.key === 'timeseries');
-    return timeseriesView?.value || dataset.defaultView || dataset.views[0]?.value;
+  const getDefaultProjectionsView = (dataset) => {
+    const projectionsView = dataset.views.find(view => view.key === 'projections');
+    return projectionsView?.value || dataset.defaultView || dataset.views[0]?.value;
   };
 
   const handleDatasetSelect = (dataset) => {
-    const targetView = getDefaultTimeseriesView(dataset);
+    const targetView = getDefaultProjectionsView(dataset);
     if (targetView) {
       setViewType(targetView);
     }

@@ -40,7 +40,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     return null;
   };
 
-  const timeSeriesData = useMemo(() => {
+  const projectionsData = useMemo(() => {
     if (!groundTruth || !forecasts || selectedDates.length === 0) {
       return [];
     }
@@ -88,17 +88,17 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   const defaultRange = getDefaultRange();
 
   useEffect(() => {
-    if (timeSeriesData.length > 0 && defaultRange) {
-      const initialYRange = calculateYRange(timeSeriesData, defaultRange);
+    if (projectionsData.length > 0 && defaultRange) {
+      const initialYRange = calculateYRange(projectionsData, defaultRange);
       if (initialYRange) {
         setYAxisRange(initialYRange);
       }
     }
-  }, [timeSeriesData, defaultRange]);
+  }, [projectionsData, defaultRange]);
 
   const handlePlotUpdate = (figure) => {
-    if (figure && figure['xaxis.range'] && timeSeriesData.length > 0) {
-      const newYRange = calculateYRange(timeSeriesData, figure['xaxis.range']);
+    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
+      const newYRange = calculateYRange(projectionsData, figure['xaxis.range']);
       if (newYRange && plotRef.current) {
         setYAxisRange(newYRange);
         Plotly.relayout(plotRef.current.el, {'yaxis.range': newYRange});
@@ -169,7 +169,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       click: function(gd) {
         const range = getDefaultRange();
         if (range) {
-          const newYRange = calculateYRange(timeSeriesData, range);
+          const newYRange = calculateYRange(projectionsData, range);
           Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
@@ -207,7 +207,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={timeSeriesData} 
+          data={projectionsData} 
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}
