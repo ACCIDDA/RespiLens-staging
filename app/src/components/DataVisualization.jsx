@@ -89,7 +89,7 @@ const DataVisualization = ({
   // Render appropriate view based on viewType
   switch (viewType) {
     case 'fludetailed':
-    case 'flu_ts':
+    case 'flu_projs':
       return (
         <FluView
           data={data}
@@ -104,7 +104,7 @@ const DataVisualization = ({
         />
       );
 
-    case 'rsv_ts':
+    case 'rsv_projs':
       return (
         <RSVDefaultView
           data={data}
@@ -119,7 +119,7 @@ const DataVisualization = ({
         />
       );
 
-    case 'covid_ts':
+    case 'covid_projs':
       return(
         <COVID19View
           data={data}

@@ -103,7 +103,7 @@ export const ViewProvider = ({ children }) => {
     const newSearchParams = new URLSearchParams(searchParams);
 
     // Set the view in the URL, unless it's the default view with no other params
-    if (newView !== 'flu_ts' || newSearchParams.toString().length > 0) {
+    if (newView !== 'flu_projs' || newSearchParams.toString().length > 0) {
       newSearchParams.set('view', newView);
     } else {
       newSearchParams.delete('view');

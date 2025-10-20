@@ -22,9 +22,9 @@ export const useForecastData = (location, viewType) => {
         // Updated map to hold both the directory name and the file suffix
         const datasetMap = {
           'fludetailed': { directory: 'flusight', suffix: 'flu' },
-          'flu_ts': { directory: 'flusight', suffix: 'flu' },
-          'covid_ts': { directory: 'covid19forecasthub', suffix: 'covid19' },
-          'rsv_ts': { directory: 'rsvforecasthub', suffix: 'rsv' },
+          'flu_projs': { directory: 'flusight', suffix: 'flu' },
+          'covid_projs': { directory: 'covid19forecasthub', suffix: 'covid19' },
+          'rsv_projs': { directory: 'rsvforecasthub', suffix: 'rsv' },
           'nhsnall': { directory: 'nhsn', suffix: 'nhsn' }
         };
 
