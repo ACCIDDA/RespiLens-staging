@@ -21,11 +21,10 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
-  const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
   // --- Data fetching remains centralized ---
-  const { data, metadata, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
+  const { data, metadata, loading, error, availableDates, models, availableTargets } = useForecastData(selectedLocation, viewType);
   
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
@@ -83,6 +82,20 @@ export const ViewProvider = ({ children }) => {
     }
   }, [isForecastPage, loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
+  useEffect(() => {
+    // Don't do anything while loading or if the hook returned no targets
+    if (loading || !availableTargets || availableTargets.length === 0) {
+      return;
+    }
+
+    // If the currently selected target isn't in the new list of targets
+    // (e.g., after a view change), or if nothing is selected yet,
+    // then select the first target from the list by default.
+    if (!selectedTarget || !availableTargets.includes(selectedTarget)) {
+      setSelectedTarget(availableTargets[0]);
+    }
+  }, [loading, availableTargets, selectedTarget]); // This runs when data loading finishes or targets change
+
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
     if (newLocation !== 'US') {
@@ -121,6 +134,7 @@ export const ViewProvider = ({ children }) => {
       setSelectedDates([]);
       setSelectedModels([]);
       setActiveDate(null);
+      setSelectedTarget(null);
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
@@ -168,7 +182,6 @@ export const ViewProvider = ({ children }) => {
     viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType),
     availableTargets,
-    setAvailableTargets, // Expose setter for views to populate the list
     selectedTarget,
     handleTargetSelect,  // Expose handler for the selector component
   };

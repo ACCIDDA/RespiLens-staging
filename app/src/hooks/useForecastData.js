@@ -8,6 +8,7 @@ export const useForecastData = (location, viewType) => {
   const [error, setError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
   const [models, setModels] = useState([]);
+  const [availableTargets, setAvailableTargets] = useState([]);
 
   useEffect(() => {
     if (!location || !viewType) return;
@@ -17,6 +18,7 @@ export const useForecastData = (location, viewType) => {
       setError(null);
       setData(null);
       setMetadata(null);
+      setAvailableTargets([])
 
       try {
         // Updated map to hold both the directory name and the file suffix
@@ -60,7 +62,13 @@ export const useForecastData = (location, viewType) => {
             });
           });
           setModels(Array.from(modelSet).sort());
+        };
+
+        let targets = [];
+        if (jsonData?.ground_truth) {
+          targets = Object.keys(jsonData.ground_truth).filter(key => key !== 'dates');
         }
+        setAvailableTargets(targets);
 
       } catch (err) {
         console.error('Error fetching forecast data:', err);
@@ -73,5 +81,5 @@ export const useForecastData = (location, viewType) => {
     fetchData();
   }, [location, viewType]);
 
-  return { data, metadata, loading, error, availableDates, models };
+  return { data, metadata, loading, error, availableDates, models, availableTargets };
 };

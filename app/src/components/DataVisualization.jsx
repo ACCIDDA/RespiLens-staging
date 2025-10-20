@@ -21,6 +21,7 @@ const DataVisualization = ({
   selectedModels,
   setSelectedModels,
   windowSize,
+  selectedTarget
 }) => {
   // Show loading state
   if (loading) {
@@ -101,6 +102,7 @@ const DataVisualization = ({
           viewType={viewType}
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 
@@ -116,6 +118,7 @@ const DataVisualization = ({
           viewType={viewType}
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 
@@ -131,6 +134,7 @@ const DataVisualization = ({
           viewType={viewType}
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 

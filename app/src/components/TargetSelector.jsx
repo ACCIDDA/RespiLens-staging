@@ -1,5 +1,5 @@
 // src/components/TargetSelector.jsx
-import { Select, Stack, Text } from '@mantine/core';
+import { Select, Stack } from '@mantine/core';
 import { useView } from '../hooks/useView';
 
 const formatTargetNameForDisplay = (name) => {
