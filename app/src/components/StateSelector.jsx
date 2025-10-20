@@ -3,6 +3,7 @@ import { Stack, ScrollArea, Button, TextInput, Text, Divider, Loader, Center, Al
 import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
 import { useView } from '../hooks/useView'; // 1. Import the useView hook
 import ViewSelector from './ViewSelector';
+import TargetSelector from './TargetSelector';
 import { getDataPath } from '../utils/paths';
 
 const StateSelector = () => {
@@ -63,6 +64,11 @@ const StateSelector = () => {
       </Stack>
 
       <Divider />
+
+      <Stack>
+        <Text fw={500} size="sm" c="dimmed">Target</Text>
+        <TargetSelector />
+      </Stack>
 
       <Stack gap="xs" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Text fw={500} size="sm" c="dimmed">Location</Text>

@@ -21,6 +21,8 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
+  const [availableTargets, setAvailableTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null);
 
   // --- Data fetching remains centralized ---
   const { data, metadata, loading, error, availableDates, models } = useForecastData(selectedLocation, viewType);
@@ -93,6 +95,12 @@ export const ViewProvider = ({ children }) => {
     }
     setSelectedLocation(newLocation);
   };
+
+  const handleTargetSelect = (target) => {
+    setSelectedTarget(target);
+    // Note: NOT updating the URL with the selected target yet.
+    // This can be added later if needed.
+  };
   
   const handleViewChange = useCallback((newView) => {
     const oldView = viewType;
@@ -158,7 +166,11 @@ export const ViewProvider = ({ children }) => {
 
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
-    currentDataset: urlManager.getDatasetFromView(viewType)
+    currentDataset: urlManager.getDatasetFromView(viewType),
+    availableTargets,
+    setAvailableTargets, // Expose setter for views to populate the list
+    selectedTarget,
+    handleTargetSelect,  // Expose handler for the selector component
   };
 
   return (
