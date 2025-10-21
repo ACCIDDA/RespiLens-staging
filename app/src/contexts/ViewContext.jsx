@@ -11,7 +11,6 @@ export const ViewProvider = ({ children }) => {
   const location = useLocation();
   const isForecastPage = location.pathname === '/';
 
-  // --- CHANGE 1: Memoize urlManager ---
   // This ensures urlManager is not recreated on every render.
   const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
 
@@ -36,17 +35,14 @@ export const ViewProvider = ({ children }) => {
     if (!isForecastPage) {
       return;
     }
-    // 1. Wait until the data for the current view has completely finished loading.
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (loading || !currentDataset || models.length === 0 || availableDates.length === 0) {
       return; // Do nothing until all necessary data is ready.
     }
 
-    // 2. Get parameters from the URL as the primary source of truth.
     const params = urlManager.getDatasetParams(currentDataset);
     let needsUrlUpdate = false;
 
-    // 3. Determine the definitive models for this render.
     let modelsToSet = [];
     if (params.models?.length > 0) {
       // If the URL specifies models, they take precedence.
@@ -57,7 +53,6 @@ export const ViewProvider = ({ children }) => {
       needsUrlUpdate = true; // Mark that the URL should be updated to show this default.
     }
     
-    // 4. Determine the definitive dates for this render.
     let datesToSet = [];
     const validUrlDates = params.dates?.filter(date => availableDates.includes(date)) || [];
     if (validUrlDates.length > 0) {
@@ -83,18 +78,20 @@ export const ViewProvider = ({ children }) => {
   }, [isForecastPage, loading, viewType, models, availableDates, urlManager, updateDatasetParams]);
 
   useEffect(() => {
-    // Don't do anything while loading or if the hook returned no targets
-    if (loading || !availableTargets || availableTargets.length === 0) {
-      return;
-    }
+   if (loading || !availableTargets || availableTargets.length === 0) {
+     console.log('Target useEffect: Skipping (loading or no targets)'); 
+     return;
+   }
+   const isCurrentTargetValid = selectedTarget && availableTargets.includes(selectedTarget);
+   console.log(`Target useEffect: Current target "${selectedTarget}", Valid: ${isCurrentTargetValid}, Available:`, availableTargets); 
 
-    // If the currently selected target isn't in the new list of targets
-    // (e.g., after a view change), or if nothing is selected yet,
-    // then select the first target from the list by default.
-    if (!selectedTarget || !availableTargets.includes(selectedTarget)) {
-      setSelectedTarget(availableTargets[0]);
-    }
-  }, [loading, availableTargets, selectedTarget]); // This runs when data loading finishes or targets change
+   if (!isCurrentTargetValid) {
+     console.log('Target useEffect: Setting default target to:', availableTargets[0]); 
+     setSelectedTarget(availableTargets[0]);
+   } else {
+     console.log('Target useEffect: Current target is valid, doing nothing.');
+   }
+ }, [loading, availableTargets]);
 
   const handleLocationSelect = (newLocation) => {
     // Only update URL if the location is not the default
@@ -110,6 +107,7 @@ export const ViewProvider = ({ children }) => {
   };
 
   const handleTargetSelect = (target) => {
+    console.log('handleTargetSelect called with:', target);
     setSelectedTarget(target);
     // Note: NOT updating the URL with the selected target yet.
     // This can be added later if needed.
@@ -185,6 +183,8 @@ export const ViewProvider = ({ children }) => {
     selectedTarget,
     handleTargetSelect,  // Expose handler for the selector component
   };
+
+  console.log('ViewContext rendering with selectedTarget:', selectedTarget);
 
   return (
     <ViewContext.Provider value={contextValue}>

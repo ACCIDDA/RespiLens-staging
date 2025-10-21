@@ -22,6 +22,7 @@ const ForecastViz = () => {
     currentDataset,
     selectedColumns,
     setSelectedColumns,
+    selectedTarget
   } = useView();
 
   const [windowSize, setWindowSize] = useState({
@@ -332,6 +333,7 @@ const ForecastViz = () => {
                 selectedColumns={selectedColumns}
                 setSelectedColumns={setSelectedColumns}
                 windowSize={windowSize}
+                selectedTarget={selectedTarget}
               />
             </div>
           </Stack>
