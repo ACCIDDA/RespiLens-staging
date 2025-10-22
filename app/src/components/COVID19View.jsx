@@ -12,7 +12,6 @@ import { targetDisplayNameMap } from '../utils/mapUtils';
 
 // Add selectedTarget to props
 const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
-  console.log('COVID19View received selectedTarget prop:', selectedTarget);
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
@@ -265,7 +264,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   // Add a simple check for missing target selection
    if (!selectedTarget) {
-    console.log('COVID19View rendering message because selectedTarget is falsy:', selectedTarget);
     return (
         <Stack align="center" justify="center" style={{ height: '300px' }}>
             <Text>Please select a target to view data.</Text>
