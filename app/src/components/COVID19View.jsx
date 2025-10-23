@@ -1,5 +1,3 @@
-// src/components/COVID19View.jsx
-
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
@@ -7,10 +5,8 @@ import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
-// Import the map for display names
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
-// Add selectedTarget to props
 const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
@@ -18,7 +14,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
-  // This function seems okay, it calculates based on the data passed in
   const calculateYRange = (data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null; // Added check for selectedTarget
     let minY = Infinity;
@@ -42,10 +37,8 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         }
       }
     });
-
     if (minY !== Infinity && maxY !== -Infinity) {
       const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
-      // Ensure range starts at 0 unless data goes below 0 (unlikely for hosp counts)
       const rangeMin = Math.max(0, minY - padding);
       return [rangeMin, maxY + padding];
     }
@@ -53,17 +46,14 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   };
 
   const projectionsData = useMemo(() => {
-    // Check for selectedTarget availability
     if (!groundTruth || !forecasts || selectedDates.length === 0 || !selectedTarget) {
       return [];
     }
-    // Access ground truth values using selectedTarget
     const groundTruthValues = groundTruth[selectedTarget];
     if (!groundTruthValues) {
       console.warn(`Ground truth data not found for target: ${selectedTarget}`);
       return [];
     }
-
     const groundTruthTrace = {
       x: groundTruth.dates || [],
       y: groundTruthValues,
@@ -73,7 +63,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       line: { color: '#8884d8', width: 2 },
       marker: { size: 6 }
     };
-
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date) => {
         const forecastsForDate = forecasts[date] || {};
@@ -127,7 +116,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       })
     );
     return [groundTruthTrace, ...modelTraces];
-    // Add selectedTarget to the dependency array
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
   const defaultRange = getDefaultRange();
@@ -207,7 +195,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         dash: 'dash'
       }
     }))
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]); // Added yAxisRange and selectedTarget
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]); 
 
   const config = {
     responsive: true,
@@ -215,17 +203,17 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     displaylogo: false,
     // modeBarPosition: 'left', // This seems non-standard, check Plotly docs if needed
     showSendToCloud: false,
-    // plotlyServerURL: "", // Default is fine
+    plotlyServerURL: "", 
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
     modeBarButtonsToAdd: [{
       name: 'Reset view',
-      icon: Plotly.Icons.home, // Use standard icon
+      icon: Plotly.Icons.home, 
       click: function(gd) {
         const range = getDefaultRange();
-        if (range && projectionsData.length > 0) { // Check projectionsData
+        if (range && projectionsData.length > 0) { 
           const newYRange = calculateYRange(projectionsData, range);
           const update = {
             'xaxis.range': range,
@@ -250,9 +238,9 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const lastUpdatedTimestamp = metadata?.last_updated;
   let formattedDate = null;
   if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp);
-    formattedDate = date.toLocaleString('en-US', { // Use specific locale for consistency
-      timeZone: 'America/New_York',
+    const date = new Date(lastUpdatedTimestamp); 
+    formattedDate = date.toLocaleString(undefined, {
+      timeZone: 'America/New_York', 
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -261,9 +249,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       timeZoneName: 'short'
     });
   }
-
-  // Add a simple check for missing target selection
-   if (!selectedTarget) {
+  if (!selectedTarget) {
     return (
         <Stack align="center" justify="center" style={{ height: '300px' }}>
             <Text>Please select a target to view data.</Text>
@@ -275,28 +261,25 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     <Stack>
       {formattedDate && (
         <Text size="xs" c="dimmed" ta="right">
-          Last updated: {formattedDate}
+          last updated: {formattedDate}
         </Text>
       )}
-      {/* Container div might need adjustment based on parent layout */}
-      <div style={{ width: '100%', height: 'auto', minHeight: '400px' /* Example min-height */ }}>
+      <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}
-          // Use useMemo for data/layout/config where appropriate if performance is an issue
+          style={{ width: '100%', height: '100%' }}
           data={projectionsData}
           layout={layout}
           config={config}
           onRelayout={handlePlotUpdate} // Keep state update logic here
-          style={{ width: '100%', height: '100%' }}
         />
       </div>
       <ModelSelector
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
-        // getModelColor can be simplified if MODEL_COLORS is consistent
-        getModelColor={(model) => {
-          const index = models.indexOf(model); // Use the full models list for consistent color mapping
+        getModelColor={(model, selectedModels) => {
+          const index = selectedModels.indexOf(model);
           return MODEL_COLORS[index % MODEL_COLORS.length];
         }}
       />
