@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
@@ -14,7 +14,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
-  const calculateYRange = (data, xRange) => {
+  const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null; // Added check for selectedTarget
     let minY = Infinity;
     let maxY = -Infinity;
@@ -43,7 +43,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       return [rangeMin, maxY + padding];
     }
     return null;
-  };
+  }, [selectedTarget]);
 
   const projectionsData = useMemo(() => {
     if (!groundTruth || !forecasts || selectedDates.length === 0 || !selectedTarget) {
@@ -129,25 +129,25 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       setYAxisRange(null); // Reset if no data or default range
     }
     // Add selectedTarget to the dependency array
-  }, [projectionsData, defaultRange, selectedTarget]);
+  }, [projectionsData, defaultRange, selectedTarget, calculateYRange]);
 
-  const handlePlotUpdate = (figure) => {
+  const handlePlotUpdate = useCallback((figure) => {
     if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
       const newXRange = figure['xaxis.range'];
       const newYRange = calculateYRange(projectionsData, newXRange);
       // Only update if the range actually changed to prevent infinite loops
       if (newYRange && JSON.stringify(newYRange) !== JSON.stringify(yAxisRange)) {
         setYAxisRange(newYRange);
-         // No need to call Plotly.relayout here if yAxisRange state is used in layout
+          // No need to call Plotly.relayout here if yAxisRange state is used in layout
       }
     } else if (figure && figure['xaxis.range'] === undefined && defaultRange) {
         // Handle reset or initial load case if needed, possibly recalculate Y
         const initialYRange = calculateYRange(projectionsData, defaultRange);
-         if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)){
-             setYAxisRange(initialYRange);
-         }
+          if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)){
+              setYAxisRange(initialYRange);
+          }
     }
-  };
+  }, [projectionsData, calculateYRange, yAxisRange, defaultRange, setYAxisRange]);
 
   const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -200,11 +200,10 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     }))
   }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]); 
 
-  const config = {
+  const config = useMemo(() => ({
     responsive: true,
     displayModeBar: true,
     displaylogo: false,
-    // modeBarPosition: 'left', // This seems non-standard, check Plotly docs if needed
     showSendToCloud: false,
     plotlyServerURL: "", 
     toImageButtonOptions: {
@@ -222,21 +221,21 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.range': newYRange,
-            'yaxis.autorange': newYRange === null, // Set autorange based on whether range calculation succeeded
+            'yaxis.autorange': newYRange === null,
           };
           Plotly.relayout(gd, update);
           setYAxisRange(newYRange); // Update state
-        } else if (range) { // If no data but have default range, reset x-axis and auto y-axis
-           Plotly.relayout(gd, {
+        } else if (range) { 
+            Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.autorange': true,
           });
-           setYAxisRange(null); // Reset state
+            setYAxisRange(null); // Reset state
         }
       }
     }]
-  };
+  }), [getDefaultRange, projectionsData, calculateYRange, setYAxisRange]);
 
   const lastUpdatedTimestamp = metadata?.last_updated;
   let formattedDate = null;

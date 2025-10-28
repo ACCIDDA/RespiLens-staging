@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
@@ -13,7 +13,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
-  const calculateYRange = (data, xRange) => {
+  const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
     let minY = Infinity;
     let maxY = -Infinity;
@@ -39,7 +39,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       return [rangeMin, maxY + padding];
     }
     return null;
-  };
+  }, [selectedTarget]);
 
   const projectionsData = useMemo(() => {
     if (!groundTruth || !forecasts || selectedDates.length === 0 || !selectedTarget) {
@@ -124,26 +124,25 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     } else {
       setYAxisRange(null); // Reset if no data or default range
     }
-    // Add selectedTarget to the dependency array
-  }, [projectionsData, defaultRange, selectedTarget]);
+    // Add selectedTarget and the now-stable calculateYRange
+  }, [projectionsData, defaultRange, selectedTarget, calculateYRange]);
 
-  const handlePlotUpdate = (figure) => {
+  const handlePlotUpdate = useCallback((figure) => {
     if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
       const newXRange = figure['xaxis.range'];
       const newYRange = calculateYRange(projectionsData, newXRange);
       // Only update if the range actually changed to prevent infinite loops
       if (newYRange && JSON.stringify(newYRange) !== JSON.stringify(yAxisRange)) {
         setYAxisRange(newYRange);
-         // No need to call Plotly.relayout here if yAxisRange state is used in layout
       }
     } else if (figure && figure['xaxis.range'] === undefined && defaultRange) {
-        // Handle reset or initial load case if needed, possibly recalculate Y
-        const initialYRange = calculateYRange(projectionsData, defaultRange);
-         if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)){
-             setYAxisRange(initialYRange);
-         }
+      // Handle reset or initial load case if needed, possibly recalculate Y
+      const initialYRange = calculateYRange(projectionsData, defaultRange);
+      if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)) {
+        setYAxisRange(initialYRange);
+      }
     }
-  };
+  }, [projectionsData, calculateYRange, yAxisRange, defaultRange]);
 
   const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
