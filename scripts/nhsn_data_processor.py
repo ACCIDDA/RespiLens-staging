@@ -13,7 +13,7 @@ import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from helper import TEMP_NHSN_COLUMN_MASK, get_location_info, LOCATIONS_MAP
+from helper import NHSN_COLUMN_MASKS, get_location_info, LOCATIONS_MAP
 
 logger = logging.getLogger(__name__)
 script_dir = os.path.dirname(__file__) 
@@ -45,11 +45,11 @@ class NHSNDataProcessor:
         # Get data set up 
         logger.info(f"Retrieving NHSN data from {self.data_url}...")
         data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()) # read from endpoint
-        data = data[TEMP_NHSN_COLUMN_MASK] # only include a specific subset of columns for plotting now 
+        data = data[NHSN_COLUMN_MASKS['RAW_PATIENT_COUNTS']] # only include a specific subset of columns for plotting now 
         non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
         for col in data.columns:
             if col not in non_numeric_cols:
-                data[col] = pd.to_numeric(data[col], errors='ignore')
+                data[col] = pd.to_numeric(data[col], errors='raise')
         data = data.replace(np.nan, value=None) # cleanse NaN values 
         data.loc[data['jurisdiction'].str.lower() == 'usa', 'jurisdiction'] = 'US' # change USA jurisdiction to US
         data = data[data['jurisdiction'].isin(LOCATIONS_ABBREV)].copy() # filter out unwanted regions

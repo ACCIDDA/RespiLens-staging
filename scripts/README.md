@@ -164,7 +164,7 @@ This script provides a standardized and reusable framework for transforming data
 | `save_json_file()` | Saves a JSON file to a specified output path (has modular overwriting settings) |
 | `validate_respilens_json()` | Uses python `jsonschema` to validate JSON contents with the expected JSON schema of that type (either RespiLens 'projections' style or 'timeseries' style). |
 
-It also contains two constants (`TEMP_NHSN_COLUMN_MASK` and `LOCATIONS_MAP`) for use by `nhsn_data_processor.py`.
+It also contains two constants (`NHSN_COLUMN_MASKS` and `LOCATIONS_MAP`) for use by `nhsn_data_processor.py`.
 
 
 ## nhsn_data_processor
