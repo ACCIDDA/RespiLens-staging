@@ -170,7 +170,10 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange
+      range: defaultRange,
+      showline: true,
+      linewidth: 1,
+      linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
     },
     yaxis: {
       // Use the map for a user-friendly title

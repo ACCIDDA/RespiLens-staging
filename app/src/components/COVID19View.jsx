@@ -174,7 +174,10 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange
+      range: defaultRange,
+      showline: true,
+      linewidth: 1,
+      linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
     },
     yaxis: {
       // Use the map for a user-friendly title
