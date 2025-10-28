@@ -35,12 +35,6 @@ export const CHART_CONSTANTS = {
   Y_AXIS_PADDING_PERCENT: 15
 };
 
-// Default model names by dataset
-export const DEFAULT_MODELS = {
-  FLU: 'FluSight-ensemble',
-  RSV: 'RSVHub-ensemble'
-};
-
 // Rate change category order
 export const RATE_CHANGE_CATEGORIES = [
   'large_decrease',

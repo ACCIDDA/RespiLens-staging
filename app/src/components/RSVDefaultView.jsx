@@ -1,20 +1,20 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
-
-const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange }) => {
+import { targetDisplayNameMap } from '../utils/mapUtils';
+const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
-  const calculateYRange = (data, xRange) => {
-    if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
+  const calculateYRange = useCallback((data, xRange) => {
+    if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
     let minY = Infinity;
     let maxY = -Infinity;
     const [startX, endX] = xRange;
@@ -35,17 +35,19 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     });
     if (minY !== Infinity && maxY !== -Infinity) {
       const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
-      return [0, maxY + padding];
+      const rangeMin = Math.max(0, minY - padding);
+      return [rangeMin, maxY + padding];
     }
     return null;
-  };
+  }, [selectedTarget]);
 
-  const timeSeriesData = useMemo(() => {
-    if (!groundTruth || !forecasts || selectedDates.length === 0) {
+  const projectionsData = useMemo(() => {
+    if (!groundTruth || !forecasts || selectedDates.length === 0 || !selectedTarget) {
       return [];
     }
-    const groundTruthValues = groundTruth.values || groundTruth['wk inc rsv hosp'];
+    const groundTruthValues = groundTruth[selectedTarget];
     if (!groundTruthValues) {
+      console.warn(`Ground truth data not found for target: ${selectedTarget}`);
       return [];
     }
     const groundTruthTrace = {
@@ -60,54 +62,89 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     const modelTraces = selectedModels.flatMap(model => 
       selectedDates.flatMap((date) => {
         const forecastsForDate = forecasts[date] || {};
-        const forecast = forecastsForDate['wk inc rsv hosp']?.[model]; // Simplified to only look for time series data
-        if (!forecast) return [];
+        // Access forecast using selectedTarget
+        const forecast = forecastsForDate[selectedTarget]?.[model];
+        if (!forecast || forecast.type !== 'quantile') return []; // Ensure it's quantile data
+
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
-        const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
-        sortedPredictions.forEach(([, pred]) => {
+        // Sort predictions by date, accessing the nested prediction object
+        const sortedPredictions = Object.values(forecast.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        sortedPredictions.forEach((pred) => {
           forecastDates.push(pred.date);
-          if (forecast.type !== 'quantile') return;
           const { quantiles = [], values = [] } = pred;
-          ci95Lower.push(values[quantiles.indexOf(0.025)] || 0);
-          ci50Lower.push(values[quantiles.indexOf(0.25)] || 0);
-          medianValues.push(values[quantiles.indexOf(0.5)] || 0);
-          ci50Upper.push(values[quantiles.indexOf(0.75)] || 0);
-          ci95Upper.push(values[quantiles.indexOf(0.975)] || 0);
+
+          // Find values for specific quantiles, defaulting to null or 0 if not found
+          const findValue = (q) => {
+            const index = quantiles.indexOf(q);
+            return index !== -1 ? values[index] : null; // Use null if quantile is missing
+          };
+
+          const val_025 = findValue(0.025);
+          const val_25 = findValue(0.25);
+          const val_50 = findValue(0.5);
+          const val_75 = findValue(0.75);
+          const val_975 = findValue(0.975);
+
+          // Only add points if median and CIs are available
+          if (val_50 !== null && val_025 !== null && val_975 !== null && val_25 !== null && val_75 !== null) {
+              ci95Lower.push(val_025);
+              ci50Lower.push(val_25);
+              medianValues.push(val_50);
+              ci50Upper.push(val_75);
+              ci95Upper.push(val_975);
+          } else {
+             // If essential quantiles are missing, we might skip this point or handle it differently
+             // For now, let's just skip adding to the arrays to avoid breaking the CI shapes
+             console.warn(`Missing quantiles for model ${model}, date ${date}, target ${selectedTarget}, prediction date ${pred.date}`);
+          }
         });
+
+        // Ensure we have data points before creating traces
+        if (forecastDates.length === 0) return [];
+
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
         return [
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI` },
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI` },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI`, hoverinfo: 'none' },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI`, hoverinfo: 'none' },
           { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
         ];
       })
     );
     return [groundTruthTrace, ...modelTraces];
-  }, [groundTruth, forecasts, selectedDates, selectedModels]);
+  }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
   const defaultRange = getDefaultRange();
 
   useEffect(() => {
-    if (timeSeriesData.length > 0 && defaultRange) {
-      const initialYRange = calculateYRange(timeSeriesData, defaultRange);
-      if (initialYRange) {
+    // Recalculate y-axis when target changes or data loads
+    if (projectionsData.length > 0 && defaultRange) {
+      const initialYRange = calculateYRange(projectionsData, defaultRange);
+      setYAxisRange(initialYRange); // Set to null if calculation fails
+    } else {
+      setYAxisRange(null); // Reset if no data or default range
+    }
+    // Add selectedTarget and the now-stable calculateYRange
+  }, [projectionsData, defaultRange, selectedTarget, calculateYRange]);
+
+  const handlePlotUpdate = useCallback((figure) => {
+    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
+      const newXRange = figure['xaxis.range'];
+      const newYRange = calculateYRange(projectionsData, newXRange);
+      // Only update if the range actually changed to prevent infinite loops
+      if (newYRange && JSON.stringify(newYRange) !== JSON.stringify(yAxisRange)) {
+        setYAxisRange(newYRange);
+      }
+    } else if (figure && figure['xaxis.range'] === undefined && defaultRange) {
+      // Handle reset or initial load case if needed, possibly recalculate Y
+      const initialYRange = calculateYRange(projectionsData, defaultRange);
+      if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)) {
         setYAxisRange(initialYRange);
       }
     }
-  }, [timeSeriesData, defaultRange]);
+  }, [projectionsData, calculateYRange, yAxisRange, defaultRange]);
 
-  const handlePlotUpdate = (figure) => {
-    if (figure && figure['xaxis.range'] && timeSeriesData.length > 0) {
-      const newYRange = calculateYRange(timeSeriesData, figure['xaxis.range']);
-      if (newYRange && plotRef.current) {
-        setYAxisRange(newYRange);
-        Plotly.relayout(plotRef.current.el, {'yaxis.range': newYRange});
-      }
-    }
-  };
-
-  // Simplified layout for a single, full-width time series chart
-  const layout = {
+  const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
     autosize: true,
@@ -132,11 +169,16 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange
+      range: defaultRange,
+      showline: true,
+      linewidth: 1,
+      linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
     },
     yaxis: {
-      title: 'Hospitalizations',
-      range: yAxisRange
+      // Use the map for a user-friendly title
+      title: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value', // Fallback to raw target name or 'Value'
+      range: yAxisRange, // Use state for dynamic range updates
+      autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
     },
     shapes: selectedDates.map(date => ({
       type: 'line',
@@ -151,13 +193,13 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         dash: 'dash'
       }
     }))
-  };
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]);
 
   const config = {
     responsive: true,
     displayModeBar: true,
     displaylogo: false,
-    modeBarPosition: 'left',
+    // modeBarPosition: 'left', ? perhaps not needed
     showSendToCloud: false,
     plotlyServerURL: "",
     toImageButtonOptions: {
@@ -166,16 +208,26 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     },
     modeBarButtonsToAdd: [{
       name: 'Reset view',
+      icon: Plotly.Icons.home,
       click: function(gd) {
         const range = getDefaultRange();
-        if (range) {
-          const newYRange = calculateYRange(timeSeriesData, range);
-          Plotly.relayout(gd, {
+        if (range && projectionsData.length > 0) {
+          const newYRange = calculateYRange(projectionsData, range);
+          const update = {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
-            'yaxis.range': newYRange
-          });
-          setYAxisRange(newYRange);
+            'yaxis.range': newYRange,
+            'yaxis.autorange': newYRange === null, // Set autorange based on whether range calculation succeeded
+          };
+          Plotly.relayout(gd, update);
+          setYAxisRange(newYRange); // Update state
+        } else if (range) { // If no data but have default range, reset x-axis and auto y-axis
+            Plotly.relayout(gd, {
+              'xaxis.range': range,
+              'xaxis.rangeslider.range': getDefaultRange(true),
+              'yaxis.autorange': true,
+            });
+              setYAxisRange(null); // Reset state
         }
       }
     }]
@@ -195,6 +247,13 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       timeZoneName: 'short'
     });
   }
+  if (!selectedTarget) {
+    return (
+        <Stack align="center" justify="center" style={{ height: '300px' }}>
+            <Text>Please select a target to view data.</Text>
+        </Stack>
+    );
+  }
 
   return (
     <Stack>
@@ -207,7 +266,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={timeSeriesData} 
+          data={projectionsData} 
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}

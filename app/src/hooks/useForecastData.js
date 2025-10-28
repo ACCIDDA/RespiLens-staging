@@ -8,6 +8,7 @@ export const useForecastData = (location, viewType) => {
   const [error, setError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
   const [models, setModels] = useState([]);
+  const [availableTargets, setAvailableTargets] = useState([]);
 
   useEffect(() => {
     if (!location || !viewType) return;
@@ -17,14 +18,15 @@ export const useForecastData = (location, viewType) => {
       setError(null);
       setData(null);
       setMetadata(null);
+      setAvailableTargets([])
 
       try {
         // Updated map to hold both the directory name and the file suffix
         const datasetMap = {
           'fludetailed': { directory: 'flusight', suffix: 'flu' },
-          'flu_ts': { directory: 'flusight', suffix: 'flu' },
-          'covid_ts': { directory: 'covid19forecasthub', suffix: 'covid19' },
-          'rsv_ts': { directory: 'rsvforecasthub', suffix: 'rsv' },
+          'flu_projs': { directory: 'flusight', suffix: 'flu' },
+          'covid_projs': { directory: 'covid19forecasthub', suffix: 'covid19' },
+          'rsv_projs': { directory: 'rsvforecasthub', suffix: 'rsv' },
           'nhsnall': { directory: 'nhsn', suffix: 'nhsn' }
         };
 
@@ -60,7 +62,13 @@ export const useForecastData = (location, viewType) => {
             });
           });
           setModels(Array.from(modelSet).sort());
+        };
+
+        let targets = [];
+        if (jsonData?.ground_truth) {
+          targets = Object.keys(jsonData.ground_truth).filter(key => key !== 'dates');
         }
+        setAvailableTargets(targets);
 
       } catch (err) {
         console.error('Error fetching forecast data:', err);
@@ -73,5 +81,5 @@ export const useForecastData = (location, viewType) => {
     fetchData();
   }, [location, viewType]);
 
-  return { data, metadata, loading, error, availableDates, models };
+  return { data, metadata, loading, error, availableDates, models, availableTargets };
 };

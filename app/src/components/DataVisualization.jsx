@@ -21,6 +21,7 @@ const DataVisualization = ({
   selectedModels,
   setSelectedModels,
   windowSize,
+  selectedTarget
 }) => {
   // Show loading state
   if (loading) {
@@ -89,7 +90,7 @@ const DataVisualization = ({
   // Render appropriate view based on viewType
   switch (viewType) {
     case 'fludetailed':
-    case 'flu_ts':
+    case 'flu_projs':
       return (
         <FluView
           data={data}
@@ -101,10 +102,11 @@ const DataVisualization = ({
           viewType={viewType}
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 
-    case 'rsv_ts':
+    case 'rsv_projs':
       return (
         <RSVDefaultView
           data={data}
@@ -116,10 +118,11 @@ const DataVisualization = ({
           viewType={viewType}
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 
-    case 'covid_ts':
+    case 'covid_projs':
       return(
         <COVID19View
           data={data}
@@ -131,6 +134,7 @@ const DataVisualization = ({
           viewType={viewType}
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 

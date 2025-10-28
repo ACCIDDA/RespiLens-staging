@@ -4,9 +4,9 @@ export const DATASETS = {
     fullName: 'FluSight',
     views: [
       { key: 'detailed', label: 'Detailed View', value: 'fludetailed' },
-      { key: 'timeseries', label: 'Time Series', value: 'flu_ts' }
+      { key: 'projections', label: 'Projections', value: 'flu_projs' }
     ],
-    defaultView: 'flu_ts',
+    defaultView: 'flu_projs',
     defaultModel: 'FluSight-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -17,9 +17,9 @@ export const DATASETS = {
     shortName: 'rsv',
     fullName: 'RSV Forecast Hub',
     views: [
-      { key: 'detailed', label: 'Time Series', value: 'rsv_ts' }
+      { key: 'projections', label: 'Projections', value: 'rsv_projs' }
     ],
-    defaultView: 'rsv_ts',
+    defaultView: 'rsv_projs',
     defaultModel: 'RSVHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -30,9 +30,9 @@ export const DATASETS = {
     shortName: 'covid',
     fullName: 'COVID-19 Forecast Hub',
     views: [
-      { key: 'timeseries', label: 'Time Series', value: 'covid_ts' }
+      { key: 'projections', label: 'Projections', value: 'covid_projs' }
     ],
-    defaultView: 'covid_ts',
+    defaultView: 'covid_projs',
     defaultModel: 'CovidHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -46,7 +46,7 @@ export const DATASETS = {
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
     defaultView: 'nhsnall',
-    defaultColumn: 'Number Hospitals Reporting TotalPatients Hospitalized with Influenza', // guess at best default col
+    defaultColumn: 'Number of Adult COVID-19 Admissions, 18-49 years', 
     hasDateSelector: false,
     hasModelSelector: false,
     prefix: 'nhsn',

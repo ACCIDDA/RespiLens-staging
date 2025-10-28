@@ -22,6 +22,7 @@ const ForecastViz = () => {
     currentDataset,
     selectedColumns,
     setSelectedColumns,
+    selectedTarget
   } = useView();
 
   const [windowSize, setWindowSize] = useState({
@@ -32,7 +33,7 @@ const ForecastViz = () => {
 
   // Configuration for AboutHubOverlay based on viewType
   const aboutHubConfig = {
-    'covid_ts': {
+    'covid_projs': {
       title: (
         <Group gap="sm">
           <Title order={4}>COVID-19 Forecast Hub</Title>
@@ -76,7 +77,7 @@ const ForecastViz = () => {
         </>
       )
     },
-    'rsv_ts': {
+    'rsv_projs': {
       title: (
         <Group gap="sm">
           <Title order={4}>RSV Forecast Hub</Title>
@@ -120,7 +121,7 @@ const ForecastViz = () => {
         </>
       )
     },
-    'flu_ts': {
+    'flu_projs': {
       title: (
         <Group gap="sm">
           <Title order={4}>FluSight Forecast Hub</Title>
@@ -332,6 +333,7 @@ const ForecastViz = () => {
                 selectedColumns={selectedColumns}
                 setSelectedColumns={setSelectedColumns}
                 windowSize={windowSize}
+                selectedTarget={selectedTarget}
               />
             </div>
           </Stack>
