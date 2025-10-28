@@ -85,7 +85,7 @@ export const ViewProvider = ({ children }) => {
     if (needsModelUrlUpdate) {
       updateDatasetParams({ models: modelsToSet });
     }
-  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams]);
+  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget]);
 
   // --- useEffect to set DEFAULT target ---
   useEffect(() => {
@@ -96,7 +96,7 @@ export const ViewProvider = ({ children }) => {
     if (!isCurrentTargetValid) {
       setSelectedTarget(availableTargets[0]);
     }
-  }, [loading, availableTargets]);
+  }, [loading, availableTargets, selectedTarget]);
 
 
   const handleLocationSelect = (newLocation) => {

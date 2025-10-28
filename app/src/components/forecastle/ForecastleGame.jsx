@@ -172,8 +172,8 @@ const ForecastleGame = () => {
       );
     }
 
-    const latestObservation =
-      scenario.groundTruthSeries[scenario.groundTruthSeries.length - 1] ?? null;
+    // const latestObservation =
+      // scenario.groundTruthSeries[scenario.groundTruthSeries.length - 1] ?? null; // remove unused var!!
     const latestValue = Number.isFinite(latestObservationValue) ? latestObservationValue : 0;
     const baseMax = latestValue > 0 ? latestValue * 5 : 1;
     const userMaxCandidate = Math.max(

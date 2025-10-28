@@ -143,19 +143,6 @@ export class URLParameterManager {
     }
   }
 
-  // Handle view type changes
-  handleViewChange(oldView, newView) {
-    // This method seems redundant as ViewContext now handles clearing params.
-    // Kept for potential future use or if ViewContext logic changes.
-    const oldDataset = this.getDatasetFromView(oldView);
-    const newDataset = this.getDatasetFromView(newView);
-
-    // If switching between datasets, ViewContext handles clearing old params
-    // via newSearchParams.delete in its handleViewChange.
-
-    // Update view parameter logic remains in ViewContext's handleViewChange.
-    console.warn("urlManager.handleViewChange might be redundant now.");
-  }
 
   // Update location parameter while preserving all other params
   updateLocation(location) {
