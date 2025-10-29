@@ -5,7 +5,6 @@ import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
 
-// --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
 const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
   const [metadata, setMetadata] = useState(null);
@@ -14,7 +13,6 @@ const NHSNRawView = ({ location }) => {
   const { colorScheme } = useMantineColorScheme();
   const [availableColumns, setAvailableColumns] = useState([]);
 
-  // --- CHANGE 2: Add state for selectedColumns inside this component ---
   const [selectedColumns, setSelectedColumns] = useState([]);
 
   useEffect(() => {

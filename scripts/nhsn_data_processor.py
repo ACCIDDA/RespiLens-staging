@@ -45,7 +45,7 @@ class NHSNDataProcessor:
         # Get data set up 
         logger.info(f"Retrieving NHSN data from {self.data_url}...")
         data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()) # read from endpoint
-        data = data[NHSN_COLUMN_MASKS['RAW_PATIENT_COUNTS']] # only include a specific subset of columns for plotting now 
+        # data = data[NHSN_COLUMN_MASKS['RAW_PATIENT_COUNTS']] # only include a specific subset of columns for plotting now 
         non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
         for col in data.columns:
             if col not in non_numeric_cols:
