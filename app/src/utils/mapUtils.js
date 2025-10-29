@@ -109,18 +109,14 @@ export const nhsnTargetsToColumnsMap = {
         'Number of Pediatric Inpatient beds'
     ],
     'Bed Capacity Percents': [
-        'Number of Adult ICU Beds',
-        'Number of Adult ICU Beds Occupied',
-        'Number of Adult Inpatient Beds',
-        'Number of Adult Inpatient Beds Occupied',
-        'Number of ICU Beds',
-        'Number of ICU Beds Occupied',
-        'Number of Inpatient Beds',
-        'Number of Inpatient Beds Occupied',
-        'Number of Pediatric ICU Beds',
-        'Number of Pediatric ICU Beds Occupied',
-        'Number of Pediatric Inpatient Beds Occupied',
-        'Number of Pediatric Inpatient beds'
+        'Percent ICU Beds Occupied',
+        'Percent ICU Beds Occupied by COVID-19 Patients',
+        'Percent ICU Beds Occupied by Influenza Patients',
+        'Percent ICU Beds Occupied by RSV Patients',
+        'Percent Inpatient Beds Occupied',
+        'Percent Inpatient Beds Occupied by COVID-19 Patients',
+        'Percent Inpatient Beds Occupied by Influenza Patients',
+        'Percent Inpatient Beds Occupied by RSV Patients',
     ],
     'Absolute Percent Change': [
         'Absolute Change in the Percent Hospitals Reporting  Influenza Admissions from Prior Week',
