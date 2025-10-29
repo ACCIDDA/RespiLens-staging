@@ -71,7 +71,7 @@ const ForecastViz = () => {
             <Title order={4} mb="xs">Targets</Title>
             <p>
               Participating models submit forecasts for "target" data, which is plotted by selecting a model.
-              Presently, RespiLens plots projections for the COVID-19 target "weekly incident of COVID-19 hospitalizations".
+              Presently, RespiLens plots projections for the COVID-19 target "weekly incident of COVID-19 hospitalizations" and "weekly proportion of ED visits due to COVID-19".
             </p>
           </div>
         </>
@@ -114,8 +114,8 @@ const ForecastViz = () => {
           <div>
             <Title order={4} mb="xs">Targets</Title>
             <p>
-              Participating models submit forecasts for "target" data, which is plotted by selecting a model.
-              Presently, RespiLens plots projections for the RSV target "weekly incident of RSV hospitalizations".
+              Participating models submit forecasts for "target" data, which is plotted by selecting a model and a target.
+              Presently, RespiLens plots projections for the RSV target "weekly incident of RSV hospitalizations" and "weekly proportion of ED visits due to RSV".
             </p>
           </div>
         </>
@@ -215,8 +215,8 @@ const ForecastViz = () => {
             <Title order={4} mb="xs">Columns</Title>
             <p>
               The NHSN dataset contains ~300 columns for plotting data with a variety of scales, including hospitalization admission counts, percent of
-              admissions by pathogen, hospitalization rates, number of hospitals reporting, raw bed capacity numbers, bed capacity percents, and absolute
-              percentage of change. Presently on RespiLens, you are only able to plot NHSN columns relating to raw patient counts.
+              admissions by pathogen, hospitalization rates per 100k, raw bed capacity numbers, bed capacity percents, and absolute
+              percentage of change. On RespiLens, you can use the timeseries unit selector to switch between data scales and view similar columns on the same plot.
             </p>
           </div>
         </>

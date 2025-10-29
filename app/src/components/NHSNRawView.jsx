@@ -1,31 +1,51 @@
 import { useState, useEffect } from 'react';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
+import { nhsnTargetsToColumnsMap } from '../utils/mapUtils';
 
-// --- CHANGE 1: Remove selectedColumns and setSelectedColumns from props ---
+
+const nhsnYAxisLabelMap = {
+  'Raw Patient Counts': 'Patient Count',
+  'Hospital Admission Rates': 'Rate per 100k',
+  'Hospital Admission Percents': 'Percent (%)',
+  'Raw Bed Capacity': 'Bed Count',
+  'Bed Capacity Percents': 'Percent (%)',
+  'Absolute Percent Change': 'Absolute Change (%)'
+};
+
 const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  const [availableColumns, setAvailableColumns] = useState([]);
-
-  // --- CHANGE 2: Add state for selectedColumns inside this component ---
+  
+  const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
+  const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
+  
   const [selectedColumns, setSelectedColumns] = useState([]);
+
+  const [availableTargets, setAvailableTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!location) return;
+      
       try {
         setLoading(true);
-        // Reset state for new location to prevent showing old data
+        // Reset state for new location
         setData(null);
         setMetadata(null);
-        setAvailableColumns([]);
+        setAllDataColumns([]);
+        setFilteredAvailableColumns([]);
         setSelectedColumns([]);
+        setAvailableTargets([]);
+        setSelectedTarget(null);
+        setError(null);
 
         const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
         const metadataUrl = getDataPath('nhsn/metadata.json');
@@ -47,24 +67,25 @@ const NHSNRawView = ({ location }) => {
         if (!jsonData.series || !jsonData.series.dates) {
           throw new Error('Invalid data format');
         }
-        if (!jsonMetadata.last_updated) {
+        // This is your original check, it's correct.
+        if (!jsonMetadata.last_updated) { 
           throw new Error('Invalid metadata format');
         }
 
         setData(jsonData);
-        setMetadata(jsonMetadata);
+        setMetadata(jsonMetadata); // Store for last_updated
 
-        const dataColumns = Object.keys(jsonData.series)
+        
+        const allColumnsFromData = Object.keys(jsonData.series)
           .filter(key => key !== 'dates')
           .sort();
-        
-        setAvailableColumns(dataColumns);
+        setAllDataColumns(allColumnsFromData);
 
-        // Set a default column selection when data loads ---
-        if (dataColumns.length > 0) {
-          // You can make this smarter, but for now, we'll select the first column by default.
-          const defaultColumn = dataColumns.find(c => c.includes("COVID-19")) || dataColumns[0];
-          setSelectedColumns([defaultColumn]);
+        const targets = Object.keys(nhsnTargetsToColumnsMap);
+        setAvailableTargets(targets);
+
+        if (targets.length > 0) {
+          setSelectedTarget(targets[0]); // Default to the first target
         }
 
       } catch (err) {
@@ -74,12 +95,28 @@ const NHSNRawView = ({ location }) => {
       }
     };
 
-    if (location) {
-      fetchData();
-    }
+    fetchData();
   }, [location]); // This effect only runs when the location changes
 
-  // The calculateNHSNYRange function is correct and doesn't need changes.
+  useEffect(() => {
+    if (!selectedTarget || allDataColumns.length === 0) {
+      setFilteredAvailableColumns([]);
+      return;
+    }
+    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
+    const filtered = allDataColumns.filter(col => columnsForTarget.includes(col));
+    
+    setFilteredAvailableColumns(filtered);
+
+    // Set a new default column 
+    if (filtered.length > 0) {
+      setSelectedColumns([filtered[0]]);
+    } else {
+      setSelectedColumns([]);
+    }
+  }, [selectedTarget, allDataColumns]); // Runs when target or data changes
+
+
   const calculateNHSNYRange = () => {
     if (!data?.series || selectedColumns.length === 0) return null;
     const allValues = selectedColumns.reduce((acc, column) => {
@@ -101,7 +138,8 @@ const NHSNRawView = ({ location }) => {
   if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
   const traces = selectedColumns.map((column) => {
-    const columnIndex = availableColumns.indexOf(column);
+    // Use filteredAvailableColumns for index
+    const columnIndex = filteredAvailableColumns.indexOf(column);
     return {
       x: data.series.dates,
       y: data.series[column],
@@ -123,7 +161,6 @@ const NHSNRawView = ({ location }) => {
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    title: `NHSN Raw Data for ${data.metadata.location_name}`,
     xaxis: {
       title: 'Date',
       rangeslider: {
@@ -135,7 +172,7 @@ const NHSNRawView = ({ location }) => {
       ]
     },
     yaxis: {
-      title: 'Patient count',
+      title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
       range: calculateNHSNYRange()
     },
     height: 600,
@@ -165,6 +202,18 @@ const NHSNRawView = ({ location }) => {
           last updated: {formattedDate}
         </Text>
       )}
+
+      <Select
+        label="Select a timeseries unit"
+        placeholder="Choose a time series unit"
+        data={availableTargets} 
+        value={selectedTarget}
+        onChange={setSelectedTarget} // This triggers the useEffect to filter columns
+        disabled={loading}
+        allowDeselect={false}
+        // style={{ maxWidth: 200 }}
+      />
+
       <Plot
         data={traces}
         layout={layout}
@@ -176,8 +225,9 @@ const NHSNRawView = ({ location }) => {
         }}
         style={{ width: '100%' }}
       />
+      
       <NHSNColumnSelector
-        availableColumns={availableColumns}
+        availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
       />
