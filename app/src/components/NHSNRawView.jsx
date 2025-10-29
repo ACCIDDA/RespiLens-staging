@@ -161,7 +161,6 @@ const NHSNRawView = ({ location }) => {
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    title: `NHSN Raw Data for ${data.metadata.location_name}`,
     xaxis: {
       title: 'Date',
       rangeslider: {
@@ -212,6 +211,7 @@ const NHSNRawView = ({ location }) => {
         onChange={setSelectedTarget} // This triggers the useEffect to filter columns
         disabled={loading}
         allowDeselect={false}
+        // style={{ maxWidth: 200 }}
       />
 
       <Plot

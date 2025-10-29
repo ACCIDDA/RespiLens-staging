@@ -125,8 +125,8 @@ const InfoOverlay = () => {
           </Alert>
 
           <Text>
-            A responsive web app to visualize respiratory disease forecasts in the US, focused on
-            accessibility for state health departments and general public. Key features include:
+            RespiLens is a responsive web app to visualize respiratory disease forecasts in the US, focused on
+            accessibility for state health departments and the general public. Key features include:
           </Text>
 
           <List spacing="xs" size="sm">
@@ -142,7 +142,6 @@ const InfoOverlay = () => {
             <Title order={4} mb="xs">On the roadmap</Title>
             <List spacing="xs" size="sm">
               <List.Item>Scoring visualization and ability to select best models</List.Item>
-              <List.Item>Multi-pathogen views</List.Item>
               <List.Item>Model description on hover</List.Item>
             </List>
           </div>
@@ -156,56 +155,6 @@ const InfoOverlay = () => {
             for Infectious Disease Dynamics and Analytics.
           </Text>
 
-          <div>
-            <Title order={4} mb="xs">About FluSight</Title>
-            <Text size="sm" mb="xs">
-              CDC's flu forecasting initiative helps predict future influenza activity to support
-              public health planning.
-            </Text>
-            <Anchor
-              href="https://github.com/cdcepi/FluSight-forecast-hub"
-              target="_blank"
-              rel="noopener"
-              size="sm"
-            >
-              Flusight Forecast Hub
-            </Anchor>
-          </div>
-
-          <div>
-            <Title order={4} mb="xs">About RSV forecasting</Title>
-            <Anchor
-              href="https://rsvforecasthub.org"
-              target="_blank"
-              rel="noopener"
-              size="sm"
-            >
-              About RSV forecast hub
-            </Anchor>
-          </div>
-
-          <div>
-            <Text fw={500} size="sm" mb="xs">Other Flusight viz by reichlab:</Text>
-            <List spacing="xs" size="sm">
-              <List.Item>
-                <Anchor href="http://flusightnetwork.io" target="_blank" rel="noopener">
-                  flusightnetwork.io
-                </Anchor>{' '}
-                (historical)
-              </List.Item>
-              <List.Item>
-                <Anchor href="https://zoltardata.com/project/360/viz" target="_blank" rel="noopener">
-                  Zoltar visualization
-                </Anchor>{' '}
-                (last year season)
-              </List.Item>
-              <List.Item>
-                <Anchor href="https://reichlab.io/flusight-dashboard/" target="_blank" rel="noopener">
-                  Current flusight dashboard
-                </Anchor>
-              </List.Item>
-            </List>
-          </div>
         </Stack>
       </Modal>
     </>
