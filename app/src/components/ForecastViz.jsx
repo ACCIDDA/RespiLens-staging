@@ -1,532 +1,345 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import StateSelector from './StateSelector';
-import RSVDefaultView from './RSVDefaultView';
-import FluView from './FluView';
-import InfoOverlay from './InfoOverlay';
-import { useView } from '../contexts/ViewContext';
-import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import ViewSelector from './ViewSelector';
-import Plot from 'react-plotly.js';
-import NHSNRawView from './NHSNRawView';
+// src/components/ForecastViz.jsx
+
+import { useState, useEffect } from 'react';
+import { Stack, Container, Paper, Group, Button, Tooltip, Title, Anchor, List } from '@mantine/core';
+import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
-import { getDataPath } from '../utils/paths';
-import { DATASETS } from '../config/datasets';
+import DataVisualization from './DataVisualization';
+import ErrorBoundary from './ErrorBoundary';
+import AboutHubOverlay from './AboutHubOverlay';
+import { IconShare, IconBrandGithub } from '@tabler/icons-react';
+import { useClipboard } from '@mantine/hooks';
 
-// Color palette for model visualization
-const MODEL_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-  '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5',
-  '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
-];
-
-const getModelColor = (model, selectedModels) => {
-  const index = selectedModels.indexOf(model);
-  return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : null;
-};
-
-const ForecastViz = ({ location, handleStateSelect }) => {
-  // 1. First declare all hooks
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const ForecastViz = () => {
+  // Get EVERYTHING from the single context hook
   const {
+    selectedLocation,
+    data, metadata, loading, error, availableDates, models,
     selectedModels, setSelectedModels,
     selectedDates, setSelectedDates,
     activeDate, setActiveDate,
-    viewType, setViewType,  // Add this line
-    currentDataset
+    viewType,
+    currentDataset,
+    selectedColumns,
+    setSelectedColumns,
+    selectedTarget
   } = useView();
-  const [availableDates, setAvailableDates] = useState([]);
-  const [models, setModels] = useState([]);
+
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
   });
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const clipboard = useClipboard({ timeout: 2000 });
 
-  // 2. Define all useEffects
-  useEffect(() => {
-    const urlView = searchParams.get('view');
-    if (urlView && ['fludetailed', 'flutimeseries', 'rsvdetailed', 'nhsnall'].includes(urlView)) {
-      setViewType(urlView);
+  // Configuration for AboutHubOverlay based on viewType
+  const aboutHubConfig = {
+    'covid_projs': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>COVID-19 Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/CDCgov/covid19-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About COVID-19 Forecast Hub",
+      content: (
+        <>
+          <p>
+            The COVID-19 Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
+            <p></p>
+            <List spacing="xs" size="sm">
+              <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
+              <List.Item>Weekly incident percentage of emergency department visits due to COVID-19</List.Item>
+            </List>
+            <p></p>
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit forecasts for "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the COVID-19 target "weekly incident of COVID-19 hospitalizations" and "weekly proportion of ED visits due to COVID-19".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'rsv_projs': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>RSV Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/CDCgov/rsv-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About RSV Forecast Hub",
+      content: (
+        <>
+          <p>
+            The RSV Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
+            <p></p>
+            <List spacing="xs" size="sm">
+              <List.Item>Weekly new hospitalizations due to RSV</List.Item>
+              <List.Item>Weekly incident percentage of emergency department visits due to RSV</List.Item>
+            </List>
+            <p></p>
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit forecasts for "target" data, which is plotted by selecting a model and a target.
+              Presently, RespiLens plots projections for the RSV target "weekly incident of RSV hospitalizations" and "weekly proportion of ED visits due to RSV".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'flu_projs': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>FluSight Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/cdcepi/FluSight-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About FluSight",
+      content: (
+        <>
+          <p>
+            FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'fludetailed': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>FluSight Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/cdcepi/FluSight-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About FluSight",
+      content: (
+        <>
+          <p>
+            FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
+            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+          </p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
+              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
+            </p>
+          </div>
+          <div>
+            <Title order={4} mb="xs">Targets</Title>
+            <p>
+              Participating models submit "target" data, which is plotted by selecting a model.
+              Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+            </p>
+          </div>
+        </>
+      )
+    },
+    'nhsnall': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>National Healthcare Safety Network (NHSN)</Title>
+        </Group>
+      ),
+      buttonLabel: "About NHSN Data",
+      content: (
+        <>
+          <p>
+            Data for the RespiLens NHSN view comes from the CDC's <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noopener noreferrer">National Healthcare Safety Network</a> weekly "Hospital Respiratory Data" (HRD) dataset.
+            This dataset represents metrics aggregated to national and state/territory levels beginning in August 2020. To plot data, you can select
+            NHSN column(s).
+          </p>
+          <div>
+            <Title order={4} mb="xs">Columns</Title>
+            <p>
+              The NHSN dataset contains ~300 columns for plotting data with a variety of scales, including hospitalization admission counts, percent of
+              admissions by pathogen, hospitalization rates per 100k, raw bed capacity numbers, bed capacity percents, and absolute
+              percentage of change. On RespiLens, you can use the timeseries unit selector to switch between data scales and view similar columns on the same plot.
+            </p>
+          </div>
+        </>
+      )
     }
-  }, []);
+  };
+
+  const currentAboutConfig = aboutHubConfig[viewType];
 
   useEffect(() => {
-    if (selectedDates.length > 0 && selectedModels.length > 0) {
-      const newParams = new URLSearchParams(searchParams);
-      const prefix = viewType === 'rsvdetailed' ? 'rsv' : viewType === 'nhsnall' ? 'nhsn' : 'flu';
-      newParams.set(`${prefix}_dates`, selectedDates.join(','));
-      newParams.set(`${prefix}_models`, selectedModels.join(','));
-      newParams.set('location', location);
-      newParams.set('view', viewType);
-      setSearchParams(newParams, { replace: true });
-    }
-  }, [selectedDates, selectedModels, viewType, location, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!loading && data && availableDates.length > 0 && models.length > 0 &&
-        (selectedDates.length === 0 || selectedModels.length === 0)) {
-
-      const prefix = viewType === 'rsvdetailed' ? 'rsv' : viewType === 'nhsnall' ? 'nhsn' : 'flu';
-      const urlDates = searchParams.get(`${prefix}_dates`)?.split(',') || [];
-      const urlModels = searchParams.get(`${prefix}_models`)?.split(',') || [];
-
-      // Only set dates if none are selected for current view type
-      if (selectedDates.length === 0) {
-        const validDates = urlDates
-          .filter(date => availableDates.includes(date))
-          .sort();  // Sort the dates chronologically
-
-        if (validDates.length > 0) {
-          // Set all valid dates from URL instead of just the first one
-          setSelectedDates(validDates);
-          // Set active date to the most recent one
-          setActiveDate(validDates[validDates.length - 1]);
-        } else {
-          const latestDate = availableDates[availableDates.length - 1];
-          setSelectedDates([latestDate]);
-          setActiveDate(latestDate);
-        }
-      }
-
-      // Only set models if none are selected for current view type
-      if (selectedModels.length === 0) {
-        const requestedModels = urlModels.filter(Boolean); // Filter out any empty strings
-        console.log('Initializing models:', {
-          requestedModels,
-          availableModels: models,
-          currentSelection: selectedModels
-        });
-
-        if (requestedModels.length > 0) {
-          // Try to match each requested model exactly
-          const validModels = requestedModels.filter(model => models.includes(model));
-          console.log('Found valid models:', validModels);
-
-          if (validModels.length > 0) {
-            setSelectedModels(validModels);
-            console.log('Setting models from URL:', validModels);
-            return;  // Exit early if we found valid models
-          }
-        }
-
-        // If no valid models found, set default
-        const defaultModel = viewType === 'rsvdetailed' ?
-          (models.includes('hub-ensemble') ? 'hub-ensemble' : models[0]) :
-          (models.includes('FluSight-ensemble') ? 'FluSight-ensemble' : models[0]);
-        console.log('Setting default model:', defaultModel);
-        setSelectedModels([defaultModel]);
-      }
-    }
-  }, [loading, data, availableDates, models, viewType]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-    };
-
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    console.log('ForecastViz useEffect triggered:', { viewType, location });
-
-    // Skip loading forecast data if we're in NHSN view
-    if (viewType === 'nhsnall') {
-      return;
-    }
-
-    const fetchData = async () => {
-      try {
-        // Don't clear state when fetching new data
-        setData(null);
-        setError(null);
-        setLoading(true);
-
-        // Don't clear these anymore:
-        // setSelectedDates([]);
-        // setSelectedModels([]);
-        // setAvailableDates([]);
-        // setModels([]);
-
-        // Determine which file to load based on view type
-        const prefix = viewType === 'rsvdetailed' ? 'rsv' : 'flusight';
-        const url = getDataPath(`${prefix}/${location}_${prefix}.json`);
-        console.log('Attempting to fetch:', url);
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to load ${prefix} data for ${location} (status ${response.status})`);
-        }
-
-        const text = await response.text();
-        console.log('Raw response text:', text.slice(0, 500) + '...');
-
-        const parsedData = JSON.parse(text);
-        console.log('Parsed JSON structure:', {
-          hasMetadata: !!parsedData.metadata,
-          hasGroundTruth: !!parsedData.ground_truth,
-          topLevelKeys: Object.keys(parsedData)
-        });
-
-        if (!parsedData || typeof parsedData !== 'object') {
-          throw new Error('Invalid JSON response: not an object');
-        }
-        if (!parsedData.metadata) {
-          throw new Error('Invalid JSON response: missing metadata');
-        }
-        if (!parsedData.ground_truth) {
-          throw new Error('Invalid JSON response: missing ground_truth');
-        }
-
-        setData(parsedData);
-
-        // Initialize dates and models
-        if (viewType === 'rsvdetailed') {
-          const dates = Object.keys(parsedData.forecasts || {}).sort();
-          setAvailableDates(dates);
-          if (dates.length > 0) {
-            setSelectedDates([dates[dates.length - 1]]);
-            setActiveDate(dates[dates.length - 1]);
-          }
-        } else {
-          // For flu view
-          const dates = Object.keys(parsedData.forecasts || {}).sort();
-          const extractedModels = new Set();
-
-          dates.forEach(date => {
-            ['wk inc flu hosp', 'wk flu hosp rate change'].forEach(type => {
-              const typeForecast = parsedData.forecasts[date]?.[type] || {};
-              Object.keys(typeForecast).forEach(model => extractedModels.add(model));
-            });
-          });
-
-          const modelList = Array.from(extractedModels).sort((a, b) => a.localeCompare(b));
-          console.log('Extracted models from data:', {
-            modelList,
-            dates: dates.map(date => ({
-              date,
-              models: Object.keys(parsedData.forecasts[date]?.['wk inc flu hosp'] || {})
-            }))
-          });
-          setModels(modelList);
-          setAvailableDates(dates);
-        }
-      } catch (err) {
-        console.error('Data loading error:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (location) {
-      fetchData();
-    }
-  }, [location, viewType]);
-
-  // 3. Define callbacks
-  const getDefaultRange = useCallback((forRangeslider = false) => {
-    if (!data?.ground_truth?.dates?.length || selectedDates.length === 0) return undefined;
-
-    const firstGroundTruthDate = new Date(data.ground_truth.dates[0]);
-    const lastGroundTruthDate = new Date(data.ground_truth.dates[data.ground_truth.dates.length - 1]);
-
-    if (forRangeslider) {
-      const rangesliderEnd = new Date(lastGroundTruthDate);
-      rangesliderEnd.setDate(rangesliderEnd.getDate() + (5 * 7));
-      return [firstGroundTruthDate, rangesliderEnd];
-    }
-
-    const firstDate = new Date(selectedDates[0]);
-    const lastDate = new Date(selectedDates[selectedDates.length - 1]);
-
-    const startDate = new Date(firstDate);
-    const endDate = new Date(lastDate);
-
-    startDate.setDate(startDate.getDate() - (8 * 7));
-    endDate.setDate(endDate.getDate() + (5 * 7));
-
-    return [startDate, endDate];
-  }, [data, selectedDates]);
-
-  const getTimeSeriesData = useCallback(() => {
-    if (!data || selectedDates.length === 0) return null;
-
-    // Ground truth trace
-    const groundTruthTrace = {
-      x: data.ground_truth.dates,
-      y: data.ground_truth.values,
-      name: 'Observed',
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: { color: '#8884d8', width: 2 },
-      marker: { size: 6 }
-    };
-
-    // Generate traces for each selected model and date combination
-    const modelTraces = selectedModels.flatMap(model =>
-      selectedDates.flatMap((date) => {
-        const forecasts = data.forecasts[date] || {};
-        const forecast =
-          forecasts['wk inc flu hosp']?.[model] ||
-          forecasts['wk flu hosp rate change']?.[model];
-
-        if (!forecast) return [];
-
-        const forecastDates = [];
-        const medianValues = [];
-        const ci95Upper = [];
-        const ci95Lower = [];
-        const ci50Upper = [];
-        const ci50Lower = [];
-
-        // Process all horizons and sort by target date
-        const sortedPredictions = Object.entries(forecast.predictions || {})
-          .sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
-
-        sortedPredictions.forEach(([horizon, pred]) => {
-          forecastDates.push(pred.date);
-
-          if (forecast.type !== 'quantile') {
-            return;
-          }
-          const quantiles = pred.quantiles || [];
-          const values = pred.values || [];
-
-          // Default to 0 if quantile not found
-          const q95Lower = values[quantiles.indexOf(0.025)] || 0;
-          const q50Lower = values[quantiles.indexOf(0.25)] || 0;
-          const median = values[quantiles.indexOf(0.5)] || 0;
-          const q50Upper = values[quantiles.indexOf(0.75)] || 0;
-          const q95Upper = values[quantiles.indexOf(0.975)] || 0;
-
-          ci95Lower.push(q95Lower);
-          ci50Lower.push(q50Lower);
-          medianValues.push(median);
-          ci50Upper.push(q50Upper);
-          ci95Upper.push(q95Upper);
-        });
-
-        const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-
-        return [
-          {
-            x: [...forecastDates, ...forecastDates.slice().reverse()],
-            y: [...ci95Upper, ...ci95Lower.slice().reverse()],
-            fill: 'toself',
-            fillcolor: `${modelColor}10`,
-            line: { color: 'transparent' },
-            showlegend: false,
-            type: 'scatter',
-            name: `${model} (${date}) 95% CI`
-          },
-          {
-            x: [...forecastDates, ...forecastDates.slice().reverse()],
-            y: [...ci50Upper, ...ci50Lower.slice().reverse()],
-            fill: 'toself',
-            fillcolor: `${modelColor}30`,
-            line: { color: 'transparent' },
-            showlegend: false,
-            type: 'scatter',
-            name: `${model} (${date}) 50% CI`
-          },
-          {
-            x: forecastDates,
-            y: medianValues,
-            name: `${model} (${date})`,
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: {
-              color: modelColor,
-              width: 2,
-              dash: 'solid'
-            },
-            marker: { size: 6, color: modelColor },
-            showlegend: true
-          }
-        ];
-      })
-    );
-
-    return [groundTruthTrace, ...modelTraces];
-  }, [data, selectedDates, selectedModels]);
-
-  const getRateChangeData = useCallback(() => {
-    if (!data || selectedDates.length === 0) return null;
-
-    const categoryOrder = [
-      'large_decrease',
-      'decrease',
-      'stable',
-      'increase',
-      'large_increase'
-    ];
-
-    // Only show rate change data for most recent selected date
-    const lastSelectedDate = selectedDates.slice().sort().pop();
-
-    return selectedModels.map(model => {
-      const forecast = data.forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
-      if (!forecast) return null;
-
-      const horizon0 = forecast.predictions['0'];
-      if (!horizon0) return null;
-
-      const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-
-      const orderedData = categoryOrder.map(cat => ({
-        category: cat.replace('_', '<br>'),
-        value: horizon0.probabilities[horizon0.categories.indexOf(cat)] * 100
-      }));
-
-      return {
-        name: `${model} (${lastSelectedDate})`,
-        y: orderedData.map(d => d.category),
-        x: orderedData.map(d => d.value),
-        type: 'bar',
-        orientation: 'h',
-        marker: { color: modelColor },
-        showlegend: true,
-        legendgroup: 'histogram',
-        xaxis: 'x2',
-        yaxis: 'y2'
-      };
-    }).filter(Boolean);
-  }, [data, selectedDates, selectedModels]);
-
-  // Get dataset-specific view component
-  const getDatasetView = useCallback(() => {
-    switch(currentDataset?.shortName) {
-      case 'rsv':
-        return (
-          <RSVDefaultView
-            location={location}
-            selectedDates={selectedDates}
-            availableDates={availableDates}
-            setSelectedDates={setSelectedDates}
-            setActiveDate={setActiveDate}
-            selectedModels={selectedModels}
-            setSelectedModels={setSelectedModels}
-          />
-        );
-      case 'nhsn':
-        return <NHSNRawView location={location} />;
-      case 'flu':
-      default:
-        return (
-          <FluView
-            data={data}
-            selectedDates={selectedDates}
-            selectedModels={selectedModels}
-            models={models}
-            setSelectedModels={setSelectedModels}
-            viewType={viewType}
-            windowSize={windowSize}
-            getDefaultRange={getDefaultRange}
-          />
-        );
-    }
-  }, [currentDataset, location, data, selectedDates, availableDates, selectedModels, viewType, windowSize, getDefaultRange]);
-
-  // 5. Rest of the component logic
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex justify-center items-center h-96">
-          <div className="animate-pulse text-lg">Loading forecast data...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex flex-col items-center justify-center h-96">
-          <div className="text-red-500 text-center mb-4">
-            Error loading forecast data: {error}
-          </div>
-          <div className="text-sm text-gray-600 max-w-lg text-center">
-            Please ensure that:
-            <ul className="list-disc text-left mt-2 space-y-1">
-              <li>The data processing scripts have been run</li>
-              <li>Data files are present in processed_data/</li>
-              <li>The selected location has forecast data</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex justify-center items-center h-96">
-          <div className="text-gray-500">No forecast data available</div>
-        </div>
-      </div>
-    );
-  }
-
-  const timeSeriesData = getTimeSeriesData();
-  const rateChangeData = getRateChangeData();
-
-  console.log('ForecastViz render state:', {
-    viewType,
-    data,
-    selectedDates,
-    selectedModels,
-    timeSeriesData,
-    rateChangeData
-  });
-
+  const handleShare = () => {
+    const url = window.location.href;
+    clipboard.copy(url);
+  };
+  
   return (
-    <div className="flex h-screen">
-      {!sidebarCollapsed && (
-        <StateSelector
-          onStateSelect={handleStateSelect}
-          currentLocation={location}
-          sidebarMode={true}
-        />
-      )}
-      <div className="flex-1 overflow-auto relative">
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="absolute top-4 left-4 z-10 p-2 rounded-full bg-white shadow hover:bg-gray-50"
-        >
-          {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
-        </button>
-        <div className="container mx-auto p-4">
-          <div className="border rounded-lg shadow-sm bg-white">
-            {currentDataset?.hasDateSelector && (
-              <div className="p-4 border-b">
-                <DateSelector
-                  availableDates={availableDates}
-                  selectedDates={selectedDates}
-                  setSelectedDates={setSelectedDates}
-                  activeDate={activeDate}
-                  setActiveDate={setActiveDate}
-                />
+    <ErrorBoundary onReset={() => window.location.reload()}>
+      <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
+        <Paper shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md" style={{ minHeight: '70vh' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: windowSize.width > 800 ? 'auto 1fr auto' : '1fr',
+              gap: '0.5rem',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gridColumn: windowSize.width > 800 ? 'auto' : '1'
+              }}>
+                {currentAboutConfig && (
+                  <AboutHubOverlay
+                    title={currentAboutConfig.title}
+                    buttonLabel={currentAboutConfig.buttonLabel}
+                  >
+                    {currentAboutConfig.content}
+                  </AboutHubOverlay>
+                )}
+                {windowSize.width <= 800 && (
+                  <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconShare size={16} />}
+                      onClick={handleShare}
+                    >
+                      {clipboard.copied ? 'URL Copied' : 'Share View'}
+                    </Button>
+                  </Tooltip>
+                )}
               </div>
-            )}
-
-            <div className="p-4">
-              {getDatasetView()}
+              {currentDataset?.hasDateSelector && windowSize.width > 800 && (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <DateSelector
+                    selectedDates={selectedDates}
+                    setSelectedDates={setSelectedDates}
+                    availableDates={availableDates}
+                    activeDate={activeDate}
+                    setActiveDate={setActiveDate}
+                    loading={loading}
+                  />
+                </div>
+              )}
+              {windowSize.width > 800 && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Tooltip label={clipboard.copied ? 'Link copied' : 'Copy link to this view'}>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconShare size={16} />}
+                      onClick={handleShare}
+                    >
+                      {clipboard.copied ? 'URL Copied' : 'Share View'}
+                    </Button>
+                  </Tooltip>
+                </div>
+              )}
+              {currentDataset?.hasDateSelector && windowSize.width <= 800 && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+                  <DateSelector
+                    selectedDates={selectedDates}
+                    setSelectedDates={setSelectedDates}
+                    availableDates={availableDates}
+                    activeDate={activeDate}
+                    setActiveDate={setActiveDate}
+                    loading={loading}
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <DataVisualization
+                // DataVisualization now receives all its data as props
+                viewType={viewType}
+                location={selectedLocation}
+                data={data}
+                metadata={metadata}
+                loading={loading}
+                error={error}
+                availableDates={availableDates}
+                models={models}
+                selectedDates={selectedDates}
+                selectedModels={selectedModels}
+                setSelectedDates={setSelectedDates}
+                setActiveDate={setActiveDate}
+                setSelectedModels={setSelectedModels}
+                selectedColumns={selectedColumns}
+                setSelectedColumns={setSelectedColumns}
+                windowSize={windowSize}
+                selectedTarget={selectedTarget}
+              />
+            </div>
+          </Stack>
+        </Paper>
+      </Container>
+    </ErrorBoundary>
   );
 };
 

@@ -1,125 +1,191 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { URLParameterManager } from '../utils/urlManager';
-import { DATASETS } from '../config/datasets';
+// src/contexts/ViewContext.jsx
 
-const ViewContext = createContext(null);
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { URLParameterManager } from '../utils/urlManager';
+import { useForecastData } from '../hooks/useForecastData';
+import { ViewContext } from './ViewContextObject';
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const isForecastPage = location.pathname === '/';
+
+  const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
+
+  const [viewType, setViewType] = useState(() => urlManager.getView());
+  const [selectedLocation, setSelectedLocation] = useState(() => urlManager.getLocation());
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
-  const [viewType, setViewType] = useState(() => {
-    // Initialize with URL view or default to fludetailed
-    const urlView = searchParams.get('view');
-    if (!urlView) {
-        // If no view in URL, set both view and location params
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set('view', 'fludetailed');
-        newParams.set('location', 'US');
-        setSearchParams(newParams, { replace: true });
-    }
-    return urlView || 'fludetailed';
-  });
+  const [selectedTarget, setSelectedTarget] = useState(null);
 
-  // Create URL manager instance
-  const urlManager = new URLParameterManager(searchParams, setSearchParams);
+  const { data, metadata, loading, error, availableDates, models, availableTargets } = useForecastData(selectedLocation, viewType);
 
-  // Add new useEffect at the beginning of ViewProvider
-  useEffect(() => {
-    // Get current dataset and its parameters
-    const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (!currentDataset) return;
-
-    const params = urlManager.getDatasetParams(currentDataset);
-
-    // Set dates if we have them in URL and none are selected
-    if (params.dates?.length > 0 && selectedDates.length === 0) {
-      setSelectedDates(params.dates);
-      setActiveDate(params.dates[params.dates.length - 1]);
-    }
-
-    // Set models if we have them in URL and none are selected
-    if (params.models?.length > 0 && selectedModels.length === 0) {
-      setSelectedModels(params.models);
-    }
-  }, [viewType, searchParams]); // Only run when view type or URL params change
-
-  // Handle view type changes
-  const handleViewChange = useCallback((newView) => {
-    const oldView = viewType;
-
-    if (oldView !== newView) {
-      // Use URL manager to handle parameter changes
-      urlManager.handleViewChange(oldView, newView);
-
-      // Check if we're switching between different datasets
-      const oldDataset = urlManager.getDatasetFromView(oldView);
-      const newDataset = urlManager.getDatasetFromView(newView);
-
-      // Only clear state when switching between different datasets (e.g., flu to rsv)
-      // AND not when switching between views within the same dataset (e.g., fludetailed to flutimeseries)
-      if (oldDataset?.shortName !== newDataset?.shortName) {
-        setSelectedDates([]);
-        setSelectedModels([]);
-        setActiveDate(null);
-      }
-
-      setViewType(newView);
-    }
-  }, [viewType, urlManager]);
-
-  // Update dataset parameters
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (currentDataset) {
-      urlManager.updateDatasetParams(currentDataset, params);
-    }
+    if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
   }, [viewType, urlManager]);
 
-  // Reset current view to defaults
-  const resetView = useCallback(() => {
+  // --- Main useEffect to sync URL params TO state ---
+  useEffect(() => {
+    if (!isForecastPage) {
+      return;
+    }
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (!currentDataset) return;
+    if (loading || !currentDataset || models.length === 0 || availableDates.length === 0 || availableTargets.length === 0) {
+      return;
+    }
 
-    // Clear parameters
-    urlManager.clearDatasetParams(currentDataset);
+    const params = urlManager.getDatasetParams(currentDataset);
+    let needsModelUrlUpdate = false;
 
-    // Set defaults based on dataset configuration
-    if (currentDataset.hasDateSelector) {
-      // Set most recent date
-      const latestDate = window.availableDates?.[window.availableDates.length - 1];
+    // --- Model Logic ---
+    let modelsToSet = [];
+    const validUrlModels = params.models?.filter(m => models.includes(m)) || [];
+    if (validUrlModels.length > 0) {
+        modelsToSet = validUrlModels;
+    } else if (currentDataset.defaultModel && models.includes(currentDataset.defaultModel)) {
+        modelsToSet = [currentDataset.defaultModel];
+        needsModelUrlUpdate = true;
+    } else if (models.length > 0) {
+        modelsToSet = [models[0]];
+        needsModelUrlUpdate = true;
+    }
+
+    // --- Date Logic ---
+    let datesToSet = [];
+    const validUrlDates = params.dates?.filter(date => availableDates.includes(date)) || [];
+    if (validUrlDates.length > 0) {
+      datesToSet = validUrlDates;
+    } else {
+      const latestDate = availableDates[availableDates.length - 1];
       if (latestDate) {
-        setSelectedDates([latestDate]);
-        setActiveDate(latestDate);
-        updateDatasetParams({ dates: [latestDate] });
+        datesToSet = [latestDate];
       }
     }
 
-    if (currentDataset.hasModelSelector && currentDataset.defaultModel) {
-      setSelectedModels([currentDataset.defaultModel]);
-      updateDatasetParams({ models: [currentDataset.defaultModel] });
+    // --- Target Logic ---
+    const urlTarget = params.target;
+    let targetToSet = null;
+    if (urlTarget && availableTargets.includes(urlTarget)) {
+        targetToSet = urlTarget;
     }
-  }, [viewType, urlManager, updateDatasetParams]);
+
+    // --- Apply State Updates ---
+    setSelectedModels(current => JSON.stringify(current) !== JSON.stringify(modelsToSet) ? modelsToSet : current);
+    setSelectedDates(current => JSON.stringify(current) !== JSON.stringify(datesToSet) ? datesToSet : current);
+    setActiveDate(datesToSet.length > 0 ? datesToSet[datesToSet.length - 1] : null);
+
+    if (targetToSet && targetToSet !== selectedTarget) {
+      setSelectedTarget(targetToSet);
+    }
+
+    // --- Update URL if needed ---
+    if (needsModelUrlUpdate) {
+      updateDatasetParams({ models: modelsToSet });
+    }
+  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget]);
+
+  // --- useEffect to set DEFAULT target ---
+  useEffect(() => {
+    if (loading || !availableTargets || availableTargets.length === 0) {
+      return;
+    }
+    const isCurrentTargetValid = selectedTarget && availableTargets.includes(selectedTarget);
+    if (!isCurrentTargetValid) {
+      setSelectedTarget(availableTargets[0]);
+    }
+  }, [loading, availableTargets, selectedTarget]);
+
+
+  const handleLocationSelect = (newLocation) => {
+    if (newLocation !== 'US') {
+      urlManager.updateLocation(newLocation);
+    } else {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('location');
+      setSearchParams(newParams, { replace: true });
+    }
+    setSelectedLocation(newLocation);
+  };
+
+  const handleTargetSelect = (target) => {
+    if (!target) return;
+    setSelectedTarget(target);
+    updateDatasetParams({ target: target });
+  };
+
+  const handleViewChange = useCallback((newView) => {
+    const oldView = viewType;
+    if (oldView === newView) return;
+
+    const oldDataset = urlManager.getDatasetFromView(oldView);
+    const newDataset = urlManager.getDatasetFromView(newView);
+    const newSearchParams = new URLSearchParams(searchParams);
+
+    if (newView !== 'flu_projs' || newSearchParams.toString().length > 0) {
+      newSearchParams.set('view', newView);
+    } else {
+      newSearchParams.delete('view');
+    }
+
+    if (oldDataset?.shortName !== newDataset?.shortName) {
+      setSelectedDates([]);
+      setSelectedModels([]);
+      setActiveDate(null);
+      setSelectedTarget(null);
+      if (oldDataset) {
+        newSearchParams.delete(`${oldDataset.prefix}_models`);
+        newSearchParams.delete(`${oldDataset.prefix}_dates`);
+        newSearchParams.delete(`${oldDataset.prefix}_target`);
+      }
+      // --- ADDED: Clean up NHSN params when leaving ---
+        if (oldDataset.shortName === 'nhsn') {
+          newSearchParams.delete('nhsn_target');
+          newSearchParams.delete('nhsn_cols');
+        }
+        // --- END ADDITION ---
+    } else {
+      if (newDataset) {
+         newSearchParams.delete(`${newDataset.prefix}_target`);
+      }
+      setSelectedTarget(null);
+    }
+
+    setViewType(newView);
+    setSearchParams(newSearchParams, { replace: true });
+  }, [viewType, searchParams, setSearchParams, urlManager]);
 
   const contextValue = {
-    selectedModels,
-    setSelectedModels: (models) => {
-      setSelectedModels(models);
-      updateDatasetParams({ models });
+    selectedLocation, handleLocationSelect,
+    data, metadata, loading, error, availableDates, models,
+    selectedModels, setSelectedModels: (updater) => {
+      const resolveModels = (prevModels) => (
+        typeof updater === 'function' ? updater(prevModels) : updater
+      );
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      setSelectedModels(prevModels => {
+        const nextModels = resolveModels(prevModels);
+        const defaultModel = currentDataset?.defaultModel ? [currentDataset.defaultModel] : [];
+        const isDefault = JSON.stringify(nextModels.slice().sort()) === JSON.stringify(defaultModel.slice().sort());
+        updateDatasetParams({ models: isDefault ? [] : nextModels });
+        return nextModels;
+      });
     },
-    selectedDates,
-    setSelectedDates: (dates) => {
-      setSelectedDates(dates);
-      updateDatasetParams({ dates });
+    selectedDates, setSelectedDates: (updater) => {
+      setSelectedDates(prevDates => {
+        const nextDates = typeof updater === 'function' ? updater(prevDates) : updater;
+        updateDatasetParams({ dates: nextDates });
+        return nextDates;
+      });
     },
-    activeDate,
-    setActiveDate,
-    viewType,
-    setViewType: handleViewChange,  // Ensure this is present
-    resetView,
-    currentDataset: urlManager.getDatasetFromView(viewType)
+    activeDate, setActiveDate,
+    viewType, setViewType: handleViewChange,
+    currentDataset: urlManager.getDatasetFromView(viewType),
+    availableTargets,
+    selectedTarget,
+    handleTargetSelect,
   };
 
   return (
@@ -127,12 +193,4 @@ export const ViewProvider = ({ children }) => {
       {children}
     </ViewContext.Provider>
   );
-};
-
-export const useView = () => {
-  const context = useContext(ViewContext);
-  if (!context) {
-    throw new Error('useView must be used within a ViewProvider');
-  }
-  return context;
 };

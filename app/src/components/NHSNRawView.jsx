@@ -1,128 +1,216 @@
-import React, { useState, useEffect } from 'react';
-import Plot from 'react-plotly.js';
-import ModelSelector from './ModelSelector';
-import { getDataPath } from '../utils/paths';
+// src/components/NHSNRawView.jsx
+
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
-import ViewSelector from './ViewSelector';
-import InfoOverlay from './InfoOverlay';
-import { useView } from '../contexts/ViewContext';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
+import Plot from 'react-plotly.js';
+import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
-import { VISUALIZATION_COLORS } from '../config/datasets';
+import { MODEL_COLORS } from '../config/datasets';
+import {
+  nhsnTargetsToColumnsMap, // slug = shortform
+  nhsnNameToSlugMap, // { longform: shortform } map
+  nhsnSlugToNameMap   // { shortform: longform } map
+} from '../utils/mapUtils';
+
+
+const nhsnYAxisLabelMap = {
+  'Raw Patient Counts': 'Patient Count',
+  'Hospital Admission Rates': 'Rate per 100k',
+  'Hospital Admission Percents': 'Percent (%)',
+  'Raw Bed Capacity': 'Bed Count',
+  'Bed Capacity Percents': 'Percent (%)',
+  'Absolute Percent Change': 'Absolute Change (%)'
+};
 
 const NHSNRawView = ({ location }) => {
   const [data, setData] = useState(null);
+  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentDataset } = useView();
+  const { colorScheme } = useMantineColorScheme();
+  
+  const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
+  const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
+  
+  const [selectedColumns, setSelectedColumns] = useState([]);
+  const [availableTargets, setAvailableTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
+
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedColumns, setSelectedColumns] = useState(() => {
-    return searchParams.get('nhsn_columns')?.split(',') || ['totalconfflunewadm'];
-  });
-  const [availableColumns, setAvailableColumns] = useState({
-    official: [],
-    preliminary: []
-  });
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!location) return;
+      
       try {
         setLoading(true);
-        const url = getDataPath(`nhsn/${location}_nhsn.json`);
-        console.log('Fetching NHSN data from:', url);
+        setData(null);
+        setMetadata(null);
+        setAllDataColumns([]);
+        setFilteredAvailableColumns([]);
+        setSelectedColumns([]);
+        setAvailableTargets([]);
+        setSelectedTarget(null);
+        setError(null);
 
-        const response = await fetch(url);
-        console.log('NHSN response status:', response.status);
+        const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
+        const metadataUrl = getDataPath('nhsn/metadata.json');
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('No NHSN data available for this location');
-          }
+        const [dataResponse, metadataResponse] = await Promise.all([
+          fetch(dataUrl),
+          fetch(metadataUrl)
+        ]);
+
+        if (!dataResponse.ok) {
+          if (dataResponse.status === 404) throw new Error('No NHSN data available for this location');
           throw new Error('Failed to load NHSN data');
         }
+        if (!metadataResponse.ok) throw new Error('Failed to load NHSN metadata');
 
-        const text = await response.text();
-        console.log('Raw NHSN response:', text.slice(0, 500) + '...');
+        const jsonData = await dataResponse.json();
+        const jsonMetadata = await metadataResponse.json();
 
-        const jsonData = JSON.parse(text);
-        console.log('Parsed NHSN data structure:', {
-          hasMetadata: !!jsonData.metadata,
-          hasData: !!jsonData.data,
-          hasGroundTruth: !!jsonData.ground_truth,
-          topLevelKeys: Object.keys(jsonData)
-        });
-
-        // Validate the data structure
-        if (!jsonData.data || !jsonData.data.official) {
+        if (!jsonData.series || !jsonData.series.dates) {
           throw new Error('Invalid data format');
+        }
+        if (!jsonMetadata.last_updated) {
+          throw new Error('Invalid metadata format');
         }
 
         setData(jsonData);
+        setMetadata(jsonMetadata); // Store for last_updated
+        
+        const allColumnsFromData = Object.keys(jsonData.series)
+          .filter(key => key !== 'dates')
+          .sort();
+        setAllDataColumns(allColumnsFromData);
 
-        // Get available columns (only those with data)
-        const officialCols = Object.keys(jsonData.data.official).sort();
-        const prelimCols = Object.keys(jsonData.data.preliminary || {}).sort();
-
-        setAvailableColumns({
-          official: officialCols,
-          preliminary: prelimCols
-        });
-
-        // Get columns from URL if any, otherwise select only totalconfflunewadm
-        const urlColumns = searchParams.get('nhsn_columns')?.split(',').filter(Boolean);
-        if (urlColumns?.length > 0) {
-          const validColumns = urlColumns.filter(col =>
-            officialCols.includes(col) || prelimCols.includes(col)
-          );
-          setSelectedColumns(validColumns);
-        } else {
-          // By default, select only totalconfflunewadm
-          const defaultColumn = officialCols.find(col => col === 'totalconfflunewadm') || officialCols[0];
-          setSelectedColumns([defaultColumn]);
-        }
+        const targets = Object.keys(nhsnTargetsToColumnsMap);
+        setAvailableTargets(targets);
 
       } catch (err) {
-        console.error('Error loading NHSN data:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    if (location) {
-      fetchData();
-    }
+    fetchData();
   }, [location]);
 
-  // Update URL when columns change
+
   useEffect(() => {
-    const newParams = new URLSearchParams(searchParams);
-    if (selectedColumns.length > 0) {
-      newParams.set('nhsn_columns', selectedColumns.join(','));
-    } else {
-      newParams.delete('nhsn_columns');
+    // Wait for fetch to complete
+    if (loading || availableTargets.length === 0) {
+      return;
     }
-    setSearchParams(newParams, { replace: true });
-  }, [selectedColumns]);
 
-  if (loading) return <div className="p-4">Loading NHSN data...</div>;
-  if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
-  if (!data) return <div className="p-4">No NHSN data available for this location</div>;
+    const urlTarget = searchParams.get('nhsn_target');
+    if (urlTarget && availableTargets.includes(urlTarget)) {
+      setSelectedTarget(urlTarget);
+    } else {
+      setSelectedTarget(availableTargets[0]); 
+    }
+  }, [loading, availableTargets, searchParams]); // Runs when data is loaded
 
-  const traces = selectedColumns.map((column, index) => {
-    // Add this line to determine the data type
-    const isPrelimininary = column.includes('_prelim');
-    const dataType = isPrelimininary ? 'preliminary' : 'official';
-    const columnIndex = [...availableColumns.official, ...availableColumns.preliminary].indexOf(column);
+  
+  useEffect(() => {
+    if (loading || !selectedTarget || allDataColumns.length === 0) {
+      setFilteredAvailableColumns([]);
+      return;
+    }
+    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
+    const filtered = allDataColumns.filter(col => columnsForTarget.includes(col));
+    
+    setFilteredAvailableColumns(filtered);
 
+    // Read slugs and convert them to full names 
+    const urlSlugs = searchParams.getAll('nhsn_cols');
+    const validUrlCols = urlSlugs
+      .map(slug => nhsnSlugToNameMap[slug]) // Convert slug TO full name
+      .filter(colName => colName && filtered.includes(colName)); // Check if valid
+
+    if (validUrlCols.length > 0) {
+      setSelectedColumns(validUrlCols);
+    } else if (filtered.length > 0) {
+      setSelectedColumns([filtered[0]]); 
+    } else {
+      setSelectedColumns([]);
+    }
+  }, [loading, selectedTarget, allDataColumns, searchParams]); // Runs when target is set
+
+
+  useEffect(() => {
+    // Don't update URL params until data is loaded and state is initialized
+    if (loading || !selectedTarget || availableTargets.length === 0 || allDataColumns.length === 0) {
+      return;
+    }
+
+    const newParams = new URLSearchParams(searchParams);
+
+    const defaultTarget = availableTargets[0];
+    if (selectedTarget && selectedTarget !== defaultTarget) {
+      newParams.set('nhsn_target', selectedTarget);
+    } else {
+      newParams.delete('nhsn_target'); 
+    }
+
+    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
+    const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
+    const defaultColumns = filteredCols.length > 0 ? [filteredCols[0]] : [];
+    
+    const sortedSelected = [...selectedColumns].sort();
+    const sortedDefault = [...defaultColumns].sort();
+
+    const selectedSlugs = sortedSelected.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
+    const defaultSlugs = sortedDefault.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
+
+    if (JSON.stringify(selectedSlugs) !== JSON.stringify(defaultSlugs)) {
+      newParams.delete('nhsn_cols'); // Clear all first
+      selectedSlugs.forEach(slug => newParams.append('nhsn_cols', slug)); // Add slugs
+    } else {
+      newParams.delete('nhsn_cols'); // It's the default, remove it
+    }
+
+    if (newParams.toString() !== searchParams.toString()) {
+      setSearchParams(newParams, { replace: true });
+    }
+
+  }, [selectedTarget, selectedColumns, allDataColumns, availableTargets, loading, searchParams, setSearchParams]);
+
+
+  const calculateNHSNYRange = () => {
+    if (!data?.series || selectedColumns.length === 0) return null;
+    const allValues = selectedColumns.reduce((acc, column) => {
+        const valuesArray = data.series[column];
+        if (valuesArray) {
+            const numericValues = valuesArray.filter(v => typeof v === 'number' && !isNaN(v));
+            return acc.concat(numericValues);
+        }
+        return acc;
+    }, []);
+    if (allValues.length === 0) return null;
+    const maxY = Math.max(...allValues);
+    const padding = maxY * 0.15; 
+    return [0, maxY + padding];
+  };
+
+  if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
+  if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
+  if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
+
+  const traces = selectedColumns.map((column) => {
+    // Use filteredAvailableColumns for index
+    const columnIndex = filteredAvailableColumns.indexOf(column);
     return {
-      x: data.ground_truth.dates,
-      y: data.data[dataType][column],
+      x: data.series.dates,
+      y: data.series[column],
       name: column,
       type: 'scatter',
       mode: 'lines+markers',
       line: {
-        color: VISUALIZATION_COLORS[columnIndex % VISUALIZATION_COLORS.length],
+        color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
         width: 2
       },
       marker: { size: 6 }
@@ -130,28 +218,65 @@ const NHSNRawView = ({ location }) => {
   });
 
   const layout = {
-    title: `NHSN Raw Data for ${data.metadata.location_name}`,
+    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+    paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    font: {
+      color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
+    },
     xaxis: {
       title: 'Date',
       rangeslider: {
         visible: true
       },
-      // Set default range to show all dates
       range: [
-        data.ground_truth.dates[0],
-        data.ground_truth.dates[data.ground_truth.dates.length - 1]
+        data.series.dates[0],
+        data.series.dates[data.series.dates.length - 1]
       ]
     },
     yaxis: {
-      title: 'Value'
+      title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
+      range: calculateNHSNYRange()
     },
     height: 600,
-    showlegend: false,  // Hide legend
-    margin: { t: 40, r: 10, l: 60, b: 120 }  // Adjust margins to fit everything
+    showlegend: false,
+    margin: { t: 40, r: 10, l: 60, b: 120 }
   };
 
+  const lastUpdatedTimestamp = metadata?.last_updated;
+  let formattedDate = null;
+  if (lastUpdatedTimestamp) {
+    const date = new Date(lastUpdatedTimestamp);
+    formattedDate = date.toLocaleString(undefined, {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  }
+
   return (
-    <div className="w-full">
+    <Stack gap="md" w="100%">
+      {formattedDate && (
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: {formattedDate}
+        </Text>
+      )}
+
+      <Select
+        label="Select a timeseries unit"
+        placeholder="Choose a time series unit"
+        data={availableTargets}
+        value={selectedTarget}
+        onChange={setSelectedTarget} 
+        disabled={loading}
+        allowDeselect={false}
+        // style={{ maxWidth: 200 }} // this is the width of the select bar
+      />
+
       <Plot
         data={traces}
         layout={layout}
@@ -161,15 +286,15 @@ const NHSNRawView = ({ location }) => {
           displaylogo: false,
           modeBarButtonsToAdd: ['resetScale2d']
         }}
-        className="w-full"
+        style={{ width: '100%' }}
       />
-
+      
       <NHSNColumnSelector
-        availableColumns={availableColumns}
+        availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
       />
-    </div>
+    </Stack>
   );
 };
 

@@ -1,353 +1,184 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import { MODEL_COLORS } from '../config/datasets';
+import { CHART_CONSTANTS } from '../constants/chart';
+import { targetDisplayNameMap } from '../utils/mapUtils';
+const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
+  const [yAxisRange, setYAxisRange] = useState(null);
+  const plotRef = useRef(null);
+  const { colorScheme } = useMantineColorScheme();
+  const groundTruth = data?.ground_truth;
+  const forecasts = data?.forecasts;
 
-const MODEL_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-  '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5',
-  '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
-];
-
-const RSVDefaultView = ({ 
-  location, 
-  selectedDates,
-  availableDates,
-  setSelectedDates,
-  setActiveDate,
-  selectedModels,
-  setSelectedModels,
-  searchParams,
-  ageGroups = ["0-130", "0-0.99", "1-4", "5-64", "65-130"],
-  getModelColor = (model, selectedModels) => {
-    const index = selectedModels.indexOf(model);
-    return MODEL_COLORS[index % MODEL_COLORS.length];
-  }
-}) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [models, setModels] = useState([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`./processed_data/rsv/${location}_rsv.json`);
-        console.log('RSV fetch response:', response);
-        if (!response.ok) {
-          throw new Error(`No RSV data available for ${location} (status ${response.status})`);
-        }
-        const jsonData = await response.json();
-        
-        console.log('RSV data structure:', {
-          metadata: jsonData.metadata ? 'present' : 'missing',
-          ground_truth: Object.keys(jsonData.ground_truth || {}),
-          forecasts: Object.keys(jsonData.forecasts || {}),
-          ageGroups: ageGroups
-        });
-
-        // Validate forecast data structure
-        if (jsonData.forecasts) {
-          for (const [date, dateData] of Object.entries(jsonData.forecasts)) {
-            for (const [age, ageData] of Object.entries(dateData)) {
-              for (const [target, targetData] of Object.entries(ageData)) {
-                for (const [model, modelData] of Object.entries(targetData)) {
-                  console.log(`Model data for ${model} on ${date}:`, {
-                    type: modelData.type,
-                    predictions: Object.keys(modelData.predictions || {}).length
-                  });
-                }
-              }
-            }
+  const calculateYRange = useCallback((data, xRange) => {
+    if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+    data.forEach(trace => {
+      if (!trace.x || !trace.y) return;
+      for (let i = 0; i < trace.x.length; i++) {
+        const pointDate = new Date(trace.x[i]);
+        if (pointDate >= startDate && pointDate <= endDate) {
+          const value = Number(trace.y[i]);
+          if (!isNaN(value)) {
+            minY = Math.min(minY, value);
+            maxY = Math.max(maxY, value);
           }
         }
-
-        setData(jsonData);
-        
-        // Extract available models with more fludetailed logging
-        const availableModels = new Set();
-        Object.values(jsonData.forecasts || {}).forEach(dateData => {
-          Object.values(dateData).forEach(ageData => {
-            Object.values(ageData).forEach(targetData => {
-              Object.keys(targetData).forEach(model => {
-                console.log(`Found model ${model} with data:`, {
-                  type: targetData[model].type,
-                  predictions: Object.keys(targetData[model].predictions || {}).length
-                });
-                availableModels.add(model);
-              });
-            });
-          });
-        });
-        
-        const sortedModels = Array.from(availableModels).sort();
-        console.log('RSV - Available models:', {
-          sortedModels,
-          byDate: Object.entries(jsonData.forecasts || {}).map(([date, dateData]) => ({
-            date,
-            models: Object.keys(dateData['0-130']?.['inc hosp'] || {})
-          }))
-        });
-        setModels(sortedModels);
-        
-        // Set default model selection if none selected
-        if (selectedModels.length === 0 && sortedModels.length > 0) {
-          // Try to get models from URL
-          const urlModels = new URLSearchParams(window.location.search).get('rsv_models')?.split(',') || [];
-          const requestedModels = urlModels.filter(Boolean);
-          
-          console.log('RSV - Initializing models:', {
-            requestedModels,
-            availableModels: sortedModels,
-            currentSelection: selectedModels
-          });
-
-          if (requestedModels.length > 0) {
-            // Try to match each requested model exactly
-            const validModels = requestedModels.filter(model => sortedModels.includes(model));
-            console.log('RSV - Found valid models:', validModels);
-            
-            if (validModels.length > 0) {
-              setSelectedModels(validModels);
-              console.log('RSV - Setting models from URL:', validModels);
-              return;  // Exit early if we found valid models
-            }
-          }
-
-          // If no valid models found, set default
-          const defaultModel = sortedModels.includes('hub-ensemble') ? 
-            'hub-ensemble' : 
-            sortedModels[0];
-          console.log('RSV - Setting default model:', defaultModel);
-          setSelectedModels([defaultModel]);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchData();
-  }, [location]);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error || !data || !data.ground_truth || Object.keys(data.ground_truth).length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full w-full bg-gray-100 bg-opacity-50 rounded-lg">
-        <div className="text-gray-500 text-center p-4">
-          No RSV forecast data available for this location
-        </div>
-      </div>
-    );
-  }
-
-  const getDefaultRange = (forRangeslider = false) => {
-    if (!data?.ground_truth || !selectedDates.length) return undefined;
-    
-    const firstGroundTruthDate = new Date(data.ground_truth[ageGroups[0]].dates[0]);
-    const lastGroundTruthDate = new Date(data.ground_truth[ageGroups[0]].dates.slice(-1)[0]);
-    
-    if (forRangeslider) {
-      const rangesliderEnd = new Date(lastGroundTruthDate);
-      rangesliderEnd.setDate(rangesliderEnd.getDate() + (5 * 7));
-      return [firstGroundTruthDate, rangesliderEnd];
+    });
+    if (minY !== Infinity && maxY !== -Infinity) {
+      const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
+      const rangeMin = Math.max(0, minY - padding);
+      return [rangeMin, maxY + padding];
     }
-    
-    const firstDate = new Date(selectedDates[0]);
-    const lastDate = new Date(selectedDates[selectedDates.length - 1]);
-    
-    const startDate = new Date(firstDate);
-    const endDate = new Date(lastDate);
-    
-    startDate.setDate(startDate.getDate() - (8 * 7));
-    endDate.setDate(endDate.getDate() + (5 * 7));
-    
-    return [startDate, endDate];
-  };
+    return null;
+  }, [selectedTarget]);
 
-  console.log('Creating RSV traces:', {
-    ageGroups,
-    groundTruth: data.ground_truth,
-    firstAge: data.ground_truth[ageGroups[0]]
-  });
-
-  // Create subplot traces for each age group
-  const traces = ageGroups.map((age, index) => {
-    // Get the age-specific ground truth data
-    const ageData = data.ground_truth[age] || {};
-    
-    // Create base ground truth trace for this age group
+  const projectionsData = useMemo(() => {
+    if (!groundTruth || !forecasts || selectedDates.length === 0 || !selectedTarget) {
+      return [];
+    }
+    const groundTruthValues = groundTruth[selectedTarget];
+    if (!groundTruthValues) {
+      console.warn(`Ground truth data not found for target: ${selectedTarget}`);
+      return [];
+    }
     const groundTruthTrace = {
-      x: ageData.dates || [],
-      y: ageData.values || [],
+      x: groundTruth.dates || [],
+      y: groundTruthValues,
+      name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
-      name: 'Observed',  // Remove age group from name since it's in subplot title
-      xaxis: `x${index + 1}`,  // Use consistent indexing
-      yaxis: `y${index + 1}`,  // Use consistent indexing
-      line: { color: '#8884d8', width: 2 }
+      line: { color: '#8884d8', width: 2 },
+      marker: { size: 6 }
     };
+    const modelTraces = selectedModels.flatMap(model => 
+      selectedDates.flatMap((date) => {
+        const forecastsForDate = forecasts[date] || {};
+        // Access forecast using selectedTarget
+        const forecast = forecastsForDate[selectedTarget]?.[model];
+        if (!forecast || forecast.type !== 'quantile') return []; // Ensure it's quantile data
 
-    // Get model traces for this specific age group
-    const modelTraces = selectedModels.flatMap(model => {
-      const modelColor = getModelColor(model, selectedModels); // Use the passed in color function
-      
-      // Get all available forecast dates for this model and age group
-      const availableForecastDates = Object.keys(data.forecasts || {})
-        .filter(date => data.forecasts[date]?.[age]?.['inc hosp']?.[model])
-        .sort();
-      
-      if (availableForecastDates.length === 0) {
-        console.log(`No forecasts found for model ${model} and age group ${age}`);
-        return [];
-      }
+        const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
+        // Sort predictions by date, accessing the nested prediction object
+        const sortedPredictions = Object.values(forecast.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      // Map over all selected dates to get forecasts for each
-      return selectedDates.flatMap(forecastDate => {
-        const forecastData = data.forecasts[forecastDate]?.[age]?.['inc hosp']?.[model];
-        if (!forecastData?.type || !forecastData?.predictions) {
-          console.log(`No valid forecast data for model ${model}, age group ${age}, date ${forecastDate}`);
-          return [];
-        }
-        
-        console.log(`Model: ${model}, Age Group: ${age}, Date: ${forecastDate}`);
-      console.log('Forecast data structure:', {
-        type: forecastData.type,
-        predictions: Object.keys(forecastData.predictions || {}).length
-      });
+        sortedPredictions.forEach((pred) => {
+          forecastDates.push(pred.date);
+          const { quantiles = [], values = [] } = pred;
 
-      if (!forecastData || forecastData.type !== 'quantile') {
-        console.log(`Skipping model ${model} - no valid quantile forecast data`);
-        return [];
-      }
+          // Find values for specific quantiles, defaulting to null or 0 if not found
+          const findValue = (q) => {
+            const index = quantiles.indexOf(q);
+            return index !== -1 ? values[index] : null; // Use null if quantile is missing
+          };
 
-      // Process predictions
-      const predictions = Object.entries(forecastData.predictions || {})
-        .sort((a, b) => parseInt(a[0]) - parseInt(b[0])); // Sort by horizon
+          const val_025 = findValue(0.025);
+          const val_25 = findValue(0.25);
+          const val_50 = findValue(0.5);
+          const val_75 = findValue(0.75);
+          const val_975 = findValue(0.975);
 
-      const forecastDates = [];
-      const medianValues = [];
-      const ci95Upper = [];
-      const ci95Lower = [];
-      const ci50Upper = [];
-      const ci50Lower = [];
+          // Only add points if median and CIs are available
+          if (val_50 !== null && val_025 !== null && val_975 !== null && val_25 !== null && val_75 !== null) {
+              ci95Lower.push(val_025);
+              ci50Lower.push(val_25);
+              medianValues.push(val_50);
+              ci50Upper.push(val_75);
+              ci95Upper.push(val_975);
+          } else {
+             // If essential quantiles are missing, we might skip this point or handle it differently
+             // For now, let's just skip adding to the arrays to avoid breaking the CI shapes
+             console.warn(`Missing quantiles for model ${model}, date ${date}, target ${selectedTarget}, prediction date ${pred.date}`);
+          }
+        });
 
-      predictions.forEach(([horizon, pred]) => {
-        // Calculate target date based on forecast date + horizon weeks
-        const targetDate = new Date(forecastDate);  // Use forecastDate from the outer scope
-        targetDate.setDate(targetDate.getDate() + parseInt(horizon) * 7);
-        forecastDates.push(targetDate.toISOString().split('T')[0]);
-        
-        // Extract quantiles
-        const { quantiles, values } = pred;
-        if (!quantiles || !values) {
-          console.warn(`Missing quantiles/values for model ${model}, horizon ${horizon}`);
-          return;
-        }
+        // Ensure we have data points before creating traces
+        if (forecastDates.length === 0) return [];
 
-        // Get specific quantile values
-        const q95Lower = values[quantiles.indexOf(0.025)] || 0;
-        const q50Lower = values[quantiles.indexOf(0.25)] || 0;
-        const median = values[quantiles.indexOf(0.5)] || 0;
-        const q50Upper = values[quantiles.indexOf(0.75)] || 0;
-        const q95Upper = values[quantiles.indexOf(0.975)] || 0;
-
-        ci95Lower.push(q95Lower);
-        ci50Lower.push(q50Lower);
-        medianValues.push(median);
-        ci50Upper.push(q50Upper);
-        ci95Upper.push(q95Upper);
-      });
-
-      return [
-        {
-          x: [...forecastDates, ...forecastDates.slice().reverse()],
-          y: [...ci95Upper, ...ci95Lower.slice().reverse()],
-          fill: 'toself',
-          fillcolor: `${modelColor}10`,
-          line: { color: 'transparent' },
-          showlegend: false,
-          type: 'scatter',
-          name: `${model} 95% CI`,
-          xaxis: `x${index + 1}`,
-          yaxis: `y${index + 1}`
-        },
-        {
-          x: [...forecastDates, ...forecastDates.slice().reverse()],
-          y: [...ci50Upper, ...ci50Lower.slice().reverse()],
-          fill: 'toself',
-          fillcolor: `${modelColor}30`,
-          line: { color: 'transparent' },
-          showlegend: false,
-          type: 'scatter',
-          name: `${model} 50% CI`,
-          xaxis: `x${index + 1}`,
-          yaxis: `y${index + 1}`
-        },
-        {
-          x: forecastDates,
-          y: medianValues,
-          name: `${model}`,
-          type: 'scatter',
-          mode: 'lines+markers',
-          line: { color: modelColor, width: 2 },
-          marker: { size: 6 },
-          xaxis: `x${index + 1}`,
-          yaxis: `y${index + 1}`
-        }];
-      }); // Close the selectedDates.flatMap
-    });
-
+        const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        return [
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI`, hoverinfo: 'none' },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI`, hoverinfo: 'none' },
+          { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
+        ];
+      })
+    );
     return [groundTruthTrace, ...modelTraces];
-  }).flat();
+  }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
-  const layout = {
-    grid: {
-      rows: 3,
-      columns: 2,
-      pattern: 'independent',
-      roworder: 'top to bottom',
-      subplots: [
-        ['xy'],          // First row spans full width
-        ['x2y2', 'x3y3'], // Second row for first two age groups
-        ['x4y4', 'x5y5']  // Third row for last two age groups
-      ],
-      rowheights: [0.6, 0.2, 0.2], // Adjusted to make first row significantly taller
-      columnwidths: [0.5, 0.5]
+  const defaultRange = getDefaultRange();
+
+  useEffect(() => {
+    // Recalculate y-axis when target changes or data loads
+    if (projectionsData.length > 0 && defaultRange) {
+      const initialYRange = calculateYRange(projectionsData, defaultRange);
+      setYAxisRange(initialYRange); // Set to null if calculation fails
+    } else {
+      setYAxisRange(null); // Reset if no data or default range
+    }
+    // Add selectedTarget and the now-stable calculateYRange
+  }, [projectionsData, defaultRange, selectedTarget, calculateYRange]);
+
+  const handlePlotUpdate = useCallback((figure) => {
+    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
+      const newXRange = figure['xaxis.range'];
+      const newYRange = calculateYRange(projectionsData, newXRange);
+      // Only update if the range actually changed to prevent infinite loops
+      if (newYRange && JSON.stringify(newYRange) !== JSON.stringify(yAxisRange)) {
+        setYAxisRange(newYRange);
+      }
+    } else if (figure && figure['xaxis.range'] === undefined && defaultRange) {
+      // Handle reset or initial load case if needed, possibly recalculate Y
+      const initialYRange = calculateYRange(projectionsData, defaultRange);
+      if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)) {
+        setYAxisRange(initialYRange);
+      }
+    }
+  }, [projectionsData, calculateYRange, yAxisRange, defaultRange]);
+
+  const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
+    width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
+    height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
+    autosize: true,
+    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+    paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+    font: {
+      color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    height: 1000,
-    margin: { 
-      l: 60, 
-      r: 30, 
-      t: 50, 
-      b: 80  // Increase bottom margin to accommodate range slider
-    },
-    showlegend: false, // Remove legend
-    // Update domain ranges for subplots
-    xaxis: { 
-      domain: [0, 1],
+    showlegend: false,
+    hovermode: 'x unified',
+    margin: { l: 60, r: 30, t: 30, b: 30 },
+    xaxis: {
+      domain: [0, 1], // Full width
       rangeslider: {
-        range: getDefaultRange(true),
-        thickness: 0.05,
-        yaxis: {
-          rangemode: 'match'
-        },
-        bgcolor: '#f8f9fa',
-        y: -0.2,  // Move it below all graphs
-        yanchor: 'top'
+        range: getDefaultRange(true)
       },
-      range: getDefaultRange(),
       rangeselector: {
         buttons: [
           {count: 1, label: '1m', step: 'month', stepmode: 'backward'},
           {count: 6, label: '6m', step: 'month', stepmode: 'backward'},
           {step: 'all', label: 'all'}
         ]
-      }
+      },
+      range: defaultRange,
+      showline: true,
+      linewidth: 1,
+      linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
+    },
+    yaxis: {
+      // Use the map for a user-friendly title
+      title: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value', // Fallback to raw target name or 'Value'
+      range: yAxisRange, // Use state for dynamic range updates
+      autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
     },
     shapes: selectedDates.map(date => ({
       type: 'line',
@@ -361,85 +192,96 @@ const RSVDefaultView = ({
         width: 1,
         dash: 'dash'
       }
-    })),
-    xaxis2: { 
-      domain: [0, 0.48],
-      range: getDefaultRange()
+    }))
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]);
+
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    displaylogo: false,
+    // modeBarPosition: 'left', ? perhaps not needed
+    showSendToCloud: false,
+    plotlyServerURL: "",
+    toImageButtonOptions: {
+      format: 'png',
+      filename: 'forecast_plot'
     },
-    xaxis3: { 
-      domain: [0.52, 1],
-      range: getDefaultRange()
-    },
-    xaxis4: { 
-      domain: [0, 0.48],
-      range: getDefaultRange()
-    },
-    xaxis5: { 
-      domain: [0.52, 1],
-      range: getDefaultRange()
-    },
-    annotations: ageGroups.map((age, index) => {
-      if (index === 0) {
-        return {
-          text: `Overall (Age ${age})`,
-          xref: 'paper',
-          yref: 'paper',
-          x: 0.5,
-          y: 1.1,  // Move title up above the graph
-          showarrow: false,
-          font: { size: 16, weight: 'bold' }
-        };
-      } else {
-        const row = Math.floor((index - 1) / 2) + 1;  // 1 for second row, 2 for third row
-        const col = ((index - 1) % 2);  // 0 for left, 1 for right
-        return {
-          text: `Age ${age}`,
-          xref: 'paper',
-          yref: 'paper',
-          x: col === 0 ? 0.24 : 0.76,   // Adjusted x positions
-          y: row === 1 ? 0.6 : 0.25,    // Adjusted y positions
-          showarrow: false,
-          font: { size: 14, weight: 'bold' }
-        };
+    modeBarButtonsToAdd: [{
+      name: 'Reset view',
+      icon: Plotly.Icons.home,
+      click: function(gd) {
+        const range = getDefaultRange();
+        if (range && projectionsData.length > 0) {
+          const newYRange = calculateYRange(projectionsData, range);
+          const update = {
+            'xaxis.range': range,
+            'xaxis.rangeslider.range': getDefaultRange(true),
+            'yaxis.range': newYRange,
+            'yaxis.autorange': newYRange === null, // Set autorange based on whether range calculation succeeded
+          };
+          Plotly.relayout(gd, update);
+          setYAxisRange(newYRange); // Update state
+        } else if (range) { // If no data but have default range, reset x-axis and auto y-axis
+            Plotly.relayout(gd, {
+              'xaxis.range': range,
+              'xaxis.rangeslider.range': getDefaultRange(true),
+              'yaxis.autorange': true,
+            });
+              setYAxisRange(null); // Reset state
+        }
       }
-    })
+    }]
   };
 
+  const lastUpdatedTimestamp = metadata?.last_updated;
+  let formattedDate = null;
+  if (lastUpdatedTimestamp) {
+    const date = new Date(lastUpdatedTimestamp); 
+    formattedDate = date.toLocaleString(undefined, {
+      timeZone: 'America/New_York', 
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  }
+  if (!selectedTarget) {
+    return (
+        <Stack align="center" justify="center" style={{ height: '300px' }}>
+            <Text>Please select a target to view data.</Text>
+        </Stack>
+    );
+  }
+
   return (
-    <div>
-      <Plot
-        data={traces}
-        layout={layout}
-        config={{
-          responsive: true,
-          displayModeBar: true,
-          displaylogo: false,
-          modeBarButtonsToAdd: [{
-            name: 'Reset view',
-            click: function(gd) {
-              const range = getDefaultRange();
-              if (range) {
-                Plotly.relayout(gd, {
-                  'xaxis.range': range,
-                  'xaxis2.range': range,
-                  'xaxis3.range': range,
-                  'xaxis4.range': range,
-                  'xaxis5.range': range,
-                  'xaxis.rangeslider.range': getDefaultRange(true)
-                });
-              }
-            }
-          }]
-        }}
-        className="w-full"
-      />
+    <Stack>
+      {formattedDate && (
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: {formattedDate}
+        </Text>
+      )}
+      <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
+        <Plot
+          ref={plotRef}
+          style={{ width: '100%', height: '100%' }}
+          data={projectionsData} 
+          layout={layout}
+          config={config}
+          onRelayout={(figure) => handlePlotUpdate(figure)}
+        />
+      </div>
       <ModelSelector 
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
-        getModelColor={getModelColor}
+        getModelColor={(model, selectedModels) => {
+          const index = selectedModels.indexOf(model);
+          return MODEL_COLORS[index % MODEL_COLORS.length];
+        }}
       />
-    </div>
+    </Stack>
   );
 };
 

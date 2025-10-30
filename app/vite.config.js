@@ -2,11 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: '/',                     // root on respilens.com
+  base: '/',
   plugins: [react()],
   server: {
-    watch: { usePolling: true }, // still useful on macOS/WSL
-    publicDir: 'public'          // static files live here
+    watch: { usePolling: true },
+    publicDir: 'public'
   },
   build: {
     outDir: 'dist',

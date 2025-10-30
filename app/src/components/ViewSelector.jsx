@@ -1,35 +1,99 @@
-import React from 'react';
-import { useView } from '../contexts/ViewContext';
+import { useMemo } from 'react';
+import { Stack, Button, Menu, Paper } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
+import { useView } from '../hooks/useView';
 import { DATASETS } from '../config/datasets';
 
 const ViewSelector = () => {
-  const { viewType, setViewType, currentDataset } = useView();
+  const { viewType, setViewType } = useView();
 
-  // Generate all possible view options
-  const viewOptions = Object.values(DATASETS).flatMap(dataset =>
-    dataset.views.map(view => ({
-      value: `${dataset.shortName}${view}`,
-      label: `${dataset.fullName} - ${view}`,
-      dataset: dataset.shortName
-    }))
+  const datasetOrder = useMemo(() => ['flu', 'rsv', 'covid', 'nhsn'], []);
+  const datasets = useMemo(
+    () =>
+      datasetOrder
+        .map(key => DATASETS[key])
+        .filter(Boolean),
+    [datasetOrder]
   );
 
+  const getDefaultProjectionsView = (dataset) => {
+    const projectionsView = dataset.views.find(view => view.key === 'projections');
+    return projectionsView?.value || dataset.defaultView || dataset.views[0]?.value;
+  };
+
+  const handleDatasetSelect = (dataset) => {
+    const targetView = getDefaultProjectionsView(dataset);
+    if (targetView) {
+      setViewType(targetView);
+    }
+  };
+
+  const handleViewSelect = (value) => {
+    setViewType(value);
+  };
+
   return (
-    <div className="flex flex-col gap-2">
-      {viewOptions.map(option => (
-        <div
-          key={option.value}
-          onClick={() => setViewType(option.value)}
-          className={`p-2 cursor-pointer rounded transition-colors ${
-            viewType === option.value
-              ? 'bg-blue-100 text-blue-800'
-              : 'hover:bg-gray-100'
-          }`}
-        >
-          <div className="font-medium">{option.label}</div>
-        </div>
-      ))}
-    </div>
+    <Paper shadow="sm" radius="md" withBorder style={{ display: 'inline-block' }}>
+      <Stack gap={0}>
+        {datasets.map((dataset, index) => {
+          const isActive = dataset.views.some(view => view.value === viewType);
+          const isLast = index === datasets.length - 1;
+
+          return (
+            <Menu
+              key={dataset.shortName}
+              shadow="md"
+              position="right-start"
+              offset={5}
+              withinPortal
+              trigger="hover"
+            >
+              <Menu.Target>
+                <Button
+                  variant={isActive ? 'light' : 'subtle'}
+                  color={isActive ? 'blue' : 'gray'}
+                  size="sm"
+                  rightSection={<IconChevronRight size={14} />}
+                  radius={0}
+                  fullWidth
+                  onClick={() => handleDatasetSelect(dataset)}
+                  styles={{
+                    root: {
+                      height: 36,
+                      borderBottom: isLast ? 'none' : '1px solid var(--mantine-color-gray-3)'
+                    },
+                    inner: {
+                      width: '100%',
+                      justifyContent: 'space-between'
+                    },
+                    label: {
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }
+                  }}
+                >
+                  {dataset.fullName}
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {dataset.views.map(view => (
+                  <Menu.Item
+                    key={view.value}
+                    onClick={() => handleViewSelect(view.value)}
+                    color={view.value === viewType ? 'blue' : undefined}
+                    leftSection={view.value === viewType ? <IconChevronRight size={14} /> : null}
+                  >
+                    {view.label}
+                  </Menu.Item>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
+          );
+        })}
+      </Stack>
+    </Paper>
   );
 };
 

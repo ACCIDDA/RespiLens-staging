@@ -1,156 +1,103 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Stack, ScrollArea, Button, TextInput, Text, Divider, Loader, Center, Alert } from '@mantine/core';
+import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
+import { useView } from '../hooks/useView'; // 1. Import the useView hook
 import ViewSelector from './ViewSelector';
-import InfoOverlay from './InfoOverlay';
+import TargetSelector from './TargetSelector';
 import { getDataPath } from '../utils/paths';
 
-const StateSelector = ({ onStateSelect, currentLocation = null, sidebarMode = false }) => {
+const StateSelector = () => {
+  // 2. Get the current location and the update function from our central context
+  const { selectedLocation, handleLocationSelect } = useView();
+
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchStates = async () => {
+      try {
+        const manifestResponse = await fetch(getDataPath('flusight/metadata.json'));
+        if (!manifestResponse.ok) {
+          throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
+        }
+        const metadata = await manifestResponse.json();
+        if (!metadata.locations || !Array.isArray(metadata.locations)) {
+          throw new Error('Invalid metadata format');
+        }
+        const sortedLocations = metadata.locations.sort((a, b) => {
+          if (a.abbreviation === 'US') return -1;
+          if (b.abbreviation === 'US') return 1;
+          return (a.location_name || '').localeCompare(b.location_name || '');
+        });
+        setStates(sortedLocations);
+      } catch (err) {
+        console.error('Error in data loading:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStates();
+  }, []);
 
   const filteredStates = states.filter(state =>
     state.location_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     state.abbreviation.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  useEffect(() => {
-    const fetchStates = async () => {
-      try {
-        // Fetch manifest using getDataPath
-        const manifestResponse = await fetch(getDataPath('flusight/metadata.json'));
-        if (!manifestResponse.ok) {
-          throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
-        }
-
-        const metadata = await manifestResponse.json();
-        console.log('Loaded metadata:', metadata);
-
-        if (!metadata.locations || !Array.isArray(metadata.locations)) {
-          throw new Error('Invalid metadata format');
-        }
-
-        // Use the locations data directly from metadata
-        const sortedLocations = metadata.locations
-          .sort((a, b) => {
-            if (a.abbreviation === 'US') return -1;
-            if (b.abbreviation === 'US') return 1;
-            return (a.location_name || '').localeCompare(b.location_name || '');
-          });
-
-        setStates(sortedLocations);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error in data loading:', err);
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
-    fetchStates();
-  }, []);
-
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <div className="mb-2">Loading locations...</div>
-        </div>
-      </div>
-    );
+    return <Center><Loader /></Center>;
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="text-red-500 text-center mb-4">
-          Error: {error}
-        </div>
-        <div className="text-sm text-gray-600 max-w-lg text-center">
-          Please ensure that:
-          <ul className="list-disc text-left mt-2 space-y-1">
-            <li>The process_flusight_data.py script has been run</li>
-            <li>Data files are present in app/public/processed_data/</li>
-            <li>manifest.json contains valid location data</li>
-          </ul>
-        </div>
-      </div>
-    );
+    return <Alert color="red" title="Error" icon={<IconAlertTriangle />}>{error}</Alert>;
   }
 
-  if (sidebarMode) {
-    return (
-      <div className="w-64 min-w-64 bg-white border-r shadow-lg flex flex-col h-screen overflow-hidden">
-        <div className="p-4 border-b flex items-center justify-between">
-          <div className="flex items-center">
-            <img src="respilens-logo.svg" alt="RespiLens Logo" className="h-12 w-12" />
-            <div className="ml-2">
-              <h3 className="font-bold text-blue-600">RespiLens<sup className="text-red-500 text-xs">α</sup></h3>
-            </div>
-          </div>
-          <div>
-            <InfoOverlay />
-          </div>
-        </div>
-        <div className="p-4 border-b">
-          <h3 className="font-bold mb-4 text-gray-700">Select View</h3>
-          <ViewSelector />
-        </div>
-        <div className="p-4 flex-1 overflow-hidden">
-          <h3 className="font-bold mb-4 text-gray-700">Select Location</h3>
-          <input
-            type="text"
-            placeholder="Search states..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded mb-4"
-          />
-          <div className="overflow-y-auto h-full">
-            {filteredStates.map((state) => (
-              <div
-                key={state.location}
-                onClick={() => onStateSelect(state.abbreviation)}
-                className={`p-2 cursor-pointer rounded transition-colors ${
-                  currentLocation === state.abbreviation
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'hover:bg-gray-100'
-                }`}
-              >
-                <div className="font-medium">{state.location_name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // This component will live inside the AppShell's Navbar, so we return the layout directly.
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex items-center justify-center gap-4 mb-6">
-        <img src="respilens-logo.svg" alt="RespiLens Logo" className="h-14 w-14" />
-        <h1 className="text-3xl font-bold text-blue-600">
-          RespiLens<sup className="text-red-500 text-xs">α</sup>
-        </h1>
-        <InfoOverlay />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
-        {states.map((state) => (
-          <div
-            key={state.location}
-            onClick={() => onStateSelect(state.abbreviation)}
-            className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <h2 className="text-xl font-semibold">{state.location_name || state.location}</h2>
-            {state.population && (
-              <p className="text-gray-600 text-sm">
-                Population: {state.population.toLocaleString()}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+    <Stack gap="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Stack gap="xs" style={{ flexShrink: 0 }}>
+        <Text fw={500} size="sm" c="dimmed">View</Text>
+        <ViewSelector />
+      </Stack>
+
+      <Divider />
+
+      <Stack>
+        <Text fw={500} size="sm" c="dimmed">Target</Text>
+        <TargetSelector />
+      </Stack>
+
+      <Stack gap="xs" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Text fw={500} size="sm" c="dimmed">Location</Text>
+        <TextInput
+          placeholder="Search states..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          leftSection={<IconSearch size={16} />}
+        />
+        <ScrollArea style={{ flex: 1 }} type="auto">
+          <Stack gap="xs">
+            {filteredStates.map((state) => (
+              <Button
+                key={state.location}
+                // 3. The button's style is now driven by `selectedLocation` from the context
+                variant={selectedLocation === state.abbreviation ? 'filled' : 'subtle'}
+                // 4. The onClick now calls `handleLocationSelect` from the context
+                onClick={() => handleLocationSelect(state.abbreviation)}
+                justify="start"
+                size="sm"
+                fullWidth
+              >
+                {state.location_name}
+              </Button>
+            ))}
+          </Stack>
+        </ScrollArea>
+      </Stack>
+    </Stack>
   );
 };
 

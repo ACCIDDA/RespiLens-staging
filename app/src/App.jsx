@@ -1,47 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, useSearchParams } from 'react-router-dom';
+// src/App.jsx
+
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ViewProvider } from './contexts/ViewContext';
-import StateSelector from './components/StateSelector';
+import { useView } from './hooks/useView';
 import ForecastViz from './components/ForecastViz';
+import NarrativeBrowser from './components/narratives/NarrativeBrowser';
+import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
+import ForecastleGame from './components/forecastle/ForecastleGame';
+import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
+import UnifiedAppShell from './components/layout/UnifiedAppShell';
+import Documentation from './components/Documentation'
+import { Center, Text } from '@mantine/core';
 
-const AppContent = () => {
-  useEffect(() => {
-    document.title = 'RespiLens';
-  }, []);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedLocation, setSelectedLocation] = useState(() => {
-    return searchParams.get('location') || 'US';
-  });
-
-  const handleStateSelect = (newLocation) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('location', newLocation);
-    setSearchParams(newParams);
-    setSelectedLocation(newLocation);
-  };
+const ForecastApp = () => {
+  // This component uses the view context, so it must be inside the provider.
+  const { selectedLocation } = useView();
 
   if (!selectedLocation) {
     return (
-      <div className="flex h-screen">
-        <StateSelector onStateSelect={handleStateSelect} sidebarMode={true} />
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-gray-500 text-lg">
-            Select a state to view forecasts
-          </div>
-        </div>
-      </div>
+      <Center h="100%">
+        <Text c="dimmed" size="lg">Select a state to view forecasts</Text>
+      </Center>
     );
   }
-
-  return <ForecastViz location={selectedLocation} handleStateSelect={handleStateSelect} />;
+  return <ForecastViz />;
 };
 
-const App = () => (
-  <Router>
-    <ViewProvider>
-      <AppContent />
-    </ViewProvider>
-  </Router>
-);
+// We create this new component to hold our main layout.
+// It can safely use hooks because it will be inside the Router and Provider.
+const AppLayout = () => {
+  const navigate = useNavigate(); // Safely used inside <Router>
+
+  return (
+    <UnifiedAppShell>
+      <Routes>
+        <Route path="/" element={<ForecastApp />} />
+        <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
+        <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
+        <Route path="/forecastle" element={<ForecastleGame />} />
+        <Route path="/dashboard" element={<MyRespiLensDashboard />} />
+        <Route path="/documentation" element={<Documentation />} />
+      </Routes>
+    </UnifiedAppShell>
+  );
+};
+
+const App = () => {
+  return (
+    <Router>
+      {/* The ViewProvider now wraps everything, making the context available to all components */}
+      <ViewProvider>
+        <AppLayout />
+      </ViewProvider>
+    </Router>
+  );
+};
 
 export default App;

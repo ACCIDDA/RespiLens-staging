@@ -3,8 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/respilens-logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RespiLens</title>
+    <script>
+      // Color scheme handling
+      (function() {
+        var key = 'respilens-color-scheme';
+        var colorScheme = localStorage.getItem(key) || 'auto';
+        if (colorScheme === 'auto') {
+          colorScheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-mantine-color-scheme', colorScheme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

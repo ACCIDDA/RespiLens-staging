@@ -1,0 +1,114 @@
+name: Build and Deploy Site
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # Daily at 4 AM ET (8 AM UTC) for a full build
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  process-data:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout visualization repository
+      uses: actions/checkout@v4
+
+    # This step now runs every time
+    - name: Clone Forecast Hubs
+      run: |
+        git clone https://github.com/cdcepi/FluSight-forecast-hub.git
+        git clone https://github.com/CDCgov/rsv-forecast-hub.git 
+        git clone https://github.com/CDCgov/covid19-forecast-hub.git
+        echo "Forecast hubs cloned successfully."
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy pyarrow tqdm requests hubdata jsonschema
+
+    # This single processing step now runs every time
+    - name: Process All Datasets (Hubs + NHSN)
+      run: |
+        mkdir -p app/public/processed_data
+        python scripts/process_RespiLens_data.py \
+          --output-path $GITHUB_WORKSPACE/app/public/processed_data \
+          --flusight-hub-path $GITHUB_WORKSPACE/FluSight-forecast-hub \
+          --rsv-hub-path $GITHUB_WORKSPACE/rsv-forecast-hub \
+          --covid-hub-path $GITHUB_WORKSPACE/covid19-forecast-hub \
+          --NHSN
+
+    - name: Upload all processed data as a single artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: processed-data
+        path: app/public/processed_data/
+        if-no-files-found: error
+        retention-days: 7
+
+  build-and-deploy:  
+    needs: [process-data]
+    if: always()
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      # ... (The build-and-deploy job remains exactly the same) ...
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'app/package-lock.json'
+      - name: Download all processed data
+        uses: actions/download-artifact@v4
+        with:
+          name: processed-data
+          path: app/public/processed_data
+      - name: Install dependencies
+        working-directory: ./app
+        run: npm ci
+      - name: Clean and Reinstall
+        working-directory: ./app
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install
+      - name: Build website
+        working-directory: ./app
+        run: |
+          if [ "${{ github.repository }}" = "ACCIDDA/RespiLens-staging" ]; then
+            npm run build:staging
+          else
+            npm run build
+          fi
+      - name: Copy index.html to 404.html for SPA routing
+        working-directory: ./app
+        run: cp dist/index.html dist/404.html
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./app/dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

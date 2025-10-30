@@ -1,6 +1,9 @@
-# RespiLens ![respilens-logo](https://github.com/user-attachments/assets/f4b54c2a-9d27-4453-9a85-72b1b2f965a2)
+# [RespiLens.com](http://www.respilens.com) [![Lint](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml)  [![Build and Deploy Site](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml)  [![Python Tests](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml)
+Authors: **Emily Przykucki**, Joseph Lemaitre and others within ACCIDDA, the Atlantic Coast Center for Infectious Disease Dynamics and Analytics.
 
-https://www.RespiLens.com (formerly called RespiView)
+* **stable version** https://www.RespiLens.com
+* **new features are developped on** https://staging.RespiLens.com
+
 
 Hey, there are other flusight vizualization but realized most of them are geared towards CDC/academics instead of state health department and public. Moreover, these hub data remains not accesssible enough. The goal is to make one more with these users in mind, and to have the following important (to me only) features:
 - **ability to link a certain view to a URL to share forecast**
@@ -72,6 +75,51 @@ Features
 - [x] create consistent file naming system
 
 
+## Data Processing
+
+GitHub Actions refreshes the processed JSON nightly, but you can regenerate everything locally in two ways:
+
+- `./update_all_data_source.sh`  
+  Clones or updates the FluSight, RSV, and COVID-19 hubs and runs `scripts/process_RespiLens_data.py` to rebuild `app/public/processed_data/`.
+
+- `python scripts/external_to_projections.py`  
+  Converts a single pathogen’s Hubverse exports into RespiLens projection JSON. Supply the forecast CSV, target dataset, and locations metadata for the pathogen you want to process:
+
+  ```bash
+  python scripts/external_to_projections.py \
+      --output-path ./app/public/processed_data \
+      --pathogen flu \
+      --data-path /absolute/path/to/FluSight-forecast-hub/hub_data.csv \
+      --target-data-path /absolute/path/to/FluSight-forecast-hub/target-data/time-series.csv \
+      --locations-data-path /absolute/path/to/FluSight-forecast-hub/auxiliary-data/locations.csv \
+      --overwrite
+  ```
+
+- `Rscript scripts/external_to_projections.R`  
+  The R companion script accepts the same arguments and produces byte-for-byte identical JSON (after installing `jsonlite` and `arrow`). If `jsonvalidate` is available it will also run schema checks, otherwise it skips them with a warning. Use it when working entirely in the R ecosystem or Hubverse R tooling.
+
+  Swap the `--pathogen` flag to `rsvforecasthub` or `covid19forecasthub` (file paths adjusted to the respective Hubverse clones). Each payload is validated against `scripts/schemas/RespiLens_projections.schema.json` before being saved under `app/public/processed_data/<pathogen>/`.
+
+If you want to compare fresh output against a snapshot, stash the reference JSON (e.g., under `tmp/baseline_json_samples/`) and run:
+
+```bash
+diff -ru tmp/baseline_json_samples app/public/processed_data
+```
+
+For a quick regression check that the Python and R converters remain in sync, run the bundled parity script:
+
+```bash
+./tests/run_projection_parity_test.sh
+```
+
+Details live in `tests/README.md`.
+
+Unit tests that exercise the shared processors against a fixed FluSight fixture are available via:
+
+```bash
+python -m pytest tests/test_processors.py
+```
+
 
 ## Desired Behaviors
 
@@ -100,8 +148,7 @@ For rsv views:
   * rsv_dates: Comma-separated dates for RSV view
   * rsv_models: Comma-separated model names for RSV view
 For nshn views:
-  * prelim_col: column to display on the preliminary dataset
-  * final_col: column on the official dataset
+  * nhsn_columns: Comma-separated column names for both datasets
 
 Parameter Logic:
   * URL params are dataset specific (flu_ or rsv_ prefix)

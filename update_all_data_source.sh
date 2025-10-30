@@ -1,9 +1,37 @@
-# show on error and plot the commands
-set -ex
+#!/usr/bin/env bash
 
-python scripts/process_flusight_data.py  --hub-path FluSight-forecast-hub  --output-path app/public/processed_data
+# Exit on error, unset vars, and show each command as it runs.
+set -euo pipefail
+set -x
 
-python scripts/process_nhsn_data.py --output-path ./processed_data --locations-path ./FluSight-forecast-hub/auxiliary-data/locations.csv
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
+repos=(
+  "FluSight-forecast-hub|https://github.com/cdcepi/FluSight-forecast-hub.git"
+  "rsv-forecast-hub|https://github.com/CDCgov/rsv-forecast-hub.git"
+  "covid19-forecast-hub|https://github.com/CDCgov/covid19-forecast-hub.git"
+)
 
-python scripts/process_rsv_data.py  --hub-path rsv-forecast-hub  --output-path app/public/processed_data
+for entry in "${repos[@]}"; do
+  repo_dir="${entry%%|*}"
+  repo_url="${entry##*|}"
+
+  if [[ -d "${repo_dir}/.git" ]]; then
+    git -C "${repo_dir}" pull --ff-only
+  elif [[ -d "${repo_dir}" ]]; then
+    echo "Directory ${repo_dir} exists but is not a git repository. Aborting." >&2
+    exit 1
+  else
+    git clone "${repo_url}" "${repo_dir}"
+  fi
+done
+
+mkdir -p app/public/processed_data
+
+python scripts/process_RespiLens_data.py \
+  --output-path "${SCRIPT_DIR}/app/public/processed_data" \
+  --flusight-hub-path "${SCRIPT_DIR}/FluSight-forecast-hub" \
+  --rsv-hub-path "${SCRIPT_DIR}/rsv-forecast-hub" \
+  --covid-hub-path "${SCRIPT_DIR}/covid19-forecast-hub" \
+  --NHSN

@@ -1,0 +1,160 @@
+{
+  "metadata": {
+    "location": "06",
+    "abbreviation": "CA",
+    "location_name": "California",
+    "population": 39538223,
+    "dataset": "flusight forecasts",
+    "series_type": "projection",
+    "hubverse_keys": {
+      "models": [
+        "FluSight-ensemble",
+        "UNC_IDD-Influpaint"
+      ],
+      "targets": [
+        "wk inc flu hosp",
+        "wk flu hosp rate change"
+      ],
+      "horizons": [
+        "0",
+        "1"
+      ],
+      "output_types": [
+        "quantile",
+        "pmf"
+      ]
+    }
+  },
+  "ground_truth": {
+    "dates": [
+      "2023-10-07",
+      "2023-10-14",
+      "2023-10-21"
+    ],
+    "wk inc flu hosp": [
+      40,
+      47,
+      49
+    ]
+  },
+  "forecasts": {
+    "2023-10-07": {
+      "wk flu hosp rate change": {
+        "FluSight-ensemble": {
+          "type": "pmf",
+          "predictions": {
+            "0": {
+              "date": "2023-10-14",
+              "categories": [
+                "decrease",
+                "stable",
+                "increase"
+              ],
+              "probabilities": [
+                0.2,
+                0.5,
+                0.3
+              ]
+            }
+          }
+        },
+        "UNC_IDD-Influpaint": {
+          "type": "pmf",
+          "predictions": {
+            "0": {
+              "date": "2023-10-14",
+              "categories": [
+                "decrease",
+                "stable",
+                "increase"
+              ],
+              "probabilities": [
+                0.25,
+                0.45,
+                0.3
+              ]
+            }
+          }
+        }
+      },
+      "wk inc flu hosp": {
+        "FluSight-ensemble": {
+          "type": "quantile",
+          "predictions": {
+            "0": {
+              "date": "2023-10-14",
+              "quantiles": [
+                0.25,
+                0.5,
+                0.75
+              ],
+              "values": [
+                35.0,
+                42.0,
+                55.0
+              ]
+            }
+          }
+        },
+        "UNC_IDD-Influpaint": {
+          "type": "quantile",
+          "predictions": {
+            "0": {
+              "date": "2023-10-14",
+              "quantiles": [
+                0.25,
+                0.5,
+                0.75
+              ],
+              "values": [
+                32.0,
+                44.0,
+                60.0
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2023-10-14": {
+      "wk inc flu hosp": {
+        "FluSight-ensemble": {
+          "type": "quantile",
+          "predictions": {
+            "1": {
+              "date": "2023-10-21",
+              "quantiles": [
+                0.25,
+                0.5,
+                0.75
+              ],
+              "values": [
+                40.0,
+                50.0,
+                62.0
+              ]
+            }
+          }
+        },
+        "UNC_IDD-Influpaint": {
+          "type": "quantile",
+          "predictions": {
+            "1": {
+              "date": "2023-10-21",
+              "quantiles": [
+                0.25,
+                0.5,
+                0.75
+              ],
+              "values": [
+                38.0,
+                48.0,
+                61.0
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
