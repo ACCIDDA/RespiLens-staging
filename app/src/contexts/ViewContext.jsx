@@ -140,6 +140,12 @@ export const ViewProvider = ({ children }) => {
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
         newSearchParams.delete(`${oldDataset.prefix}_target`);
       }
+      // --- ADDED: Clean up NHSN params when leaving ---
+        if (oldDataset.shortName === 'nhsn') {
+          newSearchParams.delete('nhsn_target');
+          newSearchParams.delete('nhsn_cols');
+        }
+        // --- END ADDITION ---
     } else {
       if (newDataset) {
          newSearchParams.delete(`${newDataset.prefix}_target`);
