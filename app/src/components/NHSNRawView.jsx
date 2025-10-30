@@ -1,10 +1,17 @@
+// src/components/NHSNRawView.jsx
+
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
-import { nhsnTargetsToColumnsMap } from '../utils/mapUtils';
+import {
+  nhsnTargetsToColumnsMap, // slug = shortform
+  nhsnNameToSlugMap, // { longform: shortform } map
+  nhsnSlugToNameMap   // { shortform: longform } map
+} from '../utils/mapUtils';
 
 
 const nhsnYAxisLabelMap = {
@@ -27,9 +34,10 @@ const NHSNRawView = ({ location }) => {
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
   
   const [selectedColumns, setSelectedColumns] = useState([]);
-
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
+
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,7 +45,6 @@ const NHSNRawView = ({ location }) => {
       
       try {
         setLoading(true);
-        // Reset state for new location
         setData(null);
         setMetadata(null);
         setAllDataColumns([]);
@@ -67,14 +74,12 @@ const NHSNRawView = ({ location }) => {
         if (!jsonData.series || !jsonData.series.dates) {
           throw new Error('Invalid data format');
         }
-        // This is your original check, it's correct.
-        if (!jsonMetadata.last_updated) { 
+        if (!jsonMetadata.last_updated) {
           throw new Error('Invalid metadata format');
         }
 
         setData(jsonData);
         setMetadata(jsonMetadata); // Store for last_updated
-
         
         const allColumnsFromData = Object.keys(jsonData.series)
           .filter(key => key !== 'dates')
@@ -84,10 +89,6 @@ const NHSNRawView = ({ location }) => {
         const targets = Object.keys(nhsnTargetsToColumnsMap);
         setAvailableTargets(targets);
 
-        if (targets.length > 0) {
-          setSelectedTarget(targets[0]); // Default to the first target
-        }
-
       } catch (err) {
         setError(err.message);
       } finally {
@@ -96,10 +97,26 @@ const NHSNRawView = ({ location }) => {
     };
 
     fetchData();
-  }, [location]); // This effect only runs when the location changes
+  }, [location]);
+
 
   useEffect(() => {
-    if (!selectedTarget || allDataColumns.length === 0) {
+    // Wait for fetch to complete
+    if (loading || availableTargets.length === 0) {
+      return;
+    }
+
+    const urlTarget = searchParams.get('nhsn_target');
+    if (urlTarget && availableTargets.includes(urlTarget)) {
+      setSelectedTarget(urlTarget);
+    } else {
+      setSelectedTarget(availableTargets[0]); 
+    }
+  }, [loading, availableTargets, searchParams]); // Runs when data is loaded
+
+  
+  useEffect(() => {
+    if (loading || !selectedTarget || allDataColumns.length === 0) {
       setFilteredAvailableColumns([]);
       return;
     }
@@ -108,13 +125,59 @@ const NHSNRawView = ({ location }) => {
     
     setFilteredAvailableColumns(filtered);
 
-    // Set a new default column 
-    if (filtered.length > 0) {
-      setSelectedColumns([filtered[0]]);
+    // Read slugs and convert them to full names 
+    const urlSlugs = searchParams.getAll('nhsn_cols');
+    const validUrlCols = urlSlugs
+      .map(slug => nhsnSlugToNameMap[slug]) // Convert slug TO full name
+      .filter(colName => colName && filtered.includes(colName)); // Check if valid
+
+    if (validUrlCols.length > 0) {
+      setSelectedColumns(validUrlCols);
+    } else if (filtered.length > 0) {
+      setSelectedColumns([filtered[0]]); 
     } else {
       setSelectedColumns([]);
     }
-  }, [selectedTarget, allDataColumns]); // Runs when target or data changes
+  }, [loading, selectedTarget, allDataColumns, searchParams]); // Runs when target is set
+
+
+  useEffect(() => {
+    // Don't update URL params until data is loaded and state is initialized
+    if (loading || !selectedTarget || availableTargets.length === 0 || allDataColumns.length === 0) {
+      return;
+    }
+
+    const newParams = new URLSearchParams(searchParams);
+
+    const defaultTarget = availableTargets[0];
+    if (selectedTarget && selectedTarget !== defaultTarget) {
+      newParams.set('nhsn_target', selectedTarget);
+    } else {
+      newParams.delete('nhsn_target'); 
+    }
+
+    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
+    const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
+    const defaultColumns = filteredCols.length > 0 ? [filteredCols[0]] : [];
+    
+    const sortedSelected = [...selectedColumns].sort();
+    const sortedDefault = [...defaultColumns].sort();
+
+    const selectedSlugs = sortedSelected.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
+    const defaultSlugs = sortedDefault.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
+
+    if (JSON.stringify(selectedSlugs) !== JSON.stringify(defaultSlugs)) {
+      newParams.delete('nhsn_cols'); // Clear all first
+      selectedSlugs.forEach(slug => newParams.append('nhsn_cols', slug)); // Add slugs
+    } else {
+      newParams.delete('nhsn_cols'); // It's the default, remove it
+    }
+
+    if (newParams.toString() !== searchParams.toString()) {
+      setSearchParams(newParams, { replace: true });
+    }
+
+  }, [selectedTarget, selectedColumns, allDataColumns, availableTargets, loading, searchParams, setSearchParams]);
 
 
   const calculateNHSNYRange = () => {
@@ -129,7 +192,7 @@ const NHSNRawView = ({ location }) => {
     }, []);
     if (allValues.length === 0) return null;
     const maxY = Math.max(...allValues);
-    const padding = maxY * 0.15;
+    const padding = maxY * 0.15; 
     return [0, maxY + padding];
   };
 
@@ -183,9 +246,9 @@ const NHSNRawView = ({ location }) => {
   const lastUpdatedTimestamp = metadata?.last_updated;
   let formattedDate = null;
   if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp); 
+    const date = new Date(lastUpdatedTimestamp);
     formattedDate = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York', 
+      timeZone: 'America/New_York',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -206,12 +269,12 @@ const NHSNRawView = ({ location }) => {
       <Select
         label="Select a timeseries unit"
         placeholder="Choose a time series unit"
-        data={availableTargets} 
+        data={availableTargets}
         value={selectedTarget}
-        onChange={setSelectedTarget} // This triggers the useEffect to filter columns
+        onChange={setSelectedTarget} 
         disabled={loading}
         allowDeselect={false}
-        // style={{ maxWidth: 200 }}
+        // style={{ maxWidth: 200 }} // this is the width of the select bar
       />
 
       <Plot
