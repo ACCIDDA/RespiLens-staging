@@ -1,13 +1,17 @@
 // src/components/NHSNRawView.jsx
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom'; // Import useSearchParams
+import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
-import { nhsnTargetsToColumnsMap } from '../utils/mapUtils';
+import {
+  nhsnTargetsToColumnsMap, // slug = shortform
+  nhsnNameToSlugMap, // { longform: shortform } map
+  nhsnSlugToNameMap   // { shortform: longform } map
+} from '../utils/mapUtils';
 
 
 const nhsnYAxisLabelMap = {
@@ -33,7 +37,6 @@ const NHSNRawView = ({ location }) => {
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
 
-  // Get URL search param tools
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -94,7 +97,8 @@ const NHSNRawView = ({ location }) => {
     };
 
     fetchData();
-  }, [location]); // Runs when location is set
+  }, [location]);
+
 
   useEffect(() => {
     // Wait for fetch to complete
@@ -106,13 +110,12 @@ const NHSNRawView = ({ location }) => {
     if (urlTarget && availableTargets.includes(urlTarget)) {
       setSelectedTarget(urlTarget);
     } else {
-      setSelectedTarget(availableTargets[0]); // Default to the first target
+      setSelectedTarget(availableTargets[0]); 
     }
   }, [loading, availableTargets, searchParams]); // Runs when data is loaded
 
   
   useEffect(() => {
-    // Wait for target to be set
     if (loading || !selectedTarget || allDataColumns.length === 0) {
       setFilteredAvailableColumns([]);
       return;
@@ -122,17 +125,21 @@ const NHSNRawView = ({ location }) => {
     
     setFilteredAvailableColumns(filtered);
 
-    const urlCols = searchParams.getAll('nhsn_cols');
-    const validUrlCols = urlCols.filter(col => filtered.includes(col));
+    // Read slugs and convert them to full names 
+    const urlSlugs = searchParams.getAll('nhsn_cols');
+    const validUrlCols = urlSlugs
+      .map(slug => nhsnSlugToNameMap[slug]) // Convert slug TO full name
+      .filter(colName => colName && filtered.includes(colName)); // Check if valid
 
     if (validUrlCols.length > 0) {
       setSelectedColumns(validUrlCols);
     } else if (filtered.length > 0) {
-      setSelectedColumns([filtered[0]]); // Default to first available column
+      setSelectedColumns([filtered[0]]); 
     } else {
       setSelectedColumns([]);
     }
   }, [loading, selectedTarget, allDataColumns, searchParams]); // Runs when target is set
+
 
   useEffect(() => {
     // Don't update URL params until data is loaded and state is initialized
@@ -146,7 +153,7 @@ const NHSNRawView = ({ location }) => {
     if (selectedTarget && selectedTarget !== defaultTarget) {
       newParams.set('nhsn_target', selectedTarget);
     } else {
-      newParams.delete('nhsn_target'); // It's the default, remove it
+      newParams.delete('nhsn_target'); 
     }
 
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
@@ -156,9 +163,12 @@ const NHSNRawView = ({ location }) => {
     const sortedSelected = [...selectedColumns].sort();
     const sortedDefault = [...defaultColumns].sort();
 
-    if (JSON.stringify(sortedSelected) !== JSON.stringify(sortedDefault)) {
+    const selectedSlugs = sortedSelected.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
+    const defaultSlugs = sortedDefault.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
+
+    if (JSON.stringify(selectedSlugs) !== JSON.stringify(defaultSlugs)) {
       newParams.delete('nhsn_cols'); // Clear all first
-      sortedSelected.forEach(col => newParams.append('nhsn_cols', col));
+      selectedSlugs.forEach(slug => newParams.append('nhsn_cols', slug)); // Add slugs
     } else {
       newParams.delete('nhsn_cols'); // It's the default, remove it
     }
@@ -261,10 +271,10 @@ const NHSNRawView = ({ location }) => {
         placeholder="Choose a time series unit"
         data={availableTargets}
         value={selectedTarget}
-        onChange={setSelectedTarget} // This triggers the useEffect to filter columns
+        onChange={setSelectedTarget} 
         disabled={loading}
         allowDeselect={false}
-        // style={{ maxWidth: 200 }} // controls how wide the dropdown select thingy is 
+        // style={{ maxWidth: 200 }} // this is the width of the select bar
       />
 
       <Plot
