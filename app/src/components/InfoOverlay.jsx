@@ -103,27 +103,6 @@ const InfoOverlay = () => {
             </List>
           </div>
 
-          <Alert
-            icon={<IconAlertTriangle size={20} />}
-            title="Alpha Version"
-            color="yellow"
-            variant="light"
-          >
-            <Text size="sm">
-              This is an alpha version that may break unexpectedly. URL schemas and features may change.
-              Everyone is welcome to use it, and if you notice something that can be improved,
-              please{' '}
-              <Anchor
-                href="https://github.com/ACCIDDA/RespiLens/issues"
-                target="_blank"
-                rel="noopener"
-              >
-                raise an issue
-              </Anchor>{' '}
-              on GitHub.
-            </Text>
-          </Alert>
-
           <Text>
             RespiLens is a responsive web app to visualize respiratory disease forecasts in the US, focused on
             accessibility for state health departments and the general public. Key features include:

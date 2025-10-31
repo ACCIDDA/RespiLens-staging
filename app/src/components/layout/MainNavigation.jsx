@@ -23,7 +23,7 @@ const MainNavigation = () => {
       <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
         <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w="auto" fit="contain" />
         <Title order={3} c="blue" visibleFrom="sm">
-          RespiLens<sup style={{ color: 'var(--mantine-color-red-6)', fontSize: '0.75rem' }}>α</sup>
+          RespiLens<sup style={{ color: 'var(--mantine-color-red-6)', fontSize: '0.75rem' }}></sup>
         </Title>
       </Group>
 
