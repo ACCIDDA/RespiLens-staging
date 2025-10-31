@@ -1,6 +1,6 @@
-import { Modal, Button, Group, Text, List, Alert, Anchor, Image, Title, Stack, Badge, ActionIcon } from '@mantine/core';
+import { Modal, Button, Group, Text, List, Anchor, Image, Title, Stack, Badge, ActionIcon } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconInfoCircle, IconBrandGithub, IconAlertTriangle, IconWorld } from '@tabler/icons-react';
+import { IconInfoCircle, IconBrandGithub, IconWorld } from '@tabler/icons-react';
 
 const InfoOverlay = () => {
   const [opened, { open, close }] = useDisclosure(false);
