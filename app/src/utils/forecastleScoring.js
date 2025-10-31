@@ -235,7 +235,7 @@ export const scoreModels = (modelForecasts, horizons, groundTruthValues) => {
       return;
     }
 
-    const modelForecasts = horizons.map(horizon => {
+    const modelForecastsRaw = horizons.map(horizon => {
       const horizonPrediction = predictions[String(horizon)];
       if (!horizonPrediction) {
         return null;
@@ -275,8 +275,26 @@ export const scoreModels = (modelForecasts, horizons, groundTruthValues) => {
       };
     });
 
-    // Score this model
-    const score = scoreUserForecast(modelForecasts, groundTruthValues);
+    // Filter out null forecasts to prevent scoreUserForecast from receiving invalid data
+    const validIndices = [];
+    const validForecasts = [];
+    const validGroundTruth = [];
+
+    modelForecastsRaw.forEach((forecast, index) => {
+      if (forecast !== null) {
+        validIndices.push(index);
+        validForecasts.push(forecast);
+        validGroundTruth.push(groundTruthValues[index]);
+      }
+    });
+
+    // Skip this model if there are no valid forecasts
+    if (validForecasts.length === 0) {
+      return;
+    }
+
+    // Score this model with only valid forecasts
+    const score = scoreUserForecast(validForecasts, validGroundTruth);
     if (score.wis !== null) {
       modelScores.push({
         modelName,

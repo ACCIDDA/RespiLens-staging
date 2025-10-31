@@ -74,6 +74,7 @@ export function getForecastleGames() {
  * Save a completed Forecastle game
  * @param {Object} gameData - The game data to save
  * @param {string} gameData.challengeDate - ISO date string of the challenge
+ * @param {string} gameData.forecastDate - ISO date string of the forecast date
  * @param {string} gameData.dataset - Dataset name (e.g., 'flusight')
  * @param {string} gameData.location - Location code (e.g., 'NY')
  * @param {string} gameData.target - Target name (e.g., 'influenza_hospitalizations')
@@ -91,8 +92,8 @@ export function saveForecastleGame(gameData) {
   try {
     const games = getForecastleGames();
 
-    // Create unique ID for this game (include target to avoid collisions)
-    const id = `${gameData.challengeDate}_${gameData.dataset}_${gameData.location}_${gameData.target}`;
+    // Create unique ID for this game (include forecastDate and target to avoid collisions)
+    const id = `${gameData.challengeDate}_${gameData.forecastDate}_${gameData.dataset}_${gameData.location}_${gameData.target}`;
 
     // Check if this game already exists (replay protection)
     const existingIndex = games.findIndex(g => g.id === id);
@@ -101,6 +102,7 @@ export function saveForecastleGame(gameData) {
       id,
       playedAt: new Date().toISOString(),
       challengeDate: gameData.challengeDate,
+      forecastDate: gameData.forecastDate,
       dataset: gameData.dataset,
       location: gameData.location,
       target: gameData.target,
@@ -162,7 +164,7 @@ export function saveForecastleGame(gameData) {
 
 /**
  * Get a specific game by ID
- * @param {string} id - Game ID (format: "YYYY-MM-DD_dataset_location")
+ * @param {string} id - Game ID (format: "challengeDate_forecastDate_dataset_location_target")
  * @returns {Object|null} Game object or null if not found
  */
 export function getForecastleGame(id) {

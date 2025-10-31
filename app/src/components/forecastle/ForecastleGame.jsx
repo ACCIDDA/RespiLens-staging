@@ -87,7 +87,7 @@ const ForecastleGame = () => {
 
     const completed = new Set();
     scenarios.forEach((s, index) => {
-      const id = `${s.challengeDate}_${s.dataset.key}_${s.location.abbreviation}_${s.dataset.targetKey}`;
+      const id = `${s.challengeDate}_${s.forecastDate}_${s.dataset.key}_${s.location.abbreviation}_${s.dataset.targetKey}`;
       const existingGame = getForecastleGame(id);
       if (existingGame) {
         completed.add(index);
@@ -107,7 +107,7 @@ const ForecastleGame = () => {
     // If this challenge is already completed, load the saved data and show scoring
     // Allow loading even with play_date, but user can still resubmit
     if (isCurrentChallengeCompleted && scenario) {
-      const id = `${scenario.challengeDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
+      const id = `${scenario.challengeDate}_${scenario.forecastDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
       const savedGame = getForecastleGame(id);
 
       if (savedGame && scenario.fullGroundTruthSeries) {
@@ -169,6 +169,16 @@ const ForecastleGame = () => {
   }, [inputMode, scores]);
 
   const handleSubmit = () => {
+    // When using play_date, check if this game has already been saved
+    if (playDate && scenario) {
+      const id = `${scenario.challengeDate}_${scenario.forecastDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
+      const existingGame = getForecastleGame(id);
+      if (existingGame) {
+        setSubmissionErrors({ general: 'This forecast has already been submitted. You cannot resubmit when using play_date.' });
+        return;
+      }
+    }
+
     // Validate that forecastEntries is properly populated
     if (!forecastEntries || forecastEntries.length === 0) {
       console.error('No forecast entries to submit');
@@ -250,6 +260,7 @@ const ForecastleGame = () => {
       try {
         saveForecastleGame({
           challengeDate: scenario.challengeDate,
+          forecastDate: scenario.forecastDate,
           dataset: scenario.dataset.key,
           location: scenario.location.abbreviation,
           target: scenario.dataset.targetKey,
@@ -998,8 +1009,10 @@ const ForecastleGame = () => {
                             Back to Median
                           </Button>
                           {Object.keys(submissionErrors).length > 0 && (
-                            <Alert color="red" variant="light" title="Invalid intervals" p="xs">
-                              <Text size="xs">Please adjust your intervals to continue.</Text>
+                            <Alert color="red" variant="light" title={submissionErrors.general ? "Submission Error" : "Invalid intervals"} p="xs">
+                              <Text size="xs">
+                                {submissionErrors.general || 'Please adjust your intervals to continue.'}
+                              </Text>
                             </Alert>
                           )}
                         </Stack>
