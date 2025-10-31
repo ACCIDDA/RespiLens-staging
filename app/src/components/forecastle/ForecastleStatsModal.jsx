@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Modal,
   Stack,
@@ -13,6 +13,7 @@ import {
   Alert,
   Divider,
   ScrollArea,
+  Tooltip,
 } from '@mantine/core';
 import {
   IconChartBar,
@@ -48,18 +49,34 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
   const [refreshKey, setRefreshKey] = useState(0);
   const stats = useRespilensStats(refreshKey);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [exportError, setExportError] = useState(null);
+
+  // Refresh stats when modal opens
+  useEffect(() => {
+    if (opened) {
+      setRefreshKey(prev => prev + 1);
+      setExportError(null);
+      setShowClearConfirm(false);
+    }
+  }, [opened]);
 
   const handleExport = () => {
-    const data = exportForecastleData();
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `respilens-forecastle-history-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      setExportError(null);
+      const data = exportForecastleData();
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `respilens-forecastle-history-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportError('Failed to export data. Please try again.');
+    }
   };
 
   const handleClear = () => {
@@ -266,8 +283,16 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                       <Table.Th>Dataset</Table.Th>
                       <Table.Th>Location</Table.Th>
                       <Table.Th>RMSE</Table.Th>
-                      <Table.Th>95% Cov</Table.Th>
-                      <Table.Th>50% Cov</Table.Th>
+                      <Table.Th>
+                        <Tooltip label="Number of horizons where true value fell within your 95% interval">
+                          <Text size="sm" style={{ cursor: 'help' }}>95% Cov</Text>
+                        </Tooltip>
+                      </Table.Th>
+                      <Table.Th>
+                        <Tooltip label="Number of horizons where true value fell within your 50% interval">
+                          <Text size="sm" style={{ cursor: 'help' }}>50% Cov</Text>
+                        </Tooltip>
+                      </Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -311,6 +336,13 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
             </Stack>
 
             <Divider />
+
+            {/* Export Error */}
+            {exportError && (
+              <Alert icon={<IconAlertCircle size={16} />} color="red" onClose={() => setExportError(null)} withCloseButton>
+                {exportError}
+              </Alert>
+            )}
 
             {/* Actions */}
             <Group justify="space-between">

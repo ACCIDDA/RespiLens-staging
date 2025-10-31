@@ -9,13 +9,61 @@
 const STORAGE_KEY = 'respilens_forecastle_games';
 
 /**
+ * Check if localStorage is available
+ * @returns {boolean} True if localStorage is available
+ */
+function isLocalStorageAvailable() {
+  try {
+    const test = '__storage_test__';
+    localStorage.setItem(test, test);
+    localStorage.removeItem(test);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Validate a game object has the required structure
+ * @param {Object} game - Game object to validate
+ * @returns {boolean} True if valid
+ */
+function isValidGame(game) {
+  return (
+    game &&
+    typeof game === 'object' &&
+    typeof game.id === 'string' &&
+    typeof game.challengeDate === 'string' &&
+    typeof game.dataset === 'string' &&
+    typeof game.location === 'string' &&
+    Array.isArray(game.userForecasts) &&
+    Array.isArray(game.groundTruth) &&
+    Array.isArray(game.horizonDates)
+  );
+}
+
+/**
  * Get all stored Forecastle games
  * @returns {Array} Array of game objects
  */
 export function getForecastleGames() {
+  if (!isLocalStorageAvailable()) {
+    console.warn('localStorage is not available');
+    return [];
+  }
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      console.error('Stored data is not an array, resetting');
+      return [];
+    }
+
+    // Filter out invalid games
+    return parsed.filter(game => isValidGame(game));
   } catch (error) {
     console.error('Error reading Forecastle games from localStorage:', error);
     return [];
@@ -35,11 +83,16 @@ export function getForecastleGames() {
  * @returns {boolean} Success status
  */
 export function saveForecastleGame(gameData) {
+  if (!isLocalStorageAvailable()) {
+    console.error('localStorage is not available');
+    return false;
+  }
+
   try {
     const games = getForecastleGames();
 
-    // Create unique ID for this game
-    const id = `${gameData.challengeDate}_${gameData.dataset}_${gameData.location}`;
+    // Create unique ID for this game (include target to avoid collisions)
+    const id = `${gameData.challengeDate}_${gameData.dataset}_${gameData.location}_${gameData.target}`;
 
     // Check if this game already exists (replay protection)
     const existingIndex = games.findIndex(g => g.id === id);
@@ -77,6 +130,11 @@ export function saveForecastleGame(gameData) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
     return true;
   } catch (error) {
+    // Check for quota exceeded error
+    if (error.name === 'QuotaExceededError' || error.code === 22) {
+      console.error('localStorage quota exceeded. Consider clearing old games.');
+      throw new Error('Storage quota exceeded. Please clear some game history.');
+    }
     console.error('Error saving Forecastle game to localStorage:', error);
     return false;
   }
@@ -98,6 +156,11 @@ export function getForecastleGame(id) {
  * @returns {boolean} Success status
  */
 export function deleteForecastleGame(id) {
+  if (!isLocalStorageAvailable()) {
+    console.error('localStorage is not available');
+    return false;
+  }
+
   try {
     const games = getForecastleGames();
     const filtered = games.filter(g => g.id !== id);
@@ -114,6 +177,11 @@ export function deleteForecastleGame(id) {
  * @returns {boolean} Success status
  */
 export function clearForecastleGames() {
+  if (!isLocalStorageAvailable()) {
+    console.error('localStorage is not available');
+    return false;
+  }
+
   try {
     localStorage.removeItem(STORAGE_KEY);
     return true;
@@ -138,15 +206,34 @@ export function exportForecastleData() {
  * @returns {boolean} Success status
  */
 export function importForecastleData(jsonData) {
+  if (!isLocalStorageAvailable()) {
+    console.error('localStorage is not available');
+    return false;
+  }
+
   try {
     const imported = JSON.parse(jsonData);
     if (!Array.isArray(imported)) {
       throw new Error('Invalid data format: expected array');
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(imported));
+
+    // Validate all games
+    const validGames = imported.filter(game => {
+      const valid = isValidGame(game);
+      if (!valid) {
+        console.warn('Skipping invalid game during import:', game);
+      }
+      return valid;
+    });
+
+    if (validGames.length === 0) {
+      throw new Error('No valid games found in import data');
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(validGames));
     return true;
   } catch (error) {
     console.error('Error importing Forecastle data:', error);
-    return false;
+    throw error; // Re-throw so caller can handle
   }
 }

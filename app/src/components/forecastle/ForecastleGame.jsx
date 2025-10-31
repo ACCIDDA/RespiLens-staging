@@ -76,6 +76,7 @@ const ForecastleGame = () => {
   const [visibleRankings, setVisibleRankings] = useState(0); // For animated reveal
   const [copied, setCopied] = useState(false); // For copy button feedback
   const [statsModalOpened, setStatsModalOpened] = useState(false); // For stats modal
+  const [saveError, setSaveError] = useState(null); // For storage save errors
 
   useEffect(() => {
     setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
@@ -149,15 +150,21 @@ const ForecastleGame = () => {
       });
 
       // Save game to storage
-      saveForecastleGame({
-        challengeDate: scenario.challengeDate,
-        dataset: scenario.dataset.key,
-        location: scenario.location.abbreviation,
-        target: scenario.dataset.targetKey,
-        userForecasts: forecastEntries,
-        groundTruth: groundTruthValues,
-        horizonDates,
-      });
+      try {
+        saveForecastleGame({
+          challengeDate: scenario.challengeDate,
+          dataset: scenario.dataset.key,
+          location: scenario.location.abbreviation,
+          target: scenario.dataset.targetKey,
+          userForecasts: forecastEntries,
+          groundTruth: groundTruthValues,
+          horizonDates,
+        });
+        setSaveError(null);
+      } catch (error) {
+        console.error('Failed to save game:', error);
+        setSaveError(error.message || 'Failed to save game to storage');
+      }
     }
   };
 
@@ -321,6 +328,11 @@ const ForecastleGame = () => {
 
             {inputMode === 'scoring' && scores ? (
               <Stack gap="lg">
+                {saveError && (
+                  <Alert icon={<IconAlertTriangle size={16} />} color="yellow" onClose={() => setSaveError(null)} withCloseButton>
+                    {saveError}
+                  </Alert>
+                )}
                 {scores.user.rmse !== null ? (
                   <>
                     <Text size="sm" c="dimmed">

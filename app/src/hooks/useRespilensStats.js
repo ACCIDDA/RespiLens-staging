@@ -83,47 +83,58 @@ function calculateStreaks(games) {
     return { currentStreak: 0, maxStreak: 0 };
   }
 
-  // Sort by challenge date (most recent first)
-  const sorted = [...games].sort((a, b) =>
-    new Date(b.challengeDate) - new Date(a.challengeDate)
-  );
+  // Get unique challenge dates and sort (most recent first)
+  const uniqueDates = [...new Set(games.map(g => g.challengeDate))]
+    .sort((a, b) => b.localeCompare(a)); // ISO date string comparison
 
-  let currentStreak = 0;
-  let maxStreak = 0;
-  let tempStreak = 1;
-  let lastDate = new Date(sorted[0].challengeDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Check if most recent game is today or yesterday (current streak alive)
-  const daysSinceLastGame = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-  if (daysSinceLastGame <= 1) {
-    currentStreak = 1;
+  if (uniqueDates.length === 0) {
+    return { currentStreak: 0, maxStreak: 0 };
   }
 
-  // Calculate streaks
-  for (let i = 1; i < sorted.length; i += 1) {
-    const currentDate = new Date(sorted[i].challengeDate);
-    const prevDate = new Date(sorted[i - 1].challengeDate);
-    const daysDiff = Math.floor((prevDate - currentDate) / (1000 * 60 * 60 * 24));
+  // Get today's date in UTC (YYYY-MM-DD format)
+  const today = new Date();
+  const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+  const todayStr = todayUTC.toISOString().slice(0, 10);
 
-    if (daysDiff === 1) {
-      // Consecutive day
-      tempStreak += 1;
-      if (currentStreak > 0) {
+  // Calculate days difference between two YYYY-MM-DD date strings
+  const daysDiff = (date1Str, date2Str) => {
+    const d1 = new Date(date1Str + 'T00:00:00Z');
+    const d2 = new Date(date2Str + 'T00:00:00Z');
+    return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
+  };
+
+  // Check if most recent game is today or yesterday
+  const mostRecent = uniqueDates[0];
+  const daysSinceLastGame = daysDiff(todayStr, mostRecent);
+
+  let currentStreak = 0;
+  if (daysSinceLastGame <= 1) {
+    // Current streak is alive, count from most recent backward
+    currentStreak = 1;
+    for (let i = 1; i < uniqueDates.length; i += 1) {
+      const diff = daysDiff(uniqueDates[i - 1], uniqueDates[i]);
+      if (diff === 1) {
         currentStreak += 1;
-      }
-    } else {
-      // Streak broken
-      maxStreak = Math.max(maxStreak, tempStreak);
-      tempStreak = 1;
-      if (currentStreak > 0) {
-        currentStreak = 0; // Current streak already broken
+      } else {
+        break;
       }
     }
   }
 
-  maxStreak = Math.max(maxStreak, tempStreak);
+  // Calculate max streak by scanning all dates
+  let maxStreak = 0;
+  let tempStreak = 1;
+
+  for (let i = 1; i < uniqueDates.length; i += 1) {
+    const diff = daysDiff(uniqueDates[i - 1], uniqueDates[i]);
+    if (diff === 1) {
+      tempStreak += 1;
+    } else {
+      maxStreak = Math.max(maxStreak, tempStreak);
+      tempStreak = 1;
+    }
+  }
+  maxStreak = Math.max(maxStreak, tempStreak, currentStreak);
 
   return { currentStreak, maxStreak };
 }
