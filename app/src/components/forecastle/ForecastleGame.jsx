@@ -48,10 +48,10 @@ const ForecastleGame = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryString = searchParams.toString();
 
-  // Debug mode (hidden, for testing storage)
-  const [debugMode, setDebugMode] = useState(() => {
+  // Unlimited mode (hidden, for testing storage)
+  const [unlimitedMode, setUnlimitedMode] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('debug') === 'true';
+    return params.get('unlimited') === 'true';
   });
 
   useEffect(() => {
@@ -60,12 +60,12 @@ const ForecastleGame = () => {
     }
   }, [queryString, setSearchParams]);
 
-  // Keyboard shortcut to toggle debug mode (Ctrl+Shift+D)
+  // Keyboard shortcut to toggle unlimited mode (Ctrl+Shift+U)
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.ctrlKey && event.shiftKey && event.key === 'D') {
+      if (event.ctrlKey && event.shiftKey && event.key === 'U') {
         event.preventDefault();
-        setDebugMode(prev => !prev);
+        setUnlimitedMode(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -225,53 +225,6 @@ const ForecastleGame = () => {
     setSubmissionErrors({});
   };
 
-  // Debug function to quickly submit random forecasts
-  const handleQuickSubmit = () => {
-    if (!scenario) return;
-
-    // Generate random but valid forecasts
-    const randomEntries = (scenario.horizons || []).map((horizon) => {
-      const baseline = latestObservationValue || 100;
-      // Random variation: ±40% of baseline
-      const variation = (Math.random() - 0.5) * 0.8 * baseline;
-      const median = Math.max(1, baseline + variation);
-
-      // Random interval widths
-      const width95Pct = 0.15 + Math.random() * 0.25; // 15-40%
-      const width50Pct = 0.05 + Math.random() * 0.15; // 5-20%
-
-      const width95 = median * width95Pct;
-      const width50 = median * width50Pct;
-
-      return {
-        horizon,
-        median,
-        width95,
-        width50,
-        lower95: Math.max(0, median - width95),
-        upper95: median + width95,
-        lower50: Math.max(0, median - width50),
-        upper50: median + width50,
-      };
-    });
-
-    setForecastEntries(randomEntries);
-
-    // Auto-submit after short delay
-    setTimeout(() => {
-      handleSubmit();
-      if (scenario?.fullGroundTruthSeries) {
-        setTimeout(() => {
-          setInputMode('scoring');
-          // Auto-advance to next challenge after scoring
-          if (currentChallengeIndex < scenarios.length - 1) {
-            setTimeout(() => handleNextChallenge(), 500);
-          }
-        }, 100);
-      }
-    }, 100);
-  };
-
   const renderContent = () => {
     if (loading) {
       return (
@@ -406,26 +359,13 @@ const ForecastleGame = () => {
                     Stats
                   </Button>
                 </Tooltip>
-                {debugMode && (
-                  <Tooltip label="Quick submit with random forecasts (Ctrl+Shift+D to toggle debug)">
-                    <Button
-                      variant="filled"
-                      size="sm"
-                      color="red"
-                      onClick={handleQuickSubmit}
-                      disabled={inputMode === 'scoring'}
-                    >
-                      🚀 Quick Submit
-                    </Button>
-                  </Tooltip>
-                )}
               </Group>
             </Group>
 
-            {debugMode && (
-              <Alert color="red" variant="light" title="Debug Mode Active">
+            {unlimitedMode && (
+              <Alert color="blue" variant="light" title="Unlimited Mode Active">
                 <Text size="xs">
-                  Debug mode is active. Press Ctrl+Shift+D to toggle off, or click "Quick Submit" to auto-fill and submit random forecasts.
+                  Unlimited mode is active. Press Ctrl+Shift+U to toggle off.
                 </Text>
               </Alert>
             )}
