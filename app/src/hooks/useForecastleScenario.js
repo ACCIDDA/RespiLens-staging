@@ -250,12 +250,13 @@ const ensureValidScenario = async (rng, datasetMeta) => {
   return null;
 };
 
-export const useForecastleScenario = () => {
-  const [scenario, setScenario] = useState(null);
+export const useForecastleScenario = (playDate = null) => {
+  const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const challengeDateKey = useMemo(() => getEasternDateKey(), []);
+  // Use playDate if provided, otherwise use today's date
+  const challengeDateKey = useMemo(() => playDate || getEasternDateKey(), [playDate]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -280,45 +281,52 @@ export const useForecastleScenario = () => {
           }),
         );
 
-        const seed = hashString(`forecastle-${challengeDateKey}`);
-        const rng = createRng(seed);
+        // Generate 3 scenarios with different seeds
+        const resolvedScenarios = [];
+        const maxScenarios = 3;
 
-        const attemptOrder = [...datasetMetas].sort(() => rng() - 0.5);
-        let resolvedScenario = null;
+        for (let scenarioIndex = 0; scenarioIndex < maxScenarios; scenarioIndex += 1) {
+          const seed = hashString(`forecastle-${challengeDateKey}-${scenarioIndex}`);
+          const rng = createRng(seed);
 
-        for (let i = 0; i < attemptOrder.length; i += 1) {
-        const candidate = await ensureValidScenario(rng, attemptOrder[i]);
-          if (candidate) {
-            resolvedScenario = {
-              challengeDate: challengeDateKey,
-              dataset: {
-                key: candidate.dataset.key,
-                label: candidate.dataset.label,
-                targetKey: candidate.dataset.targetKey,
-                dataPath: candidate.dataset.dataPath,
-              },
-              location: {
-                abbreviation: candidate.location.abbreviation,
-                name: candidate.location.location_name,
-                fips: candidate.location.location,
-              },
-              forecastDate: candidate.forecastDate,
-              horizons: candidate.availableHorizons,
-              groundTruthSeries: candidate.groundTruthSeries,
-              fullGroundTruthSeries: candidate.fullGroundTruthSeries,
-              modelForecasts: candidate.modelForecasts,
-              dataFilePath: candidate.dataFilePath,
-            };
-            break;
+          const attemptOrder = [...datasetMetas].sort(() => rng() - 0.5);
+
+          for (let i = 0; i < attemptOrder.length; i += 1) {
+            const candidate = await ensureValidScenario(rng, attemptOrder[i]);
+            if (candidate) {
+              const resolvedScenario = {
+                challengeDate: challengeDateKey,
+                challengeIndex: scenarioIndex, // 0, 1, or 2
+                dataset: {
+                  key: candidate.dataset.key,
+                  label: candidate.dataset.label,
+                  targetKey: candidate.dataset.targetKey,
+                  dataPath: candidate.dataset.dataPath,
+                },
+                location: {
+                  abbreviation: candidate.location.abbreviation,
+                  name: candidate.location.location_name,
+                  fips: candidate.location.location,
+                },
+                forecastDate: candidate.forecastDate,
+                horizons: candidate.availableHorizons,
+                groundTruthSeries: candidate.groundTruthSeries,
+                fullGroundTruthSeries: candidate.fullGroundTruthSeries,
+                modelForecasts: candidate.modelForecasts,
+                dataFilePath: candidate.dataFilePath,
+              };
+              resolvedScenarios.push(resolvedScenario);
+              break;
+            }
           }
         }
 
-        if (!resolvedScenario) {
-          throw new Error('Unable to generate Forecastle scenario for today.');
+        if (resolvedScenarios.length === 0) {
+          throw new Error('Unable to generate any Forecastle scenarios for today.');
         }
 
         if (!isCancelled) {
-          setScenario(resolvedScenario);
+          setScenarios(resolvedScenarios);
           setLoading(false);
         }
       } catch (err) {
@@ -337,5 +345,5 @@ export const useForecastleScenario = () => {
     };
   }, [challengeDateKey]);
 
-  return { scenario, loading, error };
+  return { scenarios, loading, error };
 };
