@@ -119,6 +119,11 @@ export function saveForecastleGame(gameData) {
       totalModels: gameData.totalModels,
       ensembleRank: gameData.ensembleRank,
       baselineRank: gameData.baselineRank,
+      // User scores
+      userWIS: gameData.userWIS,
+      userDispersion: gameData.userDispersion,
+      userUnderprediction: gameData.userUnderprediction,
+      userOverprediction: gameData.userOverprediction,
       // Ensemble scores
       ensembleWIS: gameData.ensembleWIS,
       ensembleDispersion: gameData.ensembleDispersion,

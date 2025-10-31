@@ -250,12 +250,13 @@ const ensureValidScenario = async (rng, datasetMeta) => {
   return null;
 };
 
-export const useForecastleScenario = () => {
+export const useForecastleScenario = (playDate = null) => {
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const challengeDateKey = useMemo(() => getEasternDateKey(), []);
+  // Use playDate if provided, otherwise use today's date
+  const challengeDateKey = useMemo(() => playDate || getEasternDateKey(), [playDate]);
 
   useEffect(() => {
     let isCancelled = false;

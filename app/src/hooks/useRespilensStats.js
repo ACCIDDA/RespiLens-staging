@@ -94,10 +94,11 @@ function computeGameStats(game) {
     dataset: game.dataset,
     location: game.location,
     target: game.target,
-    wis,
-    dispersion,
-    underprediction,
-    overprediction,
+    // User WIS (computed or from storage)
+    wis: game.userWIS || wis,
+    dispersion: game.userDispersion || dispersion,
+    underprediction: game.userUnderprediction || underprediction,
+    overprediction: game.userOverprediction || overprediction,
     coverage95: coverage.coverage95,
     coverage50: coverage.coverage50,
     validHorizons: coverage.validHorizons,
@@ -208,6 +209,8 @@ export function useRespilensStats(refreshTrigger) {
         coverage50Percent: null,
         currentStreak: 0,
         maxStreak: 0,
+        averageRankVsEnsemble: null,
+        averagePercentDiffEnsemble: null,
         gameHistory: []
       };
     }
@@ -247,6 +250,29 @@ export function useRespilensStats(refreshTrigger) {
     // Calculate streaks
     const streaks = calculateStreaks(gameStats);
 
+    // Calculate rank comparison vs ensemble
+    const gamesWithRankData = gameStats.filter(g =>
+      Number.isFinite(g.userRank) && Number.isFinite(g.ensembleRank)
+    );
+    const totalRankDiff = gamesWithRankData.reduce((sum, g) =>
+      sum + (g.ensembleRank - g.userRank), 0
+    );
+    const averageRankVsEnsemble = gamesWithRankData.length > 0
+      ? totalRankDiff / gamesWithRankData.length
+      : null;
+
+    // Calculate % difference in WIS vs ensemble
+    const gamesWithWISComparison = gameStats.filter(g =>
+      Number.isFinite(g.wis) && Number.isFinite(g.ensembleWIS) && g.ensembleWIS > 0
+    );
+    const totalPercentDiff = gamesWithWISComparison.reduce((sum, g) => {
+      const percentDiff = ((g.wis - g.ensembleWIS) / g.ensembleWIS) * 100;
+      return sum + percentDiff;
+    }, 0);
+    const averagePercentDiffEnsemble = gamesWithWISComparison.length > 0
+      ? totalPercentDiff / gamesWithWISComparison.length
+      : null;
+
     return {
       gamesPlayed: games.length,
       averageWIS,
@@ -259,6 +285,8 @@ export function useRespilensStats(refreshTrigger) {
       coverage50Percent,
       currentStreak: streaks.currentStreak,
       maxStreak: streaks.maxStreak,
+      averageRankVsEnsemble,
+      averagePercentDiffEnsemble,
       gameHistory: gameStats
     };
   }, [refreshTrigger]); // Recalculates when refreshTrigger changes

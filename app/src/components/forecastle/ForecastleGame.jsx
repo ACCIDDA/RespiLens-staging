@@ -47,39 +47,17 @@ const addWeeksToDate = (dateString, weeks) => {
 
 const ForecastleGame = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryString = searchParams.toString();
 
-  // Unlimited mode (hidden, for testing storage)
-  const [unlimitedMode, setUnlimitedMode] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('unlimited') === 'true';
-  });
+  // Get play_date from URL parameter (secret feature for populating history)
+  const playDate = searchParams.get('play_date') || null;
 
-  useEffect(() => {
-    if (queryString.length > 0) {
-      setSearchParams({}, { replace: true });
-    }
-  }, [queryString, setSearchParams]);
-
-  // Keyboard shortcut to toggle unlimited mode (Ctrl+Shift+U)
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.ctrlKey && event.shiftKey && event.key === 'U') {
-        event.preventDefault();
-        setUnlimitedMode(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const { scenarios, loading, error } = useForecastleScenario();
+  const { scenarios, loading, error } = useForecastleScenario(playDate);
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   const [completedChallenges, setCompletedChallenges] = useState(new Set()); // Track which challenges are completed
 
   const scenario = scenarios[currentChallengeIndex] || null;
   const isCurrentChallengeCompleted = completedChallenges.has(currentChallengeIndex);
-  const allChallengesCompleted = scenarios.length > 0 && completedChallenges.size === scenarios.length;
+  const allChallengesCompleted = scenarios.length > 0 && completedChallenges.size === scenarios.length && !playDate;
 
   const latestObservationValue = useMemo(() => {
     const series = scenario?.groundTruthSeries;
@@ -119,7 +97,7 @@ const ForecastleGame = () => {
   }, [scenarios]);
 
   useEffect(() => {
-    setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
+    // Reset state
     setSubmissionErrors({});
     setSubmittedPayload(null);
     setScores(null);
@@ -127,7 +105,8 @@ const ForecastleGame = () => {
     setVisibleRankings(0);
 
     // If this challenge is already completed, load the saved data and show scoring
-    if (isCurrentChallengeCompleted && scenario && !unlimitedMode) {
+    // Allow loading even with play_date, but user can still resubmit
+    if (isCurrentChallengeCompleted && scenario) {
       const id = `${scenario.challengeDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
       const savedGame = getForecastleGame(id);
 
@@ -159,11 +138,17 @@ const ForecastleGame = () => {
           horizonDates,
         });
 
-        // Show scoring immediately
-        setInputMode('scoring');
+        // Show scoring immediately only if not using play_date
+        if (!playDate) {
+          setInputMode('scoring');
+        }
+        return; // Don't initialize with default values
       }
     }
-  }, [scenario?.horizons, latestObservationValue, isCurrentChallengeCompleted, scenario, unlimitedMode]);
+
+    // Only initialize with default values if no saved game was loaded
+    setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
+  }, [scenario?.horizons, latestObservationValue, isCurrentChallengeCompleted, scenario, playDate]);
 
   // Animated reveal of leaderboard when entering scoring mode
   useEffect(() => {
@@ -184,6 +169,23 @@ const ForecastleGame = () => {
   }, [inputMode, scores]);
 
   const handleSubmit = () => {
+    // Validate that forecastEntries is properly populated
+    if (!forecastEntries || forecastEntries.length === 0) {
+      console.error('No forecast entries to submit');
+      return;
+    }
+
+    // Check if all entries have valid median values
+    const hasInvalidEntries = forecastEntries.some(entry =>
+      !entry || entry.median === null || entry.median === undefined || !Number.isFinite(entry.median)
+    );
+
+    if (hasInvalidEntries) {
+      console.error('Some forecast entries have invalid median values');
+      setSubmissionErrors({ general: 'Invalid forecast data. Please reset and try again.' });
+      return;
+    }
+
     // Convert to intervals for validation
     const intervalsForValidation = convertToIntervals(forecastEntries);
     const { valid, errors } = validateForecastSubmission(intervalsForValidation);
@@ -259,16 +261,21 @@ const ForecastleGame = () => {
           totalModels,
           ensembleRank,
           baselineRank,
+          // User scores
+          userWIS: userScore.wis,
+          userDispersion: userScore.dispersion || 0,
+          userUnderprediction: userScore.underprediction || 0,
+          userOverprediction: userScore.overprediction || 0,
           // Ensemble scores
           ensembleWIS: ensembleScore?.wis || null,
-          ensembleDispersion: ensembleScore?.dispersion || null,
-          ensembleUnderprediction: ensembleScore?.underprediction || null,
-          ensembleOverprediction: ensembleScore?.overprediction || null,
+          ensembleDispersion: ensembleScore?.dispersion || 0,
+          ensembleUnderprediction: ensembleScore?.underprediction || 0,
+          ensembleOverprediction: ensembleScore?.overprediction || 0,
           // Baseline scores
           baselineWIS: baselineScore?.wis || null,
-          baselineDispersion: baselineScore?.dispersion || null,
-          baselineUnderprediction: baselineScore?.underprediction || null,
-          baselineOverprediction: baselineScore?.overprediction || null,
+          baselineDispersion: baselineScore?.dispersion || 0,
+          baselineUnderprediction: baselineScore?.underprediction || 0,
+          baselineOverprediction: baselineScore?.overprediction || 0,
         });
         setSaveError(null);
         // Mark this challenge as completed
@@ -475,16 +482,8 @@ const ForecastleGame = () => {
               </Group>
             </Group>
 
-            {unlimitedMode && (
-              <Alert color="blue" variant="light" title="Unlimited Mode Active">
-                <Text size="xs">
-                  Unlimited mode is active. Press Ctrl+Shift+U to toggle off.
-                </Text>
-              </Alert>
-            )}
-
             {/* All Challenges Complete Message */}
-            {allChallengesCompleted && !unlimitedMode && (
+            {allChallengesCompleted && (
               <Alert color="green" variant="light" title="All Challenges Complete! 🎉">
                 <Text size="sm">
                   You've completed all {scenarios.length} challenges for today. Come back tomorrow for new challenges!
@@ -493,7 +492,7 @@ const ForecastleGame = () => {
             )}
 
             {/* Instructional Text */}
-            {scenarios.length > 0 && !(allChallengesCompleted && !unlimitedMode) && (
+            {scenarios.length > 0 && !allChallengesCompleted && (
               <Box>
                 <Text size="sm" c="dimmed" mb="xs">
                   Make predictions on one to three challenges everyday. Each challenge statistic and aggregate are stored.
@@ -894,7 +893,7 @@ const ForecastleGame = () => {
                         horizonDates={horizonDates}
                         entries={forecastEntries}
                         maxValue={yAxisMax}
-                        onAdjust={isCurrentChallengeCompleted && !unlimitedMode ? () => {} : handleMedianAdjust}
+                        onAdjust={isCurrentChallengeCompleted && !playDate ? () => {} : handleMedianAdjust}
                         height={380}
                         showIntervals={inputMode === 'intervals'}
                         zoomedView={zoomedView}
@@ -921,10 +920,10 @@ const ForecastleGame = () => {
                       onChange={setForecastEntries}
                       maxValue={yAxisMax}
                       mode={inputMode}
-                      disabled={isCurrentChallengeCompleted && !unlimitedMode}
+                      disabled={isCurrentChallengeCompleted && !playDate}
                     />
                     <Box mt="auto">
-                      {isCurrentChallengeCompleted && !unlimitedMode ? (
+                      {isCurrentChallengeCompleted && !playDate ? (
                         // Show navigation for completed challenges
                         <Stack gap="sm">
                           {currentChallengeIndex < scenarios.length - 1 ? (

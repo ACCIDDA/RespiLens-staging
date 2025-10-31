@@ -129,8 +129,11 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
           ensembleCount: 0,
           baselineCount: 0,
           beatEnsembleCount: 0,
+          beatBaselineCount: 0,
           totalRankDiff: 0,
           rankDiffCount: 0,
+          totalRankPercentile: 0,
+          rankPercentileCount: 0,
           count: 0,
         };
       }
@@ -159,6 +162,11 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
         if (Number.isFinite(game.baselineWIS)) {
           groups[pathogen].totalBaselineWIS += game.baselineWIS;
           groups[pathogen].baselineCount += 1;
+
+          // Count if user beat baseline
+          if (game.wis < game.baselineWIS) {
+            groups[pathogen].beatBaselineCount += 1;
+          }
         }
 
         // Track rank difference from ensemble
@@ -166,6 +174,15 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
           const rankDiff = game.ensembleRank - game.userRank; // Positive if user is better
           groups[pathogen].totalRankDiff += rankDiff;
           groups[pathogen].rankDiffCount += 1;
+        }
+
+        // Track rank percentile (what % of models the user beat)
+        if (Number.isFinite(game.userRank) && Number.isFinite(game.totalModels) && game.totalModels > 0) {
+          // Calculate percentile: (total - rank + 1) / (total + 1) * 100
+          // This gives the % of the field the user beat (including themselves)
+          const percentile = ((game.totalModels - game.userRank + 1) / (game.totalModels + 1)) * 100;
+          groups[pathogen].totalRankPercentile += percentile;
+          groups[pathogen].rankPercentileCount += 1;
         }
       }
     });
@@ -184,8 +201,11 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
       averageEnsembleOverprediction: data.ensembleCount > 0 ? data.totalEnsembleOverprediction / data.ensembleCount : null,
       averageBaselineWIS: data.baselineCount > 0 ? data.totalBaselineWIS / data.baselineCount : null,
       beatEnsembleCount: data.beatEnsembleCount,
+      beatBaselineCount: data.beatBaselineCount,
       ensembleGamesCount: data.ensembleCount,
+      baselineGamesCount: data.baselineCount,
       meanRankDiff: data.rankDiffCount > 0 ? data.totalRankDiff / data.rankDiffCount : null,
+      averageRankPercentile: data.rankPercentileCount > 0 ? data.totalRankPercentile / data.rankPercentileCount : null,
     }));
 
     // Sort by average WIS (best first)
@@ -238,20 +258,26 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
               </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <StatCard
-                  icon={<IconChartBar size={20} />}
-                  label="Average WIS"
+                  icon={<IconTrophy size={20} />}
+                  label="Avg Rank vs Ensemble"
                   value={
-                    stats.averageWIS !== null ? stats.averageWIS.toFixed(2) : 'N/A'
+                    stats.averageRankVsEnsemble !== null
+                      ? `${stats.averageRankVsEnsemble > 0 ? '+' : ''}${stats.averageRankVsEnsemble.toFixed(1)}`
+                      : 'N/A'
                   }
-                  color="cyan"
+                  color={stats.averageRankVsEnsemble !== null && stats.averageRankVsEnsemble > 0 ? 'green' : 'cyan'}
                 />
               </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <StatCard
-                  icon={<IconTrophy size={20} />}
-                  label="Best WIS"
-                  value={stats.bestWIS !== null ? stats.bestWIS.toFixed(2) : 'N/A'}
-                  color="green"
+                  icon={<IconChartBar size={20} />}
+                  label="Avg % Diff Ensemble"
+                  value={
+                    stats.averagePercentDiffEnsemble !== null
+                      ? `${stats.averagePercentDiffEnsemble > 0 ? '+' : ''}${stats.averagePercentDiffEnsemble.toFixed(1)}%`
+                      : 'N/A'
+                  }
+                  color={stats.averagePercentDiffEnsemble !== null && stats.averagePercentDiffEnsemble < 0 ? 'green' : 'orange'}
                 />
               </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
@@ -328,67 +354,6 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
               </Stack>
             </Paper>
 
-            {/* WIS Components */}
-            {stats.averageWIS !== null && (
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Text size="sm" fw={600}>
-                    WIS Components (Average)
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    WIS (Weighted Interval Score) = Dispersion + Underprediction + Overprediction. Lower is better.
-                  </Text>
-                  <Group grow>
-                    <Paper p="sm" withBorder>
-                      <Stack gap="xs" align="center">
-                        <Text size="xs" c="dimmed">
-                          Dispersion
-                        </Text>
-                        <Text size="lg" fw={600}>
-                          {stats.averageDispersion !== null
-                            ? stats.averageDispersion.toFixed(2)
-                            : 'N/A'}
-                        </Text>
-                        <Text size="xs" c="dimmed" ta="center">
-                          Interval width
-                        </Text>
-                      </Stack>
-                    </Paper>
-                    <Paper p="sm" withBorder>
-                      <Stack gap="xs" align="center">
-                        <Text size="xs" c="dimmed">
-                          Underprediction
-                        </Text>
-                        <Text size="lg" fw={600}>
-                          {stats.averageUnderprediction !== null
-                            ? stats.averageUnderprediction.toFixed(2)
-                            : 'N/A'}
-                        </Text>
-                        <Text size="xs" c="dimmed" ta="center">
-                          Penalty below
-                        </Text>
-                      </Stack>
-                    </Paper>
-                    <Paper p="sm" withBorder>
-                      <Stack gap="xs" align="center">
-                        <Text size="xs" c="dimmed">
-                          Overprediction
-                        </Text>
-                        <Text size="lg" fw={600}>
-                          {stats.averageOverprediction !== null
-                            ? stats.averageOverprediction.toFixed(2)
-                            : 'N/A'}
-                        </Text>
-                        <Text size="xs" c="dimmed" ta="center">
-                          Penalty above
-                        </Text>
-                      </Stack>
-                    </Paper>
-                  </Group>
-                </Stack>
-              </Paper>
-            )}
-
             {/* Pathogen-based Performance */}
             {pathogenStats.length > 0 && (
               <Paper p="md" withBorder>
@@ -416,7 +381,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                             <Text size="xs" c="dimmed">{stat.count} games</Text>
                           </Group>
 
-                          <Group gap="lg">
+                          <Group gap="lg" wrap="wrap">
                             <div>
                               <Text size="xs" c="dimmed">Beat Ensemble</Text>
                               <Text size="md" fw={600} c={stat.beatEnsembleCount > stat.ensembleGamesCount / 2 ? 'green' : 'red'}>
@@ -424,10 +389,24 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                               </Text>
                             </div>
                             <div>
+                              <Text size="xs" c="dimmed">Beat Baseline</Text>
+                              <Text size="md" fw={600} c={stat.beatBaselineCount > stat.baselineGamesCount / 2 ? 'green' : 'red'}>
+                                {stat.beatBaselineCount}/{stat.baselineGamesCount} times
+                              </Text>
+                            </div>
+                            <div>
                               <Text size="xs" c="dimmed">Mean Rank vs Ensemble</Text>
                               <Text size="md" fw={600} c={stat.meanRankDiff !== null && stat.meanRankDiff > 0 ? 'green' : 'red'}>
                                 {stat.meanRankDiff !== null
                                   ? `${stat.meanRankDiff > 0 ? '+' : ''}${stat.meanRankDiff.toFixed(1)} spots`
+                                  : 'N/A'}
+                              </Text>
+                            </div>
+                            <div>
+                              <Text size="xs" c="dimmed">Average Rank Percentile</Text>
+                              <Text size="md" fw={600} c={stat.averageRankPercentile !== null && stat.averageRankPercentile >= 50 ? 'green' : 'orange'}>
+                                {stat.averageRankPercentile !== null
+                                  ? `Top ${(100 - stat.averageRankPercentile).toFixed(1)}%`
                                   : 'N/A'}
                               </Text>
                             </div>
@@ -441,23 +420,6 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                               <div>
                                 <Text size="xs" fw={500} mb={2}>You</Text>
                                 <Group gap={0} style={{ height: 24 }}>
-                                  {stat.averageDispersion !== null && (
-                                    <div
-                                      style={{
-                                        width: `${(stat.averageDispersion / (stat.averageWIS || 1)) * 100}%`,
-                                        height: '100%',
-                                        backgroundColor: '#adb5bd',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                      }}
-                                      title={`Dispersion: ${stat.averageDispersion.toFixed(2)}`}
-                                    >
-                                      {stat.averageDispersion > 5 && (
-                                        <Text size="xs" c="white">{stat.averageDispersion.toFixed(1)}</Text>
-                                      )}
-                                    </div>
-                                  )}
                                   {stat.averageUnderprediction !== null && stat.averageUnderprediction > 0 && (
                                     <div
                                       style={{
@@ -492,6 +454,23 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                       )}
                                     </div>
                                   )}
+                                  {stat.averageDispersion !== null && (
+                                    <div
+                                      style={{
+                                        width: `${(stat.averageDispersion / (stat.averageWIS || 1)) * 100}%`,
+                                        height: '100%',
+                                        backgroundColor: '#adb5bd',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                      title={`Dispersion: ${stat.averageDispersion.toFixed(2)}`}
+                                    >
+                                      {stat.averageDispersion > 5 && (
+                                        <Text size="xs" c="white">{stat.averageDispersion.toFixed(1)}</Text>
+                                      )}
+                                    </div>
+                                  )}
                                 </Group>
                               </div>
 
@@ -500,23 +479,6 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                 <div>
                                   <Text size="xs" fw={500} mb={2}>Ensemble</Text>
                                   <Group gap={0} style={{ height: 24 }}>
-                                    {stat.averageEnsembleDispersion !== null && (
-                                      <div
-                                        style={{
-                                          width: `${(stat.averageEnsembleDispersion / (stat.averageEnsembleWIS || 1)) * 100}%`,
-                                          height: '100%',
-                                          backgroundColor: '#adb5bd',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                        }}
-                                        title={`Dispersion: ${stat.averageEnsembleDispersion.toFixed(2)}`}
-                                      >
-                                        {stat.averageEnsembleDispersion > 5 && (
-                                          <Text size="xs" c="white">{stat.averageEnsembleDispersion.toFixed(1)}</Text>
-                                        )}
-                                      </div>
-                                    )}
                                     {stat.averageEnsembleUnderprediction !== null && stat.averageEnsembleUnderprediction > 0 && (
                                       <div
                                         style={{
@@ -548,6 +510,23 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                       >
                                         {stat.averageEnsembleOverprediction > 5 && (
                                           <Text size="xs" c="white">{stat.averageEnsembleOverprediction.toFixed(1)}</Text>
+                                        )}
+                                      </div>
+                                    )}
+                                    {stat.averageEnsembleDispersion !== null && (
+                                      <div
+                                        style={{
+                                          width: `${(stat.averageEnsembleDispersion / (stat.averageEnsembleWIS || 1)) * 100}%`,
+                                          height: '100%',
+                                          backgroundColor: '#adb5bd',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                        }}
+                                        title={`Dispersion: ${stat.averageEnsembleDispersion.toFixed(2)}`}
+                                      >
+                                        {stat.averageEnsembleDispersion > 5 && (
+                                          <Text size="xs" c="white">{stat.averageEnsembleDispersion.toFixed(1)}</Text>
                                         )}
                                       </div>
                                     )}
