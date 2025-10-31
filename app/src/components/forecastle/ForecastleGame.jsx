@@ -124,7 +124,46 @@ const ForecastleGame = () => {
     setScores(null);
     setInputMode('median');
     setVisibleRankings(0);
-  }, [scenario?.horizons, latestObservationValue]);
+
+    // If this challenge is already completed, load the saved data and show scoring
+    if (isCurrentChallengeCompleted && scenario && !unlimitedMode) {
+      const id = `${scenario.challengeDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
+      const savedGame = getForecastleGame(id);
+
+      if (savedGame && scenario.fullGroundTruthSeries) {
+        // Restore the saved forecasts
+        setForecastEntries(savedGame.userForecasts);
+
+        // Recalculate scores
+        const horizonDates = scenario.horizons.map((horizon) =>
+          addWeeksToDate(scenario.forecastDate, horizon)
+        );
+        const groundTruthValues = extractGroundTruthForHorizons(
+          scenario.fullGroundTruthSeries,
+          horizonDates
+        );
+
+        const userMedians = savedGame.userForecasts.map((entry) => entry.median);
+        const userScore = scoreUserForecast(userMedians, groundTruthValues);
+
+        const modelScores = scoreModels(
+          scenario.modelForecasts || {},
+          scenario.horizons,
+          groundTruthValues
+        );
+
+        setScores({
+          user: userScore,
+          models: modelScores,
+          groundTruth: groundTruthValues,
+          horizonDates,
+        });
+
+        // Show scoring immediately
+        setInputMode('scoring');
+      }
+    }
+  }, [scenario?.horizons, latestObservationValue, isCurrentChallengeCompleted, scenario, unlimitedMode]);
 
   // Animated reveal of leaderboard when entering scoring mode
   useEffect(() => {
@@ -339,36 +378,69 @@ const ForecastleGame = () => {
     return (
       <Stack gap="lg">
         <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="lg">
-            <Group justify="space-between" wrap="wrap" align="flex-start">
+          <Stack gap="md">
+            <Group justify="space-between" wrap="wrap" align="center">
               <Group gap="sm">
                 <ThemeIcon size={36} radius="md" variant="light" color="blue">
                   <IconTarget size={20} />
                 </ThemeIcon>
                 <div>
-                  <Group gap="xs" align="baseline">
-                    <Title order={2}>Forecastle Daily Challenge</Title>
-                    {scenarios.length > 1 && (
-                      <Badge size="lg" variant="filled" color="cyan">
-                        {currentChallengeIndex + 1} / {scenarios.length}
-                      </Badge>
-                    )}
-                  </Group>
+                  <Title order={2}>Forecastle Daily Challenge</Title>
                   <Text size="sm" c="dimmed">
                     {`Generated for ${scenario.challengeDate} (Eastern)`}
                   </Text>
                 </div>
               </Group>
-              <Tooltip label="View your statistics">
-                <Button
-                  leftSection={<IconChartBar size={16} />}
-                  variant="light"
-                  size="sm"
-                  onClick={() => setStatsModalOpened(true)}
-                >
-                  Stats
-                </Button>
-              </Tooltip>
+              <Group gap="sm">
+                {/* Challenge Progress Indicators - moved here */}
+                {scenarios.length > 1 && (
+                  <Group gap="xs">
+                    {scenarios.map((_, index) => (
+                      <Tooltip
+                        key={index}
+                        label={`Challenge ${index + 1}${completedChallenges.has(index) ? ' (Completed)' : ''}`}
+                      >
+                        <ThemeIcon
+                          size={32}
+                          radius="xl"
+                          variant={completedChallenges.has(index) ? "filled" : index === currentChallengeIndex ? "light" : "outline"}
+                          color={completedChallenges.has(index) ? "green" : index === currentChallengeIndex ? "cyan" : "gray"}
+                          style={{
+                            cursor: 'pointer',
+                            border: index === currentChallengeIndex && !completedChallenges.has(index) ? '2px solid' : undefined,
+                          }}
+                          onClick={() => {
+                            setCurrentChallengeIndex(index);
+                            setInputMode('median');
+                            setSubmittedPayload(null);
+                            setScores(null);
+                            setSubmissionErrors({});
+                            setSaveError(null);
+                            setCopied(false);
+                            setVisibleRankings(0);
+                          }}
+                        >
+                          {completedChallenges.has(index) ? (
+                            <IconCheck size={16} />
+                          ) : (
+                            <Text size="xs" fw={700}>{index + 1}</Text>
+                          )}
+                        </ThemeIcon>
+                      </Tooltip>
+                    ))}
+                  </Group>
+                )}
+                <Tooltip label="View your statistics">
+                  <Button
+                    leftSection={<IconChartBar size={16} />}
+                    variant="light"
+                    size="sm"
+                    onClick={() => setStatsModalOpened(true)}
+                  >
+                    Stats
+                  </Button>
+                </Tooltip>
+              </Group>
             </Group>
 
             {unlimitedMode && (
@@ -388,66 +460,41 @@ const ForecastleGame = () => {
               </Alert>
             )}
 
-            {/* Instructional Text */}
-            {scenarios.length > 0 && (
-              <Stack gap="xs">
-                <Text size="sm" fw={500} c="dimmed">
-                  Make predictions on up to {scenarios.length} problems per day on Forecastle. Your statistics are aggregated.
+            {/* Instructional Text - more compact */}
+            {scenarios.length > 0 && !(allChallengesCompleted && !unlimitedMode) && (
+              <Box>
+                <Text size="xs" c="dimmed" mb={4}>
+                  Make predictions on up to {scenarios.length} problems per day. Statistics are aggregated.
                 </Text>
                 <Group gap="xs" wrap="wrap">
-                  <Text size="md" fw={600}>
+                  <Text size="sm" fw={600}>
                     Problem {currentChallengeIndex + 1}/{scenarios.length}:
                   </Text>
-                  <Text size="md" fw={500}>
+                  <Text size="sm" fw={500}>
                     Predict
                   </Text>
                   <Badge size="md" variant="filled" color="blue" radius="sm">
                     {scenario?.dataset?.label || 'hospitalization'}
                   </Badge>
-                  <Text size="md" fw={500}>
+                  <Text size="sm" fw={500}>
                     in
                   </Text>
                   <Badge size="md" variant="filled" color="grape" radius="sm">
                     {scenario?.location?.name} ({scenario?.location?.abbreviation})
                   </Badge>
-                  <Text size="md" fw={500}>
+                  <Text size="sm" fw={500}>
                     at
                   </Text>
                   <Badge size="md" variant="filled" color="teal" radius="sm">
                     {scenario?.forecastDate}
                   </Badge>
                 </Group>
-              </Stack>
-            )}
-
-            {/* Challenge Progress Indicators */}
-            {scenarios.length > 1 && (
-              <Group gap="xs" justify="center">
-                {scenarios.map((_, index) => (
-                  <ThemeIcon
-                    key={index}
-                    size={40}
-                    radius="xl"
-                    variant={completedChallenges.has(index) ? "filled" : index === currentChallengeIndex ? "light" : "outline"}
-                    color={completedChallenges.has(index) ? "green" : index === currentChallengeIndex ? "cyan" : "gray"}
-                    style={{
-                      cursor: 'default',
-                      border: index === currentChallengeIndex && !completedChallenges.has(index) ? '2px solid' : undefined,
-                    }}
-                  >
-                    {completedChallenges.has(index) ? (
-                      <IconCheck size={20} />
-                    ) : (
-                      <Text size="sm" fw={700}>{index + 1}</Text>
-                    )}
-                  </ThemeIcon>
-                ))}
-              </Group>
+              </Box>
             )}
 
             <Divider />
 
-            <Group justify="space-between" align="flex-start" wrap="wrap">
+            <Group justify="space-between" align="center" wrap="wrap">
               <Stepper
                 active={inputMode === 'median' ? 0 : inputMode === 'intervals' ? 1 : 2}
                 onStepClick={(step) => {
@@ -456,22 +503,23 @@ const ForecastleGame = () => {
                   else if (step === 2 && scores) setInputMode('scoring');
                 }}
                 allowNextStepsSelect={false}
+                size="sm"
                 style={{ flex: 1 }}
               >
                 <Stepper.Step
-                  label="Set Median"
+                  label="Median"
                   description="Point forecasts"
-                  completedIcon={<IconCheck size={18} />}
+                  completedIcon={<IconCheck size={16} />}
                 />
                 <Stepper.Step
-                  label="Set Intervals"
-                  description="Uncertainty bands"
-                  completedIcon={<IconCheck size={18} />}
+                  label="Intervals"
+                  description="Uncertainty"
+                  completedIcon={<IconCheck size={16} />}
                 />
                 <Stepper.Step
-                  label="View Scores"
-                  description="RMSE comparison"
-                  completedIcon={<IconTrophy size={18} />}
+                  label="Scores"
+                  description="Results"
+                  completedIcon={<IconTrophy size={16} />}
                 />
               </Stepper>
 
@@ -501,15 +549,6 @@ const ForecastleGame = () => {
                 </Group>
               )}
             </Group>
-
-            {/* Challenge Already Completed Message */}
-            {isCurrentChallengeCompleted && !unlimitedMode && (
-              <Alert color="blue" variant="light" title="Challenge Already Completed ✓">
-                <Text size="sm">
-                  You've already completed this challenge. {currentChallengeIndex < scenarios.length - 1 ? 'Move to the next challenge or ' : ''}Check your stats to review your performance!
-                </Text>
-              </Alert>
-            )}
 
             {inputMode === 'scoring' && scores ? (
               <Stack gap="lg">
@@ -848,11 +887,13 @@ const ForecastleGame = () => {
                         zoomedView={zoomedView}
                       />
                     </Box>
-                    <Text size="sm" c="dimmed">
-                      {inputMode === 'median'
-                        ? 'Drag the crimson handles to set your median forecast for each week ahead.'
-                        : 'Drag the crimson handles to adjust interval bounds, or use the sliders for precise control.'}
-                    </Text>
+                    {!isCurrentChallengeCompleted && (
+                      <Text size="sm" c="dimmed">
+                        {inputMode === 'median'
+                          ? 'Drag the crimson handles to set your median forecast for each week ahead.'
+                          : 'Drag the crimson handles to adjust interval bounds, or use the sliders for precise control.'}
+                      </Text>
+                    )}
                   </Stack>
                 </Grid.Col>
 
