@@ -30,6 +30,7 @@ import {
   scoreUserForecast,
   scoreModels,
 } from '../../utils/forecastleScoring';
+import { saveForecastleGame } from '../../utils/respilensStorage';
 import ForecastleChartCanvas from './ForecastleChartCanvas';
 import ForecastleInputControls from './ForecastleInputControls';
 
@@ -141,6 +142,17 @@ const ForecastleGame = () => {
       setScores({
         user: userScore,
         models: modelScores,
+        groundTruth: groundTruthValues,
+        horizonDates,
+      });
+
+      // Save game to storage
+      saveForecastleGame({
+        challengeDate: scenario.challengeDate,
+        dataset: scenario.dataset.key,
+        location: scenario.location.abbreviation,
+        target: scenario.dataset.targetKey,
+        userForecasts: forecastEntries,
         groundTruth: groundTruthValues,
         horizonDates,
       });
