@@ -108,6 +108,90 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
     );
   }, [stats.gameHistory]);
 
+  // Group games by pathogen and calculate stats
+  const pathogenStats = useMemo(() => {
+    const groups = {};
+
+    stats.gameHistory.forEach(game => {
+      const pathogen = game.dataset;
+      if (!groups[pathogen]) {
+        groups[pathogen] = {
+          games: [],
+          totalWIS: 0,
+          totalDispersion: 0,
+          totalUnderprediction: 0,
+          totalOverprediction: 0,
+          totalEnsembleWIS: 0,
+          totalEnsembleDispersion: 0,
+          totalEnsembleUnderprediction: 0,
+          totalEnsembleOverprediction: 0,
+          totalBaselineWIS: 0,
+          ensembleCount: 0,
+          baselineCount: 0,
+          beatEnsembleCount: 0,
+          totalRankDiff: 0,
+          rankDiffCount: 0,
+          count: 0,
+        };
+      }
+
+      if (Number.isFinite(game.wis)) {
+        groups[pathogen].games.push(game);
+        groups[pathogen].totalWIS += game.wis;
+        groups[pathogen].totalDispersion += game.dispersion || 0;
+        groups[pathogen].totalUnderprediction += game.underprediction || 0;
+        groups[pathogen].totalOverprediction += game.overprediction || 0;
+        groups[pathogen].count += 1;
+
+        // Track ensemble and baseline scores
+        if (Number.isFinite(game.ensembleWIS)) {
+          groups[pathogen].totalEnsembleWIS += game.ensembleWIS;
+          groups[pathogen].totalEnsembleDispersion += game.ensembleDispersion || 0;
+          groups[pathogen].totalEnsembleUnderprediction += game.ensembleUnderprediction || 0;
+          groups[pathogen].totalEnsembleOverprediction += game.ensembleOverprediction || 0;
+          groups[pathogen].ensembleCount += 1;
+
+          // Count if user beat ensemble
+          if (game.wis < game.ensembleWIS) {
+            groups[pathogen].beatEnsembleCount += 1;
+          }
+        }
+        if (Number.isFinite(game.baselineWIS)) {
+          groups[pathogen].totalBaselineWIS += game.baselineWIS;
+          groups[pathogen].baselineCount += 1;
+        }
+
+        // Track rank difference from ensemble
+        if (Number.isFinite(game.userRank) && Number.isFinite(game.ensembleRank)) {
+          const rankDiff = game.ensembleRank - game.userRank; // Positive if user is better
+          groups[pathogen].totalRankDiff += rankDiff;
+          groups[pathogen].rankDiffCount += 1;
+        }
+      }
+    });
+
+    // Calculate averages
+    const results = Object.entries(groups).map(([pathogen, data]) => ({
+      pathogen,
+      count: data.count,
+      averageWIS: data.count > 0 ? data.totalWIS / data.count : null,
+      averageDispersion: data.count > 0 ? data.totalDispersion / data.count : null,
+      averageUnderprediction: data.count > 0 ? data.totalUnderprediction / data.count : null,
+      averageOverprediction: data.count > 0 ? data.totalOverprediction / data.count : null,
+      averageEnsembleWIS: data.ensembleCount > 0 ? data.totalEnsembleWIS / data.ensembleCount : null,
+      averageEnsembleDispersion: data.ensembleCount > 0 ? data.totalEnsembleDispersion / data.ensembleCount : null,
+      averageEnsembleUnderprediction: data.ensembleCount > 0 ? data.totalEnsembleUnderprediction / data.ensembleCount : null,
+      averageEnsembleOverprediction: data.ensembleCount > 0 ? data.totalEnsembleOverprediction / data.ensembleCount : null,
+      averageBaselineWIS: data.baselineCount > 0 ? data.totalBaselineWIS / data.baselineCount : null,
+      beatEnsembleCount: data.beatEnsembleCount,
+      ensembleGamesCount: data.ensembleCount,
+      meanRankDiff: data.rankDiffCount > 0 ? data.totalRankDiff / data.rankDiffCount : null,
+    }));
+
+    // Sort by average WIS (best first)
+    return results.sort((a, b) => (a.averageWIS || Infinity) - (b.averageWIS || Infinity));
+  }, [stats.gameHistory]);
+
   // Calculate coverage percentages with color coding
   const getCoverageColor = (percent, expectedCoverage) => {
     if (percent === null) return 'gray';
@@ -155,9 +239,9 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <StatCard
                   icon={<IconChartBar size={20} />}
-                  label="Average RMSE"
+                  label="Average WIS"
                   value={
-                    stats.averageRMSE !== null ? stats.averageRMSE.toFixed(2) : 'N/A'
+                    stats.averageWIS !== null ? stats.averageWIS.toFixed(2) : 'N/A'
                   }
                   color="cyan"
                 />
@@ -165,8 +249,8 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <StatCard
                   icon={<IconTrophy size={20} />}
-                  label="Best RMSE"
-                  value={stats.bestRMSE !== null ? stats.bestRMSE.toFixed(2) : 'N/A'}
+                  label="Best WIS"
+                  value={stats.bestWIS !== null ? stats.bestWIS.toFixed(2) : 'N/A'}
                   color="green"
                 />
               </Grid.Col>
@@ -244,6 +328,256 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
               </Stack>
             </Paper>
 
+            {/* WIS Components */}
+            {stats.averageWIS !== null && (
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Text size="sm" fw={600}>
+                    WIS Components (Average)
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    WIS (Weighted Interval Score) = Dispersion + Underprediction + Overprediction. Lower is better.
+                  </Text>
+                  <Group grow>
+                    <Paper p="sm" withBorder>
+                      <Stack gap="xs" align="center">
+                        <Text size="xs" c="dimmed">
+                          Dispersion
+                        </Text>
+                        <Text size="lg" fw={600}>
+                          {stats.averageDispersion !== null
+                            ? stats.averageDispersion.toFixed(2)
+                            : 'N/A'}
+                        </Text>
+                        <Text size="xs" c="dimmed" ta="center">
+                          Interval width
+                        </Text>
+                      </Stack>
+                    </Paper>
+                    <Paper p="sm" withBorder>
+                      <Stack gap="xs" align="center">
+                        <Text size="xs" c="dimmed">
+                          Underprediction
+                        </Text>
+                        <Text size="lg" fw={600}>
+                          {stats.averageUnderprediction !== null
+                            ? stats.averageUnderprediction.toFixed(2)
+                            : 'N/A'}
+                        </Text>
+                        <Text size="xs" c="dimmed" ta="center">
+                          Penalty below
+                        </Text>
+                      </Stack>
+                    </Paper>
+                    <Paper p="sm" withBorder>
+                      <Stack gap="xs" align="center">
+                        <Text size="xs" c="dimmed">
+                          Overprediction
+                        </Text>
+                        <Text size="lg" fw={600}>
+                          {stats.averageOverprediction !== null
+                            ? stats.averageOverprediction.toFixed(2)
+                            : 'N/A'}
+                        </Text>
+                        <Text size="xs" c="dimmed" ta="center">
+                          Penalty above
+                        </Text>
+                      </Stack>
+                    </Paper>
+                  </Group>
+                </Stack>
+              </Paper>
+            )}
+
+            {/* Pathogen-based Performance */}
+            {pathogenStats.length > 0 && (
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Text size="sm" fw={600}>
+                    Performance by Pathogen
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Average WIS scores grouped by disease type. Compare your performance against the hub ensemble and baseline. Lower scores indicate better forecasting.
+                  </Text>
+
+                  {/* Summary stats */}
+                  {pathogenStats.map((stat) => {
+                    const betterThanEnsemble = stat.averageWIS !== null && stat.averageEnsembleWIS !== null
+                      ? stat.averageWIS < stat.averageEnsembleWIS
+                      : null;
+
+                    return (
+                      <Paper key={stat.pathogen} p="sm" withBorder bg="gray.0">
+                        <Stack gap="xs">
+                          <Group justify="space-between">
+                            <Badge size="md" variant="light">
+                              {getDatasetLabel(stat.pathogen)}
+                            </Badge>
+                            <Text size="xs" c="dimmed">{stat.count} games</Text>
+                          </Group>
+
+                          <Group gap="lg">
+                            <div>
+                              <Text size="xs" c="dimmed">Beat Ensemble</Text>
+                              <Text size="md" fw={600} c={stat.beatEnsembleCount > stat.ensembleGamesCount / 2 ? 'green' : 'red'}>
+                                {stat.beatEnsembleCount}/{stat.ensembleGamesCount} times
+                              </Text>
+                            </div>
+                            <div>
+                              <Text size="xs" c="dimmed">Mean Rank vs Ensemble</Text>
+                              <Text size="md" fw={600} c={stat.meanRankDiff !== null && stat.meanRankDiff > 0 ? 'green' : 'red'}>
+                                {stat.meanRankDiff !== null
+                                  ? `${stat.meanRankDiff > 0 ? '+' : ''}${stat.meanRankDiff.toFixed(1)} spots`
+                                  : 'N/A'}
+                              </Text>
+                            </div>
+                          </Group>
+
+                          {/* WIS Components Stacked Bar */}
+                          <div>
+                            <Text size="xs" c="dimmed" mb={4}>WIS Components Comparison</Text>
+                            <Stack gap={4}>
+                              {/* User bar */}
+                              <div>
+                                <Text size="xs" fw={500} mb={2}>You</Text>
+                                <Group gap={0} style={{ height: 24 }}>
+                                  {stat.averageDispersion !== null && (
+                                    <div
+                                      style={{
+                                        width: `${(stat.averageDispersion / (stat.averageWIS || 1)) * 100}%`,
+                                        height: '100%',
+                                        backgroundColor: '#adb5bd',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                      title={`Dispersion: ${stat.averageDispersion.toFixed(2)}`}
+                                    >
+                                      {stat.averageDispersion > 5 && (
+                                        <Text size="xs" c="white">{stat.averageDispersion.toFixed(1)}</Text>
+                                      )}
+                                    </div>
+                                  )}
+                                  {stat.averageUnderprediction !== null && stat.averageUnderprediction > 0 && (
+                                    <div
+                                      style={{
+                                        width: `${(stat.averageUnderprediction / (stat.averageWIS || 1)) * 100}%`,
+                                        height: '100%',
+                                        backgroundColor: '#4c6ef5',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                      title={`Underprediction: ${stat.averageUnderprediction.toFixed(2)}`}
+                                    >
+                                      {stat.averageUnderprediction > 5 && (
+                                        <Text size="xs" c="white">{stat.averageUnderprediction.toFixed(1)}</Text>
+                                      )}
+                                    </div>
+                                  )}
+                                  {stat.averageOverprediction !== null && stat.averageOverprediction > 0 && (
+                                    <div
+                                      style={{
+                                        width: `${(stat.averageOverprediction / (stat.averageWIS || 1)) * 100}%`,
+                                        height: '100%',
+                                        backgroundColor: '#f03e3e',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                      title={`Overprediction: ${stat.averageOverprediction.toFixed(2)}`}
+                                    >
+                                      {stat.averageOverprediction > 5 && (
+                                        <Text size="xs" c="white">{stat.averageOverprediction.toFixed(1)}</Text>
+                                      )}
+                                    </div>
+                                  )}
+                                </Group>
+                              </div>
+
+                              {/* Ensemble bar */}
+                              {stat.averageEnsembleWIS !== null && (
+                                <div>
+                                  <Text size="xs" fw={500} mb={2}>Ensemble</Text>
+                                  <Group gap={0} style={{ height: 24 }}>
+                                    {stat.averageEnsembleDispersion !== null && (
+                                      <div
+                                        style={{
+                                          width: `${(stat.averageEnsembleDispersion / (stat.averageEnsembleWIS || 1)) * 100}%`,
+                                          height: '100%',
+                                          backgroundColor: '#adb5bd',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                        }}
+                                        title={`Dispersion: ${stat.averageEnsembleDispersion.toFixed(2)}`}
+                                      >
+                                        {stat.averageEnsembleDispersion > 5 && (
+                                          <Text size="xs" c="white">{stat.averageEnsembleDispersion.toFixed(1)}</Text>
+                                        )}
+                                      </div>
+                                    )}
+                                    {stat.averageEnsembleUnderprediction !== null && stat.averageEnsembleUnderprediction > 0 && (
+                                      <div
+                                        style={{
+                                          width: `${(stat.averageEnsembleUnderprediction / (stat.averageEnsembleWIS || 1)) * 100}%`,
+                                          height: '100%',
+                                          backgroundColor: '#4c6ef5',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                        }}
+                                        title={`Underprediction: ${stat.averageEnsembleUnderprediction.toFixed(2)}`}
+                                      >
+                                        {stat.averageEnsembleUnderprediction > 5 && (
+                                          <Text size="xs" c="white">{stat.averageEnsembleUnderprediction.toFixed(1)}</Text>
+                                        )}
+                                      </div>
+                                    )}
+                                    {stat.averageEnsembleOverprediction !== null && stat.averageEnsembleOverprediction > 0 && (
+                                      <div
+                                        style={{
+                                          width: `${(stat.averageEnsembleOverprediction / (stat.averageEnsembleWIS || 1)) * 100}%`,
+                                          height: '100%',
+                                          backgroundColor: '#f03e3e',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                        }}
+                                        title={`Overprediction: ${stat.averageEnsembleOverprediction.toFixed(2)}`}
+                                      >
+                                        {stat.averageEnsembleOverprediction > 5 && (
+                                          <Text size="xs" c="white">{stat.averageEnsembleOverprediction.toFixed(1)}</Text>
+                                        )}
+                                      </div>
+                                    )}
+                                  </Group>
+                                </div>
+                              )}
+                            </Stack>
+                            <Group gap="md" mt={4}>
+                              <Group gap={4}>
+                                <div style={{ width: 12, height: 12, backgroundColor: '#adb5bd' }} />
+                                <Text size="xs" c="dimmed">Dispersion</Text>
+                              </Group>
+                              <Group gap={4}>
+                                <div style={{ width: 12, height: 12, backgroundColor: '#4c6ef5' }} />
+                                <Text size="xs" c="dimmed">Underprediction</Text>
+                              </Group>
+                              <Group gap={4}>
+                                <div style={{ width: 12, height: 12, backgroundColor: '#f03e3e' }} />
+                                <Text size="xs" c="dimmed">Overprediction</Text>
+                              </Group>
+                            </Group>
+                          </div>
+                        </Stack>
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              </Paper>
+            )}
+
             {/* Streaks */}
             {stats.maxStreak > 1 && (
               <Paper p="md" withBorder>
@@ -282,54 +616,66 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                       <Table.Th>Date</Table.Th>
                       <Table.Th>Dataset</Table.Th>
                       <Table.Th>Location</Table.Th>
-                      <Table.Th>RMSE</Table.Th>
+                      <Table.Th>WIS</Table.Th>
                       <Table.Th>
-                        <Tooltip label="Number of horizons where true value fell within your 95% interval">
-                          <Text size="sm" style={{ cursor: 'help' }}>95% Cov</Text>
+                        <Tooltip label="Your rank vs all models">
+                          <Text size="sm" style={{ cursor: 'help' }}>Rank</Text>
                         </Tooltip>
                       </Table.Th>
                       <Table.Th>
-                        <Tooltip label="Number of horizons where true value fell within your 50% interval">
-                          <Text size="sm" style={{ cursor: 'help' }}>50% Cov</Text>
+                        <Tooltip label="Your position relative to the hub ensemble">
+                          <Text size="sm" style={{ cursor: 'help' }}>vs Ensemble</Text>
                         </Tooltip>
                       </Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {sortedHistory.map((game) => (
-                      <Table.Tr key={game.id}>
-                        <Table.Td>
-                          <Text size="sm">{formatDate(game.challengeDate)}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge size="sm" variant="light">
-                            {getDatasetLabel(game.dataset)}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{game.location}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" fw={500}>
-                            {game.rmse !== null ? game.rmse.toFixed(2) : 'N/A'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c="dimmed">
-                            {game.validHorizons > 0
-                              ? `${game.coverage95}/${game.validHorizons}`
-                              : 'N/A'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c="dimmed">
-                            {game.validHorizons > 0
-                              ? `${game.coverage50}/${game.validHorizons}`
-                              : 'N/A'}
-                          </Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
+                    {sortedHistory.map((game) => {
+                      const spotsDiffEnsemble = game.userRank && game.ensembleRank
+                        ? game.ensembleRank - game.userRank
+                        : null;
+
+                      return (
+                        <Table.Tr key={game.id}>
+                          <Table.Td>
+                            <Text size="sm">{formatDate(game.challengeDate)}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge size="sm" variant="light">
+                              {getDatasetLabel(game.dataset)}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">{game.location}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" fw={500}>
+                              {game.wis !== null ? game.wis.toFixed(2) : 'N/A'}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" c="dimmed">
+                              {game.userRank && game.totalModels
+                                ? `#${game.userRank}/${game.totalModels}`
+                                : 'N/A'}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            {spotsDiffEnsemble !== null ? (
+                              <Badge
+                                size="sm"
+                                color={spotsDiffEnsemble > 0 ? 'green' : spotsDiffEnsemble < 0 ? 'red' : 'gray'}
+                                variant="light"
+                              >
+                                {spotsDiffEnsemble > 0 ? `+${spotsDiffEnsemble}` : spotsDiffEnsemble < 0 ? spotsDiffEnsemble : '0'}
+                              </Badge>
+                            ) : (
+                              <Text size="sm" c="dimmed">N/A</Text>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
                   </Table.Tbody>
                 </Table>
               </ScrollArea>

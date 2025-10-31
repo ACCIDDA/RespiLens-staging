@@ -21,7 +21,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar, IconRefresh } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
@@ -29,6 +29,7 @@ import {
   extractGroundTruthForHorizons,
   scoreUserForecast,
   scoreModels,
+  getOfficialModels,
 } from '../../utils/forecastleScoring';
 import { saveForecastleGame, getForecastleGame } from '../../utils/respilensStorage';
 import ForecastleChartCanvas from './ForecastleChartCanvas';
@@ -143,8 +144,7 @@ const ForecastleGame = () => {
           horizonDates
         );
 
-        const userMedians = savedGame.userForecasts.map((entry) => entry.median);
-        const userScore = scoreUserForecast(userMedians, groundTruthValues);
+        const userScore = scoreUserForecast(savedGame.userForecasts, groundTruthValues);
 
         const modelScores = scoreModels(
           scenario.modelForecasts || {},
@@ -210,8 +210,7 @@ const ForecastleGame = () => {
       );
 
       // Score user forecast
-      const userMedians = forecastEntries.map((entry) => entry.median);
-      const userScore = scoreUserForecast(userMedians, groundTruthValues);
+      const userScore = scoreUserForecast(forecastEntries, groundTruthValues);
 
       // Score models
       const modelScores = scoreModels(
@@ -227,6 +226,24 @@ const ForecastleGame = () => {
         horizonDates,
       });
 
+      // Calculate ranking information
+      const { ensemble: ensembleKey, baseline: baselineKey } = getOfficialModels(scenario.dataset.key);
+
+      // Find ensemble and baseline in the model scores
+      const ensembleScore = modelScores.find(m => m.modelName === ensembleKey);
+      const baselineScore = modelScores.find(m => m.modelName === baselineKey);
+
+      // Create unified ranking list
+      const allRanked = [
+        { name: 'user', wis: userScore.wis, isUser: true },
+        ...modelScores.map(m => ({ name: m.modelName, wis: m.wis, isUser: false }))
+      ].sort((a, b) => a.wis - b.wis);
+
+      const userRank = allRanked.findIndex(e => e.isUser) + 1;
+      const ensembleRank = ensembleScore ? allRanked.findIndex(e => e.name === ensembleKey) + 1 : null;
+      const baselineRank = baselineScore ? allRanked.findIndex(e => e.name === baselineKey) + 1 : null;
+      const totalModels = modelScores.length;
+
       // Save game to storage
       try {
         saveForecastleGame({
@@ -237,6 +254,21 @@ const ForecastleGame = () => {
           userForecasts: forecastEntries,
           groundTruth: groundTruthValues,
           horizonDates,
+          // Ranking information
+          userRank,
+          totalModels,
+          ensembleRank,
+          baselineRank,
+          // Ensemble scores
+          ensembleWIS: ensembleScore?.wis || null,
+          ensembleDispersion: ensembleScore?.dispersion || null,
+          ensembleUnderprediction: ensembleScore?.underprediction || null,
+          ensembleOverprediction: ensembleScore?.overprediction || null,
+          // Baseline scores
+          baselineWIS: baselineScore?.wis || null,
+          baselineDispersion: baselineScore?.dispersion || null,
+          baselineUnderprediction: baselineScore?.underprediction || null,
+          baselineOverprediction: baselineScore?.overprediction || null,
         });
         setSaveError(null);
         // Mark this challenge as completed
@@ -460,29 +492,29 @@ const ForecastleGame = () => {
               </Alert>
             )}
 
-            {/* Instructional Text - more compact */}
+            {/* Instructional Text */}
             {scenarios.length > 0 && !(allChallengesCompleted && !unlimitedMode) && (
               <Box>
-                <Text size="xs" c="dimmed" mb={4}>
-                  Make predictions on up to {scenarios.length} problems per day. Statistics are aggregated.
+                <Text size="sm" c="dimmed" mb="xs">
+                  Make predictions on one to three challenges everyday. Each challenge statistic and aggregate are stored.
                 </Text>
                 <Group gap="xs" wrap="wrap">
-                  <Text size="sm" fw={600}>
+                  <Text size="sm" fw={500}>
                     Problem {currentChallengeIndex + 1}/{scenarios.length}:
                   </Text>
-                  <Text size="sm" fw={500}>
+                  <Text size="sm" fw={400}>
                     Predict
                   </Text>
                   <Badge size="md" variant="filled" color="blue" radius="sm">
                     {scenario?.dataset?.label || 'hospitalization'}
                   </Badge>
-                  <Text size="sm" fw={500}>
+                  <Text size="sm" fw={400}>
                     in
                   </Text>
                   <Badge size="md" variant="filled" color="grape" radius="sm">
                     {scenario?.location?.name} ({scenario?.location?.abbreviation})
                   </Badge>
-                  <Text size="sm" fw={500}>
+                  <Text size="sm" fw={400}>
                     at
                   </Text>
                   <Badge size="md" variant="filled" color="teal" radius="sm">
@@ -523,31 +555,6 @@ const ForecastleGame = () => {
                 />
               </Stepper>
 
-              {/* Reset Buttons */}
-              {!isCurrentChallengeCompleted && inputMode !== 'scoring' && (
-                <Group gap="xs">
-                  {inputMode === 'median' && (
-                    <Button
-                      onClick={handleResetMedians}
-                      variant="light"
-                      size="sm"
-                      color="gray"
-                    >
-                      Reset to Default
-                    </Button>
-                  )}
-                  {inputMode === 'intervals' && (
-                    <Button
-                      onClick={handleResetIntervals}
-                      variant="light"
-                      size="sm"
-                      color="gray"
-                    >
-                      Reset to Default
-                    </Button>
-                  )}
-                </Group>
-              )}
             </Group>
 
             {inputMode === 'scoring' && scores ? (
@@ -557,7 +564,7 @@ const ForecastleGame = () => {
                     {saveError}
                   </Alert>
                 )}
-                {scores.user.rmse !== null ? (
+                {scores.user.wis !== null ? (
                   <>
                     <Text size="sm" c="dimmed">
                       Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
@@ -571,21 +578,23 @@ const ForecastleGame = () => {
 
                           <Stack gap="xs">
                             {(() => {
+                              // Get official ensemble model for this dataset
+                              const { ensemble: ensembleKey } = getOfficialModels(scenario.dataset.key);
+
                               // Create unified leaderboard with user and models
                               const allEntries = [
                                 {
                                   name: 'You',
-                                  rmse: scores.user.rmse,
+                                  wis: scores.user.wis,
                                   isUser: true,
                                 },
                                 ...scores.models.map(m => ({
                                   name: m.modelName,
-                                  rmse: m.rmse,
+                                  wis: m.wis,
                                   isUser: false,
-                                  isHub: m.modelName.toLowerCase().includes('hub') ||
-                                         m.modelName.toLowerCase().includes('ensemble'),
+                                  isHub: m.modelName === ensembleKey,
                                 }))
-                              ].sort((a, b) => a.rmse - b.rmse);
+                              ].sort((a, b) => a.wis - b.wis);
 
                               const userRank = allEntries.findIndex(e => e.isUser) + 1;
                               const totalEntries = allEntries.length;
@@ -640,7 +649,7 @@ const ForecastleGame = () => {
                                             color={entry.isUser ? 'red' : entry.isHub ? 'green' : 'gray'}
                                             variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
                                           >
-                                            RMSE: {entry.rmse.toFixed(2)}
+                                            WIS: {entry.wis.toFixed(2)}
                                           </Badge>
                                         </Group>
                                       </Paper>
@@ -674,16 +683,18 @@ const ForecastleGame = () => {
 
                           {/* Shareable Ranking Summary Card */}
                           {(() => {
+                            // Get official ensemble model for this dataset
+                            const { ensemble: ensembleKey } = getOfficialModels(scenario.dataset.key);
+
                             const allEntries = [
-                              { name: 'You', rmse: scores.user.rmse, isUser: true },
+                              { name: 'You', wis: scores.user.wis, isUser: true },
                               ...scores.models.map(m => ({
                                 name: m.modelName,
-                                rmse: m.rmse,
+                                wis: m.wis,
                                 isUser: false,
-                                isHub: m.modelName.toLowerCase().includes('hub') ||
-                                       m.modelName.toLowerCase().includes('ensemble'),
+                                isHub: m.modelName === ensembleKey,
                               }))
-                            ].sort((a, b) => a.rmse - b.rmse);
+                            ].sort((a, b) => a.wis - b.wis);
 
                             const userRank = allEntries.findIndex(e => e.isUser) + 1;
                             const totalModels = scores.models.length;
@@ -726,7 +737,7 @@ const ForecastleGame = () => {
                                 }
                               }
 
-                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • RMSE: ${scores.user.rmse.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
+                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • WIS: ${scores.user.wis.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
                             };
 
                             const handleCopy = async () => {
@@ -803,7 +814,7 @@ const ForecastleGame = () => {
                                       textShadow: '0 1px 1px rgba(255, 255, 255, 0.6)',
                                     }}
                                   >
-                                    RMSE: {scores.user.rmse.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
+                                    WIS: {scores.user.wis.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
                                   </Text>
                                 </Stack>
                               </Paper>
@@ -823,6 +834,8 @@ const ForecastleGame = () => {
                               scores={scores}
                               showScoring={true}
                               fullGroundTruthSeries={scenario.fullGroundTruthSeries}
+                              modelForecasts={scenario.modelForecasts || {}}
+                              horizons={scenario.horizons}
                             />
                           </Box>
                         </Stack>
@@ -931,16 +944,38 @@ const ForecastleGame = () => {
                           )}
                         </Stack>
                       ) : inputMode === 'median' ? (
-                        <Button
-                          onClick={() => setInputMode('intervals')}
-                          size="md"
-                          fullWidth
-                          rightSection="→"
-                        >
-                          Next: Set Uncertainty Intervals
-                        </Button>
+                        <Stack gap="sm">
+                          <Button
+                            onClick={handleResetMedians}
+                            variant="light"
+                            size="sm"
+                            fullWidth
+                            color="gray"
+                            leftSection={<IconRefresh size={16} />}
+                          >
+                            Reset to Default
+                          </Button>
+                          <Button
+                            onClick={() => setInputMode('intervals')}
+                            size="md"
+                            fullWidth
+                            rightSection="→"
+                          >
+                            Next: Set Uncertainty Intervals
+                          </Button>
+                        </Stack>
                       ) : (
                         <Stack gap="sm">
+                          <Button
+                            onClick={handleResetIntervals}
+                            variant="light"
+                            size="sm"
+                            fullWidth
+                            color="gray"
+                            leftSection={<IconRefresh size={16} />}
+                          >
+                            Reset to Default
+                          </Button>
                           <Button
                             onClick={() => {
                               handleSubmit();

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { getForecastleGames } from '../utils/respilensStorage';
-import { calculateRMSE } from '../utils/forecastleScoring';
+import { calculateWIS } from '../utils/forecastleScoring';
 
 /**
  * Calculate interval coverage for a single game
@@ -49,11 +49,40 @@ function calculateIntervalCoverage(userForecasts, groundTruth) {
  * @returns {Object} Computed statistics for the game
  */
 function computeGameStats(game) {
-  // Extract user medians
-  const userMedians = game.userForecasts.map(f => f.median);
+  // Calculate WIS for all horizons
+  let sumWIS = 0;
+  let sumDispersion = 0;
+  let sumUnderprediction = 0;
+  let sumOverprediction = 0;
+  let validCount = 0;
 
-  // Calculate RMSE
-  const rmse = calculateRMSE(userMedians, game.groundTruth);
+  game.userForecasts.forEach((forecast, idx) => {
+    const observed = game.groundTruth[idx];
+
+    if (Number.isFinite(observed)) {
+      const wisResult = calculateWIS(
+        observed,
+        forecast.median,
+        forecast.lower50,
+        forecast.upper50,
+        forecast.lower95,
+        forecast.upper95
+      );
+
+      if (wisResult) {
+        sumWIS += wisResult.wis;
+        sumDispersion += wisResult.dispersion;
+        sumUnderprediction += wisResult.underprediction;
+        sumOverprediction += wisResult.overprediction;
+        validCount += 1;
+      }
+    }
+  });
+
+  const wis = validCount > 0 ? sumWIS / validCount : null;
+  const dispersion = validCount > 0 ? sumDispersion / validCount : null;
+  const underprediction = validCount > 0 ? sumUnderprediction / validCount : null;
+  const overprediction = validCount > 0 ? sumOverprediction / validCount : null;
 
   // Calculate interval coverage
   const coverage = calculateIntervalCoverage(game.userForecasts, game.groundTruth);
@@ -65,11 +94,29 @@ function computeGameStats(game) {
     dataset: game.dataset,
     location: game.location,
     target: game.target,
-    rmse,
+    wis,
+    dispersion,
+    underprediction,
+    overprediction,
     coverage95: coverage.coverage95,
     coverage50: coverage.coverage50,
     validHorizons: coverage.validHorizons,
-    totalHorizons: game.userForecasts.length
+    totalHorizons: game.userForecasts.length,
+    // Ranking information
+    userRank: game.userRank || null,
+    totalModels: game.totalModels || null,
+    ensembleRank: game.ensembleRank || null,
+    baselineRank: game.baselineRank || null,
+    // Ensemble scores
+    ensembleWIS: game.ensembleWIS || null,
+    ensembleDispersion: game.ensembleDispersion || null,
+    ensembleUnderprediction: game.ensembleUnderprediction || null,
+    ensembleOverprediction: game.ensembleOverprediction || null,
+    // Baseline scores
+    baselineWIS: game.baselineWIS || null,
+    baselineDispersion: game.baselineDispersion || null,
+    baselineUnderprediction: game.baselineUnderprediction || null,
+    baselineOverprediction: game.baselineOverprediction || null,
   };
 }
 
@@ -151,9 +198,12 @@ export function useRespilensStats(refreshTrigger) {
     if (games.length === 0) {
       return {
         gamesPlayed: 0,
-        averageRMSE: null,
-        bestRMSE: null,
-        worstRMSE: null,
+        averageWIS: null,
+        bestWIS: null,
+        worstWIS: null,
+        averageDispersion: null,
+        averageUnderprediction: null,
+        averageOverprediction: null,
         coverage95Percent: null,
         coverage50Percent: null,
         currentStreak: 0,
@@ -165,14 +215,22 @@ export function useRespilensStats(refreshTrigger) {
     // Compute stats for each game
     const gameStats = games.map(computeGameStats);
 
-    // Filter games with valid RMSE
-    const validGames = gameStats.filter(g => Number.isFinite(g.rmse));
+    // Filter games with valid WIS
+    const validGames = gameStats.filter(g => Number.isFinite(g.wis));
 
     // Aggregate statistics
-    const totalRMSE = validGames.reduce((sum, g) => sum + g.rmse, 0);
-    const averageRMSE = validGames.length > 0 ? totalRMSE / validGames.length : null;
-    const bestRMSE = validGames.length > 0 ? Math.min(...validGames.map(g => g.rmse)) : null;
-    const worstRMSE = validGames.length > 0 ? Math.max(...validGames.map(g => g.rmse)) : null;
+    const totalWIS = validGames.reduce((sum, g) => sum + g.wis, 0);
+    const averageWIS = validGames.length > 0 ? totalWIS / validGames.length : null;
+    const bestWIS = validGames.length > 0 ? Math.min(...validGames.map(g => g.wis)) : null;
+    const worstWIS = validGames.length > 0 ? Math.max(...validGames.map(g => g.wis)) : null;
+
+    // Aggregate WIS components
+    const totalDispersion = validGames.reduce((sum, g) => sum + (g.dispersion || 0), 0);
+    const totalUnderprediction = validGames.reduce((sum, g) => sum + (g.underprediction || 0), 0);
+    const totalOverprediction = validGames.reduce((sum, g) => sum + (g.overprediction || 0), 0);
+    const averageDispersion = validGames.length > 0 ? totalDispersion / validGames.length : null;
+    const averageUnderprediction = validGames.length > 0 ? totalUnderprediction / validGames.length : null;
+    const averageOverprediction = validGames.length > 0 ? totalOverprediction / validGames.length : null;
 
     // Aggregate interval coverage
     const totalCoverage95 = gameStats.reduce((sum, g) => sum + g.coverage95, 0);
@@ -191,9 +249,12 @@ export function useRespilensStats(refreshTrigger) {
 
     return {
       gamesPlayed: games.length,
-      averageRMSE,
-      bestRMSE,
-      worstRMSE,
+      averageWIS,
+      bestWIS,
+      worstWIS,
+      averageDispersion,
+      averageUnderprediction,
+      averageOverprediction,
       coverage95Percent,
       coverage50Percent,
       currentStreak: streaks.currentStreak,

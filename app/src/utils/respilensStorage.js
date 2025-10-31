@@ -113,7 +113,22 @@ export function saveForecastleGame(gameData) {
         upper50: f.upper50
       })),
       groundTruth: gameData.groundTruth,
-      horizonDates: gameData.horizonDates
+      horizonDates: gameData.horizonDates,
+      // Ranking information
+      userRank: gameData.userRank,
+      totalModels: gameData.totalModels,
+      ensembleRank: gameData.ensembleRank,
+      baselineRank: gameData.baselineRank,
+      // Ensemble scores
+      ensembleWIS: gameData.ensembleWIS,
+      ensembleDispersion: gameData.ensembleDispersion,
+      ensembleUnderprediction: gameData.ensembleUnderprediction,
+      ensembleOverprediction: gameData.ensembleOverprediction,
+      // Baseline scores
+      baselineWIS: gameData.baselineWIS,
+      baselineDispersion: gameData.baselineDispersion,
+      baselineUnderprediction: gameData.baselineUnderprediction,
+      baselineOverprediction: gameData.baselineOverprediction,
     };
 
     if (existingIndex >= 0) {
