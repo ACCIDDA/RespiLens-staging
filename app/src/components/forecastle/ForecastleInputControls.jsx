@@ -6,7 +6,7 @@ const formatHorizonLabel = (horizon) => {
   return `${horizon} weeks ahead`;
 };
 
-const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'intervals' }) => {
+const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'intervals', disabled = false }) => {
   const sliderMax = useMemo(() => Math.max(maxValue, 1), [maxValue]);
 
   const updateEntry = (index, field, value) => {
@@ -77,6 +77,7 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
                 max={sliderMax}
                 step={10}
                 size="sm"
+                disabled={disabled}
               />
             </Stack>
           </Stack>
@@ -115,6 +116,7 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
               color="red"
               size="sm"
               minRange={0}
+              disabled={disabled}
               marks={[
                 { value: 0, label: '0' },
                 { value: entry.median, label: `${Math.round(entry.median)}` },
@@ -143,6 +145,7 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
               color="pink"
               size="sm"
               minRange={0}
+              disabled={disabled}
             />
             <Text size="xs" c="dimmed" ta="center">
               Range: {Math.round(entry.upper50 - entry.lower50)}

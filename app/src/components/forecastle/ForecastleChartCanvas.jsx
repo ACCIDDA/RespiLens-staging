@@ -59,6 +59,8 @@ const ForecastleChartCanvasInner = ({
   scores = null,
   showScoring = false,
   // fullGroundTruthSeries = null, // remove unused var
+  modelForecasts = {},
+  horizons = [],
 }) => {
   const chartRef = useRef(null);
   const [dragState, setDragState] = useState(null);
@@ -321,25 +323,49 @@ const ForecastleChartCanvasInner = ({
 
   // Top model forecasts (scoring mode only)
   const topModelForecasts = useMemo(() => {
-    if (!showScoring || !scores?.models) return [];
+    if (!showScoring || !scores?.models || !modelForecasts) return [];
+
     // Show top 3 models
     return scores.models.slice(0, 3).map((model, idx) => {
       const isHub = model.modelName.toLowerCase().includes('hub') ||
                     model.modelName.toLowerCase().includes('ensemble');
+
+      // Extract medians from model predictions
+      const modelData = modelForecasts[model.modelName];
+      if (!modelData?.predictions) {
+        return null;
+      }
+
+      const modelMedians = horizons.map(horizon => {
+        const horizonPrediction = modelData.predictions[String(horizon)];
+        if (!horizonPrediction) return null;
+
+        const quantiles = horizonPrediction.quantiles;
+        const values = horizonPrediction.values;
+
+        if (!quantiles || !values || quantiles.length !== values.length) return null;
+
+        // Find the 0.5 quantile (median)
+        const medianIndex = quantiles.findIndex(q => Math.abs(q - 0.5) < 0.001);
+        if (medianIndex === -1) return null;
+
+        return values[medianIndex];
+      });
+
       return {
         modelName: model.modelName,
         data: horizonDates.map((date, horizonIdx) => ({
           x: date,
-          y: model.medians[horizonIdx],
-        })).filter(point => point.y !== null),
+          y: modelMedians[horizonIdx],
+        })).filter(point => point.y !== null && Number.isFinite(point.y)),
         // Green for ensemble/hub, otherwise use other colors
         color: isHub ? 'rgba(34, 139, 34, 0.8)' : // Forest green for ensemble
                idx === 0 ? 'rgba(30, 144, 255, 0.8)' : // Blue for best
                idx === 1 ? 'rgba(255, 99, 71, 0.6)' : // Tomato for 2nd
                'rgba(255, 165, 0, 0.6)', // Orange for 3rd
       };
-    });
-  }, [showScoring, scores, horizonDates]);
+    }).filter(model => model !== null);
+  }, [showScoring, scores, horizonDates, modelForecasts, horizons]);
 
   const chartData = useMemo(
     () => {

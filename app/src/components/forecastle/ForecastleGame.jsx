@@ -21,7 +21,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar, IconRefresh } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
@@ -29,9 +29,12 @@ import {
   extractGroundTruthForHorizons,
   scoreUserForecast,
   scoreModels,
+  getOfficialModels,
 } from '../../utils/forecastleScoring';
+import { saveForecastleGame, getForecastleGame } from '../../utils/respilensStorage';
 import ForecastleChartCanvas from './ForecastleChartCanvas';
 import ForecastleInputControls from './ForecastleInputControls';
+import ForecastleStatsModal from './ForecastleStatsModal';
 
 const addWeeksToDate = (dateString, weeks) => {
   const base = new Date(`${dateString}T00:00:00Z`);
@@ -44,15 +47,17 @@ const addWeeksToDate = (dateString, weeks) => {
 
 const ForecastleGame = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryString = searchParams.toString();
 
-  useEffect(() => {
-    if (queryString.length > 0) {
-      setSearchParams({}, { replace: true });
-    }
-  }, [queryString, setSearchParams]);
+  // Get play_date from URL parameter (secret feature for populating history)
+  const playDate = searchParams.get('play_date') || null;
 
-  const { scenario, loading, error } = useForecastleScenario();
+  const { scenarios, loading, error } = useForecastleScenario(playDate);
+  const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
+  const [completedChallenges, setCompletedChallenges] = useState(new Set()); // Track which challenges are completed
+
+  const scenario = scenarios[currentChallengeIndex] || null;
+  const isCurrentChallengeCompleted = completedChallenges.has(currentChallengeIndex);
+  const allChallengesCompleted = scenarios.length > 0 && completedChallenges.size === scenarios.length && !playDate;
 
   const latestObservationValue = useMemo(() => {
     const series = scenario?.groundTruthSeries;
@@ -73,15 +78,77 @@ const ForecastleGame = () => {
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view for easier input
   const [visibleRankings, setVisibleRankings] = useState(0); // For animated reveal
   const [copied, setCopied] = useState(false); // For copy button feedback
+  const [statsModalOpened, setStatsModalOpened] = useState(false); // For stats modal
+  const [saveError, setSaveError] = useState(null); // For storage save errors
+
+  // Check which challenges are already completed
+  useEffect(() => {
+    if (!scenarios || scenarios.length === 0) return;
+
+    const completed = new Set();
+    scenarios.forEach((s, index) => {
+      const id = `${s.challengeDate}_${s.forecastDate}_${s.dataset.key}_${s.location.abbreviation}_${s.dataset.targetKey}`;
+      const existingGame = getForecastleGame(id);
+      if (existingGame) {
+        completed.add(index);
+      }
+    });
+    setCompletedChallenges(completed);
+  }, [scenarios]);
 
   useEffect(() => {
-    setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
+    // Reset state
     setSubmissionErrors({});
     setSubmittedPayload(null);
     setScores(null);
     setInputMode('median');
     setVisibleRankings(0);
-  }, [scenario?.horizons, latestObservationValue]);
+
+    // If this challenge is already completed, load the saved data and show scoring
+    // Allow loading even with play_date, but user can still resubmit
+    if (isCurrentChallengeCompleted && scenario) {
+      const id = `${scenario.challengeDate}_${scenario.forecastDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
+      const savedGame = getForecastleGame(id);
+
+      if (savedGame && scenario.fullGroundTruthSeries) {
+        // Restore the saved forecasts
+        setForecastEntries(savedGame.userForecasts);
+
+        // Recalculate scores
+        const horizonDates = scenario.horizons.map((horizon) =>
+          addWeeksToDate(scenario.forecastDate, horizon)
+        );
+        const groundTruthValues = extractGroundTruthForHorizons(
+          scenario.fullGroundTruthSeries,
+          horizonDates
+        );
+
+        const userScore = scoreUserForecast(savedGame.userForecasts, groundTruthValues);
+
+        const modelScores = scoreModels(
+          scenario.modelForecasts || {},
+          scenario.horizons,
+          groundTruthValues
+        );
+
+        setScores({
+          user: userScore,
+          models: modelScores,
+          groundTruth: groundTruthValues,
+          horizonDates,
+        });
+
+        // Show scoring immediately only if not using play_date
+        if (!playDate) {
+          setInputMode('scoring');
+        }
+        return; // Don't initialize with default values
+      }
+    }
+
+    // Only initialize with default values if no saved game was loaded
+    setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
+  }, [scenario?.horizons, latestObservationValue, isCurrentChallengeCompleted, scenario, playDate]);
 
   // Animated reveal of leaderboard when entering scoring mode
   useEffect(() => {
@@ -102,6 +169,33 @@ const ForecastleGame = () => {
   }, [inputMode, scores]);
 
   const handleSubmit = () => {
+    // When using play_date, check if this game has already been saved
+    if (playDate && scenario) {
+      const id = `${scenario.challengeDate}_${scenario.forecastDate}_${scenario.dataset.key}_${scenario.location.abbreviation}_${scenario.dataset.targetKey}`;
+      const existingGame = getForecastleGame(id);
+      if (existingGame) {
+        setSubmissionErrors({ general: 'This forecast has already been submitted. You cannot resubmit when using play_date.' });
+        return;
+      }
+    }
+
+    // Validate that forecastEntries is properly populated
+    if (!forecastEntries || forecastEntries.length === 0) {
+      console.error('No forecast entries to submit');
+      return;
+    }
+
+    // Check if all entries have valid median values
+    const hasInvalidEntries = forecastEntries.some(entry =>
+      !entry || entry.median === null || entry.median === undefined || !Number.isFinite(entry.median)
+    );
+
+    if (hasInvalidEntries) {
+      console.error('Some forecast entries have invalid median values');
+      setSubmissionErrors({ general: 'Invalid forecast data. Please reset and try again.' });
+      return;
+    }
+
     // Convert to intervals for validation
     const intervalsForValidation = convertToIntervals(forecastEntries);
     const { valid, errors } = validateForecastSubmission(intervalsForValidation);
@@ -128,8 +222,7 @@ const ForecastleGame = () => {
       );
 
       // Score user forecast
-      const userMedians = forecastEntries.map((entry) => entry.median);
-      const userScore = scoreUserForecast(userMedians, groundTruthValues);
+      const userScore = scoreUserForecast(forecastEntries, groundTruthValues);
 
       // Score models
       const modelScores = scoreModels(
@@ -144,7 +237,101 @@ const ForecastleGame = () => {
         groundTruth: groundTruthValues,
         horizonDates,
       });
+
+      // Calculate ranking information
+      const { ensemble: ensembleKey, baseline: baselineKey } = getOfficialModels(scenario.dataset.key);
+
+      // Find ensemble and baseline in the model scores
+      const ensembleScore = modelScores.find(m => m.modelName === ensembleKey);
+      const baselineScore = modelScores.find(m => m.modelName === baselineKey);
+
+      // Create unified ranking list
+      const allRanked = [
+        { name: 'user', wis: userScore.wis, isUser: true },
+        ...modelScores.map(m => ({ name: m.modelName, wis: m.wis, isUser: false }))
+      ].sort((a, b) => a.wis - b.wis);
+
+      const userRank = allRanked.findIndex(e => e.isUser) + 1;
+      const ensembleRank = ensembleScore ? allRanked.findIndex(e => e.name === ensembleKey) + 1 : null;
+      const baselineRank = baselineScore ? allRanked.findIndex(e => e.name === baselineKey) + 1 : null;
+      const totalModels = modelScores.length;
+
+      // Save game to storage
+      try {
+        saveForecastleGame({
+          challengeDate: scenario.challengeDate,
+          forecastDate: scenario.forecastDate,
+          dataset: scenario.dataset.key,
+          location: scenario.location.abbreviation,
+          target: scenario.dataset.targetKey,
+          userForecasts: forecastEntries,
+          groundTruth: groundTruthValues,
+          horizonDates,
+          // Ranking information
+          userRank,
+          totalModels,
+          ensembleRank,
+          baselineRank,
+          // User scores
+          userWIS: userScore.wis,
+          userDispersion: userScore.dispersion || 0,
+          userUnderprediction: userScore.underprediction || 0,
+          userOverprediction: userScore.overprediction || 0,
+          // Ensemble scores
+          ensembleWIS: ensembleScore?.wis || null,
+          ensembleDispersion: ensembleScore?.dispersion || 0,
+          ensembleUnderprediction: ensembleScore?.underprediction || 0,
+          ensembleOverprediction: ensembleScore?.overprediction || 0,
+          // Baseline scores
+          baselineWIS: baselineScore?.wis || null,
+          baselineDispersion: baselineScore?.dispersion || 0,
+          baselineUnderprediction: baselineScore?.underprediction || 0,
+          baselineOverprediction: baselineScore?.overprediction || 0,
+        });
+        setSaveError(null);
+        // Mark this challenge as completed
+        setCompletedChallenges(prev => new Set([...prev, currentChallengeIndex]));
+      } catch (error) {
+        console.error('Failed to save game:', error);
+        setSaveError(error.message || 'Failed to save game to storage');
+      }
     }
+  };
+
+  const handleNextChallenge = () => {
+    if (currentChallengeIndex < scenarios.length - 1) {
+      setCurrentChallengeIndex(prev => prev + 1);
+      setInputMode('median');
+      setSubmittedPayload(null);
+      setScores(null);
+      setSubmissionErrors({});
+      setSaveError(null);
+      setCopied(false);
+      setVisibleRankings(0);
+    }
+  };
+
+  const handleResetMedians = () => {
+    setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
+    setSubmissionErrors({});
+  };
+
+  const handleResetIntervals = () => {
+    const resetEntries = forecastEntries.map(entry => {
+      const median = entry.median;
+      // Reset to default symmetric intervals
+      return {
+        ...entry,
+        lower95: Math.max(0, median - median * 0.2),
+        upper95: median + median * 0.2,
+        lower50: Math.max(0, median - median * 0.1),
+        upper50: median + median * 0.1,
+        width95: median * 0.2,
+        width50: median * 0.1,
+      };
+    });
+    setForecastEntries(resetEntries);
+    setSubmissionErrors({});
   };
 
   const renderContent = () => {
@@ -241,8 +428,8 @@ const ForecastleGame = () => {
     return (
       <Stack gap="lg">
         <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="lg">
-            <Group justify="space-between" wrap="wrap" align="flex-start">
+          <Stack gap="md">
+            <Group justify="space-between" wrap="wrap" align="center">
               <Group gap="sm">
                 <ThemeIcon size={36} radius="md" variant="light" color="blue">
                   <IconTarget size={20} />
@@ -254,50 +441,140 @@ const ForecastleGame = () => {
                   </Text>
                 </div>
               </Group>
-              <Group gap="xs" wrap="wrap">
-                <Badge variant="light" color="blue">
-                  {scenario.dataset.label}
-                </Badge>
-                <Badge variant="light" color="grape">
-                  {`${scenario.location.name} (${scenario.location.abbreviation})`}
-                </Badge>
-                <Badge variant="light" color="teal">
-                  {`Forecast date ${scenario.forecastDate}`}
-                </Badge>
+              <Group gap="sm">
+                {/* Challenge Progress Indicators - moved here */}
+                {scenarios.length > 1 && (
+                  <Group gap="xs">
+                    {scenarios.map((_, index) => (
+                      <Tooltip
+                        key={index}
+                        label={`Challenge ${index + 1}${completedChallenges.has(index) ? ' (Completed)' : ''}`}
+                      >
+                        <ThemeIcon
+                          size={32}
+                          radius="xl"
+                          variant={completedChallenges.has(index) ? "filled" : index === currentChallengeIndex ? "light" : "outline"}
+                          color={completedChallenges.has(index) ? "green" : index === currentChallengeIndex ? "cyan" : "gray"}
+                          style={{
+                            cursor: 'pointer',
+                            border: index === currentChallengeIndex && !completedChallenges.has(index) ? '2px solid' : undefined,
+                          }}
+                          onClick={() => {
+                            setCurrentChallengeIndex(index);
+                            setInputMode('median');
+                            setSubmittedPayload(null);
+                            setScores(null);
+                            setSubmissionErrors({});
+                            setSaveError(null);
+                            setCopied(false);
+                            setVisibleRankings(0);
+                          }}
+                        >
+                          {completedChallenges.has(index) ? (
+                            <IconCheck size={16} />
+                          ) : (
+                            <Text size="xs" fw={700}>{index + 1}</Text>
+                          )}
+                        </ThemeIcon>
+                      </Tooltip>
+                    ))}
+                  </Group>
+                )}
+                <Tooltip label="View your statistics">
+                  <Button
+                    leftSection={<IconChartBar size={16} />}
+                    variant="light"
+                    size="sm"
+                    onClick={() => setStatsModalOpened(true)}
+                  >
+                    Stats
+                  </Button>
+                </Tooltip>
               </Group>
             </Group>
 
+            {/* All Challenges Complete Message */}
+            {allChallengesCompleted && (
+              <Alert color="green" variant="light" title="All Challenges Complete! 🎉">
+                <Text size="sm">
+                  You've completed all {scenarios.length} challenges for today. Come back tomorrow for new challenges!
+                </Text>
+              </Alert>
+            )}
+
+            {/* Instructional Text */}
+            {scenarios.length > 0 && !allChallengesCompleted && (
+              <Box>
+                <Text size="sm" c="dimmed" mb="xs">
+                  Make predictions on one to three challenges everyday. Each challenge statistic and aggregate are stored.
+                </Text>
+                <Group gap="xs" wrap="wrap">
+                  <Text size="sm" fw={500}>
+                    Problem {currentChallengeIndex + 1}/{scenarios.length}:
+                  </Text>
+                  <Text size="sm" fw={400}>
+                    Predict
+                  </Text>
+                  <Badge size="md" variant="filled" color="blue" radius="sm">
+                    {scenario?.dataset?.label || 'hospitalization'}
+                  </Badge>
+                  <Text size="sm" fw={400}>
+                    in
+                  </Text>
+                  <Badge size="md" variant="filled" color="grape" radius="sm">
+                    {scenario?.location?.name} ({scenario?.location?.abbreviation})
+                  </Badge>
+                  <Text size="sm" fw={400}>
+                    at
+                  </Text>
+                  <Badge size="md" variant="filled" color="teal" radius="sm">
+                    {scenario?.forecastDate}
+                  </Badge>
+                </Group>
+              </Box>
+            )}
+
             <Divider />
 
-            <Stepper
-              active={inputMode === 'median' ? 0 : inputMode === 'intervals' ? 1 : 2}
-              onStepClick={(step) => {
-                if (step === 0) setInputMode('median');
-                else if (step === 1) setInputMode('intervals');
-                else if (step === 2 && scores) setInputMode('scoring');
-              }}
-              allowNextStepsSelect={false}
-            >
-              <Stepper.Step
-                label="Set Median"
-                description="Point forecasts"
-                completedIcon={<IconCheck size={18} />}
-              />
-              <Stepper.Step
-                label="Set Intervals"
-                description="Uncertainty bands"
-                completedIcon={<IconCheck size={18} />}
-              />
-              <Stepper.Step
-                label="View Scores"
-                description="RMSE comparison"
-                completedIcon={<IconTrophy size={18} />}
-              />
-            </Stepper>
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Stepper
+                active={inputMode === 'median' ? 0 : inputMode === 'intervals' ? 1 : 2}
+                onStepClick={(step) => {
+                  if (step === 0) setInputMode('median');
+                  else if (step === 1) setInputMode('intervals');
+                  else if (step === 2 && scores) setInputMode('scoring');
+                }}
+                allowNextStepsSelect={false}
+                size="sm"
+                style={{ flex: 1 }}
+              >
+                <Stepper.Step
+                  label="Median"
+                  description="Point forecasts"
+                  completedIcon={<IconCheck size={16} />}
+                />
+                <Stepper.Step
+                  label="Intervals"
+                  description="Uncertainty"
+                  completedIcon={<IconCheck size={16} />}
+                />
+                <Stepper.Step
+                  label="Scores"
+                  description="Results"
+                  completedIcon={<IconTrophy size={16} />}
+                />
+              </Stepper>
+
+            </Group>
 
             {inputMode === 'scoring' && scores ? (
               <Stack gap="lg">
-                {scores.user.rmse !== null ? (
+                {saveError && (
+                  <Alert icon={<IconAlertTriangle size={16} />} color="yellow" onClose={() => setSaveError(null)} withCloseButton>
+                    {saveError}
+                  </Alert>
+                )}
+                {scores.user.wis !== null ? (
                   <>
                     <Text size="sm" c="dimmed">
                       Based on {scores.user.validCount} of {scores.user.totalHorizons} horizons with available ground truth
@@ -311,21 +588,23 @@ const ForecastleGame = () => {
 
                           <Stack gap="xs">
                             {(() => {
+                              // Get official ensemble model for this dataset
+                              const { ensemble: ensembleKey } = getOfficialModels(scenario.dataset.key);
+
                               // Create unified leaderboard with user and models
                               const allEntries = [
                                 {
                                   name: 'You',
-                                  rmse: scores.user.rmse,
+                                  wis: scores.user.wis,
                                   isUser: true,
                                 },
                                 ...scores.models.map(m => ({
                                   name: m.modelName,
-                                  rmse: m.rmse,
+                                  wis: m.wis,
                                   isUser: false,
-                                  isHub: m.modelName.toLowerCase().includes('hub') ||
-                                         m.modelName.toLowerCase().includes('ensemble'),
+                                  isHub: m.modelName === ensembleKey,
                                 }))
-                              ].sort((a, b) => a.rmse - b.rmse);
+                              ].sort((a, b) => a.wis - b.wis);
 
                               const userRank = allEntries.findIndex(e => e.isUser) + 1;
                               const totalEntries = allEntries.length;
@@ -380,7 +659,7 @@ const ForecastleGame = () => {
                                             color={entry.isUser ? 'red' : entry.isHub ? 'green' : 'gray'}
                                             variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
                                           >
-                                            RMSE: {entry.rmse.toFixed(2)}
+                                            WIS: {entry.wis.toFixed(2)}
                                           </Badge>
                                         </Group>
                                       </Paper>
@@ -414,16 +693,18 @@ const ForecastleGame = () => {
 
                           {/* Shareable Ranking Summary Card */}
                           {(() => {
+                            // Get official ensemble model for this dataset
+                            const { ensemble: ensembleKey } = getOfficialModels(scenario.dataset.key);
+
                             const allEntries = [
-                              { name: 'You', rmse: scores.user.rmse, isUser: true },
+                              { name: 'You', wis: scores.user.wis, isUser: true },
                               ...scores.models.map(m => ({
                                 name: m.modelName,
-                                rmse: m.rmse,
+                                wis: m.wis,
                                 isUser: false,
-                                isHub: m.modelName.toLowerCase().includes('hub') ||
-                                       m.modelName.toLowerCase().includes('ensemble'),
+                                isHub: m.modelName === ensembleKey,
                               }))
-                            ].sort((a, b) => a.rmse - b.rmse);
+                            ].sort((a, b) => a.wis - b.wis);
 
                             const userRank = allEntries.findIndex(e => e.isUser) + 1;
                             const totalModels = scores.models.length;
@@ -466,7 +747,7 @@ const ForecastleGame = () => {
                                 }
                               }
 
-                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • RMSE: ${scores.user.rmse.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
+                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • WIS: ${scores.user.wis.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
                             };
 
                             const handleCopy = async () => {
@@ -543,7 +824,7 @@ const ForecastleGame = () => {
                                       textShadow: '0 1px 1px rgba(255, 255, 255, 0.6)',
                                     }}
                                   >
-                                    RMSE: {scores.user.rmse.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
+                                    WIS: {scores.user.wis.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
                                   </Text>
                                 </Stack>
                               </Paper>
@@ -563,6 +844,8 @@ const ForecastleGame = () => {
                               scores={scores}
                               showScoring={true}
                               fullGroundTruthSeries={scenario.fullGroundTruthSeries}
+                              modelForecasts={scenario.modelForecasts || {}}
+                              horizons={scenario.horizons}
                             />
                           </Box>
                         </Stack>
@@ -583,6 +866,21 @@ const ForecastleGame = () => {
                   >
                     Back to Intervals
                   </Button>
+                  {currentChallengeIndex < scenarios.length - 1 && (
+                    <Button
+                      onClick={handleNextChallenge}
+                      variant="filled"
+                      rightSection="→"
+                      color="green"
+                    >
+                      Continue {currentChallengeIndex + 1}/{scenarios.length}
+                    </Button>
+                  )}
+                  {currentChallengeIndex === scenarios.length - 1 && (
+                    <Badge size="xl" variant="filled" color="green">
+                      All Challenges Complete! 🎉
+                    </Badge>
+                  )}
                 </Group>
               </Stack>
             ) : (
@@ -606,17 +904,19 @@ const ForecastleGame = () => {
                         horizonDates={horizonDates}
                         entries={forecastEntries}
                         maxValue={yAxisMax}
-                        onAdjust={handleMedianAdjust}
+                        onAdjust={isCurrentChallengeCompleted && !playDate ? () => {} : handleMedianAdjust}
                         height={380}
                         showIntervals={inputMode === 'intervals'}
                         zoomedView={zoomedView}
                       />
                     </Box>
-                    <Text size="sm" c="dimmed">
-                      {inputMode === 'median'
-                        ? 'Drag the crimson handles to set your median forecast for each week ahead.'
-                        : 'Drag the crimson handles to adjust interval bounds, or use the sliders for precise control.'}
-                    </Text>
+                    {!isCurrentChallengeCompleted && (
+                      <Text size="sm" c="dimmed">
+                        {inputMode === 'median'
+                          ? 'Drag the crimson handles to set your median forecast for each week ahead.'
+                          : 'Drag the crimson handles to adjust interval bounds, or use the sliders for precise control.'}
+                      </Text>
+                    )}
                   </Stack>
                 </Grid.Col>
 
@@ -631,19 +931,61 @@ const ForecastleGame = () => {
                       onChange={setForecastEntries}
                       maxValue={yAxisMax}
                       mode={inputMode}
+                      disabled={isCurrentChallengeCompleted && !playDate}
                     />
                     <Box mt="auto">
-                      {inputMode === 'median' ? (
-                        <Button
-                          onClick={() => setInputMode('intervals')}
-                          size="md"
-                          fullWidth
-                          rightSection="→"
-                        >
-                          Next: Set Uncertainty Intervals
-                        </Button>
+                      {isCurrentChallengeCompleted && !playDate ? (
+                        // Show navigation for completed challenges
+                        <Stack gap="sm">
+                          {currentChallengeIndex < scenarios.length - 1 ? (
+                            <Button
+                              onClick={handleNextChallenge}
+                              size="md"
+                              fullWidth
+                              rightSection="→"
+                              color="green"
+                            >
+                              Next Challenge ({currentChallengeIndex + 2}/{scenarios.length})
+                            </Button>
+                          ) : (
+                            <Badge size="xl" variant="filled" color="green" style={{ width: '100%', padding: '12px' }}>
+                              All Challenges Complete! 🎉
+                            </Badge>
+                          )}
+                        </Stack>
+                      ) : inputMode === 'median' ? (
+                        <Stack gap="sm">
+                          <Button
+                            onClick={handleResetMedians}
+                            variant="light"
+                            size="sm"
+                            fullWidth
+                            color="gray"
+                            leftSection={<IconRefresh size={16} />}
+                          >
+                            Reset to Default
+                          </Button>
+                          <Button
+                            onClick={() => setInputMode('intervals')}
+                            size="md"
+                            fullWidth
+                            rightSection="→"
+                          >
+                            Next: Set Uncertainty Intervals
+                          </Button>
+                        </Stack>
                       ) : (
                         <Stack gap="sm">
+                          <Button
+                            onClick={handleResetIntervals}
+                            variant="light"
+                            size="sm"
+                            fullWidth
+                            color="gray"
+                            leftSection={<IconRefresh size={16} />}
+                          >
+                            Reset to Default
+                          </Button>
                           <Button
                             onClick={() => {
                               handleSubmit();
@@ -667,8 +1009,10 @@ const ForecastleGame = () => {
                             Back to Median
                           </Button>
                           {Object.keys(submissionErrors).length > 0 && (
-                            <Alert color="red" variant="light" title="Invalid intervals" p="xs">
-                              <Text size="xs">Please adjust your intervals to continue.</Text>
+                            <Alert color="red" variant="light" title={submissionErrors.general ? "Submission Error" : "Invalid intervals"} p="xs">
+                              <Text size="xs">
+                                {submissionErrors.general || 'Please adjust your intervals to continue.'}
+                              </Text>
                             </Alert>
                           )}
                         </Stack>
@@ -688,6 +1032,10 @@ const ForecastleGame = () => {
   return (
     <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
       {renderContent()}
+      <ForecastleStatsModal
+        opened={statsModalOpened}
+        onClose={() => setStatsModalOpened(false)}
+      />
     </Container>
   );
 };
