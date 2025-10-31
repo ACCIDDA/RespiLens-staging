@@ -54,7 +54,10 @@ const ForecastleGame = () => {
     }
   }, [queryString, setSearchParams]);
 
-  const { scenario, loading, error } = useForecastleScenario();
+  const { scenarios, loading, error } = useForecastleScenario();
+  const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
+
+  const scenario = scenarios[currentChallengeIndex] || null;
 
   const latestObservationValue = useMemo(() => {
     const series = scenario?.groundTruthSeries;
@@ -168,6 +171,42 @@ const ForecastleGame = () => {
     }
   };
 
+  const handleNextChallenge = () => {
+    if (currentChallengeIndex < scenarios.length - 1) {
+      setCurrentChallengeIndex(prev => prev + 1);
+      setInputMode('median');
+      setSubmittedPayload(null);
+      setScores(null);
+      setSubmissionErrors({});
+      setSaveError(null);
+      setCopied(false);
+      setVisibleRankings(0);
+    }
+  };
+
+  const handleResetMedians = () => {
+    setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
+    setSubmissionErrors({});
+  };
+
+  const handleResetIntervals = () => {
+    const resetEntries = forecastEntries.map(entry => {
+      const median = entry.median;
+      // Reset to default symmetric intervals
+      return {
+        ...entry,
+        lower95: Math.max(0, median - median * 0.2),
+        upper95: median + median * 0.2,
+        lower50: Math.max(0, median - median * 0.1),
+        upper50: median + median * 0.1,
+        width95: median * 0.2,
+        width50: median * 0.1,
+      };
+    });
+    setForecastEntries(resetEntries);
+    setSubmissionErrors({});
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -269,7 +308,14 @@ const ForecastleGame = () => {
                   <IconTarget size={20} />
                 </ThemeIcon>
                 <div>
-                  <Title order={2}>Forecastle Daily Challenge</Title>
+                  <Group gap="xs" align="baseline">
+                    <Title order={2}>Forecastle Daily Challenge</Title>
+                    {scenarios.length > 1 && (
+                      <Badge size="lg" variant="filled" color="cyan">
+                        {currentChallengeIndex + 1} / {scenarios.length}
+                      </Badge>
+                    )}
+                  </Group>
                   <Text size="sm" c="dimmed">
                     {`Generated for ${scenario.challengeDate} (Eastern)`}
                   </Text>
@@ -297,6 +343,23 @@ const ForecastleGame = () => {
                 </Tooltip>
               </Group>
             </Group>
+
+            {/* Challenge Progress Indicators */}
+            {scenarios.length > 1 && (
+              <Group gap="xs" justify="center">
+                {scenarios.map((_, index) => (
+                  <Badge
+                    key={index}
+                    size="md"
+                    variant={index === currentChallengeIndex ? "filled" : "outline"}
+                    color={index < currentChallengeIndex ? "green" : index === currentChallengeIndex ? "cyan" : "gray"}
+                    style={{ cursor: 'default' }}
+                  >
+                    {index < currentChallengeIndex ? `✓ ${index + 1}` : index + 1}
+                  </Badge>
+                ))}
+              </Group>
+            )}
 
             <Divider />
 
@@ -619,6 +682,21 @@ const ForecastleGame = () => {
                   >
                     Back to Intervals
                   </Button>
+                  {currentChallengeIndex < scenarios.length - 1 && (
+                    <Button
+                      onClick={handleNextChallenge}
+                      variant="filled"
+                      rightSection="→"
+                      color="green"
+                    >
+                      Continue {currentChallengeIndex + 1}/{scenarios.length}
+                    </Button>
+                  )}
+                  {currentChallengeIndex === scenarios.length - 1 && (
+                    <Badge size="xl" variant="filled" color="green">
+                      All Challenges Complete! 🎉
+                    </Badge>
+                  )}
                 </Group>
               </Stack>
             ) : (
@@ -670,14 +748,25 @@ const ForecastleGame = () => {
                     />
                     <Box mt="auto">
                       {inputMode === 'median' ? (
-                        <Button
-                          onClick={() => setInputMode('intervals')}
-                          size="md"
-                          fullWidth
-                          rightSection="→"
-                        >
-                          Next: Set Uncertainty Intervals
-                        </Button>
+                        <Stack gap="sm">
+                          <Button
+                            onClick={() => setInputMode('intervals')}
+                            size="md"
+                            fullWidth
+                            rightSection="→"
+                          >
+                            Next: Set Uncertainty Intervals
+                          </Button>
+                          <Button
+                            onClick={handleResetMedians}
+                            variant="light"
+                            size="sm"
+                            fullWidth
+                            color="gray"
+                          >
+                            Reset Medians to Default
+                          </Button>
+                        </Stack>
                       ) : (
                         <Stack gap="sm">
                           <Button
@@ -693,15 +782,24 @@ const ForecastleGame = () => {
                           >
                             {submittedPayload ? 'Resubmit & View Scores' : 'Submit & View Scores'}
                           </Button>
-                          <Button
-                            onClick={() => setInputMode('median')}
-                            variant="default"
-                            size="sm"
-                            fullWidth
-                            leftSection="←"
-                          >
-                            Back to Median
-                          </Button>
+                          <Group grow>
+                            <Button
+                              onClick={() => setInputMode('median')}
+                              variant="default"
+                              size="sm"
+                              leftSection="←"
+                            >
+                              Back to Median
+                            </Button>
+                            <Button
+                              onClick={handleResetIntervals}
+                              variant="light"
+                              size="sm"
+                              color="gray"
+                            >
+                              Reset Intervals
+                            </Button>
+                          </Group>
                           {Object.keys(submissionErrors).length > 0 && (
                             <Alert color="red" variant="light" title="Invalid intervals" p="xs">
                               <Text size="xs">Please adjust your intervals to continue.</Text>
