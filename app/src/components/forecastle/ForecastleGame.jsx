@@ -21,7 +21,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
@@ -33,6 +33,7 @@ import {
 import { saveForecastleGame } from '../../utils/respilensStorage';
 import ForecastleChartCanvas from './ForecastleChartCanvas';
 import ForecastleInputControls from './ForecastleInputControls';
+import ForecastleStatsModal from './ForecastleStatsModal';
 
 const addWeeksToDate = (dateString, weeks) => {
   const base = new Date(`${dateString}T00:00:00Z`);
@@ -74,6 +75,7 @@ const ForecastleGame = () => {
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view for easier input
   const [visibleRankings, setVisibleRankings] = useState(0); // For animated reveal
   const [copied, setCopied] = useState(false); // For copy button feedback
+  const [statsModalOpened, setStatsModalOpened] = useState(false); // For stats modal
 
   useEffect(() => {
     setForecastEntries(initialiseForecastInputs(scenario?.horizons || [], latestObservationValue));
@@ -276,6 +278,16 @@ const ForecastleGame = () => {
                 <Badge variant="light" color="teal">
                   {`Forecast date ${scenario.forecastDate}`}
                 </Badge>
+                <Tooltip label="View your statistics">
+                  <Button
+                    leftSection={<IconChartBar size={16} />}
+                    variant="light"
+                    size="sm"
+                    onClick={() => setStatsModalOpened(true)}
+                  >
+                    Stats
+                  </Button>
+                </Tooltip>
               </Group>
             </Group>
 
@@ -700,6 +712,10 @@ const ForecastleGame = () => {
   return (
     <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
       {renderContent()}
+      <ForecastleStatsModal
+        opened={statsModalOpened}
+        onClose={() => setStatsModalOpened(false)}
+      />
     </Container>
   );
 };
