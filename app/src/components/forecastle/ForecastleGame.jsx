@@ -359,27 +359,16 @@ const ForecastleGame = () => {
                   </Text>
                 </div>
               </Group>
-              <Group gap="xs" wrap="wrap">
-                <Badge variant="light" color="blue">
-                  {scenario.dataset.label}
-                </Badge>
-                <Badge variant="light" color="grape">
-                  {`${scenario.location.name} (${scenario.location.abbreviation})`}
-                </Badge>
-                <Badge variant="light" color="teal">
-                  {`Forecast date ${scenario.forecastDate}`}
-                </Badge>
-                <Tooltip label="View your statistics">
-                  <Button
-                    leftSection={<IconChartBar size={16} />}
-                    variant="light"
-                    size="sm"
-                    onClick={() => setStatsModalOpened(true)}
-                  >
-                    Stats
-                  </Button>
-                </Tooltip>
-              </Group>
+              <Tooltip label="View your statistics">
+                <Button
+                  leftSection={<IconChartBar size={16} />}
+                  variant="light"
+                  size="sm"
+                  onClick={() => setStatsModalOpened(true)}
+                >
+                  Stats
+                </Button>
+              </Tooltip>
             </Group>
 
             {unlimitedMode && (
@@ -401,14 +390,34 @@ const ForecastleGame = () => {
 
             {/* Instructional Text */}
             {scenarios.length > 0 && (
-              <Box>
-                <Text size="sm" fw={500} c="dimmed" ta="center" mb="xs">
-                  Make predictions on up to {scenarios.length} problems
+              <Stack gap="xs">
+                <Text size="sm" fw={500} c="dimmed">
+                  Make predictions on up to {scenarios.length} problems per day on Forecastle. Your statistics are aggregated.
                 </Text>
-                <Text size="md" fw={600} ta="center">
-                  Problem {currentChallengeIndex + 1}/{scenarios.length}: Predict {scenario?.dataset?.label || 'hospitalization'} in {scenario?.location?.name} ({scenario?.location?.abbreviation}) at {scenario?.forecastDate}
-                </Text>
-              </Box>
+                <Group gap="xs" wrap="wrap">
+                  <Text size="md" fw={600}>
+                    Problem {currentChallengeIndex + 1}/{scenarios.length}:
+                  </Text>
+                  <Text size="md" fw={500}>
+                    Predict
+                  </Text>
+                  <Badge size="md" variant="filled" color="blue" radius="sm">
+                    {scenario?.dataset?.label || 'hospitalization'}
+                  </Badge>
+                  <Text size="md" fw={500}>
+                    in
+                  </Text>
+                  <Badge size="md" variant="filled" color="grape" radius="sm">
+                    {scenario?.location?.name} ({scenario?.location?.abbreviation})
+                  </Badge>
+                  <Text size="md" fw={500}>
+                    at
+                  </Text>
+                  <Badge size="md" variant="filled" color="teal" radius="sm">
+                    {scenario?.forecastDate}
+                  </Badge>
+                </Group>
+              </Stack>
             )}
 
             {/* Challenge Progress Indicators */}
