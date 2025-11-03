@@ -289,6 +289,7 @@ export function useRespilensStats(refreshTrigger) {
       averagePercentDiffEnsemble,
       gameHistory: gameStats
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]); // Recalculates when refreshTrigger changes
 
   return stats;
