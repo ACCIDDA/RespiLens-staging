@@ -46,7 +46,7 @@ const addWeeksToDate = (dateString, weeks) => {
 };
 
 const ForecastleGame = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   // Get play_date from URL parameter (secret feature for populating history)
   const playDate = searchParams.get('play_date') || null;
