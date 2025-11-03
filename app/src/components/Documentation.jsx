@@ -17,7 +17,6 @@ import { useClipboard } from '@mantine/hooks';
 import { 
   IconBinaryTree, 
   IconClipboard, 
-  IconChartScatter, 
   IconTransformFilled,
   IconCopy,
   IconCheck,
@@ -64,12 +63,12 @@ const GlossaryTable = () => {
 const projectionsJsonData = {
   "metadata": { "location": "37", "abbreviation": "NC", "location_name": "North Carolina", "population": 10488084, "dataset": "pathogen forecast hub", "series_type": "projection", "hubverse_keys": { "models": ["model_name", "another_model_name", "..."], "targets": ["target_name_1", "target_name_2"], "horizons": ["0", "1", "..."], "output_types": ["quantile", "pmf"] }},
   "ground_truth": { "dates": ["YYYY-MM-DD1", "YYYY-MM-DD2", "..."], "target_name_1": [1, 2, 3], "target_name_2": [4, 5, 6] },
-  "forecasts": { "YYYY-MM-DD1": { "target_name_1": { "model_name": { "type": "quantile", "predictions": { "0": { "date": "YYYY-MM-DD1", "quantiles": [0.025, 0.25, 0.5, 0.75, 0.975], "values": [42.0, 12.3, 45.6, 78.9, 100] }, "1": {} }}}}}
+  "forecasts": { "YYYY-MM-DD1": { "target_name_1": { "model_name": { "type": "quantile", "predictions": { "0": { "date": "YYYY-MM-DD1", "quantiles": [0.025, 0.25, 0.5, 0.75, 0.975], "values": [42.0, 12.3, 45.6, 78.9, 100] }, "1": { "date": "YYYY-MM-DD2", "quantiles": [0.025, 0.25, 0.5, 0.75, 0.975], "values": [42.0, 12.3, 45.6, 78.9, 100] } }}}}}
 }
 
 const timeseriesJsonData = {
   "metadata": { "location": "37", "abbreviation": "NC", "location_name": "North Carolina", "population": 10488084, "dataset": "NHSN", "series_type": "timeseries" },
-  "series": { "dates": ["YYYY-MM-DD1", "YYYY-MM-DD2", "..."], "column_1": [1.0, 2.0, 3.0], "column_2": [4.0, 5.0, 6.0], "...": [0, 0, 0] }
+  "series": { "dates": ["YYYY-MM-DD1", "YYYY-MM-DD2", "..."], "column_1": [1.0, 2.0, 3.0], "column_2": [4.0, 5.0, 6.0], "...": [0.1, 0.2, 0.3] }
 }
 
 const CopyableCodeBlock = ({ code }) => {
@@ -126,7 +125,7 @@ const Documentation = () => {
               </div>
             </Group>
             <Text size="sm">
-              This page details the standardized JSON data models for the RespiLens platform (projections and timeseries), 
+              This page details how to play the Forecastle, the standardized JSON data models for the RespiLens platform (projections and timeseries), 
               as well as scripts that can be used to convert your data to RespiLens projections format.
               You can use the collapsible views to explore the architecture of each structure. Refer to the glossary at
               the bottom of the page for frequently-used RespiLens terms.
@@ -169,23 +168,6 @@ const Documentation = () => {
             {timeseriesJsonData && Object.keys(timeseriesJsonData).length > 0 && (
               <JsonView value={timeseriesJsonData} displayDataTypes={false} displayObjectSize={false} collapsed={1} enableClipboard={false} />
             )}
-          </Stack>
-        </Paper>
-
-        <Paper id="toy plot" shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Group gap="sm">
-              <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                <IconChartScatter size={20} />
-              </ThemeIcon>
-              <div>
-                <Title order={2}>toy plot</Title>
-                <Text size="sm" c="dimmed">
-                  Toggle the features of a toy RespiLens plot.
-                </Text>
-              </div>
-            </Group>
-            <Text>🚧 COMING SOON 🚧</Text>
           </Stack>
         </Paper>
 
@@ -248,7 +230,28 @@ const Documentation = () => {
                 </Text>
               </div>
             </Group>
-            <Text>🚧 COMING SOON 🚧</Text>
+            <Title order={4}>the goal 🎯</Title>
+            <Text>
+              The objective of the Forecastle is to accurately forecast a data series (e.g., incidents of hospitalization) for a specific location, date, and pathogen combination (one unique combination = one problem).
+              The Forecastle is a daily challenge, offering three problems per day. After completing a problem, you are scored based on a weighted interval score (WIS) against contributing models for that location and pathogen.
+              The primary Hub ensemble model is highlighted as a benchmark. Your performance on the Forecastle over time can be viewed on the "stats" page.
+            </Text>
+            <Title order={4}>the interface ⚙️</Title>
+            <Text>
+              Each problem in the Forecastle is played in a three-step process:
+            </Text>
+            <Text>
+              <strong>1. Set your medians</strong>
+            </Text>
+            <Text>First, you will be prompted to set median forecast numbers for three time horizons from the original date (one week out, two weeks out, three weeks out). You can set these either by dragging the points on the graph or by specifiying exact values using the box entries on the right. </Text>
+            <Text>
+              <strong>2. Set uncertainty intervals</strong>
+            </Text>
+            <Text>Next, you will be asked to set uncertainty intervals for your predictions. For each horizon, there will be a 95% and 50% confidence interval to be set (again using the drag feature on the graph or the manual entry in the dashboard on the right). These confidence intervals indicate at what range you have 95% confidence will contain the true observed values, and at what range you have 50% confidence will contain the true observed values.</Text>
+            <Text>
+              <strong>3. View scores (and see history) </strong>
+            </Text>
+            <Text>After submitting, RespiLens will give you your ranking for that problem (using WIS) against the contributing models. The Hub ensemble model for that pathogen will be highlighted, and WIS for each model's forecasts will be displayed. You can utilize buttons for 'Show Full History' to see all past observed values for that location/pathogen combination, 'Stats' to see your performance history with Forecastle, or the copy icon to share your scores. There are forward and backward navigation buttons at the bottom of the page to move through the game.</Text>
           </Stack>
         </Paper>
 
