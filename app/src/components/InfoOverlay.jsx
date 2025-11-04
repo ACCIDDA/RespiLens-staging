@@ -109,12 +109,12 @@ const InfoOverlay = () => {
           </Text>
 
           <List spacing="xs" size="sm">
-            <List.Item>URL-shareable views for specific forecasts</List.Item>
-            <List.Item>Weekly automatic updates</List.Item>
-            <List.Item>Multi-pathogen and multi-view</List.Item>
-            <List.Item>Multi-date comparison capability</List.Item>
-            <List.Item>Flexible model comparison</List.Item>
-            <List.Item>Responsive and mobile friendly (for some views)</List.Item>
+            <List.Item>URL-shareable views for specific forecast settings</List.Item>
+            <List.Item>Responsive and mobile-friendly site</List.Item>
+            <List.Item>Frequent and automatic site updates</List.Item>
+            <List.Item>Multi date, target, and model comparison</List.Item>
+            <List.Item>the Forecastle game!</List.Item>
+            <List.Item>MyRespiLens, a safe visualization tool for your own data</List.Item>
           </List>
 
           <div>
@@ -122,6 +122,7 @@ const InfoOverlay = () => {
             <List spacing="xs" size="sm">
               <List.Item>Scoring visualization and ability to select best models</List.Item>
               <List.Item>Model description on hover</List.Item>
+              <List.Item>Dynamic selection for model and location (only those reported appear for selection)</List.Item>
             </List>
           </div>
 
