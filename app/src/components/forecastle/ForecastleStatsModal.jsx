@@ -367,9 +367,6 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
 
                   {/* Summary stats */}
                   {pathogenStats.map((stat) => {
-                    const betterThanEnsemble = stat.averageWIS !== null && stat.averageEnsembleWIS !== null
-                      ? stat.averageWIS < stat.averageEnsembleWIS
-                      : null;
 
                     return (
                       <Paper key={stat.pathogen} p="sm" withBorder bg="gray.0">

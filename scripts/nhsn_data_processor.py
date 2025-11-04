@@ -13,7 +13,7 @@ import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from helper import NHSN_COLUMN_MASKS, get_location_info, LOCATIONS_MAP
+from helper import get_location_info, LOCATIONS_MAP
 
 logger = logging.getLogger(__name__)
 script_dir = os.path.dirname(__file__) 
@@ -45,7 +45,6 @@ class NHSNDataProcessor:
         # Get data set up 
         logger.info(f"Retrieving NHSN data from {self.data_url}...")
         data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()) # read from endpoint
-        # data = data[NHSN_COLUMN_MASKS['RAW_PATIENT_COUNTS']] # only include a specific subset of columns for plotting now 
         non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
         for col in data.columns:
             if col not in non_numeric_cols:
