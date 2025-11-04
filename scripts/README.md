@@ -5,7 +5,7 @@ In this `README.md`, you will find brief guides for primary [RespiLens](https://
 * [external_to_projections](#external_to_projections)
 * [process_RespiLens_data](#process_RespiLens_data)
 * [hub_dataset_processor](#hub_dataset_processor)
-* [nhsn_data_processor](#nhsn_dataset_processor)
+* [nhsn_data_processor](#nhsn_data_processor)
 * [helper](#helper)
 * [/processing](#Processing)
 
