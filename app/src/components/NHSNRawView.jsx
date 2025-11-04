@@ -8,19 +8,19 @@ import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import {
-  nhsnTargetsToColumnsMap, // slug = shortform
+  nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
-  nhsnSlugToNameMap   // { shortform: longform } map
+  nhsnSlugToNameMap,   // { shortform: longform } map
+  nhsnNameToPrettyNameMap // { longform: presentable name } map
 } from '../utils/mapUtils';
 
 
 const nhsnYAxisLabelMap = {
-  'Raw Patient Counts': 'Patient Count',
-  'Hospital Admission Rates': 'Rate per 100k',
-  'Hospital Admission Percents': 'Percent (%)',
-  'Raw Bed Capacity': 'Bed Count',
-  'Bed Capacity Percents': 'Percent (%)',
-  'Absolute Percent Change': 'Absolute Change (%)'
+  'Hospital Admissions (count)': 'Patient Count',
+  'Hospital Admissions (rates)': 'Rate per 100k',
+  'Hospital Admissions (%)': 'Percent (%)',
+  'Bed Capacity (count)': 'Bed Count',
+  'Bed Capacity (%))': 'Percent (%)'
 };
 
 const NHSNRawView = ({ location }) => {
@@ -293,6 +293,7 @@ const NHSNRawView = ({ location }) => {
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
+        nameMap={nhsnNameToPrettyNameMap}
       />
     </Stack>
   );
