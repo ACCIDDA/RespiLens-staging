@@ -187,9 +187,9 @@ const Documentation = () => {
             <Text>
               The RespiLens backend framework provides both an <Code>R</Code> and <Code>python</Code> pipeline
               for converting <Anchor href="https://hubverse.io/" target="_blank" rel="noopener noreferrer"> Hubverse</Anchor> <Code>.csv</Code> data to the RespiLens projections JSON format.
-              Once converted, this data can be used in the MyRespiLens feature. Running data conversion scripts assumes
-              a local clone of the <Anchor href="https://github.com/ACCIDDA/RespiLens-staging" target="_blank" rel="noopener noreferrer"> RespiLens-staging</Anchor> GitHub. 
-              All scripts are located in the <Code>scripts/</Code> directory of <Code>RespiLens-staging</Code>.
+              Once converted, this data can be used in the MyRespiLens feature. Running data conversion scripts assumes 
+              a local clone of the <Anchor href="https://github.com/ACCIDDA/RespiLens" target="_blank" rel="noopener noreferrer"> RespiLens</Anchor> GitHub repository. 
+              All scripts are located in the <Code>scripts/</Code> directory of <Code>RespiLens</Code>.
             </Text>
             <Text>
               <strong>Using <Code>external_to_projections.R</Code></strong> (run in <Code>scripts/</Code> directory):
@@ -203,15 +203,15 @@ const Documentation = () => {
             
             <Stack gap={2}>
               <Text>Where:</Text>
-              <Text><Code>--output-path</Code> is the absolute path to the directory where you would like converted data to be saved</Text>
-              <Text><Code>--data-path</Code> is the absolute path to data to be converted</Text>
-              <Text><Code>--target-data-path</Code> is the absolute path to corresponding ground truth data</Text>
-              <Text><Code>--locations-data-path</Code> is the absolute path to corresponding location metadata</Text>
+              <Text><Code>--output-path</Code> is the absolute path to the directory where you would like converted data to be saved.</Text>
+              <Text><Code>--data-path</Code> is the absolute path to <Code>.csv</Code> data to be converted. You can use your own data that complies withe the Hubverse format, or filter/use files in a hub's <Code>model-output</Code> directory.</Text>
+              <Text><Code>--target-data-path</Code> is the absolute path to corresponding ground truth data. This can be found as the <Code>time-series</Code> file in a hub's <Code>target-data</Code> directory.</Text>
+              <Text><Code>--locations-data-path</Code> is the absolute path to corresponding location metadata (<Code>locations.csv</Code>). This can be found in the RespiLens <Code>scripts/</Code> directory, or in a hub's <Code>auxiliary-data</Code> directory.</Text>
               <Text>and <Code>--pathogen</Code> is the pathogen the hub data describes (flu, covid, or rsv).</Text>
             </Stack>
             
             <Text>
-              Once converted, individual projections JSON files can be drag'n'dropped into MyRespiLens. 
+              Once converted, individual projections JSON files can be drag-n-dropped into MyRespiLens. 
             </Text>
             <Text><strong> Note: MyRespiLens does not work for RespiLens timeseries data.</strong></Text>
           </Stack>
@@ -230,24 +230,24 @@ const Documentation = () => {
                 </Text>
               </div>
             </Group>
-            <Title order={4}>the goal 🎯</Title>
+            <Title order={3}>the goal 🎯</Title>
             <Text>
               The objective of the Forecastle is to accurately forecast a data series (e.g., incidents of hospitalization) for a specific location, date, and pathogen combination (one unique combination = one problem).
               The Forecastle is a daily challenge, offering three problems per day. After completing a problem, you are scored based on a weighted interval score (WIS) against contributing models for that location and pathogen.
               The primary Hub ensemble model is highlighted as a benchmark. Your performance on the Forecastle over time can be viewed on the "stats" page.
             </Text>
-            <Title order={4}>the interface ⚙️</Title>
+            <Title order={3}>the interface ⚙️</Title>
             <Text>
               Each problem in the Forecastle is played in a three-step process:
             </Text>
             <Text>
               <strong>1. Set your medians</strong>
             </Text>
-            <Text>First, you will be prompted to set median forecast numbers for three time horizons from the original date (one week out, two weeks out, three weeks out). You can set these either by dragging the points on the graph or by specifiying exact values using the box entries on the right. </Text>
+            <Text>First, you will be prompted to set median forecast numbers for three time horizons from the original date (one week out, two weeks out, three weeks out). You can set these either by dragging the points on the graph or by specifiying exact values using the box entries.</Text>
             <Text>
               <strong>2. Set uncertainty intervals</strong>
             </Text>
-            <Text>Next, you will be asked to set uncertainty intervals for your predictions. For each horizon, there will be a 95% and 50% confidence interval to be set (again using the drag feature on the graph or the manual entry in the dashboard on the right). These confidence intervals indicate at what range you have 95% confidence will contain the true observed values, and at what range you have 50% confidence will contain the true observed values.</Text>
+            <Text>Next, you will be asked to set uncertainty intervals for your predictions. For each horizon, there will be a 95% and 50% confidence interval to be set (again using the drag feature on the graph or by manual entry). These confidence intervals indicate what range you are 95% confident will contain the true observed values, and what range you are 50% confident will contain the true observed values.</Text>
             <Text>
               <strong>3. View scores (and see history) </strong>
             </Text>
