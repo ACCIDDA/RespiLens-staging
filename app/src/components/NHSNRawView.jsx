@@ -123,10 +123,10 @@ const NHSNRawView = ({ location }) => {
     }
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
     const filtered = allDataColumns.filter(col => columnsForTarget.includes(col));
-    
+
     setFilteredAvailableColumns(filtered);
 
-    // Read slugs and convert them to full names 
+    // Read slugs and convert them to full names
     const urlSlugs = searchParams.getAll('nhsn_cols');
     const validUrlCols = urlSlugs
       .map(slug => nhsnSlugToNameMap[slug]) // Convert slug TO full name
@@ -135,11 +135,12 @@ const NHSNRawView = ({ location }) => {
     if (validUrlCols.length > 0) {
       setSelectedColumns(validUrlCols);
     } else if (filtered.length > 0) {
-      setSelectedColumns([filtered[0]]); 
+      setSelectedColumns([filtered[0]]);
     } else {
       setSelectedColumns([]);
     }
-  }, [loading, selectedTarget, allDataColumns, searchParams]); // Runs when target is set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selectedTarget, allDataColumns]); // Runs when target is set - removed searchParams to prevent loop
 
 
   useEffect(() => {
@@ -154,13 +155,13 @@ const NHSNRawView = ({ location }) => {
     if (selectedTarget && selectedTarget !== defaultTarget) {
       newParams.set('nhsn_target', selectedTarget);
     } else {
-      newParams.delete('nhsn_target'); 
+      newParams.delete('nhsn_target');
     }
 
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
     const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
     const defaultColumns = filteredCols.length > 0 ? [filteredCols[0]] : [];
-    
+
     const sortedSelected = [...selectedColumns].sort();
     const sortedDefault = [...defaultColumns].sort();
 
@@ -177,8 +178,8 @@ const NHSNRawView = ({ location }) => {
     if (newParams.toString() !== searchParams.toString()) {
       setSearchParams(newParams, { replace: true });
     }
-
-  }, [selectedTarget, selectedColumns, allDataColumns, availableTargets, loading, searchParams, setSearchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTarget, selectedColumns, allDataColumns, availableTargets, loading]); // Removed searchParams/setSearchParams to prevent loop
 
 
   const calculateNHSNYRange = () => {
