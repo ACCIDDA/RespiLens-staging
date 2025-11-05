@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Accordion, Group, NumberInput, RangeSlider, Stack, Text, Slider } from '@mantine/core';
+import { Accordion, Group, NumberInput, RangeSlider, Stack, Text, Slider, SegmentedControl } from '@mantine/core';
 
 const formatHorizonLabel = (horizon) => {
   if (horizon === 1) return '1 week ahead';
@@ -38,19 +38,23 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
   };
 
   const autoParams = useMemo(calculateAutoIntervalParams, [entries]);
+  const [intervalMode, setIntervalMode] = useState('auto'); // 'auto' or 'manual'
   const [width50, setWidth50] = useState(autoParams.width50);
   const [growth50, setGrowth50] = useState(autoParams.growth50);
   const [additionalWidth95, setAdditionalWidth95] = useState(autoParams.additionalWidth95);
   const [additionalGrowth95, setAdditionalGrowth95] = useState(autoParams.additionalGrowth95);
+  const [isSliding, setIsSliding] = useState(false); // Track if user is actively sliding
 
-  // Update state when entries change (e.g., when median changes or intervals reset)
+  // Update state when entries change, but only if not currently sliding and in auto mode
   useEffect(() => {
-    const params = calculateAutoIntervalParams();
-    setWidth50(params.width50);
-    setGrowth50(params.growth50);
-    setAdditionalWidth95(params.additionalWidth95);
-    setAdditionalGrowth95(params.additionalGrowth95);
-  }, [entries]);
+    if (!isSliding && intervalMode === 'auto') {
+      const params = calculateAutoIntervalParams();
+      setWidth50(params.width50);
+      setGrowth50(params.growth50);
+      setAdditionalWidth95(params.additionalWidth95);
+      setAdditionalGrowth95(params.additionalGrowth95);
+    }
+  }, [entries, isSliding, intervalMode]);
 
   const updateEntry = (index, field, value) => {
     const nextEntries = entries.map((entry, idx) => {
@@ -154,211 +158,232 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
   // In intervals mode, show auto interval controls + advanced section
   return (
     <Stack gap="lg">
-      {/* Auto Interval Controls */}
-      <Stack gap="md">
-        <Text size="sm" fw={600}>Auto Interval</Text>
+      {/* Mode Toggle */}
+      <SegmentedControl
+        value={intervalMode}
+        onChange={setIntervalMode}
+        data={[
+          { label: 'Auto Interval', value: 'auto' },
+          { label: 'Manual Controls', value: 'manual' },
+        ]}
+        fullWidth
+        color="blue"
+        size="sm"
+      />
 
-        {/* 50% Interval Auto Controls */}
-        <Stack gap="xs">
-          <Group justify="space-between" align="center">
-            <Text size="xs" fw={500} c="dimmed">50% Interval Width</Text>
-            <Text size="xs" fw={600}>{Math.round(width50)}</Text>
-          </Group>
-          <Slider
-            value={width50}
-            onChange={(val) => {
-              setWidth50(val);
-              applyAutoInterval(val, growth50, additionalWidth95, additionalGrowth95);
-            }}
-            min={0}
-            max={sliderMax / 2}
-            step={1}
-            color="pink"
-            size="md"
-            disabled={disabled}
-            marks={[
-              { value: 0, label: '0' },
-              { value: sliderMax / 4, label: `${Math.round(sliderMax / 4)}` },
-              { value: sliderMax / 2, label: `${Math.round(sliderMax / 2)}` },
-            ]}
-          />
+      {intervalMode === 'auto' ? (
+        /* Auto Interval Controls */
+        <Stack gap="md">
+          <Text size="sm" fw={600}>Auto Interval</Text>
+
+          {/* 50% Interval Auto Controls */}
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text size="xs" fw={500} c="dimmed">50% Interval Width</Text>
+              <Text size="xs" fw={600}>{Math.round(width50)}</Text>
+            </Group>
+            <Slider
+              value={width50}
+              onChange={(val) => {
+                setWidth50(val);
+                applyAutoInterval(val, growth50, additionalWidth95, additionalGrowth95);
+              }}
+              onChangeEnd={() => setIsSliding(false)}
+              onMouseDown={() => setIsSliding(true)}
+              onTouchStart={() => setIsSliding(true)}
+              min={0}
+              max={sliderMax / 2}
+              step={1}
+              color="pink"
+              size="md"
+              disabled={disabled}
+              marks={[
+                { value: 0, label: '0' },
+                { value: sliderMax / 4, label: `${Math.round(sliderMax / 4)}` },
+                { value: sliderMax / 2, label: `${Math.round(sliderMax / 2)}` },
+              ]}
+            />
+          </Stack>
+
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text size="xs" fw={500} c="dimmed">50% Growth per Week</Text>
+              <Text size="xs" fw={600}>{Math.round(growth50 * 10) / 10}</Text>
+            </Group>
+            <Slider
+              value={growth50}
+              onChange={(val) => {
+                setGrowth50(val);
+                applyAutoInterval(width50, val, additionalWidth95, additionalGrowth95);
+              }}
+              onChangeEnd={() => setIsSliding(false)}
+              onMouseDown={() => setIsSliding(true)}
+              onTouchStart={() => setIsSliding(true)}
+              min={-50}
+              max={100}
+              step={1}
+              color="pink"
+              size="md"
+              disabled={disabled}
+              marks={[
+                { value: -50, label: '-50' },
+                { value: 0, label: '0' },
+                { value: 50, label: '50' },
+                { value: 100, label: '100' },
+              ]}
+            />
+          </Stack>
+
+          {/* 95% Additional Width (beyond 50%) */}
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text size="xs" fw={500} c="dimmed">95% Additional Width (beyond 50%)</Text>
+              <Text size="xs" fw={600}>{Math.round(additionalWidth95)}</Text>
+            </Group>
+            <Slider
+              value={additionalWidth95}
+              onChange={(val) => {
+                setAdditionalWidth95(val);
+                applyAutoInterval(width50, growth50, val, additionalGrowth95);
+              }}
+              onChangeEnd={() => setIsSliding(false)}
+              onMouseDown={() => setIsSliding(true)}
+              onTouchStart={() => setIsSliding(true)}
+              min={0}
+              max={sliderMax / 2}
+              step={1}
+              color="red"
+              size="md"
+              disabled={disabled}
+              marks={[
+                { value: 0, label: '0' },
+                { value: sliderMax / 4, label: `${Math.round(sliderMax / 4)}` },
+                { value: sliderMax / 2, label: `${Math.round(sliderMax / 2)}` },
+              ]}
+            />
+          </Stack>
+
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text size="xs" fw={500} c="dimmed">95% Additional Growth per Week</Text>
+              <Text size="xs" fw={600}>{Math.round(additionalGrowth95 * 10) / 10}</Text>
+            </Group>
+            <Slider
+              value={additionalGrowth95}
+              onChange={(val) => {
+                setAdditionalGrowth95(val);
+                applyAutoInterval(width50, growth50, additionalWidth95, val);
+              }}
+              onChangeEnd={() => setIsSliding(false)}
+              onMouseDown={() => setIsSliding(true)}
+              onTouchStart={() => setIsSliding(true)}
+              min={-50}
+              max={100}
+              step={1}
+              color="red"
+              size="md"
+              disabled={disabled}
+              marks={[
+                { value: -50, label: '-50' },
+                { value: 0, label: '0' },
+                { value: 50, label: '50' },
+                { value: 100, label: '100' },
+              ]}
+            />
+          </Stack>
+
+          {/* Preview of applied intervals */}
+          <Stack gap="xs" mt="md">
+            <Text size="xs" fw={500} c="dimmed">Preview</Text>
+            <Group gap="xs" wrap="wrap">
+              {entries.map((entry) => (
+                <Stack key={entry.horizon} gap={2} style={{ minWidth: 90 }}>
+                  <Text size="xs" c="dimmed" ta="center">
+                    {formatHorizonLabel(entry.horizon)}
+                  </Text>
+                  <Text size="xs" fw={500} ta="center" c="pink.7">
+                    50%: [{Math.round(entry.lower50)}, {Math.round(entry.upper50)}]
+                  </Text>
+                  <Text size="xs" fw={500} ta="center" c="red.7">
+                    95%: [{Math.round(entry.lower95)}, {Math.round(entry.upper95)}]
+                  </Text>
+                </Stack>
+              ))}
+            </Group>
+          </Stack>
         </Stack>
-
-        <Stack gap="xs">
-          <Group justify="space-between" align="center">
-            <Text size="xs" fw={500} c="dimmed">50% Growth per Week</Text>
-            <Text size="xs" fw={600}>{Math.round(growth50 * 10) / 10}</Text>
-          </Group>
-          <Slider
-            value={growth50}
-            onChange={(val) => {
-              setGrowth50(val);
-              applyAutoInterval(width50, val, additionalWidth95, additionalGrowth95);
-            }}
-            min={-50}
-            max={100}
-            step={1}
-            color="pink"
-            size="md"
-            disabled={disabled}
-            marks={[
-              { value: -50, label: '-50' },
-              { value: 0, label: '0' },
-              { value: 50, label: '50' },
-              { value: 100, label: '100' },
-            ]}
-          />
-        </Stack>
-
-        {/* 95% Additional Width (beyond 50%) */}
-        <Stack gap="xs">
-          <Group justify="space-between" align="center">
-            <Text size="xs" fw={500} c="dimmed">95% Additional Width (beyond 50%)</Text>
-            <Text size="xs" fw={600}>{Math.round(additionalWidth95)}</Text>
-          </Group>
-          <Slider
-            value={additionalWidth95}
-            onChange={(val) => {
-              setAdditionalWidth95(val);
-              applyAutoInterval(width50, growth50, val, additionalGrowth95);
-            }}
-            min={0}
-            max={sliderMax / 2}
-            step={1}
-            color="red"
-            size="md"
-            disabled={disabled}
-            marks={[
-              { value: 0, label: '0' },
-              { value: sliderMax / 4, label: `${Math.round(sliderMax / 4)}` },
-              { value: sliderMax / 2, label: `${Math.round(sliderMax / 2)}` },
-            ]}
-          />
-        </Stack>
-
-        <Stack gap="xs">
-          <Group justify="space-between" align="center">
-            <Text size="xs" fw={500} c="dimmed">95% Additional Growth per Week</Text>
-            <Text size="xs" fw={600}>{Math.round(additionalGrowth95 * 10) / 10}</Text>
-          </Group>
-          <Slider
-            value={additionalGrowth95}
-            onChange={(val) => {
-              setAdditionalGrowth95(val);
-              applyAutoInterval(width50, growth50, additionalWidth95, val);
-            }}
-            min={-50}
-            max={100}
-            step={1}
-            color="red"
-            size="md"
-            disabled={disabled}
-            marks={[
-              { value: -50, label: '-50' },
-              { value: 0, label: '0' },
-              { value: 50, label: '50' },
-              { value: 100, label: '100' },
-            ]}
-          />
-        </Stack>
-
-        {/* Preview of applied intervals */}
-        <Stack gap="xs" mt="md">
-          <Text size="xs" fw={500} c="dimmed">Preview</Text>
-          <Group gap="xs" wrap="wrap">
-            {entries.map((entry) => (
-              <Stack key={entry.horizon} gap={2} style={{ minWidth: 90 }}>
-                <Text size="xs" c="dimmed" ta="center">
+      ) : (
+        /* Manual - Detailed Sliders */
+        <Stack gap="md">
+          <Text size="sm" fw={600} mb="xs">Manual Controls</Text>
+          <Group align="flex-start" gap="lg" wrap="wrap">
+            {entries.map((entry, index) => (
+              <Stack key={entry.horizon} gap="xs" style={{ minWidth: 200 }}>
+                <Text size="sm" fw={600} ta="center">
                   {formatHorizonLabel(entry.horizon)}
                 </Text>
-                <Text size="xs" fw={500} ta="center" c="pink.7">
-                  50%: [{Math.round(entry.lower50)}, {Math.round(entry.upper50)}]
+
+                <Text size="xs" c="dimmed" ta="center">
+                  Median: <Text component="span" fw={600}>{Math.round(entry.median)}</Text>
                 </Text>
-                <Text size="xs" fw={500} ta="center" c="red.7">
-                  95%: [{Math.round(entry.lower95)}, {Math.round(entry.upper95)}]
-                </Text>
+
+                {/* 95% Interval - Two-point range slider */}
+                <Stack gap={4}>
+                  <Group justify="space-between">
+                    <Text size="xs" c="dimmed">95% Interval</Text>
+                    <Text size="xs" fw={500}>
+                      [{Math.round(entry.lower95)}, {Math.round(entry.upper95)}]
+                    </Text>
+                  </Group>
+                  <RangeSlider
+                    value={[entry.lower95, entry.upper95]}
+                    onChange={(val) => updateEntry(index, 'interval95', val)}
+                    min={0}
+                    max={sliderMax}
+                    step={1}
+                    color="red"
+                    size="sm"
+                    minRange={0}
+                    disabled={disabled}
+                    marks={[
+                      { value: 0, label: '0' },
+                      { value: entry.median, label: `${Math.round(entry.median)}` },
+                      { value: sliderMax, label: `${Math.round(sliderMax)}` },
+                    ]}
+                  />
+                  <Text size="xs" c="dimmed" ta="center">
+                    Range: {Math.round(entry.upper95 - entry.lower95)}
+                  </Text>
+                </Stack>
+
+                {/* 50% Interval - Two-point range slider */}
+                <Stack gap={4}>
+                  <Group justify="space-between">
+                    <Text size="xs" c="dimmed">50% Interval</Text>
+                    <Text size="xs" fw={500}>
+                      [{Math.round(entry.lower50)}, {Math.round(entry.upper50)}]
+                    </Text>
+                  </Group>
+                  <RangeSlider
+                    value={[entry.lower50, entry.upper50]}
+                    onChange={(val) => updateEntry(index, 'interval50', val)}
+                    min={entry.lower95}
+                    max={entry.upper95}
+                    step={1}
+                    color="pink"
+                    size="sm"
+                    minRange={0}
+                    disabled={disabled}
+                  />
+                  <Text size="xs" c="dimmed" ta="center">
+                    Range: {Math.round(entry.upper50 - entry.lower50)}
+                  </Text>
+                </Stack>
               </Stack>
             ))}
           </Group>
         </Stack>
-      </Stack>
-
-      {/* Advanced - Detailed Sliders */}
-      <Accordion variant="contained">
-        <Accordion.Item value="advanced">
-          <Accordion.Control>
-            <Text size="sm" fw={600}>Advanced Controls</Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Group align="flex-start" gap="lg" wrap="wrap">
-              {entries.map((entry, index) => (
-                <Stack key={entry.horizon} gap="xs" style={{ minWidth: 200 }}>
-                  <Text size="sm" fw={600} ta="center">
-                    {formatHorizonLabel(entry.horizon)}
-                  </Text>
-
-                  <Text size="xs" c="dimmed" ta="center">
-                    Median: <Text component="span" fw={600}>{Math.round(entry.median)}</Text>
-                  </Text>
-
-                  {/* 95% Interval - Two-point range slider */}
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">95% Interval</Text>
-                      <Text size="xs" fw={500}>
-                        [{Math.round(entry.lower95)}, {Math.round(entry.upper95)}]
-                      </Text>
-                    </Group>
-                    <RangeSlider
-                      value={[entry.lower95, entry.upper95]}
-                      onChange={(val) => updateEntry(index, 'interval95', val)}
-                      min={0}
-                      max={sliderMax}
-                      step={1}
-                      color="red"
-                      size="sm"
-                      minRange={0}
-                      disabled={disabled}
-                      marks={[
-                        { value: 0, label: '0' },
-                        { value: entry.median, label: `${Math.round(entry.median)}` },
-                        { value: sliderMax, label: `${Math.round(sliderMax)}` },
-                      ]}
-                    />
-                    <Text size="xs" c="dimmed" ta="center">
-                      Range: {Math.round(entry.upper95 - entry.lower95)}
-                    </Text>
-                  </Stack>
-
-                  {/* 50% Interval - Two-point range slider */}
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">50% Interval</Text>
-                      <Text size="xs" fw={500}>
-                        [{Math.round(entry.lower50)}, {Math.round(entry.upper50)}]
-                      </Text>
-                    </Group>
-                    <RangeSlider
-                      value={[entry.lower50, entry.upper50]}
-                      onChange={(val) => updateEntry(index, 'interval50', val)}
-                      min={entry.lower95}
-                      max={entry.upper95}
-                      step={1}
-                      color="pink"
-                      size="sm"
-                      minRange={0}
-                      disabled={disabled}
-                    />
-                    <Text size="xs" c="dimmed" ta="center">
-                      Range: {Math.round(entry.upper50 - entry.lower50)}
-                    </Text>
-                  </Stack>
-                </Stack>
-              ))}
-            </Group>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+      )}
     </Stack>
   );
 };
