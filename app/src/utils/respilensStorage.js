@@ -9,6 +9,16 @@
 const STORAGE_KEY = 'respilens_forecastle_games';
 
 /**
+ * Round a number to 3 decimal places
+ * @param {number} value - Number to round
+ * @returns {number} Rounded number
+ */
+function roundTo3Decimals(value) {
+  if (!Number.isFinite(value)) return value;
+  return Math.round(value * 1000) / 1000;
+}
+
+/**
  * Check if localStorage is available
  * @returns {boolean} True if localStorage is available
  */
@@ -106,13 +116,13 @@ export function saveForecastleGame(gameData) {
       target: gameData.target,
       userForecasts: gameData.userForecasts.map(f => ({
         horizon: f.horizon,
-        median: f.median,
-        lower95: f.lower95,
-        upper95: f.upper95,
-        lower50: f.lower50,
-        upper50: f.upper50
+        median: roundTo3Decimals(f.median),
+        lower95: roundTo3Decimals(f.lower95),
+        upper95: roundTo3Decimals(f.upper95),
+        lower50: roundTo3Decimals(f.lower50),
+        upper50: roundTo3Decimals(f.upper50)
       })),
-      groundTruth: gameData.groundTruth,
+      groundTruth: gameData.groundTruth.map(v => roundTo3Decimals(v)),
       horizonDates: gameData.horizonDates
     };
 
