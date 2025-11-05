@@ -57,34 +57,8 @@ function roundToDecimals(value, decimals) {
 }
 
 /**
- * Round WIS-related fields in a game object to 3 decimal places
- * @param {Object} game - Game object to process
- * @returns {Object} Game object with rounded WIS values
- */
-function roundGameWISValues(game) {
-  return {
-    ...game,
-    // User scores
-    userWIS: roundToDecimals(game.userWIS, 3),
-    userDispersion: roundToDecimals(game.userDispersion, 3),
-    userUnderprediction: roundToDecimals(game.userUnderprediction, 3),
-    userOverprediction: roundToDecimals(game.userOverprediction, 3),
-    // Ensemble scores
-    ensembleWIS: roundToDecimals(game.ensembleWIS, 3),
-    ensembleDispersion: roundToDecimals(game.ensembleDispersion, 3),
-    ensembleUnderprediction: roundToDecimals(game.ensembleUnderprediction, 3),
-    ensembleOverprediction: roundToDecimals(game.ensembleOverprediction, 3),
-    // Baseline scores
-    baselineWIS: roundToDecimals(game.baselineWIS, 3),
-    baselineDispersion: roundToDecimals(game.baselineDispersion, 3),
-    baselineUnderprediction: roundToDecimals(game.baselineUnderprediction, 3),
-    baselineOverprediction: roundToDecimals(game.baselineOverprediction, 3),
-  };
-}
-
-/**
  * Get all stored Forecastle games
- * @returns {Array} Array of game objects (with WIS values rounded to 3 decimals)
+ * @returns {Array} Array of game objects
  */
 export function getForecastleGames() {
   if (!isLocalStorageAvailable()) {
@@ -102,10 +76,8 @@ export function getForecastleGames() {
       return [];
     }
 
-    // Filter out invalid games and round WIS values to 3 decimals
-    return parsed
-      .filter(game => isValidGame(game))
-      .map(game => roundGameWISValues(game));
+    // Filter out invalid games
+    return parsed.filter(game => isValidGame(game));
   } catch (error) {
     console.error('Error reading Forecastle games from localStorage:', error);
     return [];
@@ -256,12 +228,11 @@ export function clearForecastleGames() {
 }
 
 /**
- * Export all game data as JSON (with WIS values rounded to 3 decimals)
+ * Export all game data as JSON
  * @returns {string} JSON string of all games
  */
 export function exportForecastleData() {
   const games = getForecastleGames();
-  // getForecastleGames already rounds WIS values to 3 decimal places
   return JSON.stringify(games, null, 2);
 }
 
