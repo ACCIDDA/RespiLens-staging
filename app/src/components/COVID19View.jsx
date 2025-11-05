@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useMantineColorScheme, Stack, Text, Tooltip } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import LastUpdated from './LastUpdated';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-
-dayjs.extend(relativeTime);
 
 const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -241,23 +238,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     }]
   }), [getDefaultRange, projectionsData, calculateYRange, setYAxisRange]);
 
-  const lastUpdatedTimestamp = metadata?.last_updated;
-  let relativeTime = null;
-  let fullTimestamp = null;
-  if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp);
-    relativeTime = dayjs(lastUpdatedTimestamp).fromNow();
-    fullTimestamp = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZoneName: 'short'
-    });
-  }
   if (!selectedTarget) {
     return (
         <Stack align="center" justify="center" style={{ height: '300px' }}>
@@ -268,13 +248,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   return (
     <Stack>
-      {relativeTime && (
-        <Text size="xs" c="dimmed" ta="right">
-          last updated: <Tooltip label={fullTimestamp} position="left" withArrow>
-            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{relativeTime}</span>
-          </Tooltip>
-        </Text>
-      )}
+      <LastUpdated timestamp={metadata?.last_updated} />
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}

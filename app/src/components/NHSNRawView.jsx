@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select, Tooltip } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
+import LastUpdated from './LastUpdated';
 import { MODEL_COLORS } from '../config/datasets';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-
-dayjs.extend(relativeTime);
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -247,33 +244,9 @@ const NHSNRawView = ({ location }) => {
     margin: { t: 40, r: 10, l: 60, b: 120 }
   };
 
-  const lastUpdatedTimestamp = metadata?.last_updated;
-  let relativeTime = null;
-  let fullTimestamp = null;
-  if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp);
-    relativeTime = dayjs(lastUpdatedTimestamp).fromNow();
-    fullTimestamp = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZoneName: 'short'
-    });
-  }
-
   return (
     <Stack gap="md" w="100%">
-      {relativeTime && (
-        <Text size="xs" c="dimmed" ta="right">
-          last updated: <Tooltip label={fullTimestamp} position="left" withArrow>
-            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{relativeTime}</span>
-          </Tooltip>
-        </Text>
-      )}
+      <LastUpdated timestamp={metadata?.last_updated} />
 
       <Select
         label="Select a timeseries unit"
