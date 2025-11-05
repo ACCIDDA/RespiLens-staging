@@ -221,6 +221,11 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       icon: Plotly.Icons.home,
       click: function(gd) {
         const range = getDefaultRange(); // Smart default: selected dates ± context weeks
+        const fullRange = getDefaultRange(true); // Full extent for rangeslider
+        console.log('RSV Reset clicked - Smart default range:', range);
+        console.log('RSV Reset clicked - Full range:', fullRange);
+        console.log('RSV Reset clicked - Current xAxisRange:', xAxisRange);
+
         if (range && projectionsData.length > 0) {
           const newYRange = calculateYRange(projectionsData, range);
           // Set flag to prevent onRelayout from capturing this programmatic change
@@ -233,6 +238,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
             'yaxis.range': newYRange,
             'yaxis.autorange': newYRange === null,
           };
+          console.log('RSV Calling Plotly.relayout with:', update);
           Plotly.relayout(gd, update);
         } else if (range) {
           isResettingRef.current = true;
