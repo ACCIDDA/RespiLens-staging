@@ -261,7 +261,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
 
   // Generate Wordle-style shareable summary
   const generateShareSummary = () => {
-    const lines = ['Forecastle Stats 📊\n'];
+    const lines = ['RespiLens.com/forecastle Stats 📊\n'];
 
     pathogenStats.forEach(stat => {
       const pathogenLabel = getDatasetLabel(stat.pathogen);
@@ -288,17 +288,38 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
 
       lines.push(`\n${pathogenLabel} (${stat.count} games)`);
 
-      // Coverage with emoji, percentage, and counts
-      const coverage95Text = coverage95 !== null
-        ? `${coverage95Emoji} ${coverage95}% (${stat.coverage95Count}/${stat.coverage95Total})`
-        : `${coverage95Emoji} N/A`;
-      const coverage50Text = coverage50 !== null
-        ? `${coverage50Emoji} ${coverage50}% (${stat.coverage50Count}/${stat.coverage50Total})`
-        : `${coverage50Emoji} N/A`;
-      lines.push(`Coverage: 95%: ${coverage95Text} | 50%: ${coverage50Text}`);
+      // Coverage - only show if not N/A
+      if (coverage95 !== null || coverage50 !== null) {
+        const coverage95Text = coverage95 !== null
+          ? `${coverage95Emoji} ${coverage95}% (${stat.coverage95Count}/${stat.coverage95Total})`
+          : null;
+        const coverage50Text = coverage50 !== null
+          ? `${coverage50Emoji} ${coverage50}% (${stat.coverage50Count}/${stat.coverage50Total})`
+          : null;
 
-      // Beat ensemble - just numbers
-      lines.push(`Beat Ensemble: ${stat.beatEnsembleCount}/${stat.ensembleGamesCount}`);
+        const coverageParts = [];
+        if (coverage95Text) coverageParts.push(`95%: ${coverage95Text}`);
+        if (coverage50Text) coverageParts.push(`50%: ${coverage50Text}`);
+
+        if (coverageParts.length > 0) {
+          lines.push(`Coverage: ${coverageParts.join(' | ')}`);
+        }
+      }
+
+      // Beat ensemble with emojis
+      const beatPercent = stat.ensembleGamesCount > 0
+        ? Math.round((stat.beatEnsembleCount / stat.ensembleGamesCount) * 100)
+        : null;
+
+      let ensembleEmoji = '😐';
+      if (beatPercent !== null) {
+        if (beatPercent >= 75) ensembleEmoji = '😎'; // Crushing it
+        else if (beatPercent >= 50) ensembleEmoji = '😊'; // Beating ensemble
+        else if (beatPercent >= 25) ensembleEmoji = '🙂'; // Competitive
+        else ensembleEmoji = '😅'; // Room to grow
+      }
+
+      lines.push(`Beat Ensemble: ${ensembleEmoji} ${stat.beatEnsembleCount}/${stat.ensembleGamesCount}`);
     });
 
     return lines.join('\n');
@@ -323,11 +344,22 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
       opened={opened}
       onClose={onClose}
       title={
-        <Group gap="xs">
-          <IconChartBar size={24} />
-          <Text size="lg" fw={700}>
-            Your Forecastle Statistics
-          </Text>
+        <Group gap="xs" justify="space-between" style={{ width: '100%', paddingRight: '40px' }}>
+          <Group gap="xs">
+            <IconChartBar size={24} />
+            <Text size="lg" fw={700}>
+              Your Forecastle Statistics
+            </Text>
+          </Group>
+          <Button
+            variant="light"
+            size="sm"
+            onClick={handleCopyStats}
+            leftSection={copied ? <IconCheckCircle size={16} /> : <IconCopy size={16} />}
+            color={copied ? "teal" : "blue"}
+          >
+            {copied ? 'Copied!' : 'Share'}
+          </Button>
         </Group>
       }
       size="xl"
@@ -371,19 +403,6 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                 />
               </Grid.Col>
             </Grid>
-
-            {/* Share Button */}
-            <Group justify="center">
-              <Button
-                variant="light"
-                size="md"
-                onClick={handleCopyStats}
-                leftSection={copied ? <IconCheckCircle size={18} /> : <IconCopy size={18} />}
-                color={copied ? "teal" : "blue"}
-              >
-                {copied ? 'Copied!' : 'Share'}
-              </Button>
-            </Group>
 
             {/* Interval Coverage */}
             <Paper p="md" withBorder>
