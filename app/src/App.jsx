@@ -1,6 +1,7 @@
 // src/App.jsx
 
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { ViewProvider } from './contexts/ViewContext';
 import { useView } from './hooks/useView';
 import ForecastViz from './components/ForecastViz';
@@ -47,12 +48,14 @@ const AppLayout = () => {
 
 const App = () => {
   return (
-    <Router>
-      {/* The ViewProvider now wraps everything, making the context available to all components */}
-      <ViewProvider>
-        <AppLayout />
-      </ViewProvider>
-    </Router>
+    <HelmetProvider>
+      <Router>
+        {/* The ViewProvider now wraps everything, making the context available to all components */}
+        <ViewProvider>
+          <AppLayout />
+        </ViewProvider>
+      </Router>
+    </HelmetProvider>
   );
 };
 

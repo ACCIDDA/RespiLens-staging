@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme } from '@mantine/core';
 import { IconChartLine, IconTarget, IconDashboard, IconSun, IconMoon, IconClipboard } from '@tabler/icons-react';
 import InfoOverlay from '../InfoOverlay';
@@ -32,8 +32,8 @@ const MainNavigation = () => {
         {navigationItems.map((item) => (
           <Button
             key={item.href}
-            component="a"
-            href={item.href}
+            component={Link}
+            to={item.href}
             variant={item.active ? 'filled' : 'subtle'}
             leftSection={<item.icon size={16} />}
             size="sm"

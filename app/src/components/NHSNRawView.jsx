@@ -154,13 +154,14 @@ const NHSNRawView = ({ location }) => {
     setSelectedColumns(currentCols => {
       const newSorted = [...newSelectedCols].sort();
       const currentSorted = [...currentCols].sort();
-      
+
       if (JSON.stringify(newSorted) !== JSON.stringify(currentSorted)) {
-        return newSelectedCols; 
+        return newSelectedCols;
       }
       return currentCols;
     });
-  }, [loading, selectedTarget, allDataColumns, searchParams]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selectedTarget, allDataColumns]); // Removed searchParams to prevent loop 
 
 
   useEffect(() => {

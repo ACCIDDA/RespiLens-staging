@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Alert,
   Badge,
@@ -1033,13 +1034,18 @@ const ForecastleGame = () => {
   };
 
   return (
-    <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
-      {renderContent()}
-      <ForecastleStatsModal
-        opened={statsModalOpened}
-        onClose={() => setStatsModalOpened(false)}
-      />
-    </Container>
+    <>
+      <Helmet>
+        <title>RespiLens | Forecastle</title>
+      </Helmet>
+      <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
+        {renderContent()}
+        <ForecastleStatsModal
+          opened={statsModalOpened}
+          onClose={() => setStatsModalOpened(false)}
+        />
+      </Container>
+    </>
   );
 };
 
