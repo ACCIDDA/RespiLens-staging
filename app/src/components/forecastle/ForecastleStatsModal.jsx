@@ -240,6 +240,10 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
       averageRankPercentile: data.rankPercentileCount > 0 ? data.totalRankPercentile / data.rankPercentileCount : null,
       coverage95Percent: data.coverage95Total > 0 ? (data.coverage95Count / data.coverage95Total) * 100 : null,
       coverage50Percent: data.coverage50Total > 0 ? (data.coverage50Count / data.coverage50Total) * 100 : null,
+      coverage95Count: data.coverage95Count,
+      coverage95Total: data.coverage95Total,
+      coverage50Count: data.coverage50Count,
+      coverage50Total: data.coverage50Total,
     }));
 
     // Sort by average WIS (best first)
@@ -284,9 +288,13 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
 
       lines.push(`\n${pathogenLabel} (${stat.count} games)`);
 
-      // Coverage with emoji and percentage
-      const coverage95Text = coverage95 !== null ? `${coverage95Emoji} ${coverage95}%` : `${coverage95Emoji} N/A`;
-      const coverage50Text = coverage50 !== null ? `${coverage50Emoji} ${coverage50}%` : `${coverage50Emoji} N/A`;
+      // Coverage with emoji, percentage, and counts
+      const coverage95Text = coverage95 !== null
+        ? `${coverage95Emoji} ${coverage95}% (${stat.coverage95Count}/${stat.coverage95Total})`
+        : `${coverage95Emoji} N/A`;
+      const coverage50Text = coverage50 !== null
+        ? `${coverage50Emoji} ${coverage50}% (${stat.coverage50Count}/${stat.coverage50Total})`
+        : `${coverage50Emoji} N/A`;
       lines.push(`Coverage: 95%: ${coverage95Text} | 50%: ${coverage50Text}`);
 
       // Beat ensemble - just numbers
