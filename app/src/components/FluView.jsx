@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMantineColorScheme, Stack, Text } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text, Tooltip } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
@@ -241,9 +241,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   return (
     <Stack>
       {formattedDate && (
-        <Text size="xs" c="dimmed" ta="right">
-          last updated: {formattedDate}
-        </Text>
+        <Tooltip label={`Exact timestamp: ${lastUpdatedTimestamp}`} position="left" withArrow>
+          <Text size="xs" c="dimmed" ta="right" style={{ cursor: 'help' }}>
+            last updated: {formattedDate}
+          </Text>
+        </Tooltip>
       )}
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot

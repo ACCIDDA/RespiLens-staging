@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select, Tooltip } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
@@ -261,9 +261,11 @@ const NHSNRawView = ({ location }) => {
   return (
     <Stack gap="md" w="100%">
       {formattedDate && (
-        <Text size="xs" c="dimmed" ta="right">
-          last updated: {formattedDate}
-        </Text>
+        <Tooltip label={`Exact timestamp: ${lastUpdatedTimestamp}`} position="left" withArrow>
+          <Text size="xs" c="dimmed" ta="right" style={{ cursor: 'help' }}>
+            last updated: {formattedDate}
+          </Text>
+        </Tooltip>
       )}
 
       <Select
