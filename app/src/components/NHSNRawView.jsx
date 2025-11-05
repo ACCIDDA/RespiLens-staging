@@ -21,7 +21,7 @@ const nhsnYAxisLabelMap = {
   'Hospital Admissions (rates)': 'Rate per 100k',
   'Hospital Admissions (%)': 'Percent (%)',
   'Bed Capacity (count)': 'Bed Count',
-  'Bed Capacity (%))': 'Percent (%)'
+  'Bed Capacity (%)': 'Percent (%)'
 };
 
 const NHSNRawView = ({ location }) => {
