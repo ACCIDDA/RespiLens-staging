@@ -109,7 +109,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }).filter(Boolean);
   }, [forecasts, selectedDates, selectedModels]);
 
-  const defaultRange = getDefaultRange();
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
   // Reset xaxis range only when viewType changes (null = auto-follow date changes)
   useEffect(() => {

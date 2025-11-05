@@ -117,7 +117,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
-  const defaultRange = getDefaultRange();
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
   // Reset xaxis range only when target changes (null = auto-follow date changes)
   useEffect(() => {
