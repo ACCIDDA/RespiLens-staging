@@ -10,7 +10,7 @@ import { targetDisplayNameMap } from '../utils/mapUtils';
 
 const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [rangesliderRange, setRangesliderRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
@@ -122,50 +122,33 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   const defaultRange = getDefaultRange();
 
-  // Reset rangeslider only when target changes (null = auto-follow date changes)
+  // Reset xaxis range only when target changes (null = auto-follow date changes)
   useEffect(() => {
-    setRangesliderRange(null); // Reset to auto-update mode on target change
+    setXAxisRange(null); // Reset to auto-update mode on target change
   }, [selectedTarget]);
 
-  // Recalculate y-axis when data or range changes
+  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
-    if (projectionsData.length > 0 && defaultRange) {
-      const initialYRange = calculateYRange(projectionsData, defaultRange);
+    const currentXRange = xAxisRange || defaultRange;
+    if (projectionsData.length > 0 && currentXRange) {
+      const initialYRange = calculateYRange(projectionsData, currentXRange);
       setYAxisRange(initialYRange);
     } else {
       setYAxisRange(null);
     }
-  }, [projectionsData, defaultRange, calculateYRange]);
+  }, [projectionsData, xAxisRange, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
-    // Debug: Log what Plotly sends when rangeslider is moved
-    console.log('COVID onRelayout figure:', figure);
-
-    // Capture rangeslider range changes to preserve user's selection
-    if (figure && figure['xaxis.rangeslider.range']) {
-      const newRangesliderRange = figure['xaxis.rangeslider.range'];
-      console.log('Captured rangeslider change:', newRangesliderRange);
-      if (JSON.stringify(newRangesliderRange) !== JSON.stringify(rangesliderRange)) {
-        setRangesliderRange(newRangesliderRange);
-      }
-    }
-
-    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
+    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
+    if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      const newYRange = calculateYRange(projectionsData, newXRange);
-      // Only update if the range actually changed to prevent infinite loops
-      if (newYRange && JSON.stringify(newYRange) !== JSON.stringify(yAxisRange)) {
-        setYAxisRange(newYRange);
-          // No need to call Plotly.relayout here if yAxisRange state is used in layout
+      // Only update if different to avoid loops
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
-    } else if (figure && figure['xaxis.range'] === undefined && defaultRange) {
-        // Handle reset or initial load case if needed, possibly recalculate Y
-        const initialYRange = calculateYRange(projectionsData, defaultRange);
-          if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)){
-              setYAxisRange(initialYRange);
-          }
     }
-  }, [projectionsData, calculateYRange, yAxisRange, defaultRange, rangesliderRange]);
+  }, [xAxisRange]);
 
   const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -183,7 +166,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     xaxis: {
       domain: [0, 1], // Full width
       rangeslider: {
-        range: rangesliderRange || getDefaultRange(true)
+        range: getDefaultRange(true) // Rangeslider always shows full extent
       },
       rangeselector: {
         buttons: [
@@ -192,7 +175,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange,
+      range: xAxisRange || defaultRange, // Use user's selection or default
       showline: true,
       linewidth: 1,
       linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
@@ -216,7 +199,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         dash: 'dash'
       }
     }))
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, rangesliderRange, getDefaultRange]); 
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, xAxisRange, getDefaultRange]); 
 
   const config = useMemo(() => ({
     responsive: true,
@@ -242,16 +225,16 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
             'yaxis.autorange': newYRange === null,
           };
           Plotly.relayout(gd, update);
+          setXAxisRange(null); // Reset to auto-update mode
           setYAxisRange(newYRange); // Update state
-          setRangesliderRange(null); // Reset to auto-update mode
         } else if (range) {
             Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.autorange': true,
           });
+            setXAxisRange(null); // Reset to auto-update mode
             setYAxisRange(null); // Reset state
-            setRangesliderRange(null); // Reset to auto-update mode
         }
       }
     }]

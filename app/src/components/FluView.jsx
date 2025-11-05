@@ -9,7 +9,7 @@ import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
 const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [rangesliderRange, setRangesliderRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
@@ -111,41 +111,32 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   const defaultRange = getDefaultRange();
 
-  // Reset rangeslider only when viewType changes (null = auto-follow date changes)
+  // Reset xaxis range only when viewType changes (null = auto-follow date changes)
   useEffect(() => {
-    setRangesliderRange(null); // Reset to auto-update mode on view change
+    setXAxisRange(null); // Reset to auto-update mode on view change
   }, [viewType]);
 
-  // Recalculate y-axis when data or range changes
+  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
-    if (projectionsData.length > 0 && defaultRange) {
-      const initialYRange = calculateYRange(projectionsData, defaultRange);
+    const currentXRange = xAxisRange || defaultRange;
+    if (projectionsData.length > 0 && currentXRange) {
+      const initialYRange = calculateYRange(projectionsData, currentXRange);
       if (initialYRange) {
         setYAxisRange(initialYRange);
       }
     } else {
       setYAxisRange(null);
     }
-  }, [projectionsData, defaultRange]);
+  }, [projectionsData, xAxisRange, defaultRange]);
 
   const handlePlotUpdate = (figure) => {
-    // Debug: Log what Plotly sends when rangeslider is moved
-    console.log('Flu onRelayout figure:', figure);
-
-    // Capture rangeslider range changes to preserve user's selection
-    if (figure && figure['xaxis.rangeslider.range']) {
-      const newRangesliderRange = figure['xaxis.rangeslider.range'];
-      console.log('Captured rangeslider change:', newRangesliderRange);
-      if (JSON.stringify(newRangesliderRange) !== JSON.stringify(rangesliderRange)) {
-        setRangesliderRange(newRangesliderRange);
-      }
-    }
-
-    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
-      const newYRange = calculateYRange(projectionsData, figure['xaxis.range']);
-      if (newYRange && plotRef.current) {
-        setYAxisRange(newYRange);
-        Plotly.relayout(plotRef.current.el, {'yaxis.range': newYRange});
+    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
+    if (figure && figure['xaxis.range']) {
+      const newXRange = figure['xaxis.range'];
+      // Only update if different to avoid loops
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
     }
   };
@@ -173,7 +164,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     xaxis: {
       domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
       rangeslider: {
-        range: rangesliderRange || getDefaultRange(true)
+        range: getDefaultRange(true) // Rangeslider always shows full extent
       },
       rangeselector: {
         buttons: [
@@ -182,7 +173,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange
+      range: xAxisRange || defaultRange // Use user's selection or default
     },
     yaxis: {
       title: 'Hospitalizations',
@@ -239,8 +230,8 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.range': newYRange
           });
+          setXAxisRange(null); // Reset to auto-update mode
           setYAxisRange(newYRange);
-          setRangesliderRange(null); // Reset to auto-update mode
         }
       }
     }]
