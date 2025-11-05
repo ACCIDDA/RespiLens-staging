@@ -170,9 +170,9 @@ export class URLParameterManager {
     if (viewParam && allViews.includes(viewParam)) {
         return viewParam;
     }
-    // Find the default view of the default dataset (e.g., flu)
-    const defaultDatasetKey = Object.keys(DATASETS)[0]; // Assuming first dataset is overall default
-    return DATASETS[defaultDatasetKey]?.defaultView || 'flu_projs'; // Fallback needed
+    // Find the default view of the default dataset (e.g., covid)
+    const defaultDatasetKey = 'covid'; // COVID-19 Forecast Hub is the default
+    return DATASETS[defaultDatasetKey]?.defaultView || 'covid_projs'; // Fallback needed
   }
 
   // Initialize URL with defaults if missing (Less critical now with context handling)

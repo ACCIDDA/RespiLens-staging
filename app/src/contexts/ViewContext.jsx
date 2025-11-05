@@ -124,7 +124,7 @@ export const ViewProvider = ({ children }) => {
     const newDataset = urlManager.getDatasetFromView(newView);
     const newSearchParams = new URLSearchParams(searchParams);
 
-    if (newView !== 'flu_projs' || newSearchParams.toString().length > 0) {
+    if (newView !== 'covid_projs' || newSearchParams.toString().length > 0) {
       newSearchParams.set('view', newView);
     } else {
       newSearchParams.delete('view');

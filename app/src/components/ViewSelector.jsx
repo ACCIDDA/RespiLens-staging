@@ -7,7 +7,7 @@ import { DATASETS } from '../config/datasets';
 const ViewSelector = () => {
   const { viewType, setViewType } = useView();
 
-  const datasetOrder = useMemo(() => ['flu', 'rsv', 'covid', 'nhsn'], []);
+  const datasetOrder = useMemo(() => ['covid', 'flu', 'rsv', 'nhsn'], []);
   const datasets = useMemo(
     () =>
       datasetOrder
