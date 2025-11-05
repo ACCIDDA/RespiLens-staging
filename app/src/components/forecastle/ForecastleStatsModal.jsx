@@ -340,41 +340,6 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
           </Alert>
         ) : (
           <>
-            {/* Shareable Summary */}
-            <Paper
-              p="md"
-              withBorder
-              shadow="md"
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderWidth: 2,
-                borderColor: '#5a67d8',
-                position: 'relative',
-              }}
-            >
-              <Stack gap="xs">
-                <Group justify="space-between" align="flex-start">
-                  <Text size="lg" fw={700} c="white">
-                    Share Your Stats
-                  </Text>
-                  <Tooltip label={copied ? "Copied!" : "Copy stats"} position="left">
-                    <Button
-                      variant="filled"
-                      color={copied ? "teal" : "white"}
-                      size="sm"
-                      onClick={handleCopyStats}
-                      leftSection={copied ? <IconCheckCircle size={16} /> : <IconCopy size={16} />}
-                    >
-                      {copied ? 'Copied!' : 'Copy'}
-                    </Button>
-                  </Tooltip>
-                </Group>
-                <Text size="sm" c="white" opacity={0.9}>
-                  Copy your performance summary to share with friends!
-                </Text>
-              </Stack>
-            </Paper>
-
             {/* Overview Stats */}
             <Grid>
               <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
@@ -406,6 +371,19 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                 />
               </Grid.Col>
             </Grid>
+
+            {/* Share Button */}
+            <Group justify="center">
+              <Button
+                variant="light"
+                size="md"
+                onClick={handleCopyStats}
+                leftSection={copied ? <IconCheckCircle size={18} /> : <IconCopy size={18} />}
+                color={copied ? "teal" : "blue"}
+              >
+                {copied ? 'Copied!' : 'Share'}
+              </Button>
+            </Group>
 
             {/* Interval Coverage */}
             <Paper p="md" withBorder>
