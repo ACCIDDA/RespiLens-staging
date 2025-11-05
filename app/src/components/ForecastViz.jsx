@@ -241,7 +241,7 @@ const ForecastViz = () => {
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
       <Helmet>
-        <title>RespiLens | Forecasts</title>
+        <title>RespiLens | {currentDataset?.fullName || 'Forecasts'}</title>
       </Helmet>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Paper shadow="sm" p="lg" radius="md" withBorder>
