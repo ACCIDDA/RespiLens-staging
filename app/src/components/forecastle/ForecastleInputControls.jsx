@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import { Accordion, Group, NumberInput, RangeSlider, Stack, Text, Slider, SegmentedControl } from '@mantine/core';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { Group, NumberInput, RangeSlider, Stack, Text, Slider, SegmentedControl } from '@mantine/core';
 
 const formatHorizonLabel = (horizon) => {
   if (horizon === 1) return '1 week ahead';
@@ -11,7 +11,7 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
 
   // Calculate initial auto interval values from current entries
   // This must be called before any conditional returns to follow Rules of Hooks
-  const calculateAutoIntervalParams = () => {
+  const calculateAutoIntervalParams = useCallback(() => {
     if (entries.length === 0) return { width50: 0, growth50: 0, additionalWidth95: 0, additionalGrowth95: 0 };
 
     // For first horizon
@@ -35,9 +35,9 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
     }
 
     return { width50, growth50: 0, additionalWidth95, additionalGrowth95: 0 };
-  };
+  }, [entries]);
 
-  const autoParams = useMemo(calculateAutoIntervalParams, [entries]);
+  const autoParams = useMemo(() => calculateAutoIntervalParams(), [calculateAutoIntervalParams]);
   const [intervalMode, setIntervalMode] = useState('auto'); // 'auto' or 'manual'
   const [width50, setWidth50] = useState(autoParams.width50);
   const [growth50, setGrowth50] = useState(autoParams.growth50);
@@ -54,7 +54,7 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
       setAdditionalWidth95(params.additionalWidth95);
       setAdditionalGrowth95(params.additionalGrowth95);
     }
-  }, [entries, isSliding, intervalMode]);
+  }, [entries, isSliding, intervalMode, calculateAutoIntervalParams]);
 
   const updateEntry = (index, field, value) => {
     const nextEntries = entries.map((entry, idx) => {
@@ -135,7 +135,7 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
 
   // Apply auto interval to all horizons
   const applyAutoInterval = (baseWidth50, baseGrowth50, addWidth95, addGrowth95) => {
-    const nextEntries = entries.map((entry, idx) => {
+    const nextEntries = entries.map((entry) => {
       const horizonIndex = entry.horizon - (entries[0]?.horizon || 1);
       const currentWidth50 = Math.max(0, baseWidth50 + (baseGrowth50 * horizonIndex));
       const currentAdditionalWidth95 = Math.max(0, addWidth95 + (addGrowth95 * horizonIndex));
