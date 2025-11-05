@@ -25,6 +25,7 @@ import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconChe
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
+import { FORECASTLE_CONFIG } from '../../config';
 import {
   extractGroundTruthForHorizons,
   scoreUserForecast,
@@ -320,14 +321,16 @@ const ForecastleGame = () => {
     const resetEntries = forecastEntries.map(entry => {
       const median = entry.median;
       // Reset to default symmetric intervals
+      const width95 = median * FORECASTLE_CONFIG.defaultIntervals.width95Percent;
+      const width50 = median * FORECASTLE_CONFIG.defaultIntervals.width50Percent;
       return {
         ...entry,
-        lower95: Math.max(0, median - median * 0.2),
-        upper95: median + median * 0.2,
-        lower50: Math.max(0, median - median * 0.1),
-        upper50: median + median * 0.1,
-        width95: median * 0.2,
-        width50: median * 0.1,
+        lower95: Math.max(0, median - width95),
+        upper95: median + width95,
+        lower50: Math.max(0, median - width50),
+        upper50: median + width50,
+        width95,
+        width50,
       };
     });
     setForecastEntries(resetEntries);
