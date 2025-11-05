@@ -746,7 +746,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                       return (
                         <Table.Tr key={game.id}>
                           <Table.Td>
-                            <Text size="sm">{formatDate(game.challengeDate)}</Text>
+                            <Text size="sm">{formatDate(game.playedAt)}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Badge size="sm" variant="light">
