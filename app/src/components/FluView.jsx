@@ -9,6 +9,7 @@ import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
 const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
+  const [rangesliderRange, setRangesliderRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
@@ -116,10 +117,22 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       if (initialYRange) {
         setYAxisRange(initialYRange);
       }
+      // Initialize rangeslider range
+      setRangesliderRange(getDefaultRange(true));
+    } else {
+      setRangesliderRange(null);
     }
-  }, [projectionsData, defaultRange]);
+  }, [projectionsData, defaultRange, getDefaultRange]);
 
   const handlePlotUpdate = (figure) => {
+    // Capture rangeslider range changes to preserve user's selection
+    if (figure && figure['xaxis.rangeslider.range']) {
+      const newRangesliderRange = figure['xaxis.rangeslider.range'];
+      if (JSON.stringify(newRangesliderRange) !== JSON.stringify(rangesliderRange)) {
+        setRangesliderRange(newRangesliderRange);
+      }
+    }
+
     if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
       const newYRange = calculateYRange(projectionsData, figure['xaxis.range']);
       if (newYRange && plotRef.current) {
@@ -152,7 +165,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     xaxis: {
       domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
       rangeslider: {
-        range: getDefaultRange(true)
+        range: rangesliderRange || getDefaultRange(true)
       },
       rangeselector: {
         buttons: [

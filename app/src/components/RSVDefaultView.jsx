@@ -10,6 +10,7 @@ import { targetDisplayNameMap } from '../utils/mapUtils';
 
 const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
+  const [rangesliderRange, setRangesliderRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
@@ -119,17 +120,28 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   const defaultRange = getDefaultRange();
 
   useEffect(() => {
-    // Recalculate y-axis when target changes or data loads
+    // Recalculate y-axis and initialize rangeslider when target changes or data loads
     if (projectionsData.length > 0 && defaultRange) {
       const initialYRange = calculateYRange(projectionsData, defaultRange);
       setYAxisRange(initialYRange); // Set to null if calculation fails
+      // Initialize rangeslider range only when target changes
+      setRangesliderRange(getDefaultRange(true));
     } else {
       setYAxisRange(null); // Reset if no data or default range
+      setRangesliderRange(null);
     }
     // Add selectedTarget and the now-stable calculateYRange
-  }, [projectionsData, defaultRange, selectedTarget, calculateYRange]);
+  }, [projectionsData, defaultRange, selectedTarget, calculateYRange, getDefaultRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
+    // Capture rangeslider range changes to preserve user's selection
+    if (figure && figure['xaxis.rangeslider.range']) {
+      const newRangesliderRange = figure['xaxis.rangeslider.range'];
+      if (JSON.stringify(newRangesliderRange) !== JSON.stringify(rangesliderRange)) {
+        setRangesliderRange(newRangesliderRange);
+      }
+    }
+
     if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
       const newXRange = figure['xaxis.range'];
       const newYRange = calculateYRange(projectionsData, newXRange);
@@ -144,7 +156,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         setYAxisRange(initialYRange);
       }
     }
-  }, [projectionsData, calculateYRange, yAxisRange, defaultRange]);
+  }, [projectionsData, calculateYRange, yAxisRange, defaultRange, rangesliderRange]);
 
   const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -162,7 +174,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     xaxis: {
       domain: [0, 1], // Full width
       rangeslider: {
-        range: getDefaultRange(true)
+        range: rangesliderRange || getDefaultRange(true)
       },
       rangeselector: {
         buttons: [
@@ -195,7 +207,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         dash: 'dash'
       }
     }))
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]);
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, rangesliderRange, getDefaultRange]);
 
   const config = {
     responsive: true,
