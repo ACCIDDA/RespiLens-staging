@@ -111,18 +111,22 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   const defaultRange = getDefaultRange();
 
+  // Reset rangeslider only when viewType changes (null = auto-follow date changes)
+  useEffect(() => {
+    setRangesliderRange(null); // Reset to auto-update mode on view change
+  }, [viewType]);
+
+  // Recalculate y-axis when data or range changes
   useEffect(() => {
     if (projectionsData.length > 0 && defaultRange) {
       const initialYRange = calculateYRange(projectionsData, defaultRange);
       if (initialYRange) {
         setYAxisRange(initialYRange);
       }
-      // Initialize rangeslider range
-      setRangesliderRange(getDefaultRange(true));
     } else {
-      setRangesliderRange(null);
+      setYAxisRange(null);
     }
-  }, [projectionsData, defaultRange, getDefaultRange]);
+  }, [projectionsData, defaultRange]);
 
   const handlePlotUpdate = (figure) => {
     // Capture rangeslider range changes to preserve user's selection
@@ -232,6 +236,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
             'yaxis.range': newYRange
           });
           setYAxisRange(newYRange);
+          setRangesliderRange(null); // Reset to auto-update mode
         }
       }
     }]

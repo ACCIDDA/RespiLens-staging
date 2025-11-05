@@ -119,19 +119,20 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
 
   const defaultRange = getDefaultRange();
 
+  // Reset rangeslider only when target changes (null = auto-follow date changes)
   useEffect(() => {
-    // Recalculate y-axis and initialize rangeslider when target changes or data loads
+    setRangesliderRange(null); // Reset to auto-update mode on target change
+  }, [selectedTarget]);
+
+  // Recalculate y-axis when data or range changes
+  useEffect(() => {
     if (projectionsData.length > 0 && defaultRange) {
       const initialYRange = calculateYRange(projectionsData, defaultRange);
-      setYAxisRange(initialYRange); // Set to null if calculation fails
-      // Initialize rangeslider range only when target changes
-      setRangesliderRange(getDefaultRange(true));
+      setYAxisRange(initialYRange);
     } else {
-      setYAxisRange(null); // Reset if no data or default range
-      setRangesliderRange(null);
+      setYAxisRange(null);
     }
-    // Add selectedTarget and the now-stable calculateYRange
-  }, [projectionsData, defaultRange, selectedTarget, calculateYRange, getDefaultRange]);
+  }, [projectionsData, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
     // Capture rangeslider range changes to preserve user's selection
@@ -235,6 +236,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
           };
           Plotly.relayout(gd, update);
           setYAxisRange(newYRange); // Update state
+          setRangesliderRange(null); // Reset to auto-update mode
         } else if (range) { // If no data but have default range, reset x-axis and auto y-axis
             Plotly.relayout(gd, {
               'xaxis.range': range,
@@ -242,6 +244,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
               'yaxis.autorange': true,
             });
               setYAxisRange(null); // Reset state
+              setRangesliderRange(null); // Reset to auto-update mode
         }
       }
     }]

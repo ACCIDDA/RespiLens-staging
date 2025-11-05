@@ -122,19 +122,20 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   const defaultRange = getDefaultRange();
 
+  // Reset rangeslider only when target changes (null = auto-follow date changes)
   useEffect(() => {
-    // Recalculate y-axis and initialize rangeslider when target changes or data loads
+    setRangesliderRange(null); // Reset to auto-update mode on target change
+  }, [selectedTarget]);
+
+  // Recalculate y-axis when data or range changes
+  useEffect(() => {
     if (projectionsData.length > 0 && defaultRange) {
       const initialYRange = calculateYRange(projectionsData, defaultRange);
-      setYAxisRange(initialYRange); // Set to null if calculation fails
-      // Initialize rangeslider range only when target changes
-      setRangesliderRange(getDefaultRange(true));
+      setYAxisRange(initialYRange);
     } else {
-      setYAxisRange(null); // Reset if no data or default range
-      setRangesliderRange(null);
+      setYAxisRange(null);
     }
-    // Add selectedTarget to the dependency array
-  }, [projectionsData, defaultRange, selectedTarget, calculateYRange, getDefaultRange]);
+  }, [projectionsData, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
     // Capture rangeslider range changes to preserve user's selection
@@ -218,17 +219,17 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     displayModeBar: true,
     displaylogo: false,
     showSendToCloud: false,
-    plotlyServerURL: "", 
+    plotlyServerURL: "",
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
     modeBarButtonsToAdd: [{
       name: 'Reset view',
-      icon: Plotly.Icons.home, 
+      icon: Plotly.Icons.home,
       click: function(gd) {
         const range = getDefaultRange();
-        if (range && projectionsData.length > 0) { 
+        if (range && projectionsData.length > 0) {
           const newYRange = calculateYRange(projectionsData, range);
           const update = {
             'xaxis.range': range,
@@ -238,17 +239,19 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           };
           Plotly.relayout(gd, update);
           setYAxisRange(newYRange); // Update state
-        } else if (range) { 
+          setRangesliderRange(null); // Reset to auto-update mode
+        } else if (range) {
             Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.autorange': true,
           });
             setYAxisRange(null); // Reset state
+            setRangesliderRange(null); // Reset to auto-update mode
         }
       }
     }]
-  }), [getDefaultRange, projectionsData, calculateYRange, setYAxisRange]);
+  }), [getDefaultRange, projectionsData, calculateYRange]);
 
   if (!selectedTarget) {
     return (
