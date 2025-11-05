@@ -239,15 +239,26 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   const lastUpdatedTimestamp = metadata?.last_updated;
   let formattedDate = null;
+  let fullTimestamp = null;
   if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp); 
+    const date = new Date(lastUpdatedTimestamp);
     formattedDate = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York', 
+      timeZone: 'America/New_York',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZoneName: 'short'
+    });
+    fullTimestamp = date.toLocaleString(undefined, {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
       timeZoneName: 'short'
     });
   }
@@ -262,11 +273,11 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   return (
     <Stack>
       {formattedDate && (
-        <Tooltip label={`Exact timestamp: ${lastUpdatedTimestamp}`} position="left" withArrow>
-          <Text size="xs" c="dimmed" ta="right" style={{ cursor: 'help' }}>
-            last updated: {formattedDate}
-          </Text>
-        </Tooltip>
+        <Text size="xs" c="dimmed" ta="right">
+          last updated: <Tooltip label={fullTimestamp} position="left" withArrow>
+            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{formattedDate}</span>
+          </Tooltip>
+        </Text>
       )}
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
