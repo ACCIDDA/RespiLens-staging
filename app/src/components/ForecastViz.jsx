@@ -1,6 +1,7 @@
 // src/components/ForecastViz.jsx
 
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Stack, Container, Paper, Group, Button, Tooltip, Title, Anchor, List } from '@mantine/core';
 import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
@@ -239,6 +240,9 @@ const ForecastViz = () => {
   
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
+      <Helmet>
+        <title>RespiLens | {currentDataset?.fullName || 'Forecasts'}</title>
+      </Helmet>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md" style={{ minHeight: '70vh' }}>

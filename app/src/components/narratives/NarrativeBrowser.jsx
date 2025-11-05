@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Container, Card, Title, Text, Group, Badge, Button, Stack, Loader, Center, ThemeIcon, Paper, SimpleGrid, TextInput, Select } from '@mantine/core';
 import { IconBook, IconCalendar, IconUser, IconArrowRight, IconStar, IconClock, IconSearch } from '@tabler/icons-react';
 import { narrativeRegistry, getAllTags, searchNarratives } from '../../data/narratives/index.js';
@@ -109,9 +110,13 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
   );
 
   return (
-    <Container size="xl" py="xl">
-      {/* Header */}
-      <Paper shadow="sm" p="lg" mb="xl">
+    <>
+      <Helmet>
+        <title>RespiLens | Narratives</title>
+      </Helmet>
+      <Container size="xl" py="xl">
+        {/* Header */}
+        <Paper shadow="sm" p="lg" mb="xl">
         <Group align="center" mb="md">
           <ThemeIcon size="lg" variant="light">
             <IconBook size={24} />
@@ -182,13 +187,14 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
       ) : (
         <Paper p="xl" style={{ textAlign: 'center' }}>
           <Text c="dimmed">
-            {searchTerm || filterTag 
-              ? 'No narratives found matching your criteria.' 
+            {searchTerm || filterTag
+              ? 'No narratives found matching your criteria.'
               : 'No additional narratives available.'}
           </Text>
         </Paper>
       )}
     </Container>
+    </>
   );
 };
 

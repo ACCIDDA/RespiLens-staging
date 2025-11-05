@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Group, ThemeIcon, Title, ActionIcon, Menu, Avatar, Text, Stack, Button, Divider } from '@mantine/core';
 import { IconDashboard, IconActivity, IconTarget, IconBookmark, IconSettings, IconBell, IconUser, IconLogout, IconChartLine } from '@tabler/icons-react';
 
@@ -91,13 +92,13 @@ const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }
       {/* Quick Actions */}
       <Stack gap="xs">
         <Text size="sm" fw={500} c="dimmed">Quick Actions</Text>
-        <Button variant="light" size="xs" leftSection={<IconChartLine size={14} />} component="a" href="/">
+        <Button variant="light" size="xs" leftSection={<IconChartLine size={14} />} component={Link} to="/">
           View Forecasts
         </Button>
-        <Button variant="light" size="xs" leftSection={<IconBookmark size={14} />} component="a" href="/narratives">
+        <Button variant="light" size="xs" leftSection={<IconBookmark size={14} />} component={Link} to="/narratives">
           Browse Narratives
         </Button>
-        <Button variant="light" size="xs" leftSection={<IconTarget size={14} />} component="a" href="/forecastle">
+        <Button variant="light" size="xs" leftSection={<IconTarget size={14} />} component={Link} to="/forecastle">
           Play Forecastle
         </Button>
       </Stack>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FORECASTLE_CONFIG } from '../config';
 
 const DATASET_DEFINITIONS = [
   {
@@ -6,24 +7,24 @@ const DATASET_DEFINITIONS = [
     label: 'Influenza Hospitalizations (FluSight)',
     dataPath: 'flusight',
     fileSuffix: 'flu.json',
-    targetKey: 'wk inc flu hosp',
-    defaultHorizons: [1, 2, 3],
+    targetKey: FORECASTLE_CONFIG.targetKeys.flusight,
+    defaultHorizons: FORECASTLE_CONFIG.horizons.flusight,
   },
   {
     key: 'rsv',
     label: 'RSV Hospitalizations (RSV Forecast Hub)',
     dataPath: 'rsvforecasthub',
     fileSuffix: 'rsv.json',
-    targetKey: 'wk inc rsv hosp',
-    defaultHorizons: [1, 2, 3],
+    targetKey: FORECASTLE_CONFIG.targetKeys.rsv,
+    defaultHorizons: FORECASTLE_CONFIG.horizons.rsv,
   },
   {
     key: 'covid19',
     label: 'COVID-19 Hospitalizations (COVID-19 Forecast Hub)',
     dataPath: 'covid19forecasthub',
     fileSuffix: 'covid19.json',
-    targetKey: 'wk inc covid hosp',
-    defaultHorizons: [1, 2, 3],
+    targetKey: FORECASTLE_CONFIG.targetKeys.covid19,
+    defaultHorizons: FORECASTLE_CONFIG.horizons.covid19,
   },
 ];
 
@@ -114,7 +115,7 @@ const ensureValidScenario = async (rng, datasetMeta) => {
     return null;
   }
 
-  const attemptLimit = Math.min(20, locationOptions.length * 2);
+  const attemptLimit = Math.min(20, locationOptions.length * FORECASTLE_CONFIG.maxAttemptMultiplier);
 
   for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
     const location = pickDeterministic(locationOptions, rng);
@@ -150,9 +151,9 @@ const ensureValidScenario = async (rng, datasetMeta) => {
     const validForecasts = forecastsEntries.filter(([forecastDate, targets]) => {
       const targetForecasts = targets?.[datasetMeta.definition.targetKey];
 
-      // Check if there are at least 5 models
+      // Check if there are at least the minimum required models
       const modelCount = countModelsForTarget(targetForecasts);
-      if (modelCount < 5) {
+      if (modelCount < FORECASTLE_CONFIG.minModelsRequired) {
         return false;
       }
 
@@ -210,8 +211,10 @@ const ensureValidScenario = async (rng, datasetMeta) => {
 
     // Determine how much history to show based on dataset type
     let recentSeries;
-    if (datasetMeta.definition.key === 'flusight' || datasetMeta.definition.key === 'rsv') {
-      // For flu and RSV: show since start of season (approximately July 1st)
+    const historyConfig = FORECASTLE_CONFIG.historyDisplay[datasetMeta.definition.key] || FORECASTLE_CONFIG.historyDisplay.default;
+
+    if (historyConfig === 'seasonStart') {
+      // Show since start of season (approximately July 1st)
       const forecastDateObj = new Date(forecastDate);
       const year = forecastDateObj.getFullYear();
       // If we're in Jan-Jun, season started previous year
@@ -222,12 +225,9 @@ const ensureValidScenario = async (rng, datasetMeta) => {
         const entryTime = new Date(entry.date).getTime();
         return entryTime >= seasonStart;
       });
-    } else if (datasetMeta.definition.key === 'covid19') {
-      // For COVID: show last 5 months (approximately 20 weeks)
-      recentSeries = historicalSeries.slice(-20);
     } else {
-      // Default: 6 months
-      recentSeries = historicalSeries.slice(-26);
+      // Show last N weeks
+      recentSeries = historicalSeries.slice(-historyConfig);
     }
 
     if (recentSeries.length === 0) {
@@ -281,9 +281,9 @@ export const useForecastleScenario = (playDate = null) => {
           }),
         );
 
-        // Generate 3 scenarios with different seeds
+        // Generate scenarios with different seeds
         const resolvedScenarios = [];
-        const maxScenarios = 3;
+        const maxScenarios = FORECASTLE_CONFIG.maxScenariosPerDay;
 
         for (let scenarioIndex = 0; scenarioIndex < maxScenarios; scenarioIndex += 1) {
           const seed = hashString(`forecastle-${challengeDateKey}-${scenarioIndex}`);

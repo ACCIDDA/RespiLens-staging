@@ -43,6 +43,20 @@ function isValidGame(game) {
 }
 
 /**
+ * Round a number to specified decimal places, handling null/undefined
+ * @param {number|null|undefined} value - Value to round
+ * @param {number} decimals - Number of decimal places
+ * @returns {number|null} Rounded value or null
+ */
+function roundToDecimals(value, decimals) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  const multiplier = Math.pow(10, decimals);
+  return Math.round(value * multiplier) / multiplier;
+}
+
+/**
  * Get all stored Forecastle games
  * @returns {Array} Array of game objects
  */
@@ -121,21 +135,21 @@ export function saveForecastleGame(gameData) {
       totalModels: gameData.totalModels,
       ensembleRank: gameData.ensembleRank,
       baselineRank: gameData.baselineRank,
-      // User scores
-      userWIS: gameData.userWIS,
-      userDispersion: gameData.userDispersion,
-      userUnderprediction: gameData.userUnderprediction,
-      userOverprediction: gameData.userOverprediction,
-      // Ensemble scores
-      ensembleWIS: gameData.ensembleWIS,
-      ensembleDispersion: gameData.ensembleDispersion,
-      ensembleUnderprediction: gameData.ensembleUnderprediction,
-      ensembleOverprediction: gameData.ensembleOverprediction,
-      // Baseline scores
-      baselineWIS: gameData.baselineWIS,
-      baselineDispersion: gameData.baselineDispersion,
-      baselineUnderprediction: gameData.baselineUnderprediction,
-      baselineOverprediction: gameData.baselineOverprediction,
+      // User scores (rounded to 3 decimal places)
+      userWIS: roundToDecimals(gameData.userWIS, 3),
+      userDispersion: roundToDecimals(gameData.userDispersion, 3),
+      userUnderprediction: roundToDecimals(gameData.userUnderprediction, 3),
+      userOverprediction: roundToDecimals(gameData.userOverprediction, 3),
+      // Ensemble scores (rounded to 3 decimal places)
+      ensembleWIS: roundToDecimals(gameData.ensembleWIS, 3),
+      ensembleDispersion: roundToDecimals(gameData.ensembleDispersion, 3),
+      ensembleUnderprediction: roundToDecimals(gameData.ensembleUnderprediction, 3),
+      ensembleOverprediction: roundToDecimals(gameData.ensembleOverprediction, 3),
+      // Baseline scores (rounded to 3 decimal places)
+      baselineWIS: roundToDecimals(gameData.baselineWIS, 3),
+      baselineDispersion: roundToDecimals(gameData.baselineDispersion, 3),
+      baselineUnderprediction: roundToDecimals(gameData.baselineUnderprediction, 3),
+      baselineOverprediction: roundToDecimals(gameData.baselineOverprediction, 3),
     };
 
     if (existingIndex >= 0) {

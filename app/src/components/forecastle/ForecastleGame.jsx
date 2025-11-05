@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Alert,
   Badge,
@@ -25,6 +26,7 @@ import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconChe
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
+import { FORECASTLE_CONFIG } from '../../config';
 import {
   extractGroundTruthForHorizons,
   scoreUserForecast,
@@ -320,14 +322,16 @@ const ForecastleGame = () => {
     const resetEntries = forecastEntries.map(entry => {
       const median = entry.median;
       // Reset to default symmetric intervals
+      const width95 = median * FORECASTLE_CONFIG.defaultIntervals.width95Percent;
+      const width50 = median * FORECASTLE_CONFIG.defaultIntervals.width50Percent;
       return {
         ...entry,
-        lower95: Math.max(0, median - median * 0.2),
-        upper95: median + median * 0.2,
-        lower50: Math.max(0, median - median * 0.1),
-        upper50: median + median * 0.1,
-        width95: median * 0.2,
-        width50: median * 0.1,
+        lower95: Math.max(0, median - width95),
+        upper95: median + width95,
+        lower50: Math.max(0, median - width50),
+        upper50: median + width50,
+        width95,
+        width50,
       };
     });
     setForecastEntries(resetEntries);
@@ -659,7 +663,7 @@ const ForecastleGame = () => {
                                             color={entry.isUser ? 'red' : entry.isHub ? 'green' : 'gray'}
                                             variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
                                           >
-                                            WIS: {entry.wis.toFixed(2)}
+                                            WIS: {entry.wis.toFixed(3)}
                                           </Badge>
                                         </Group>
                                       </Paper>
@@ -747,7 +751,7 @@ const ForecastleGame = () => {
                                 }
                               }
 
-                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • WIS: ${scores.user.wis.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
+                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • WIS: ${scores.user.wis.toFixed(3)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
                             };
 
                             const handleCopy = async () => {
@@ -824,7 +828,7 @@ const ForecastleGame = () => {
                                       textShadow: '0 1px 1px rgba(255, 255, 255, 0.6)',
                                     }}
                                   >
-                                    WIS: {scores.user.wis.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
+                                    WIS: {scores.user.wis.toFixed(3)} • {scenario.dataset.label} • {scenario.location.abbreviation}
                                   </Text>
                                 </Stack>
                               </Paper>
@@ -1030,13 +1034,18 @@ const ForecastleGame = () => {
   };
 
   return (
-    <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
-      {renderContent()}
-      <ForecastleStatsModal
-        opened={statsModalOpened}
-        onClose={() => setStatsModalOpened(false)}
-      />
-    </Container>
+    <>
+      <Helmet>
+        <title>RespiLens | Forecastle</title>
+      </Helmet>
+      <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
+        {renderContent()}
+        <ForecastleStatsModal
+          opened={statsModalOpened}
+          onClose={() => setStatsModalOpened(false)}
+        />
+      </Container>
+    </>
   );
 };
 

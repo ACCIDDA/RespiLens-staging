@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { AppShell, Center, Burger, Stack, Button, Divider } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChartLine, IconTarget, IconDashboard, IconClipboard } from '@tabler/icons-react';
@@ -63,8 +63,8 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
             {navigationItems.map((item) => (
               <Button
                 key={item.href}
-                component="a"
-                href={item.href}
+                component={Link}
+                to={item.href}
                 variant={item.active ? 'filled' : 'subtle'}
                 leftSection={<item.icon size={18} />}
                 size="sm"
@@ -95,8 +95,8 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
           {navigationItems.map((item) => (
             <Button
               key={item.href}
-              component="a"
-              href={item.href}
+              component={Link}
+              to={item.href}
               variant={item.active ? 'filled' : 'subtle'}
               leftSection={<item.icon size={18} />}
               size="sm"

@@ -5,6 +5,7 @@ const NHSNColumnSelector = ({
   availableColumns,
   selectedColumns,
   setSelectedColumns,
+  nameMap
 }) => {
   const toggleColumn = (column) => {
     if (selectedColumns.includes(column)) {
@@ -31,7 +32,7 @@ const NHSNColumnSelector = ({
                   : undefined
               }
             >
-              {column}
+              {nameMap[column] || column}
             </Button>
           ))}
         </Group>
