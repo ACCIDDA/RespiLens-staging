@@ -135,9 +135,13 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   }, [projectionsData, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
+    // Debug: Log what Plotly sends when rangeslider is moved
+    console.log('RSV onRelayout figure:', figure);
+
     // Capture rangeslider range changes to preserve user's selection
     if (figure && figure['xaxis.rangeslider.range']) {
       const newRangesliderRange = figure['xaxis.rangeslider.range'];
+      console.log('Captured rangeslider change:', newRangesliderRange);
       if (JSON.stringify(newRangesliderRange) !== JSON.stringify(rangesliderRange)) {
         setRangesliderRange(newRangesliderRange);
       }
