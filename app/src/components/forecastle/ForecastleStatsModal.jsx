@@ -261,9 +261,8 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
 
     pathogenStats.forEach(stat => {
       const pathogenLabel = getDatasetLabel(stat.pathogen);
-      const pathogenEmoji = stat.pathogen === 'flusight' ? '🤧' : stat.pathogen === 'rsv' ? '👶' : '😷';
 
-      // Coverage emojis
+      // Coverage with emojis and numbers
       const coverage95 = stat.coverage95Percent !== null ? Math.round(stat.coverage95Percent) : null;
       const coverage50 = stat.coverage50Percent !== null ? Math.round(stat.coverage50Percent) : null;
 
@@ -283,24 +282,15 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
         else coverage50Emoji = '🔴'; // Poor
       }
 
-      // Ensemble comparison
-      const beatPercent = stat.ensembleGamesCount > 0
-        ? Math.round((stat.beatEnsembleCount / stat.ensembleGamesCount) * 100)
-        : null;
+      lines.push(`\n${pathogenLabel} (${stat.count} games)`);
 
-      let ensembleEmoji = '⚪';
-      if (beatPercent !== null) {
-        if (beatPercent >= 75) ensembleEmoji = '🏆'; // Crushing it
-        else if (beatPercent >= 50) ensembleEmoji = '👍'; // Beating ensemble
-        else if (beatPercent >= 25) ensembleEmoji = '👊'; // Competitive
-        else ensembleEmoji = '💪'; // Room to grow
-      }
+      // Coverage with emoji and percentage
+      const coverage95Text = coverage95 !== null ? `${coverage95Emoji} ${coverage95}%` : `${coverage95Emoji} N/A`;
+      const coverage50Text = coverage50 !== null ? `${coverage50Emoji} ${coverage50}%` : `${coverage50Emoji} N/A`;
+      lines.push(`Coverage: 95%: ${coverage95Text} | 50%: ${coverage50Text}`);
 
-      lines.push(`\n${pathogenEmoji} ${pathogenLabel} (${stat.count} games)`);
-      lines.push(`Coverage: 95%${coverage95Emoji} 50%${coverage50Emoji}`);
-      if (coverage95 !== null) lines.push(`  95%: ${coverage95}%`);
-      if (coverage50 !== null) lines.push(`  50%: ${coverage50}%`);
-      lines.push(`Ensemble: ${ensembleEmoji} ${stat.beatEnsembleCount}/${stat.ensembleGamesCount} wins`);
+      // Beat ensemble - just numbers
+      lines.push(`Beat Ensemble: ${stat.beatEnsembleCount}/${stat.ensembleGamesCount}`);
     });
 
     return lines.join('\n');
