@@ -7,6 +7,10 @@ import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import { MODEL_COLORS } from '../config/datasets';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -244,19 +248,11 @@ const NHSNRawView = ({ location }) => {
   };
 
   const lastUpdatedTimestamp = metadata?.last_updated;
-  let formattedDate = null;
+  let relativeTime = null;
   let fullTimestamp = null;
   if (lastUpdatedTimestamp) {
     const date = new Date(lastUpdatedTimestamp);
-    formattedDate = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
+    relativeTime = dayjs(lastUpdatedTimestamp).fromNow();
     fullTimestamp = date.toLocaleString(undefined, {
       timeZone: 'America/New_York',
       year: 'numeric',
@@ -271,10 +267,10 @@ const NHSNRawView = ({ location }) => {
 
   return (
     <Stack gap="md" w="100%">
-      {formattedDate && (
+      {relativeTime && (
         <Text size="xs" c="dimmed" ta="right">
           last updated: <Tooltip label={fullTimestamp} position="left" withArrow>
-            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{formattedDate}</span>
+            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{relativeTime}</span>
           </Tooltip>
         </Text>
       )}

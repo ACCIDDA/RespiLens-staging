@@ -6,6 +6,11 @@ import ModelSelector from './ModelSelector';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
+
 const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
@@ -234,19 +239,11 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   };
 
   const lastUpdatedTimestamp = metadata?.last_updated;
-  let formattedDate = null;
+  let relativeTime = null;
   let fullTimestamp = null;
   if (lastUpdatedTimestamp) {
     const date = new Date(lastUpdatedTimestamp);
-    formattedDate = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
+    relativeTime = dayjs(lastUpdatedTimestamp).fromNow();
     fullTimestamp = date.toLocaleString(undefined, {
       timeZone: 'America/New_York',
       year: 'numeric',
@@ -268,10 +265,10 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
 
   return (
     <Stack>
-      {formattedDate && (
+      {relativeTime && (
         <Text size="xs" c="dimmed" ta="right">
           last updated: <Tooltip label={fullTimestamp} position="left" withArrow>
-            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{formattedDate}</span>
+            <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{relativeTime}</span>
           </Tooltip>
         </Text>
       )}
