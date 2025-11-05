@@ -12,6 +12,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
+  const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
@@ -139,6 +140,12 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   }, [projectionsData, xAxisRange, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
+    // Don't capture range changes during programmatic resets
+    if (isResettingRef.current) {
+      isResettingRef.current = false; // Reset flag after ignoring the event
+      return;
+    }
+
     // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
@@ -218,6 +225,10 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         const range = getDefaultRange();
         if (range && projectionsData.length > 0) {
           const newYRange = calculateYRange(projectionsData, range);
+          // Set flag to prevent onRelayout from capturing this programmatic change
+          isResettingRef.current = true;
+          setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
+          setYAxisRange(newYRange);
           const update = {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
@@ -225,16 +236,15 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
             'yaxis.autorange': newYRange === null,
           };
           Plotly.relayout(gd, update);
-          setXAxisRange(null); // Reset to auto-update mode
-          setYAxisRange(newYRange); // Update state
         } else if (range) {
-            Plotly.relayout(gd, {
+          isResettingRef.current = true;
+          setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
+          setYAxisRange(null);
+          Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.autorange': true,
           });
-            setXAxisRange(null); // Reset to auto-update mode
-            setYAxisRange(null); // Reset state
         }
       }
     }]

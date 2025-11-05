@@ -11,6 +11,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
+  const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
@@ -130,6 +131,12 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   }, [projectionsData, xAxisRange, defaultRange]);
 
   const handlePlotUpdate = (figure) => {
+    // Don't capture range changes during programmatic resets
+    if (isResettingRef.current) {
+      isResettingRef.current = false; // Reset flag after ignoring the event
+      return;
+    }
+
     // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
@@ -225,13 +232,15 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         const range = getDefaultRange();
         if (range) {
           const newYRange = calculateYRange(projectionsData, range);
+          // Set flag to prevent onRelayout from capturing this programmatic change
+          isResettingRef.current = true;
+          setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
+          setYAxisRange(newYRange);
           Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),
             'yaxis.range': newYRange
           });
-          setXAxisRange(null); // Reset to auto-update mode
-          setYAxisRange(newYRange);
         }
       }
     }]
