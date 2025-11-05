@@ -6,6 +6,7 @@ import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } fro
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
+import LastUpdated from './LastUpdated';
 import { MODEL_COLORS } from '../config/datasets';
 import {
   nhsnTargetsToColumnsMap, // groupings
@@ -243,28 +244,9 @@ const NHSNRawView = ({ location }) => {
     margin: { t: 40, r: 10, l: 60, b: 120 }
   };
 
-  const lastUpdatedTimestamp = metadata?.last_updated;
-  let formattedDate = null;
-  if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp);
-    formattedDate = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
-  }
-
   return (
     <Stack gap="md" w="100%">
-      {formattedDate && (
-        <Text size="xs" c="dimmed" ta="right">
-          last updated: {formattedDate}
-        </Text>
-      )}
+      <LastUpdated timestamp={metadata?.last_updated} />
 
       <Select
         label="Select a timeseries unit"

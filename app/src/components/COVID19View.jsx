@@ -3,6 +3,7 @@ import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import LastUpdated from './LastUpdated';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
@@ -237,20 +238,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     }]
   }), [getDefaultRange, projectionsData, calculateYRange, setYAxisRange]);
 
-  const lastUpdatedTimestamp = metadata?.last_updated;
-  let formattedDate = null;
-  if (lastUpdatedTimestamp) {
-    const date = new Date(lastUpdatedTimestamp); 
-    formattedDate = date.toLocaleString(undefined, {
-      timeZone: 'America/New_York', 
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
-  }
   if (!selectedTarget) {
     return (
         <Stack align="center" justify="center" style={{ height: '300px' }}>
@@ -261,11 +248,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   return (
     <Stack>
-      {formattedDate && (
-        <Text size="xs" c="dimmed" ta="right">
-          last updated: {formattedDate}
-        </Text>
-      )}
+      <LastUpdated timestamp={metadata?.last_updated} />
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}
