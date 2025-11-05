@@ -222,16 +222,16 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       name: 'Reset view',
       icon: Plotly.Icons.home,
       click: function(gd) {
-        const range = getDefaultRange();
+        const range = getDefaultRange(); // Smart default: selected dates ± context weeks
         if (range && projectionsData.length > 0) {
           const newYRange = calculateYRange(projectionsData, range);
           // Set flag to prevent onRelayout from capturing this programmatic change
           isResettingRef.current = true;
           setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
           setYAxisRange(newYRange);
+          // Only update xaxis.range, NOT rangeslider.range (keeps full extent visible in slider)
           const update = {
-            'xaxis.range': range,
-            'xaxis.rangeslider.range': getDefaultRange(true),
+            'xaxis.range': range,  // Smart default view
             'yaxis.range': newYRange,
             'yaxis.autorange': newYRange === null,
           };
@@ -241,8 +241,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
           setYAxisRange(null);
           Plotly.relayout(gd, {
-            'xaxis.range': range,
-            'xaxis.rangeslider.range': getDefaultRange(true),
+            'xaxis.range': range,  // Smart default view
             'yaxis.autorange': true,
           });
         }

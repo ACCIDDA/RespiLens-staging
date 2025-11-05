@@ -229,16 +229,16 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     modeBarButtonsToAdd: [{
       name: 'Reset view',
       click: function(gd) {
-        const range = getDefaultRange();
+        const range = getDefaultRange(); // Smart default: selected dates ± context weeks
         if (range) {
           const newYRange = calculateYRange(projectionsData, range);
           // Set flag to prevent onRelayout from capturing this programmatic change
           isResettingRef.current = true;
           setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
           setYAxisRange(newYRange);
+          // Only update xaxis.range, NOT rangeslider.range (keeps full extent visible in slider)
           Plotly.relayout(gd, {
-            'xaxis.range': range,
-            'xaxis.rangeslider.range': getDefaultRange(true),
+            'xaxis.range': range,  // Smart default view
             'yaxis.range': newYRange
           });
         }
