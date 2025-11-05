@@ -559,7 +559,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                       }}
-                                      title={`Underprediction: ${stat.averageUnderprediction.toFixed(2)}`}
+                                      title={`Underprediction: ${stat.averageUnderprediction.toFixed(3)}`}
                                     >
                                       {stat.averageUnderprediction > 5 && (
                                         <Text size="xs" c="white">{stat.averageUnderprediction.toFixed(1)}</Text>
@@ -576,7 +576,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                       }}
-                                      title={`Overprediction: ${stat.averageOverprediction.toFixed(2)}`}
+                                      title={`Overprediction: ${stat.averageOverprediction.toFixed(3)}`}
                                     >
                                       {stat.averageOverprediction > 5 && (
                                         <Text size="xs" c="white">{stat.averageOverprediction.toFixed(1)}</Text>
@@ -593,7 +593,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                       }}
-                                      title={`Dispersion: ${stat.averageDispersion.toFixed(2)}`}
+                                      title={`Dispersion: ${stat.averageDispersion.toFixed(3)}`}
                                     >
                                       {stat.averageDispersion > 5 && (
                                         <Text size="xs" c="white">{stat.averageDispersion.toFixed(1)}</Text>
@@ -618,7 +618,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                           alignItems: 'center',
                                           justifyContent: 'center',
                                         }}
-                                        title={`Underprediction: ${stat.averageEnsembleUnderprediction.toFixed(2)}`}
+                                        title={`Underprediction: ${stat.averageEnsembleUnderprediction.toFixed(3)}`}
                                       >
                                         {stat.averageEnsembleUnderprediction > 5 && (
                                           <Text size="xs" c="white">{stat.averageEnsembleUnderprediction.toFixed(1)}</Text>
@@ -635,7 +635,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                           alignItems: 'center',
                                           justifyContent: 'center',
                                         }}
-                                        title={`Overprediction: ${stat.averageEnsembleOverprediction.toFixed(2)}`}
+                                        title={`Overprediction: ${stat.averageEnsembleOverprediction.toFixed(3)}`}
                                       >
                                         {stat.averageEnsembleOverprediction > 5 && (
                                           <Text size="xs" c="white">{stat.averageEnsembleOverprediction.toFixed(1)}</Text>
@@ -652,7 +652,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                                           alignItems: 'center',
                                           justifyContent: 'center',
                                         }}
-                                        title={`Dispersion: ${stat.averageEnsembleDispersion.toFixed(2)}`}
+                                        title={`Dispersion: ${stat.averageEnsembleDispersion.toFixed(3)}`}
                                       >
                                         {stat.averageEnsembleDispersion > 5 && (
                                           <Text size="xs" c="white">{stat.averageEnsembleDispersion.toFixed(1)}</Text>
@@ -758,7 +758,7 @@ const ForecastleStatsModal = ({ opened, onClose }) => {
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm" fw={500}>
-                              {game.wis !== null ? game.wis.toFixed(2) : 'N/A'}
+                              {game.wis !== null ? game.wis.toFixed(3) : 'N/A'}
                             </Text>
                           </Table.Td>
                           <Table.Td>

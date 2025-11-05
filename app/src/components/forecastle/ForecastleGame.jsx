@@ -662,7 +662,7 @@ const ForecastleGame = () => {
                                             color={entry.isUser ? 'red' : entry.isHub ? 'green' : 'gray'}
                                             variant={entry.isUser || entry.isHub ? 'filled' : 'light'}
                                           >
-                                            WIS: {entry.wis.toFixed(2)}
+                                            WIS: {entry.wis.toFixed(3)}
                                           </Badge>
                                         </Group>
                                       </Paper>
@@ -750,7 +750,7 @@ const ForecastleGame = () => {
                                 }
                               }
 
-                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • WIS: ${scores.user.wis.toFixed(2)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
+                              return `Forecastle ${scenario.challengeDate}\n${emojis.join('')}\nRank #${userRank}/${totalModels} • WIS: ${scores.user.wis.toFixed(3)}\n${comparisonText}\n${datasetLabel} • ${scenario.location.abbreviation}`;
                             };
 
                             const handleCopy = async () => {
@@ -827,7 +827,7 @@ const ForecastleGame = () => {
                                       textShadow: '0 1px 1px rgba(255, 255, 255, 0.6)',
                                     }}
                                   >
-                                    WIS: {scores.user.wis.toFixed(2)} • {scenario.dataset.label} • {scenario.location.abbreviation}
+                                    WIS: {scores.user.wis.toFixed(3)} • {scenario.dataset.label} • {scenario.location.abbreviation}
                                   </Text>
                                 </Stack>
                               </Paper>
