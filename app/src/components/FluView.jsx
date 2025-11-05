@@ -226,22 +226,29 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       format: 'png',
       filename: 'forecast_plot'
     },
+    modeBarButtonsToRemove: ['resetScale2d'], // Remove default home to avoid confusion
     modeBarButtonsToAdd: [{
       name: 'Reset view',
+      icon: Plotly.Icons.home,
       click: function(gd) {
-        const range = getDefaultRange(); // Smart default: selected dates ± context weeks
-        if (range) {
-          const newYRange = calculateYRange(projectionsData, range);
-          // Set flag to prevent onRelayout from capturing this programmatic change
-          isResettingRef.current = true;
-          setXAxisRange(null); // Reset to auto-update mode BEFORE relayout
-          setYAxisRange(newYRange);
-          // Only update xaxis.range, NOT rangeslider.range (keeps full extent visible in slider)
-          Plotly.relayout(gd, {
-            'xaxis.range': range,  // Smart default view
-            'yaxis.range': newYRange
-          });
-        }
+        // Get smart default range (selected dates ± context weeks)
+        const range = getDefaultRange();
+        if (!range) return;
+
+        const newYRange = projectionsData.length > 0 ? calculateYRange(projectionsData, range) : null;
+
+        // Set flag to prevent onRelayout handler from capturing this programmatic change
+        isResettingRef.current = true;
+
+        // Reset to auto-follow mode (null = follows date changes)
+        setXAxisRange(null);
+        setYAxisRange(newYRange);
+
+        // Apply the smart default view
+        Plotly.relayout(gd, {
+          'xaxis.range': range,
+          'yaxis.range': newYRange
+        });
       }
     }]
   };
