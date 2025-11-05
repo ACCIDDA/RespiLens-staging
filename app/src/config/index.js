@@ -9,16 +9,22 @@
  */
 
 // Dataset configuration
-export { DATASETS, getAllViewValues, MODEL_COLORS, getModelColor } from './datasets';
+import { DATASETS, getAllViewValues, MODEL_COLORS, getModelColor } from './datasets';
 
 // Application defaults
-export { APP_CONFIG } from './app';
+import { APP_CONFIG } from './app';
 
 // Forecastle game settings
-export { FORECASTLE_CONFIG } from './forecastle';
+import { FORECASTLE_CONFIG } from './forecastle';
 
 // Visualization and chart settings
-export { CHART_CONFIG } from './visualization';
+import { CHART_CONFIG } from './visualization';
+
+// Re-export all configurations
+export { DATASETS, getAllViewValues, MODEL_COLORS, getModelColor };
+export { APP_CONFIG };
+export { FORECASTLE_CONFIG };
+export { CHART_CONFIG };
 
 /**
  * Convenience function to get the entire configuration object
