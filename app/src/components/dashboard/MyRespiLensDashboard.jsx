@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Container,
   Title,
@@ -346,9 +347,13 @@ const MyRespiLensDashboard = () => {
   }
 
   return (
-    <Container size="xl" py="xl" style={{ maxWidth: '800px' }}>
-      <Center style={{ minHeight: '70vh' }}>
-        <Stack align="center" gap="xl" style={{ width: '100%', maxWidth: '600px' }}>
+    <>
+      <Helmet>
+        <title>RespiLens | MyRespiLens</title>
+      </Helmet>
+      <Container size="xl" py="xl" style={{ maxWidth: '800px' }}>
+        <Center style={{ minHeight: '70vh' }}>
+          <Stack align="center" gap="xl" style={{ width: '100%', maxWidth: '600px' }}>
           <Modal 
             opened={opened} 
             onClose={close} 
@@ -446,6 +451,7 @@ const MyRespiLensDashboard = () => {
         </Stack>
       </Center>
     </Container>
+    </>
   );
 };
 

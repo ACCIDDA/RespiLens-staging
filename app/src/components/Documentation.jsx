@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet-async';
 import {
   Anchor,
   Container,
@@ -14,9 +15,9 @@ import {
   Box
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { 
-  IconBinaryTree, 
-  IconClipboard, 
+import {
+  IconBinaryTree,
+  IconClipboard,
   IconTransformFilled,
   IconCopy,
   IconCheck,
@@ -111,8 +112,12 @@ const pythonScriptCommand = `python external_to_projections.py \\
 
 const Documentation = () => {
   return (
-    <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
-      <Stack gap="lg">
+    <>
+      <Helmet>
+        <title>RespiLens | Documentation</title>
+      </Helmet>
+      <Container size="xl" py="xl" style={{ maxWidth: '1100px' }}>
+        <Stack gap="lg">
         
         <Paper shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md">
@@ -274,6 +279,7 @@ const Documentation = () => {
 
       </Stack>
     </Container>
+    </>
   );
 };
 

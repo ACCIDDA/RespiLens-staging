@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Container, Paper, Title, Text, Group, Stack, Badge, ThemeIcon, Loader, Center, Button, ActionIcon, Box, Divider } from '@mantine/core';
 import { IconBook, IconCalendar, IconUser, IconChevronLeft, IconChevronRight, IconCode } from '@tabler/icons-react';
 import ForecastViz from '../ForecastViz';
@@ -480,9 +481,13 @@ The final view returns to the national perspective with our latest forecasts, sh
   const currentSlideData = slides[currentSlide];
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Paper shadow="sm" p="md" style={{ flexShrink: 0 }}>
+    <>
+      <Helmet>
+        <title>RespiLens | Narrative Viewer</title>
+      </Helmet>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <Paper shadow="sm" p="md" style={{ flexShrink: 0 }}>
         <Group justify="space-between" align="center">
           <Button
             variant="light"
@@ -573,6 +578,7 @@ The final view returns to the national perspective with our latest forecasts, sh
         </Box>
       </div>
     </div>
+    </>
   );
 };
 
