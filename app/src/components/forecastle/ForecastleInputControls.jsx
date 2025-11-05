@@ -9,6 +9,38 @@ const formatHorizonLabel = (horizon) => {
 const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'intervals', disabled = false }) => {
   const sliderMax = useMemo(() => Math.max(maxValue, 1), [maxValue]);
 
+  // Calculate initial auto interval values from current entries
+  // This must be called before any conditional returns to follow Rules of Hooks
+  const calculateAutoIntervalParams = () => {
+    if (entries.length === 0) return { initialWidth95: 0, growthRate95: 0, initialWidth50: 0, growthRate50: 0 };
+
+    // For first horizon
+    const firstEntry = entries[0];
+    const initialWidth95 = (firstEntry.upper95 - firstEntry.lower95) / 2;
+    const initialWidth50 = (firstEntry.upper50 - firstEntry.lower50) / 2;
+
+    // Calculate growth rate from first to last horizon
+    if (entries.length > 1) {
+      const lastEntry = entries[entries.length - 1];
+      const lastWidth95 = (lastEntry.upper95 - lastEntry.lower95) / 2;
+      const lastWidth50 = (lastEntry.upper50 - lastEntry.lower50) / 2;
+      const horizonDiff = lastEntry.horizon - firstEntry.horizon;
+
+      const growthRate95 = horizonDiff > 0 ? (lastWidth95 - initialWidth95) / horizonDiff : 0;
+      const growthRate50 = horizonDiff > 0 ? (lastWidth50 - initialWidth50) / horizonDiff : 0;
+
+      return { initialWidth95, growthRate95, initialWidth50, growthRate50 };
+    }
+
+    return { initialWidth95, growthRate95: 0, initialWidth50, growthRate50: 0 };
+  };
+
+  const autoParams = useMemo(calculateAutoIntervalParams, [entries]);
+  const [initialWidth95, setInitialWidth95] = useState(autoParams.initialWidth95);
+  const [growthRate95, setGrowthRate95] = useState(autoParams.growthRate95);
+  const [initialWidth50, setInitialWidth50] = useState(autoParams.initialWidth50);
+  const [growthRate50, setGrowthRate50] = useState(autoParams.growthRate50);
+
   const updateEntry = (index, field, value) => {
     const nextEntries = entries.map((entry, idx) => {
       if (idx !== index) return entry;
@@ -85,37 +117,6 @@ const ForecastleInputControls = ({ entries, onChange, maxValue, mode = 'interval
       </Group>
     );
   }
-
-  // Calculate initial auto interval values from current entries
-  const calculateAutoIntervalParams = () => {
-    if (entries.length === 0) return { initialWidth95: 0, growthRate95: 0, initialWidth50: 0, growthRate50: 0 };
-
-    // For first horizon
-    const firstEntry = entries[0];
-    const initialWidth95 = (firstEntry.upper95 - firstEntry.lower95) / 2;
-    const initialWidth50 = (firstEntry.upper50 - firstEntry.lower50) / 2;
-
-    // Calculate growth rate from first to last horizon
-    if (entries.length > 1) {
-      const lastEntry = entries[entries.length - 1];
-      const lastWidth95 = (lastEntry.upper95 - lastEntry.lower95) / 2;
-      const lastWidth50 = (lastEntry.upper50 - lastEntry.lower50) / 2;
-      const horizonDiff = lastEntry.horizon - firstEntry.horizon;
-
-      const growthRate95 = horizonDiff > 0 ? (lastWidth95 - initialWidth95) / horizonDiff : 0;
-      const growthRate50 = horizonDiff > 0 ? (lastWidth50 - initialWidth50) / horizonDiff : 0;
-
-      return { initialWidth95, growthRate95, initialWidth50, growthRate50 };
-    }
-
-    return { initialWidth95, growthRate95: 0, initialWidth50, growthRate50: 0 };
-  };
-
-  const autoParams = useMemo(calculateAutoIntervalParams, [entries]);
-  const [initialWidth95, setInitialWidth95] = useState(autoParams.initialWidth95);
-  const [growthRate95, setGrowthRate95] = useState(autoParams.growthRate95);
-  const [initialWidth50, setInitialWidth50] = useState(autoParams.initialWidth50);
-  const [growthRate50, setGrowthRate50] = useState(autoParams.growthRate50);
 
   // Apply auto interval to all horizons
   const applyAutoInterval = (initWidth95, growth95, initWidth50, growth50) => {
