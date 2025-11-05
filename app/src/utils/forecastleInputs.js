@@ -1,3 +1,5 @@
+import { FORECASTLE_CONFIG } from '../config';
+
 const buildPoissonInterval = (mean, zScore) => {
   if (!Number.isFinite(mean) || mean <= 0) {
     return { width: 0 };
@@ -9,8 +11,8 @@ const buildPoissonInterval = (mean, zScore) => {
 
 export const initialiseForecastInputs = (horizons = [], baselineValue = 0) => {
   const mean = Number.isFinite(baselineValue) && baselineValue > 0 ? baselineValue : 0;
-  const interval95 = buildPoissonInterval(mean, 1.96);
-  const interval50 = buildPoissonInterval(mean, 0.674);
+  const interval95 = buildPoissonInterval(mean, FORECASTLE_CONFIG.confidence.zScore95);
+  const interval50 = buildPoissonInterval(mean, FORECASTLE_CONFIG.confidence.zScore50);
 
   return horizons.map((horizon) => ({
     horizon,

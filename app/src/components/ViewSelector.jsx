@@ -2,12 +2,12 @@ import { useMemo } from 'react';
 import { Stack, Button, Menu, Paper } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useView } from '../hooks/useView';
-import { DATASETS } from '../config/datasets';
+import { DATASETS, APP_CONFIG } from '../config';
 
 const ViewSelector = () => {
   const { viewType, setViewType } = useView();
 
-  const datasetOrder = useMemo(() => ['flu', 'rsv', 'covid', 'nhsn'], []);
+  const datasetOrder = useMemo(() => APP_CONFIG.datasetDisplayOrder, []);
   const datasets = useMemo(
     () =>
       datasetOrder

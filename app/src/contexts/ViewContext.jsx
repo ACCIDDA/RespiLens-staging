@@ -5,6 +5,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
 import { ViewContext } from './ViewContextObject';
+import { APP_CONFIG } from '../config';
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -100,7 +101,7 @@ export const ViewProvider = ({ children }) => {
 
 
   const handleLocationSelect = (newLocation) => {
-    if (newLocation !== 'US') {
+    if (newLocation !== APP_CONFIG.defaultLocation) {
       urlManager.updateLocation(newLocation);
     } else {
       const newParams = new URLSearchParams(searchParams);
@@ -124,7 +125,7 @@ export const ViewProvider = ({ children }) => {
     const newDataset = urlManager.getDatasetFromView(newView);
     const newSearchParams = new URLSearchParams(searchParams);
 
-    if (newView !== 'flu_projs' || newSearchParams.toString().length > 0) {
+    if (newView !== APP_CONFIG.defaultView || newSearchParams.toString().length > 0) {
       newSearchParams.set('view', newView);
     } else {
       newSearchParams.delete('view');

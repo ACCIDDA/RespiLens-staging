@@ -1,6 +1,6 @@
 // src/utils/urlManager.js
 
-import { DATASETS } from '../config/datasets';
+import { DATASETS, APP_CONFIG } from '../config';
 
 export class URLParameterManager {
   constructor(searchParams, setSearchParams) {
@@ -147,10 +147,10 @@ export class URLParameterManager {
   // Update location parameter while preserving all other params
   updateLocation(location) {
     const newParams = new URLSearchParams(this.searchParams);
-    if (location && location !== 'US') {
+    if (location && location !== APP_CONFIG.defaultLocation) {
         newParams.set('location', location);
     } else {
-        newParams.delete('location'); // Remove if 'US' or falsy
+        newParams.delete('location'); // Remove if default location or falsy
     }
     if (newParams.toString() !== this.searchParams.toString()) {
       this.setSearchParams(newParams, { replace: true });
@@ -159,7 +159,7 @@ export class URLParameterManager {
 
   // Get current location from URL
   getLocation() {
-    return this.searchParams.get('location') || 'US';
+    return this.searchParams.get('location') || APP_CONFIG.defaultLocation;
   }
 
   // Get current view from URL
@@ -170,9 +170,9 @@ export class URLParameterManager {
     if (viewParam && allViews.includes(viewParam)) {
         return viewParam;
     }
-    // Find the default view of the default dataset (e.g., flu)
-    const defaultDatasetKey = Object.keys(DATASETS)[0]; // Assuming first dataset is overall default
-    return DATASETS[defaultDatasetKey]?.defaultView || 'flu_projs'; // Fallback needed
+    // Find the default view of the default dataset
+    const defaultDatasetKey = APP_CONFIG.defaultDataset;
+    return DATASETS[defaultDatasetKey]?.defaultView || APP_CONFIG.defaultView;
   }
 
   // Initialize URL with defaults if missing (Less critical now with context handling)

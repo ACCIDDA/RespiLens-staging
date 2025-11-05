@@ -14,6 +14,7 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
+import { CHART_CONFIG } from '../../config';
 
 ChartJS.register(
   CategoryScale,
@@ -29,8 +30,8 @@ ChartJS.register(
   Filler,
 );
 
-const INTERVAL95_COLOR = 'rgba(220, 20, 60, 0.25)'; // Crimson with transparency
-const INTERVAL50_COLOR = 'rgba(220, 20, 60, 0.45)'; // Crimson with more opacity
+const INTERVAL95_COLOR = CHART_CONFIG.forecastleColors.interval95;
+const INTERVAL50_COLOR = CHART_CONFIG.forecastleColors.interval50;
 const MEDIAN_COLOR = '#000000';
 const HANDLE_MEDIAN = '#dc143c'; // Crimson
 const HANDLE_OUTLINE = '#000000';
