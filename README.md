@@ -1,106 +1,53 @@
 # [RespiLens.com](http://www.respilens.com) [![Lint](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/lint.yml)  [![Build and Deploy Site](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/build-deploy.yml)  [![Python Tests](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml/badge.svg)](https://github.com/ACCIDDA/RespiLens-staging/actions/workflows/python-tests.yml)
-Authors: **Emily Przykucki**, Joseph Lemaitre and others within ACCIDDA, the Atlantic Coast Center for Infectious Disease Dynamics and Analytics.
+Authors: **Emily Przykucki**, Joseph Lemaitre, and others within ACCIDDA, the Atlantic Coast Center for Infectious Disease Dynamics and Analytics.
 
 * **stable version** https://www.RespiLens.com
-* **new features are developped on** https://staging.RespiLens.com
+* **new features are developped on** https://staging.RespiLens.com, [GitHub](https://github.com/ACCIDDA/RespiLens-staging)
 
-
-Hey, there are other flusight vizualization but realized most of them are geared towards CDC/academics instead of state health department and public. Moreover, these hub data remains not accesssible enough. The goal is to make one more with these users in mind, and to have the following important (to me only) features:
-- **ability to link a certain view to a URL to share forecast**
-- static and updated everyweek
-- multi view (categorical forecasts, scores, timeseries)
-- multi-date on one view to compare
-- any number of model
-
-
-Most other viz I am aware off are made by the amazing Reichlab:
-- http://flusightnetwork.io: very great, but only past season and only one model somehow
-- https://zoltardata.com/project/360/viz the zotltra view is only past season but is very great, I like the suffle color button. Only last year
-- https://reichlab.io/flusight-dashboard/ very detailed dashboard, incredible for modelers. Currently 404 and also it is relatively static for other users.
-
-## Features
-Features
-### TODO
-- [x] Add the RSV forecasts
-- [x] Add the multiview view
-- [ ] Add a multipathogen view
-- [ ] Show on state card which one have rsv data
-- [x] gray rsv view on state with no rsv
-- [ ] direct link to plot png/pdf ?
-- [x] Simple view for mobile
-- [x] add some text to welcome and disclaim
-- [ ] model description when we hover on name
-- [x] validation plot for rsv
-- [ ] Add WIS score and
-- [ ] allow to select top scoring model past 8 week or full past for this state
-- [ ] logo as favicon
-- [ ] change current json payload format to binary format
-- [ ] reorder URL: state then view then date then models
-- [x] hold model and date on state change
-- [x] deploy to ghpage using action instead of branch
-- [x] view without histogram for mobile viewing
-- [ ] remove histogram on multidate view cause confusing
-- [ ] add peak timing and size targets
-
-### DONE
-
-- [x] basic forecast visualization component
-- [x] set up github actions workflow for data processing
-- [x] add state/location selector
-- [x] implement model selection
-- [x] add date navigation controls
-- [x] create plotly-based interactive charts
-- [x] add quantile confidence intervals visualization
-- [x] implement rate change histogram
-- [x] add model color coding system
-- [x] enable plot export functionality
-- [x] add responsive layout design
-- [x] implement url parameter handling
-- [x] add select all/none model buttons
-- [x] create multi-date selection feature
-- [x] add reset view functionality
-- [x] implement plot navigation timeline
-- [x] add development proxy configuration
-- [x] set up github pages deployment
-- [x] implement data processing pipeline
-- [x] add progress tracking for data processing
-- [x] create validation plots
-- [x] implement ground truth data filtering
-- [x] add automatic metadata generation
-- [x] choose name  **RespiLense better ??**
-- [x] make logo
-- [x] implement error handling for data loading
-- [x] create mobile-friendly interface
-- [x] add documentation for data formats
-- [x] create consistent file naming system
+RespiLens is a responsive web app to visualize respiratory disease forecasts in the US, focused on accessibility for state health departments and the general public. The RSV, COVID-19 and flu views pull from CDC forecast hubs (collectively known as the Hubverse: [rsv-forecast-hub](https://github.com/CDCgov/rsv-forecast-hub), [covid19-forecast-hub](https://github.com/CDCgov/covid19-forecast-hub), and [FluSight-forecast-hub](https://github.com/cdcepi/FluSight-forecast-hub)), and consolidate pathogen data by location and date into one user-friendly plot. While other visualization tools for FluSight/RSV/COVID-19 Hubverse data may exist, many of them are geared towards academics instead of state health departments and the public, making them less accessible to people who need them. Our goal is to make a dashboard with these users in mind. Presently, RespiLens offers these features:
+- **Ability to link a certain view to a URL to share a forecast.** Select a pathogen, a location, and date(s), and then click the "Share View" button to copy the URL with your settings.
+- Site rebuilt daily, with new data Hub produced weekly during Hub forecasting seasons (year-round for COVID-19)
+- Ability to choose any number of dates to visualize on your plot
+- Ability to choose any number of contributing models to visualize on your plot
+- A view with National Healthcare Safety Network data, plotting almost 300 data categories (e.g., Number of Adult COVID-19 Admissions, or Percent Inpatient Beds Occupied by RSV Patients) 
+- **Forecastle**, a daily disease forecasting game, where you can attempt to predict hospitalizations counts for a specific senario and then get scored against participating models.
+- **MyRespiLens**, where you can visualize your own data for a specific location without the file leaving your machine.
 
 
 ## Data Processing
 
-GitHub Actions refreshes the processed JSON nightly, but you can regenerate everything locally in two ways:
+GitHub Actions refreshes (for the website) the processed JSON nightly, but you can regenerate all data locally with a single executable:
 
 - `./update_all_data_source.sh`  
-  Clones or updates the FluSight, RSV, and COVID-19 hubs and runs `scripts/process_RespiLens_data.py` to rebuild `app/public/processed_data/`.
+  Run from the top-level of your local RespiLens directory. This clones and/or updates NHSN data, and repositories for FluSight, RSV, and COVID-19 hub data, then runs `scripts/process_RespiLens_data.py` to convert data to RespiLens-sanctioned formats and place the output in `app/public/processed_data/` (where the js codebase pulls site data from).
 
 - `python scripts/external_to_projections.py`  
-  Converts a single pathogen’s Hubverse exports into RespiLens projection JSON. Supply the forecast CSV, target dataset, and locations metadata for the pathogen you want to process:
+  Converts a single pathogen’s Hubverse .csv data into RespiLens projections-style JSON. Supply the path to the .csv, target dataset, and location metadata for the pathogen you want to process, and run (e.g.) the following from the top-level of your local RespiLens directory
 
   ```bash
   python scripts/external_to_projections.py \
-      --output-path ./app/public/processed_data \
+      --output-path ./path/to/your/output_directory \
       --pathogen flu \
-      --data-path /absolute/path/to/FluSight-forecast-hub/hub_data.csv \
+      --data-path /abs_path_to/FluSight-forecast-hub/model-output/.../loc.csv \
       --target-data-path /absolute/path/to/FluSight-forecast-hub/target-data/time-series.csv \
       --locations-data-path /absolute/path/to/FluSight-forecast-hub/auxiliary-data/locations.csv \
       --overwrite
   ```
 
 - `Rscript scripts/external_to_projections.R`  
-  The R companion script accepts the same arguments and produces byte-for-byte identical JSON (after installing `jsonlite` and `arrow`). If `jsonvalidate` is available it will also run schema checks, otherwise it skips them with a warning. Use it when working entirely in the R ecosystem or Hubverse R tooling.
+  The R companion script accepts the same arguments and produces byte-for-byte identical JSON (after installing `jsonlite` and `arrow`). If `jsonvalidate` is available it will also run schema checks, otherwise it skips them with a warning. Use it when working entirely in the R ecosystem or Hubverse R tooling. The command looks almost identical to that of the Python pipeline:
 
-  Swap the `--pathogen` flag to `rsvforecasthub` or `covid19forecasthub` (file paths adjusted to the respective Hubverse clones). Each payload is validated against `scripts/schemas/RespiLens_projections.schema.json` before being saved under `app/public/processed_data/<pathogen>/`.
+  ```bash
+  Rscript scripts/external_to_projections.R \
+      --output-path ./path/to/your/output_directory \
+      --pathogen flu \
+      --data-path /abs_path_to/FluSight-forecast-hub/model-output/.../loc.csv \
+      --target-data-path /absolute/path/to/FluSight-forecast-hub/target-data/time-series.csv \
+      --locations-data-path /absolute/path/to/FluSight-forecast-hub/auxiliary-data/locations.csv \
+      --overwrite
+  ```
 
-If you want to compare fresh output against a snapshot, stash the reference JSON (e.g., under `tmp/baseline_json_samples/`) and run:
+JSON files produced using `external_to_projections.py` or `external_to_projections.R` can be drag-n-dropped to MyRespiLens. If you want to compare fresh output against a snapshot, stash the reference JSON (e.g., under `tmp/baseline_json_samples/`) and run:
 
 ```bash
 diff -ru tmp/baseline_json_samples app/public/processed_data
@@ -121,165 +68,68 @@ python -m pytest tests/test_processors.py
 ```
 
 
-## Desired Behaviors
+### Metadata
 
-There are 3 dataset and many view, some per dataset some multidateset
-* flusight with shortkey: flu
-* rsvforecasthub with shortkey: rsv
-* nhsn with shortkey: nhsn
-  
-There are currently 4 views:
-* Flu detailed 
-* Flu Timeserie
-* RSV View
-* NHSN View
-
-View switching within a dataset (e.g Flu detailed to Flu Timeseries) should preserve all url Parameters
-* View switching should between dataset should reset all url parameters to be empty and the plot to be the default
-
-* URL Parameters Format:
-  * location: State abbreviation (e.g. "MA")
-  * view: "fludetailed", "flutimeseries", or "rsvdetailed", or "nhsnall"
-
-For flu views:
-  * flu_dates: Comma-separated dates for flu views
-  * flu_models: Comma-separated model names for flu views
-For rsv views:
-  * rsv_dates: Comma-separated dates for RSV view
-  * rsv_models: Comma-separated model names for RSV view
-For nshn views:
-  * nhsn_columns: Comma-separated column names for both datasets
-
-Parameter Logic:
-  * URL params are dataset specific (flu_ or rsv_ prefix)
-  * Switching between flu views preserves flu_* params
-  * Switching between RSV/flu clears old view's params
-Reset clears current view's params and sets defaults. 
-
-Default for flu and rsv views: 
-  *  Most recent date
-  *  Default ensemble model plotted (FluSight/hub based on view)
-  *  Default axis (8 week before, 5 week after the last date.)
-  *  model selector show possible model
-
-Default for NHSN views
-* Two model selector show columns (for prelim and final data)
-* no date selector
-
-The information overlay:
-* should close on escape
-
-
-Location and view params always preserved
-
-
-
-# FluSight Visualization Data Format
-
-This document describes the data format used for the FluSight visualization payloads. The preprocessed data is organized into multiple JSON files: a metadata file and individual location files.
-
-## Directory Structure
-
-```
-processed_data/
-├── metadata.json         # Global metadata and available options
-├── US.json              # National level forecasts and data
-├── 01.json             # Alabama forecasts and data
-├── 02.json             # Alaska forecasts and data
-└── ...                 # Other state/territory files
-```
-
-## Metadata File Format
-
-The `metadata.json` file contains global information about the available data:
-
-```json
-{
-  "last_updated": "2024-01-18 15:30:00",
-  "models": ["UNC_IDD-influpaint", "FluSight-ensemble", ...],
-  "locations": ["US", "01", "02", ...],
-  "demo_mode": false
-}
-```
+Location-specific metadata (appears in Hubverse hubs as `locations.csv`):
 
 | Field | Description |
 |-------|-------------|
-| `last_updated` | Timestamp of when the data was last processed |
-| `models` | Array of available model identifiers |
-| `locations` | Array of available location codes |
-| `demo_mode` | Boolean indicating if this is demo data (limited models) |
+| `abbreviation` | Abbreviation for the location (e.g., "NC" for North Carolina) |
+| `location` | Location FIPS code (e.g., "37" for North Carolina) |
+| `location_name` | Human-readable location name (e.g., "North Carolina" for North Carolina) |
+| `population` | Population size |
 
-## Location File Format
-
-Each location file (e.g., `US.json`, `01.json`) contains three main sections:
+Each RespiLens JSON data file has a `metadata` key, containing details about the contents of the file. RespiLens projections data (RSV, COVID-19, and flu) metadata keys will resemble this:
 
 ```json
 {
   "metadata": {
-    "location": "01",
-    "location_name": "Alabama",
-    "population": 5024279
-  },
-  "ground_truth": {
-    "dates": ["2023-10-01", "2023-10-08", ...],
-    "values": [120, 145, ...],
-    "rates": [2.4, 2.9, ...]
-  },
-  "forecasts": {
-    "2024-01-13": {
-      "wk inc flu hosp": {
-        "UNC_IDD-influpaint": {
-          "type": "quantile",
-          "predictions": {
-            "0": {
-              "date": "2024-01-13",
-              "quantiles": [0.025, 0.25, 0.5, 0.75, 0.975],
-              "values": [100, 120, 130, 140, 160]
-            },
-            "1": {
-              "date": "2024-01-20",
-              "quantiles": [0.025, 0.25, 0.5, 0.75, 0.975],
-              "values": [110, 130, 140, 150, 170]
-            }
-          }
-        }
-      },
-      "wk flu hosp rate change": {
-        "UNC_IDD-influpaint": {
-          "type": "pmf",
-          "predictions": {
-            "0": {
-              "date": "2024-01-13",
-              "categories": ["large_decrease", "decrease", "stable", "increase", "large_increase"],
-              "probabilities": [0.1, 0.2, 0.4, 0.2, 0.1]
-            }
-          }
-        }
-      }
+    "location": "37",
+    "abbreviation": "NC",
+    "location_name": "North Carolina",
+    "population": 10488084,
+    "dataset": "covid19 forecast hub",
+    "series_type": "projection",
+    "hubverse_keys": {
+      "models": ["model_name1", "model_name2"],
+      "targets": ["wk inc covid hosp", "wk inc covid prop ed visits"],
+      "horizons": ["0", "1", "2"],
+      "output_types": ["quantile"]
     }
   }
 }
 ```
+FluSight data contains an additional "pmf" data output type, which RespiLens uses to create a histogram of hospitalization categories (large increase, increase, stable, decrease, large decrease) for a given horizon. This can be viewed by selecting the FluSight Detailed View ([see below for more information](#pmf-predictions-format))
 
-### Metadata Section
+And RespiLens timeseries data (NHSN) metadata keys will resemble this:
 
-Location-specific metadata:
+```json
+{
+  "metadata": {
+    "location": "37",
+    "abbreviation": "NC",
+    "location_name": "North Carolina",
+    "population": 10488084,
+    "dataset": "NHSN",
+    "series_type": "projection"
+  }
+}
+```
 
-| Field | Description |
-|-------|-------------|
-| `location` | Location code (e.g., "01" for Alabama) |
-| `location_name` | Human-readable location name |
-| `population` | Population size used for rate calculations |
+Additionally, each data pull will produce one `metadata.json` file stored amongst location JSON output, which consolidates information about locations included in that pull, as well as what date/time the pull occurred.
 
-### Ground Truth Section
+### Ground Truth 
 
-Historical observed data:
+The `ground_truth` key of RespiLens projections JSON stores the actual, observed data for a specific pathogen.
 
 | Field | Description |
 |-------|-------------|
 | `dates` | Array of dates in YYYY-MM-DD format |
-| `values` | Array of observed hospitalization counts |
-| `rates` | Array of hospitalization rates per 100k population |
+| `<target_name>` | Array of observed values for that target |
+
+Targets from the Hubverse are often "wk inc hosp", meaning "weekly incident of hospitalization" for a certain pathogen. Some pathogens (RSV and COVID-19) contain a "proportion of ED visits" due to a certain pathogen target as well. 
+
+All NHSN data is ground truth (actually observed).
 
 ### Forecasts Section
 
@@ -287,11 +137,8 @@ The forecasts section is organized hierarchically:
 
 1. Reference Date (YYYY-MM-DD)
    - The Saturday of the submission week
-2. Target Type
-   - `wk inc flu hosp`: Weekly incident hospitalizations
-   - `wk flu hosp rate change`: Weekly rate change categories
-   - `peak week inc flu hosp`: Peak week prediction
-   - `peak inc flu hosp`: Peak incidence prediction
+2. Target 
+   - The target value forecasted (e.g., "weekly incidence of hospitalization")
 3. Model Name
    - Contains predictions for each model
 4. Prediction Data
@@ -347,34 +194,10 @@ Used for rate change categories:
 | `categories` | Array of category names |
 | `probabilities` | Array of probability values summing to 1 |
 
-#### Sample Predictions Format
-
-Used for trajectory samples:
-
-```json
-{
-  "type": "sample",
-  "predictions": {
-    "0": {
-      "date": "2024-01-13",
-      "samples": [120, 125, 130, ...]
-    }
-  }
-}
-```
-
-| Field | Description |
-|-------|-------------|
-| `type` | Always "sample" |
-| `predictions` | Object with horizons as keys (0-3) |
-| `date` | Target end date for the prediction |
-| `samples` | Array of sample values |
-
 ## Usage Notes
 
 1. All dates use ISO format (YYYY-MM-DD)
-2. Horizons are stored as strings ("0", "1", "2", "3")
+2. Horizons and FIPS codes are stored as strings ("0", "1", "2"; "01", "37", "50")
 3. Values for incident hospitalizations are always integers
 4. PMF probabilities always sum to 1.0
-5. Sample trajectories contain exactly 100 samples per horizon
-6. Missing data is represented by empty arrays or null values
+6. Missing data is represented by JSON-compatible null values

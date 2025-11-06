@@ -9,7 +9,9 @@ import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 
 const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
+  const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
@@ -108,23 +110,40 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }).filter(Boolean);
   }, [forecasts, selectedDates, selectedModels]);
 
-  const defaultRange = getDefaultRange();
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
+  // Reset xaxis range only when viewType changes (null = auto-follow date changes)
   useEffect(() => {
-    if (projectionsData.length > 0 && defaultRange) {
-      const initialYRange = calculateYRange(projectionsData, defaultRange);
+    setXAxisRange(null); // Reset to auto-update mode on view change
+  }, [viewType]);
+
+  // Recalculate y-axis when data or x-range changes
+  useEffect(() => {
+    const currentXRange = xAxisRange || defaultRange;
+    if (projectionsData.length > 0 && currentXRange) {
+      const initialYRange = calculateYRange(projectionsData, currentXRange);
       if (initialYRange) {
         setYAxisRange(initialYRange);
       }
+    } else {
+      setYAxisRange(null);
     }
-  }, [projectionsData, defaultRange]);
+  }, [projectionsData, xAxisRange, defaultRange]);
 
   const handlePlotUpdate = (figure) => {
-    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
-      const newYRange = calculateYRange(projectionsData, figure['xaxis.range']);
-      if (newYRange && plotRef.current) {
-        setYAxisRange(newYRange);
-        Plotly.relayout(plotRef.current.el, {'yaxis.range': newYRange});
+    // Don't capture range changes during programmatic resets
+    if (isResettingRef.current) {
+      isResettingRef.current = false; // Reset flag after ignoring the event
+      return;
+    }
+
+    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
+    if (figure && figure['xaxis.range']) {
+      const newXRange = figure['xaxis.range'];
+      // Only update if different to avoid loops
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
     }
   };
@@ -153,7 +172,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     xaxis: {
       domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
       rangeslider: {
-        range: getDefaultRange(true)
+        range: getDefaultRange(true) // Rangeslider always shows full extent
       },
       rangeselector: {
         buttons: [
@@ -162,7 +181,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange
+      range: xAxisRange || defaultRange // Use user's selection or default
     },
     yaxis: {
       title: 'Hospitalizations',
@@ -211,19 +230,29 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       format: 'png',
       filename: 'forecast_plot'
     },
+    modeBarButtonsToRemove: ['resetScale2d'], // Remove default home to avoid confusion
     modeBarButtonsToAdd: [{
       name: 'Reset view',
+      icon: Plotly.Icons.home,
       click: function(gd) {
+        // Get smart default range (selected dates ± context weeks)
         const range = getDefaultRange();
-        if (range) {
-          const newYRange = calculateYRange(projectionsData, range);
-          Plotly.relayout(gd, {
-            'xaxis.range': range,
-            'xaxis.rangeslider.range': getDefaultRange(true),
-            'yaxis.range': newYRange
-          });
-          setYAxisRange(newYRange);
-        }
+        if (!range) return;
+
+        const newYRange = projectionsData.length > 0 ? calculateYRange(projectionsData, range) : null;
+
+        // Set flag to prevent onRelayout handler from capturing this programmatic change
+        isResettingRef.current = true;
+
+        // Reset to auto-follow mode (null = follows date changes)
+        setXAxisRange(null);
+        setYAxisRange(newYRange);
+
+        // Apply the smart default view
+        Plotly.relayout(gd, {
+          'xaxis.range': range,
+          'yaxis.range': newYRange
+        });
       }
     }]
   };

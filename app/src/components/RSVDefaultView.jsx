@@ -10,7 +10,9 @@ import { targetDisplayNameMap } from '../utils/mapUtils';
 
 const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
+  const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
@@ -116,35 +118,41 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
-  const defaultRange = getDefaultRange();
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
+  // Reset xaxis range only when target changes (null = auto-follow date changes)
   useEffect(() => {
-    // Recalculate y-axis when target changes or data loads
-    if (projectionsData.length > 0 && defaultRange) {
-      const initialYRange = calculateYRange(projectionsData, defaultRange);
-      setYAxisRange(initialYRange); // Set to null if calculation fails
+    setXAxisRange(null); // Reset to auto-update mode on target change
+  }, [selectedTarget]);
+
+  // Recalculate y-axis when data or x-range changes
+  useEffect(() => {
+    const currentXRange = xAxisRange || defaultRange;
+    if (projectionsData.length > 0 && currentXRange) {
+      const initialYRange = calculateYRange(projectionsData, currentXRange);
+      setYAxisRange(initialYRange);
     } else {
-      setYAxisRange(null); // Reset if no data or default range
+      setYAxisRange(null);
     }
-    // Add selectedTarget and the now-stable calculateYRange
-  }, [projectionsData, defaultRange, selectedTarget, calculateYRange]);
+  }, [projectionsData, xAxisRange, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
-    if (figure && figure['xaxis.range'] && projectionsData.length > 0) {
+    // Don't capture range changes during programmatic resets
+    if (isResettingRef.current) {
+      isResettingRef.current = false; // Reset flag after ignoring the event
+      return;
+    }
+
+    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
+    if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      const newYRange = calculateYRange(projectionsData, newXRange);
-      // Only update if the range actually changed to prevent infinite loops
-      if (newYRange && JSON.stringify(newYRange) !== JSON.stringify(yAxisRange)) {
-        setYAxisRange(newYRange);
-      }
-    } else if (figure && figure['xaxis.range'] === undefined && defaultRange) {
-      // Handle reset or initial load case if needed, possibly recalculate Y
-      const initialYRange = calculateYRange(projectionsData, defaultRange);
-      if (JSON.stringify(initialYRange) !== JSON.stringify(yAxisRange)) {
-        setYAxisRange(initialYRange);
+      // Only update if different to avoid loops
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
     }
-  }, [projectionsData, calculateYRange, yAxisRange, defaultRange]);
+  }, [xAxisRange]);
 
   const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -163,7 +171,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     xaxis: {
       domain: [0, 1], // Full width
       rangeslider: {
-        range: getDefaultRange(true)
+        range: getDefaultRange(true) // Rangeslider always shows full extent
       },
       rangeselector: {
         buttons: [
@@ -172,7 +180,7 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
           {step: 'all', label: 'all'}
         ]
       },
-      range: defaultRange,
+      range: xAxisRange || defaultRange, // Use user's selection or default
       showline: true,
       linewidth: 1,
       linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
@@ -196,13 +204,12 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         dash: 'dash'
       }
     }))
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, getDefaultRange]);
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, xAxisRange, getDefaultRange]);
 
   const config = {
     responsive: true,
     displayModeBar: true,
     displaylogo: false,
-    // modeBarPosition: 'left', ? perhaps not needed
     showSendToCloud: false,
     plotlyServerURL: "",
     scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
@@ -212,29 +219,30 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       format: 'png',
       filename: 'forecast_plot'
     },
+    modeBarButtonsToRemove: ['resetScale2d'], // Remove default home to avoid confusion
     modeBarButtonsToAdd: [{
       name: 'Reset view',
       icon: Plotly.Icons.home,
       click: function(gd) {
+        // Get smart default range (selected dates ± context weeks)
         const range = getDefaultRange();
-        if (range && projectionsData.length > 0) {
-          const newYRange = calculateYRange(projectionsData, range);
-          const update = {
-            'xaxis.range': range,
-            'xaxis.rangeslider.range': getDefaultRange(true),
-            'yaxis.range': newYRange,
-            'yaxis.autorange': newYRange === null, // Set autorange based on whether range calculation succeeded
-          };
-          Plotly.relayout(gd, update);
-          setYAxisRange(newYRange); // Update state
-        } else if (range) { // If no data but have default range, reset x-axis and auto y-axis
-            Plotly.relayout(gd, {
-              'xaxis.range': range,
-              'xaxis.rangeslider.range': getDefaultRange(true),
-              'yaxis.autorange': true,
-            });
-              setYAxisRange(null); // Reset state
-        }
+        if (!range) return;
+
+        const newYRange = projectionsData.length > 0 ? calculateYRange(projectionsData, range) : null;
+
+        // Set flag to prevent onRelayout handler from capturing this programmatic change
+        isResettingRef.current = true;
+
+        // Reset to auto-follow mode (null = follows date changes)
+        setXAxisRange(null);
+        setYAxisRange(newYRange);
+
+        // Apply the smart default view
+        Plotly.relayout(gd, {
+          'xaxis.range': range,
+          'yaxis.range': newYRange,
+          'yaxis.autorange': newYRange === null
+        });
       }
     }]
   };
