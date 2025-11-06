@@ -368,10 +368,8 @@ const MyRespiLensDashboard = () => {
             <Stack>
               <Title order={4}>About</Title>
               <Text>
-                MyRespiLens is a secure feature within the RespiLens platform that allows users to 
-                visualize their own public health data directly in their browser. All processing happens locally on
-                your machine, meaning your data is never uploaded or shared. This ensures privacy and removes
-                the need for data-sharing agreements.
+                MyRespiLens allows epidemiologists to visualize their own public health projections directly in their browser. 
+                All the processing happens locally meaning your data is never uploaded nor shared on any server. 
               </Text>
               <Title order={4}>Data Structure</Title>
               <Text>MyRespiLens expects uploaded data to be valid JSON and in RespiLens projections format.</Text>
@@ -389,6 +387,7 @@ const MyRespiLensDashboard = () => {
                 <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/tree/main/scripts#readme" target="_blank" rel="noopener noreferrer"> on GitHub.</Anchor>,
                 or on the RespiLens <Anchor href="https://staging.respilens.com/documentation" target="_blank" rel="noopener noreferrer"> documentation</Anchor> page.
               </Text>
+              <Text> Don't hesitate to contact the RespiLens Team, we would love to make MyRespiLens useful to you!</Text>
             </Stack>
           </Modal>
 
@@ -432,7 +431,7 @@ const MyRespiLensDashboard = () => {
                   Drop your RespiLens .json file here
                 </Title>
                 <Text size="sm" c="dimmed">
-                  Upload your RespiLens data file to view your personalized dashboard
+                  Upload your RespiLens data file to view your personalized RespiLens dashboard
                 </Text>
               </div>
 

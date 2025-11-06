@@ -510,7 +510,7 @@ const ForecastleGame = () => {
             {scenarios.length > 0 && !allChallengesCompleted && (
               <Box>
                 <Text size="sm" c="dimmed" mb="xs">
-                  Make predictions on one to three challenges everyday. Each challenge statistic and aggregate are stored.
+                  Inspired by wordle, make predictions on up to three challenges everyday. Each challenge are score against models, and results and statistics are stored locally in your browser. Good luck!
                 </Text>
                 <Group gap="xs" wrap="wrap">
                   <Text size="sm" fw={500}>
@@ -1003,8 +1003,8 @@ const ForecastleGame = () => {
                     {!isCurrentChallengeCompleted && (
                       <Text size="sm" c="dimmed">
                         {inputMode === 'median'
-                          ? 'Drag the crimson handles to set your median forecast for each week ahead.'
-                          : 'Drag the crimson handles to adjust interval bounds, or use the sliders for precise control.'}
+                          ? 'Drag the handles to set your median forecast for each week ahead.'
+                          : 'Drag the handles to adjust interval bounds, or use the sliders for precise control.'}
                       </Text>
                     )}
                   </Stack>
