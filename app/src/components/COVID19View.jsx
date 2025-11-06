@@ -152,9 +152,10 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
             y: [lastGroundTruthValue, medianValues[0]],
             type: 'scatter',
             mode: 'lines',
-            line: { color: modelColor, width: 1, dash: 'solid' },
+            line: { color: modelColor, width: 2, dash: 'solid' },
             showlegend: false,
-            hoverinfo: 'skip'
+            hoverinfo: 'skip',
+            name: `${model} (${date}) connecting line`
           };
           traces.unshift(connectingLine); // Add at beginning so it's drawn under other traces
         }

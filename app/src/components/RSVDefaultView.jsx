@@ -149,9 +149,10 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
             y: [lastGroundTruthValue, medianValues[0]],
             type: 'scatter',
             mode: 'lines',
-            line: { color: modelColor, width: 1, dash: 'solid' },
+            line: { color: modelColor, width: 2, dash: 'solid' },
             showlegend: false,
-            hoverinfo: 'skip'
+            hoverinfo: 'skip',
+            name: `${model} (${date}) connecting line`
           };
           traces.unshift(connectingLine); // Add at beginning so it's drawn under other traces
         }
@@ -264,12 +265,11 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     plotlyServerURL: "",
     scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
     doubleClick: 'reset', // Allow double-click to reset view
-    modeBarButtonsToRemove: ['select2d', 'lasso2d'], // Remove selection tools that can interfere on mobile
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], // Remove selection tools and default home
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
-    modeBarButtonsToRemove: ['resetScale2d'], // Remove default home to avoid confusion
     modeBarButtonsToAdd: [{
       name: 'Reset view',
       icon: Plotly.Icons.home,
