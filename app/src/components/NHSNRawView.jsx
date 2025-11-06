@@ -312,7 +312,14 @@ const NHSNRawView = ({ location }) => {
     xaxis: {
       title: 'Date',
       rangeslider: {
-        visible: true
+        visible: true,
+        range: (() => {
+          const firstDate = data.series.dates[0];
+          const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+          const twoWeeksAfter = new Date(lastDate);
+          twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+          return [firstDate, twoWeeksAfter.toISOString().split('T')[0]];
+        })()
       },
       rangeselector: {
         buttons: [
