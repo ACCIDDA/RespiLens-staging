@@ -11,7 +11,8 @@ export const DATASETS = {
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'flu',
-    dataPath: 'flusight'
+    dataPath: 'flusight',
+    targetLineDayOfWeek: 3 // Wednesday (0=Sunday, 3=Wednesday)
   },
   rsv: {
     shortName: 'rsv',
@@ -24,7 +25,8 @@ export const DATASETS = {
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'rsv',
-    dataPath: 'rsv'
+    dataPath: 'rsv',
+    targetLineDayOfWeek: 3 // Wednesday (0=Sunday, 3=Wednesday)
   },
   covid: {
     shortName: 'covid',
@@ -37,16 +39,17 @@ export const DATASETS = {
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'covid',
-    dataPath: 'covid19' 
+    dataPath: 'covid19',
+    targetLineDayOfWeek: 3 // Wednesday (0=Sunday, 3=Wednesday)
   },
   nhsn: {
     shortName: 'nhsn',
-    fullName: 'NHSN Raw Data',
+    fullName: 'NHSN data',
     views: [
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
     defaultView: 'nhsnall',
-    defaultColumn: 'Number of Adult COVID-19 Admissions, 18-49 years', 
+    defaultColumn: 'Number of Adult COVID-19 Admissions, 18-49 years',
     hasDateSelector: false,
     hasModelSelector: false,
     prefix: 'nhsn',

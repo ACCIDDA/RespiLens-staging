@@ -138,44 +138,6 @@ const Documentation = () => {
           </Stack>
         </Paper>
 
-        <Paper id="projections" shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Group gap="sm">
-              <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                <IconBinaryTree size={20} />
-              </ThemeIcon>
-              <div>
-                <Title order={2}>projections</Title>
-                <Text size="sm" c="dimmed">
-                  Used for MyRespiLens and flu, COVID-19, and RSV views.
-                </Text>
-              </div>
-            </Group>
-            {projectionsJsonData && Object.keys(projectionsJsonData).length > 0 && (
-              <JsonView value={projectionsJsonData} displayDataTypes={false} displayObjectSize={false} collapsed={1} enableClipboard={false} />
-            )}
-          </Stack>
-        </Paper>
-
-        <Paper id="timeseries" shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Group gap="sm">
-              <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                <IconBinaryTree size={20} />
-              </ThemeIcon>
-              <div>
-                <Title order={2}>timeseries</Title>
-                <Text size="sm" c="dimmed">
-                  Used for the NHSN view (and all the ground_truth keys of projections data!).
-                </Text>
-              </div>
-            </Group>
-            {timeseriesJsonData && Object.keys(timeseriesJsonData).length > 0 && (
-              <JsonView value={timeseriesJsonData} displayDataTypes={false} displayObjectSize={false} collapsed={1} enableClipboard={false} />
-            )}
-          </Stack>
-        </Paper>
-
         <Paper id="convert-data" shadow="sm" p="lg" radius="md" withBorder>
           <Stack gap="md">
             <Group gap="sm">
@@ -235,13 +197,13 @@ const Documentation = () => {
                 </Text>
               </div>
             </Group>
-            <Title order={3}>the goal 🎯</Title>
+            <Title order={3}>the goal</Title>
             <Text>
               The objective of the Forecastle is to accurately forecast a data series (e.g., incidents of hospitalization) for a specific location, date, and pathogen combination (one unique combination = one problem).
               The Forecastle is a daily challenge, offering three problems per day. After completing a problem, you are scored based on a weighted interval score (WIS) against contributing models for that location and pathogen.
               The primary Hub ensemble model is highlighted as a benchmark. Your performance on the Forecastle over time can be viewed on the "stats" page.
             </Text>
-            <Title order={3}>the interface ⚙️</Title>
+            <Title order={3}>the interface</Title>
             <Text>
               Each problem in the Forecastle is played in a three-step process:
             </Text>
@@ -274,6 +236,44 @@ const Documentation = () => {
               </div>
             </Group>
             <GlossaryTable />
+          </Stack>
+        </Paper>
+
+                <Paper id="projections" shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <IconBinaryTree size={20} />
+              </ThemeIcon>
+              <div>
+                <Title order={2}>data format for projections</Title>
+                <Text size="sm" c="dimmed">
+                  Used for MyRespiLens and flu, COVID-19, and RSV views.
+                </Text>
+              </div>
+            </Group>
+            {projectionsJsonData && Object.keys(projectionsJsonData).length > 0 && (
+              <JsonView value={projectionsJsonData} displayDataTypes={false} displayObjectSize={false} collapsed={1} enableClipboard={false} />
+            )}
+          </Stack>
+        </Paper>
+
+        <Paper id="timeseries" shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <IconBinaryTree size={20} />
+              </ThemeIcon>
+              <div>
+                <Title order={2}>data format for timeseries</Title>
+                <Text size="sm" c="dimmed">
+                  Used for the NHSN view (and all the ground_truth keys of projections data!).
+                </Text>
+              </div>
+            </Group>
+            {timeseriesJsonData && Object.keys(timeseriesJsonData).length > 0 && (
+              <JsonView value={timeseriesJsonData} displayDataTypes={false} displayObjectSize={false} collapsed={1} enableClipboard={false} />
+            )}
           </Stack>
         </Paper>
 

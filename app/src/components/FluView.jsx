@@ -4,8 +4,29 @@ import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import LastUpdated from './LastUpdated';
-import { MODEL_COLORS } from '../config/datasets';
+import { MODEL_COLORS, DATASETS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
+
+/**
+ * Calculate the previous occurrence of a specific day of week before a given date
+ * @param {string|Date} date - The reference date
+ * @param {number} targetDayOfWeek - Target day (0=Sunday, 1=Monday, ..., 6=Saturday)
+ * @returns {string} Date in YYYY-MM-DD format
+ */
+const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
+  const d = new Date(date);
+  const currentDayOfWeek = d.getDay();
+  let daysToSubtract = currentDayOfWeek - targetDayOfWeek;
+
+  // If the target day is the same as current day or in the future this week,
+  // go back to the previous week
+  if (daysToSubtract <= 0) {
+    daysToSubtract += 7;
+  }
+
+  d.setDate(d.getDate() - daysToSubtract);
+  return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+};
 
 const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -59,14 +80,15 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
-      line: { color: '#8884d8', width: 2 },
-      marker: { size: 6 }
+      line: { color: 'black', width: 2, dash: 'dash' },
+      marker: { size: 4, color: 'black' }
     };
-    const modelTraces = selectedModels.flatMap(model => 
-      selectedDates.flatMap((date) => {
+
+    const modelTraces = selectedModels.flatMap(model =>
+      selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
-        const forecast = 
-          forecastsForDate['wk inc flu hosp']?.[model] || 
+        const forecast =
+          forecastsForDate['wk inc flu hosp']?.[model] ||
           forecastsForDate['wk flu hosp rate change']?.[model];
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
@@ -82,10 +104,12 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           ci95Upper.push(values[quantiles.indexOf(0.975)] || 0);
         });
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        const isFirstDate = dateIndex === 0; // Only show legend for first date of each model
+
         return [
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI` },
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI` },
-          { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, legendgroup: model },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, legendgroup: model },
+          { x: forecastDates, y: medianValues, name: model, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: isFirstDate, legendgroup: model }
         ];
       })
     );
@@ -165,8 +189,21 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       subplots: [['xy'], ['x2y2']],
       xgap: 0.15
     } : undefined,
-    showlegend: false,
+    showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
+    legend: {
+      x: 1,
+      y: 1,
+      xanchor: 'right',
+      yanchor: 'top',
+      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+      borderwidth: 1,
+      font: {
+        size: 10
+      }
+    },
     hovermode: 'x unified',
+    dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
       domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
@@ -186,19 +223,25 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       title: 'Hospitalizations',
       range: yAxisRange
     },
-    shapes: selectedDates.map(date => ({
-      type: 'line',
-      x0: date,
-      x1: date,
-      y0: 0,
-      y1: 1,
-      yref: 'paper',
-      line: {
-        color: 'red',
-        width: 1,
-        dash: 'dash'
-      }
-    })),
+    shapes: selectedDates.map(date => {
+      // Calculate target line date based on hub-specific configuration
+      const targetDayOfWeek = DATASETS.flu.targetLineDayOfWeek ?? 3; // Default to Wednesday
+      const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
+
+      return {
+        type: 'line',
+        x0: targetLineDate,
+        x1: targetLineDate,
+        y0: 0,
+        y1: 1,
+        yref: 'paper',
+        line: {
+          color: 'red',
+          width: 1,
+          dash: 'dash'
+        }
+      };
+    }),
     ...(viewType === 'fludetailed' ? {
       xaxis2: {
         domain: [0.85, 1],
@@ -222,11 +265,13 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     modeBarPosition: 'left',
     showSendToCloud: false,
     plotlyServerURL: "",
+    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
+    doubleClick: 'reset', // Allow double-click to reset view
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], // Remove selection tools and default home
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
-    modeBarButtonsToRemove: ['resetScale2d'], // Remove default home to avoid confusion
     modeBarButtonsToAdd: [{
       name: 'Reset view',
       icon: Plotly.Icons.home,

@@ -22,18 +22,21 @@ def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
     return df.replace({np.nan: None})
 
 
-def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True) -> pd.DataFrame: # can add **kwargs if we need modular quantile filtering
+def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, filter_nowcasts: bool = True) -> pd.DataFrame:
     """
     Do a number of pre-processing tasks that make a hubverse df ready to pass through a processing class.
 
     Args:
         df: Hubverse data as pd.DataFrame
+        filter_quantiles: If True, filter to specific quantile/pmf values only
+        filter_nowcasts: If True, filter out horizon -1 (nowcasts)
 
     Returns:
-        A df with... 
-            - horizons as ints, 
-            - horizon NaNs dropped, 
-            - only some `output_type_id` values kept, 
+        A df with...
+            - horizons as ints,
+            - horizon NaNs dropped,
+            - horizon -1 (nowcasts) optionally filtered out,
+            - only some `output_type_id` values kept (if filter_quantiles=True),
             - all `output_type` == sample removed.
     """
     df = df.copy()
@@ -41,6 +44,9 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True) ->
     df = df.dropna(subset=['horizon'])
     # Ensure horizons are ints (not floats)
     df['horizon'] = df['horizon'].astype(int)
+    # Optionally filter out horizon -1 (nowcasts)
+    if filter_nowcasts:
+        df = df[df['horizon'] >= 0]
     # Get rid of all output_type == 'sample'
     df = df[df['output_type'] != 'sample']
     if filter_quantiles:

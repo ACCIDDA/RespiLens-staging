@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
@@ -30,10 +30,10 @@ const NHSNRawView = ({ location }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  
+
   const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
-  
+
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
@@ -42,6 +42,9 @@ const NHSNRawView = ({ location }) => {
 
   const [dataRevision, setDataRevision] = useState(0);
   const [plotRevision, setPlotRevision] = useState(0);
+
+  const [yAxisRange, setYAxisRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,7 +149,40 @@ const NHSNRawView = ({ location }) => {
     if (validUrlCols.length > 0) {
       newSelectedCols = validUrlCols;
     } else if (filtered.length > 0) {
-      newSelectedCols = [filtered[0]]; 
+      // Default columns based on target type
+      let defaultColumns = [];
+
+      if (selectedTarget === 'Hospital Admissions (count)') {
+        defaultColumns = [
+          'Total COVID-19 Admissions',
+          'Total Influenza Admissions',
+          'Total RSV Admissions'
+        ];
+      } else if (selectedTarget === 'Hospital Admissions (rates)') {
+        defaultColumns = [
+          'Total number of COVID-19 Admissions per 100,000 population',
+          'Total number of Influenza Admissions per 100,000 population',
+          'Total number of RSV Admissions per 100,000 population'
+        ];
+      } else if (selectedTarget === 'Hospital Admissions (%)') {
+        defaultColumns = [
+          'Percent Adult COVID-19 Admissions',
+          'Percent Adult Influenza Admissions',
+          'Percent Adult RSV Admissions'
+        ];
+      } else if (selectedTarget === 'Bed Capacity (count)') {
+        defaultColumns = [
+          'Number of Inpatient Beds',
+          'Number of Inpatient Beds Occupied'
+        ];
+      } else if (selectedTarget === 'Bed Capacity (%)') {
+        defaultColumns = [
+          'Percent Inpatient Beds Occupied'
+        ];
+      }
+
+      const filteredDefaults = defaultColumns.filter(col => filtered.includes(col));
+      newSelectedCols = filteredDefaults.length > 0 ? filteredDefaults : [filtered[0]];
     } else {
       newSelectedCols = [];
     }
@@ -180,7 +216,41 @@ const NHSNRawView = ({ location }) => {
 
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
     const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
-    const defaultColumns = filteredCols.length > 0 ? [filteredCols[0]] : [];
+
+    // Default columns based on target type
+    let defaultColumnsArray = [];
+
+    if (selectedTarget === 'Hospital Admissions (count)') {
+      defaultColumnsArray = [
+        'Total COVID-19 Admissions',
+        'Total Influenza Admissions',
+        'Total RSV Admissions'
+      ];
+    } else if (selectedTarget === 'Hospital Admissions (rates)') {
+      defaultColumnsArray = [
+        'Total number of COVID-19 Admissions per 100,000 population',
+        'Total number of Influenza Admissions per 100,000 population',
+        'Total number of RSV Admissions per 100,000 population'
+      ];
+    } else if (selectedTarget === 'Hospital Admissions (%)') {
+      defaultColumnsArray = [
+        'Percent Adult COVID-19 Admissions',
+        'Percent Adult Influenza Admissions',
+        'Percent Adult RSV Admissions'
+      ];
+    } else if (selectedTarget === 'Bed Capacity (count)') {
+      defaultColumnsArray = [
+        'Number of Inpatient Beds',
+        'Number of Inpatient Beds Occupied'
+      ];
+    } else if (selectedTarget === 'Bed Capacity (%)') {
+      defaultColumnsArray = [
+        'Percent Inpatient Beds Occupied'
+      ];
+    }
+
+    const filteredDefaults = defaultColumnsArray.filter(col => filteredCols.includes(col));
+    const defaultColumns = filteredDefaults.length > 0 ? filteredDefaults : (filteredCols.length > 0 ? [filteredCols[0]] : []);
     
     const sortedSelected = [...selectedColumns].sort();
     const sortedDefault = [...defaultColumns].sort();
@@ -212,33 +282,91 @@ const NHSNRawView = ({ location }) => {
     if(data) {
       setDataRevision(d => d + 1);
     }
-  }, [data, selectedColumns, selectedTarget]); 
+  }, [data, selectedColumns, selectedTarget]);
 
-  const calculateNHSNYRange = () => {
-    if (!data?.series || selectedColumns.length === 0) return null;
-    const allValues = selectedColumns.reduce((acc, column) => {
-        const valuesArray = data.series[column];
-        if (valuesArray) {
-            const numericValues = valuesArray.filter(v => typeof v === 'number' && !isNaN(v));
-            return acc.concat(numericValues);
+  // Calculate y-axis range based on visible x-axis range
+  const calculateYRange = (traces, xRange) => {
+    if (!traces || traces.length === 0 || !xRange) return null;
+
+    let maxY = -Infinity;
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+
+    traces.forEach(trace => {
+      if (!trace.x || !trace.y) return;
+      for (let i = 0; i < trace.x.length; i++) {
+        const pointDate = new Date(trace.x[i]);
+        if (pointDate >= startDate && pointDate <= endDate) {
+          const value = Number(trace.y[i]);
+          if (!isNaN(value)) {
+            maxY = Math.max(maxY, value);
+          }
         }
-        return acc;
-    }, []);
-    if (allValues.length === 0) return null;
-    const maxY = Math.max(...allValues);
-    const padding = maxY * 0.15; 
-    return [0, maxY + padding];
+      }
+    });
+
+    if (maxY !== -Infinity) {
+      const padding = maxY * 0.15;
+      return [0, maxY + padding];
+    }
+    return null;
+  };
+
+  // Recalculate y-axis when data or x-range changes
+  useEffect(() => {
+    if (!data || selectedColumns.length === 0) {
+      setYAxisRange(null);
+      return;
+    }
+
+    const isPercentage = selectedTarget && selectedTarget.includes('%');
+    const traces = selectedColumns.map((column) => {
+      const yValues = data.series[column];
+      const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
+      return {
+        x: data.series.dates,
+        y: processedYValues
+      };
+    });
+
+    const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+    const twoWeeksAfter = new Date(lastDate);
+    twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+    const sixMonthsAgo = new Date(lastDate);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const defaultRange = [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
+    const currentXRange = xAxisRange || defaultRange;
+
+    const newYRange = calculateYRange(traces, currentXRange);
+    if (newYRange) {
+      setYAxisRange(newYRange);
+    }
+  }, [data, selectedColumns, xAxisRange, selectedTarget]);
+
+  const handleRelayout = (figure) => {
+    if (figure && figure['xaxis.range']) {
+      const newXRange = figure['xaxis.range'];
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+      }
+    }
   };
 
   if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
   if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
   if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
+  const isPercentage = selectedTarget && selectedTarget.includes('%');
   const traces = selectedColumns.map((column) => {
     const columnIndex = filteredAvailableColumns.indexOf(column);
+    const yValues = data.series[column];
+    const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
+
     return {
       x: data.series.dates,
-      y: data.series[column],
+      y: processedYValues,
       name: column,
       type: 'scatter',
       mode: 'lines+markers',
@@ -260,19 +388,72 @@ const NHSNRawView = ({ location }) => {
     xaxis: {
       title: 'Date',
       rangeslider: {
-        visible: true
+        visible: true,
+        range: (() => {
+          const firstDate = data.series.dates[0];
+          const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+          const twoWeeksAfter = new Date(lastDate);
+          twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+          return [firstDate, twoWeeksAfter.toISOString().split('T')[0]];
+        })()
       },
-      range: [
-        data.series.dates[0],
-        data.series.dates[data.series.dates.length - 1]
-      ]
+      rangeselector: {
+        buttons: [
+          {
+            count: 1,
+            label: '1m',
+            step: 'month',
+            stepmode: 'backward'
+          },
+          {
+            count: 6,
+            label: '6m',
+            step: 'month',
+            stepmode: 'backward'
+          },
+          {
+            count: 1,
+            label: '1y',
+            step: 'year',
+            stepmode: 'backward'
+          },
+          {
+            step: 'all',
+            label: 'All'
+          }
+        ],
+        activecolor: colorScheme === 'dark' ? '#4c6ef5' : '#228be6',
+        bgcolor: colorScheme === 'dark' ? '#2c2e33' : '#f1f3f5'
+      },
+      range: (() => {
+        const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+        const twoWeeksAfter = new Date(lastDate);
+        twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+
+        const sixMonthsAgo = new Date(lastDate);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        return [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
+      })()
     },
     yaxis: {
       title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
-      range: calculateNHSNYRange()
+      range: yAxisRange
     },
     height: 600,
-    showlegend: false,
+    showlegend: selectedColumns.length < 15, // Show legend only when fewer than 15 columns selected
+    legend: {
+      x: 0,
+      y: 1,
+      xanchor: 'left',
+      yanchor: 'top',
+      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+      borderwidth: 1,
+      font: {
+        size: 10
+      }
+    },
     margin: { t: 40, r: 10, l: 60, b: 120 },
     uirevision: plotRevision
   };
@@ -280,17 +461,6 @@ const NHSNRawView = ({ location }) => {
   return (
     <Stack gap="md" w="100%">
       <LastUpdated timestamp={metadata?.last_updated} />
-
-      <Select
-        label="Select a timeseries unit"
-        placeholder="Choose a time series unit"
-        data={availableTargets}
-        value={selectedTarget}
-        onChange={setSelectedTarget} 
-        disabled={loading}
-        allowDeselect={false}
-        // style={{ maxWidth: 200 }} // this is the width of the select bar
-      />
 
       <Plot
         data={traces}
@@ -301,15 +471,20 @@ const NHSNRawView = ({ location }) => {
           displaylogo: false,
           modeBarButtonsToAdd: ['resetScale2d']
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', marginBottom: '-20px' }}
         revision={dataRevision}
+        onRelayout={handleRelayout}
       />
-      
+
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
         nameMap={nhsnNameToPrettyNameMap}
+        selectedTarget={selectedTarget}
+        availableTargets={availableTargets}
+        onTargetChange={setSelectedTarget}
+        loading={loading}
       />
     </Stack>
   );
