@@ -40,6 +40,16 @@ const organizeByDisease = (columns) => {
         group.percent.push(col);
       } else if (colLower.includes('icu patients')) {
         group.icu.push(col);
+      } else if (colLower.includes('unknown age')) {
+        // Put unknown age in the age-specific sections
+        if (colLower.includes('pediatric') || colLower.includes('pedatric')) {
+          group.pediatricByAge.push(col);
+        } else if (colLower.includes('adult')) {
+          group.adultByAge.push(col);
+        } else {
+          // General admissions with unknown age go to adultByAge as it's the main age section
+          group.adultByAge.push(col);
+        }
       } else if (colLower.includes('pediatric') && (colLower.includes('0-4') || colLower.includes('5-17'))) {
         group.pediatricByAge.push(col);
       } else if (colLower.includes('adult') && (colLower.includes('18-49') || colLower.includes('50-64') || colLower.includes('65-74') || colLower.includes('75+'))) {
