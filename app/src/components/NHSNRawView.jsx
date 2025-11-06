@@ -149,7 +149,14 @@ const NHSNRawView = ({ location }) => {
     if (validUrlCols.length > 0) {
       newSelectedCols = validUrlCols;
     } else if (filtered.length > 0) {
-      newSelectedCols = [filtered[0]]; 
+      // Default to Total Admissions for all 3 diseases
+      const defaultColumns = [
+        'Total COVID-19 Admissions',
+        'Total Influenza Admissions',
+        'Total RSV Admissions'
+      ].filter(col => filtered.includes(col));
+
+      newSelectedCols = defaultColumns.length > 0 ? defaultColumns : [filtered[0]];
     } else {
       newSelectedCols = [];
     }
@@ -183,7 +190,15 @@ const NHSNRawView = ({ location }) => {
 
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
     const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
-    const defaultColumns = filteredCols.length > 0 ? [filteredCols[0]] : [];
+
+    // Default to Total Admissions for all 3 diseases
+    const defaultTotalAdmissions = [
+      'Total COVID-19 Admissions',
+      'Total Influenza Admissions',
+      'Total RSV Admissions'
+    ].filter(col => filteredCols.includes(col));
+
+    const defaultColumns = defaultTotalAdmissions.length > 0 ? defaultTotalAdmissions : (filteredCols.length > 0 ? [filteredCols[0]] : []);
     
     const sortedSelected = [...selectedColumns].sort();
     const sortedDefault = [...defaultColumns].sort();
@@ -365,7 +380,19 @@ const NHSNRawView = ({ location }) => {
       range: yAxisRange
     },
     height: 600,
-    showlegend: false,
+    showlegend: selectedColumns.length < 15, // Show legend only when fewer than 15 columns selected
+    legend: {
+      x: 0,
+      y: 1,
+      xanchor: 'left',
+      yanchor: 'top',
+      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+      borderwidth: 1,
+      font: {
+        size: 10
+      }
+    },
     margin: { t: 40, r: 10, l: 60, b: 120 },
     uirevision: plotRevision
   };
@@ -373,19 +400,6 @@ const NHSNRawView = ({ location }) => {
   return (
     <Stack gap="md" w="100%">
       <LastUpdated timestamp={metadata?.last_updated} />
-
-      <Group justify="center" gap="sm" align="center">
-        <Text size="sm" fw={500}>Column unit:</Text>
-        <Select
-          placeholder="Choose a column unit"
-          data={availableTargets}
-          value={selectedTarget}
-          onChange={setSelectedTarget}
-          disabled={loading}
-          allowDeselect={false}
-          style={{ width: 300 }}
-        />
-      </Group>
 
       <Plot
         data={traces}
@@ -406,6 +420,10 @@ const NHSNRawView = ({ location }) => {
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
         nameMap={nhsnNameToPrettyNameMap}
+        selectedTarget={selectedTarget}
+        availableTargets={availableTargets}
+        onTargetChange={setSelectedTarget}
+        loading={loading}
       />
     </Stack>
   );
