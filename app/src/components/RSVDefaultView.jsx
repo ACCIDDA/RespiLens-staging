@@ -4,9 +4,30 @@ import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import LastUpdated from './LastUpdated';
-import { MODEL_COLORS } from '../config/datasets';
+import { MODEL_COLORS, DATASETS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
+
+/**
+ * Calculate the previous occurrence of a specific day of week before a given date
+ * @param {string|Date} date - The reference date
+ * @param {number} targetDayOfWeek - Target day (0=Sunday, 1=Monday, ..., 6=Saturday)
+ * @returns {string} Date in YYYY-MM-DD format
+ */
+const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
+  const d = new Date(date);
+  const currentDayOfWeek = d.getDay();
+  let daysToSubtract = currentDayOfWeek - targetDayOfWeek;
+
+  // If the target day is the same as current day or in the future this week,
+  // go back to the previous week
+  if (daysToSubtract <= 0) {
+    daysToSubtract += 7;
+  }
+
+  d.setDate(d.getDate() - daysToSubtract);
+  return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+};
 
 const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -60,11 +81,12 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
-      line: { color: '#8884d8', width: 2 },
-      marker: { size: 6 }
+      line: { color: 'black', width: 2, dash: 'dash' },
+      marker: { size: 4, color: 'black' }
     };
-    const modelTraces = selectedModels.flatMap(model => 
-      selectedDates.flatMap((date) => {
+
+    const modelTraces = selectedModels.flatMap(model =>
+      selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
         // Access forecast using selectedTarget
         const forecast = forecastsForDate[selectedTarget]?.[model];
@@ -108,10 +130,12 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
         if (forecastDates.length === 0) return [];
 
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        const isFirstDate = dateIndex === 0; // Only show legend for first date of each model
+
         return [
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI`, hoverinfo: 'none' },
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI`, hoverinfo: 'none' },
-          { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none', legendgroup: model },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, hoverinfo: 'none', legendgroup: model },
+          { x: forecastDates, y: medianValues, name: model, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: isFirstDate, legendgroup: model }
         ];
       })
     );
@@ -164,7 +188,19 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    showlegend: false,
+    showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
+    legend: {
+      x: 1,
+      y: 1,
+      xanchor: 'right',
+      yanchor: 'top',
+      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+      borderwidth: 1,
+      font: {
+        size: 10
+      }
+    },
     hovermode: 'x unified',
     dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
     margin: { l: 60, r: 30, t: 30, b: 30 },
@@ -191,20 +227,26 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
       range: yAxisRange, // Use state for dynamic range updates
       autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
     },
-    shapes: selectedDates.map(date => ({
-      type: 'line',
-      x0: date,
-      x1: date,
-      y0: 0,
-      y1: 1,
-      yref: 'paper',
-      line: {
-        color: 'red',
-        width: 1,
-        dash: 'dash'
-      }
-    }))
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, xAxisRange, getDefaultRange]);
+    shapes: selectedDates.map(date => {
+      // Calculate target line date based on hub-specific configuration
+      const targetDayOfWeek = DATASETS.rsv.targetLineDayOfWeek ?? 3; // Default to Wednesday
+      const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
+
+      return {
+        type: 'line',
+        x0: targetLineDate,
+        x1: targetLineDate,
+        y0: 0,
+        y1: 1,
+        yref: 'paper',
+        line: {
+          color: 'red',
+          width: 1,
+          dash: 'dash'
+        }
+      };
+    })
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange]);
 
   const config = {
     responsive: true,
@@ -214,12 +256,11 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     plotlyServerURL: "",
     scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
     doubleClick: 'reset', // Allow double-click to reset view
-    modeBarButtonsToRemove: ['select2d', 'lasso2d'], // Remove selection tools that can interfere on mobile
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], // Remove selection tools and default home
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
-    modeBarButtonsToRemove: ['resetScale2d'], // Remove default home to avoid confusion
     modeBarButtonsToAdd: [{
       name: 'Reset view',
       icon: Plotly.Icons.home,
