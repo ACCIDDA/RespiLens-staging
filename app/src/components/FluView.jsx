@@ -115,12 +115,41 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
         ];
 
-        // Add connecting line from last ground truth to first forecast point
-        if (lastGroundTruthDate && lastGroundTruthValue !== undefined &&
-            forecastDates.length > 0 && medianValues.length > 0) {
+        // Add connecting line from last ground truth point before reference date to first forecast point
+        // Calculate the reference date (target line date)
+        const targetDayOfWeek = DATASETS.flu.targetLineDayOfWeek ?? 3;
+        const referenceDate = new Date(getPreviousDayOfWeek(date, targetDayOfWeek));
+
+        // Find last ground truth point on or before reference date
+        let lastObsDate = null;
+        let lastObsValue = null;
+        if (groundTruth.dates && groundTruthValues) {
+          for (let i = groundTruth.dates.length - 1; i >= 0; i--) {
+            if (new Date(groundTruth.dates[i]) <= referenceDate) {
+              lastObsDate = groundTruth.dates[i];
+              lastObsValue = groundTruthValues[i];
+              break;
+            }
+          }
+        }
+
+        // Find first forecast point after reference date
+        let firstForecastDate = null;
+        let firstForecastValue = null;
+        for (let i = 0; i < forecastDates.length; i++) {
+          if (new Date(forecastDates[i]) > referenceDate) {
+            firstForecastDate = forecastDates[i];
+            firstForecastValue = medianValues[i];
+            break;
+          }
+        }
+
+        // Add connecting line if both points exist
+        if (lastObsDate && lastObsValue !== undefined &&
+            firstForecastDate && firstForecastValue !== undefined) {
           const connectingLine = {
-            x: [lastGroundTruthDate, forecastDates[0]],
-            y: [lastGroundTruthValue, medianValues[0]],
+            x: [lastObsDate, firstForecastDate],
+            y: [lastObsValue, firstForecastValue],
             type: 'scatter',
             mode: 'lines',
             line: { color: modelColor, width: 2, dash: 'solid' },
