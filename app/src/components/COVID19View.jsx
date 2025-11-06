@@ -206,17 +206,19 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     displayModeBar: true,
     displaylogo: false,
     showSendToCloud: false,
-    plotlyServerURL: "", 
+    plotlyServerURL: "",
+    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
+    doubleClick: 'reset', // Allow double-click to reset view
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
     modeBarButtonsToAdd: [{
       name: 'Reset view',
-      icon: Plotly.Icons.home, 
+      icon: Plotly.Icons.home,
       click: function(gd) {
         const range = getDefaultRange();
-        if (range && projectionsData.length > 0) { 
+        if (range && projectionsData.length > 0) {
           const newYRange = calculateYRange(projectionsData, range);
           const update = {
             'xaxis.range': range,
@@ -226,7 +228,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           };
           Plotly.relayout(gd, update);
           setYAxisRange(newYRange); // Update state
-        } else if (range) { 
+        } else if (range) {
             Plotly.relayout(gd, {
             'xaxis.range': range,
             'xaxis.rangeslider.range': getDefaultRange(true),

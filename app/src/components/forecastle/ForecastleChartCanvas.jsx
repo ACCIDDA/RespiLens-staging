@@ -253,6 +253,8 @@ const ForecastleChartCanvasInner = ({
     let animationFrame = null;
     const pointerMove = (event) => {
       if (!dragState) return;
+      // Prevent scrolling while dragging on mobile
+      event.preventDefault();
       if (animationFrame) cancelAnimationFrame(animationFrame);
       animationFrame = requestAnimationFrame(() => {
         const yScale = chart.scales.y;
@@ -296,7 +298,9 @@ const ForecastleChartCanvasInner = ({
         setDragState(null);
         return;
       }
+      // Prevent default immediately to stop scrolling and text selection on mobile
       event.preventDefault();
+      event.stopPropagation();
       setDragState(meta);
     };
 
@@ -639,7 +643,17 @@ const ForecastleChartCanvasInner = ({
   );
 
   return (
-    <div style={{ width: '100%', height }}>
+    <div
+      style={{
+        width: '100%',
+        height,
+        touchAction: 'none', // Prevent default touch gestures (scrolling, zooming)
+        userSelect: 'none', // Prevent text selection on long press
+        WebkitUserSelect: 'none', // Safari
+        MozUserSelect: 'none', // Firefox
+        msUserSelect: 'none', // IE/Edge
+      }}
+    >
       <Chart ref={chartRef} type="bar" data={chartData} options={options} />
     </div>
   );
