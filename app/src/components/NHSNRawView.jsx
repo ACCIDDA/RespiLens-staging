@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select, Group } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
@@ -30,10 +30,10 @@ const NHSNRawView = ({ location }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  
+
   const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
-  
+
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
@@ -42,6 +42,9 @@ const NHSNRawView = ({ location }) => {
 
   const [dataRevision, setDataRevision] = useState(0);
   const [plotRevision, setPlotRevision] = useState(0);
+
+  const [yAxisRange, setYAxisRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -212,22 +215,71 @@ const NHSNRawView = ({ location }) => {
     if(data) {
       setDataRevision(d => d + 1);
     }
-  }, [data, selectedColumns, selectedTarget]); 
+  }, [data, selectedColumns, selectedTarget]);
 
-  const calculateNHSNYRange = () => {
-    if (!data?.series || selectedColumns.length === 0) return null;
-    const allValues = selectedColumns.reduce((acc, column) => {
-        const valuesArray = data.series[column];
-        if (valuesArray) {
-            const numericValues = valuesArray.filter(v => typeof v === 'number' && !isNaN(v));
-            return acc.concat(numericValues);
+  // Calculate y-axis range based on visible x-axis range
+  const calculateYRange = (traces, xRange) => {
+    if (!traces || traces.length === 0 || !xRange) return null;
+
+    let maxY = -Infinity;
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+
+    traces.forEach(trace => {
+      if (!trace.x || !trace.y) return;
+      for (let i = 0; i < trace.x.length; i++) {
+        const pointDate = new Date(trace.x[i]);
+        if (pointDate >= startDate && pointDate <= endDate) {
+          const value = Number(trace.y[i]);
+          if (!isNaN(value)) {
+            maxY = Math.max(maxY, value);
+          }
         }
-        return acc;
-    }, []);
-    if (allValues.length === 0) return null;
-    const maxY = Math.max(...allValues);
-    const padding = maxY * 0.15; 
-    return [0, maxY + padding];
+      }
+    });
+
+    if (maxY !== -Infinity) {
+      const padding = maxY * 0.15;
+      return [0, maxY + padding];
+    }
+    return null;
+  };
+
+  // Recalculate y-axis when data or x-range changes
+  useEffect(() => {
+    if (!data || selectedColumns.length === 0) {
+      setYAxisRange(null);
+      return;
+    }
+
+    const traces = selectedColumns.map((column) => ({
+      x: data.series.dates,
+      y: data.series[column]
+    }));
+
+    const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+    const twoWeeksAfter = new Date(lastDate);
+    twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+    const sixMonthsAgo = new Date(lastDate);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const defaultRange = [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
+    const currentXRange = xAxisRange || defaultRange;
+
+    const newYRange = calculateYRange(traces, currentXRange);
+    if (newYRange) {
+      setYAxisRange(newYRange);
+    }
+  }, [data, selectedColumns, xAxisRange]);
+
+  const handleRelayout = (figure) => {
+    if (figure && figure['xaxis.range']) {
+      const newXRange = figure['xaxis.range'];
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+      }
+    }
   };
 
   if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
@@ -260,16 +312,57 @@ const NHSNRawView = ({ location }) => {
     xaxis: {
       title: 'Date',
       rangeslider: {
-        visible: true
+        visible: true,
+        range: (() => {
+          const firstDate = data.series.dates[0];
+          const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+          const twoWeeksAfter = new Date(lastDate);
+          twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+          return [firstDate, twoWeeksAfter.toISOString().split('T')[0]];
+        })()
       },
-      range: [
-        data.series.dates[0],
-        data.series.dates[data.series.dates.length - 1]
-      ]
+      rangeselector: {
+        buttons: [
+          {
+            count: 1,
+            label: '1m',
+            step: 'month',
+            stepmode: 'backward'
+          },
+          {
+            count: 6,
+            label: '6m',
+            step: 'month',
+            stepmode: 'backward'
+          },
+          {
+            count: 1,
+            label: '1y',
+            step: 'year',
+            stepmode: 'backward'
+          },
+          {
+            step: 'all',
+            label: 'All'
+          }
+        ],
+        activecolor: colorScheme === 'dark' ? '#4c6ef5' : '#228be6',
+        bgcolor: colorScheme === 'dark' ? '#2c2e33' : '#f1f3f5'
+      },
+      range: (() => {
+        const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+        const twoWeeksAfter = new Date(lastDate);
+        twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+
+        const sixMonthsAgo = new Date(lastDate);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        return [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
+      })()
     },
     yaxis: {
       title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
-      range: calculateNHSNYRange()
+      range: yAxisRange
     },
     height: 600,
     showlegend: false,
@@ -281,16 +374,18 @@ const NHSNRawView = ({ location }) => {
     <Stack gap="md" w="100%">
       <LastUpdated timestamp={metadata?.last_updated} />
 
-      <Select
-        label="Select a timeseries unit"
-        placeholder="Choose a time series unit"
-        data={availableTargets}
-        value={selectedTarget}
-        onChange={setSelectedTarget} 
-        disabled={loading}
-        allowDeselect={false}
-        // style={{ maxWidth: 200 }} // this is the width of the select bar
-      />
+      <Group justify="center" gap="sm" align="center">
+        <Text size="sm" fw={500}>Column unit:</Text>
+        <Select
+          placeholder="Choose a column unit"
+          data={availableTargets}
+          value={selectedTarget}
+          onChange={setSelectedTarget}
+          disabled={loading}
+          allowDeselect={false}
+          style={{ width: 300 }}
+        />
+      </Group>
 
       <Plot
         data={traces}
@@ -301,10 +396,11 @@ const NHSNRawView = ({ location }) => {
           displaylogo: false,
           modeBarButtonsToAdd: ['resetScale2d']
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', marginBottom: '-20px' }}
         revision={dataRevision}
+        onRelayout={handleRelayout}
       />
-      
+
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
