@@ -30,10 +30,11 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True) ->
         df: Hubverse data as pd.DataFrame
 
     Returns:
-        A df with... 
-            - horizons as ints, 
-            - horizon NaNs dropped, 
-            - only some `output_type_id` values kept, 
+        A df with...
+            - horizons as ints,
+            - horizon NaNs dropped,
+            - horizon -1 (nowcasts) filtered out,
+            - only some `output_type_id` values kept,
             - all `output_type` == sample removed.
     """
     df = df.copy()
@@ -41,6 +42,8 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True) ->
     df = df.dropna(subset=['horizon'])
     # Ensure horizons are ints (not floats)
     df['horizon'] = df['horizon'].astype(int)
+    # Filter out horizon -1 (nowcasts)
+    df = df[df['horizon'] >= 0]
     # Get rid of all output_type == 'sample'
     df = df[df['output_type'] != 'sample']
     if filter_quantiles:

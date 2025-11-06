@@ -121,6 +121,8 @@ unique_in_order <- function(x) {
 hubverse_df_preprocessor <- function(df) {
   df <- df[!is.na(df$horizon), , drop = FALSE]
   df$horizon <- as.integer(df$horizon)
+  # Filter out horizon -1 (nowcasts)
+  df <- df[df$horizon >= 0, , drop = FALSE]
   categorical_ids <- c("decrease", "increase", "large_decrease", "large_increase", "stable")
   numeric_ids <- c(0.025, 0.25, 0.5, 0.75, 0.975)
 
