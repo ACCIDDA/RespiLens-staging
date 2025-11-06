@@ -611,12 +611,98 @@ const ForecastleGame = () => {
                               ].sort((a, b) => a.wis - b.wis);
 
                               const userRank = allEntries.findIndex(e => e.isUser) + 1;
+                              const hubRankIdx = allEntries.findIndex(e => e.isHub);
                               const totalEntries = allEntries.length;
+
+                              // Smart filtering: always show first place, consensus, and user
+                              const getDisplayEntries = () => {
+                                const maxDisplay = 15;
+
+                                // If all entries fit, show them all
+                                if (allEntries.length <= maxDisplay) {
+                                  return allEntries.map((entry, idx) => ({ entry, actualRank: idx + 1, isEllipsis: false }));
+                                }
+
+                                // Track which indices to include
+                                const mustInclude = new Set();
+                                mustInclude.add(0); // First place
+                                if (hubRankIdx >= 0) mustInclude.add(hubRankIdx); // Consensus
+                                mustInclude.add(userRank - 1); // User (convert to 0-indexed)
+
+                                // Include top 3 for medal display
+                                mustInclude.add(1);
+                                mustInclude.add(2);
+
+                                // Add entries around user and consensus for context (±1)
+                                if (userRank > 1) mustInclude.add(userRank - 2);
+                                if (userRank < allEntries.length) mustInclude.add(userRank);
+                                if (hubRankIdx > 0) mustInclude.add(hubRankIdx - 1);
+                                if (hubRankIdx >= 0 && hubRankIdx < allEntries.length - 1) mustInclude.add(hubRankIdx + 1);
+
+                                // Sort the indices
+                                const sortedIndices = Array.from(mustInclude).sort((a, b) => a - b);
+
+                                // Build display list with ellipsis indicators
+                                const displayList = [];
+                                let lastIdx = -1;
+
+                                for (const idx of sortedIndices) {
+                                  // Add ellipsis if there's a gap
+                                  if (lastIdx >= 0 && idx - lastIdx > 1) {
+                                    const skippedCount = idx - lastIdx - 1;
+                                    displayList.push({
+                                      isEllipsis: true,
+                                      skippedCount,
+                                      startRank: lastIdx + 2,
+                                      endRank: idx,
+                                    });
+                                  }
+
+                                  displayList.push({
+                                    entry: allEntries[idx],
+                                    actualRank: idx + 1,
+                                    isEllipsis: false,
+                                  });
+
+                                  lastIdx = idx;
+                                }
+
+                                return displayList;
+                              };
+
+                              const displayEntries = getDisplayEntries();
 
                               return (
                                 <>
-                                  {allEntries.slice(0, 15).map((entry, idx) => {
-                                    if (idx >= visibleRankings) return null;
+                                  {displayEntries.map((item, displayIdx) => {
+                                    if (displayIdx >= visibleRankings) return null;
+
+                                    // Render ellipsis indicator
+                                    if (item.isEllipsis) {
+                                      return (
+                                        <Paper
+                                          key={`ellipsis-${item.startRank}`}
+                                          p="xs"
+                                          withBorder
+                                          style={{
+                                            backgroundColor: '#f8f9fa',
+                                            borderStyle: 'dashed',
+                                            transform: `translateY(${visibleRankings > displayIdx ? 0 : 20}px)`,
+                                            opacity: visibleRankings > displayIdx ? 1 : 0,
+                                            transition: 'all 0.3s ease-out',
+                                          }}
+                                        >
+                                          <Text size="xs" c="dimmed" ta="center">
+                                            ⋯ {item.skippedCount} model{item.skippedCount !== 1 ? 's' : ''} hidden ⋯
+                                          </Text>
+                                        </Paper>
+                                      );
+                                    }
+
+                                    // Render regular entry
+                                    const entry = item.entry;
+                                    const actualRank = item.actualRank;
+                                    const idx = actualRank - 1; // For medal logic
 
                                     return (
                                       <Paper
@@ -635,15 +721,15 @@ const ForecastleGame = () => {
                                             ? '#228b22'
                                             : undefined,
                                           borderWidth: entry.isUser || entry.isHub ? 2 : 1,
-                                          transform: `translateY(${visibleRankings > idx ? 0 : 20}px)`,
-                                          opacity: visibleRankings > idx ? 1 : 0,
+                                          transform: `translateY(${visibleRankings > displayIdx ? 0 : 20}px)`,
+                                          opacity: visibleRankings > displayIdx ? 1 : 0,
                                           transition: 'all 0.3s ease-out',
                                         }}
                                       >
                                         <Group justify="space-between" align="center">
                                           <Group gap="md">
                                             <Text size="xl" fw={700} c={idx === 0 ? 'yellow.7' : idx === 1 ? 'gray.5' : idx === 2 ? 'orange.7' : undefined}>
-                                              {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                                              {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${actualRank}`}
                                             </Text>
                                             <div>
                                               <Text size="sm" fw={entry.isUser || entry.isHub ? 700 : 500}>
@@ -671,7 +757,7 @@ const ForecastleGame = () => {
                                   })}
                                   {allEntries.length > 15 && (
                                     <Text size="sm" c="dimmed" ta="center">
-                                      Showing top 15 of {allEntries.length} entries
+                                      {displayEntries.filter(e => !e.isEllipsis).length} of {allEntries.length} entries shown
                                     </Text>
                                   )}
                                 </>
