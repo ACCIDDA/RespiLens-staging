@@ -88,10 +88,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       marker: { size: 6 }
     };
 
-    // Find the last ground truth data point for connecting lines
-    const lastGroundTruthDate = groundTruth.dates?.[groundTruth.dates.length - 1];
-    const lastGroundTruthValue = groundTruthValues?.[groundTruthValues.length - 1];
-
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date) => {
         const forecastsForDate = forecasts[date] || {};
@@ -138,58 +134,11 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
 
-        const traces = [
+        return [
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI`, hoverinfo: 'none' },
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI`, hoverinfo: 'none' },
           { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
         ];
-
-        // Add connecting line from last ground truth point before reference date to first forecast point
-        // Calculate the reference date (target line date)
-        const targetDayOfWeek = DATASETS.covid.targetLineDayOfWeek ?? 3;
-        const referenceDate = new Date(getPreviousDayOfWeek(date, targetDayOfWeek));
-
-        // Find last ground truth point on or before reference date
-        let lastObsDate = null;
-        let lastObsValue = null;
-        if (groundTruth.dates && groundTruthValues) {
-          for (let i = groundTruth.dates.length - 1; i >= 0; i--) {
-            if (new Date(groundTruth.dates[i]) <= referenceDate) {
-              lastObsDate = groundTruth.dates[i];
-              lastObsValue = groundTruthValues[i];
-              break;
-            }
-          }
-        }
-
-        // Find first forecast point after reference date
-        let firstForecastDate = null;
-        let firstForecastValue = null;
-        for (let i = 0; i < forecastDates.length; i++) {
-          if (new Date(forecastDates[i]) > referenceDate) {
-            firstForecastDate = forecastDates[i];
-            firstForecastValue = medianValues[i];
-            break;
-          }
-        }
-
-        // Add connecting line if both points exist
-        if (lastObsDate && lastObsValue !== undefined &&
-            firstForecastDate && firstForecastValue !== undefined) {
-          const connectingLine = {
-            x: [lastObsDate, firstForecastDate],
-            y: [lastObsValue, firstForecastValue],
-            type: 'scatter',
-            mode: 'lines',
-            line: { color: modelColor, width: 2, dash: 'solid' },
-            showlegend: false,
-            hoverinfo: 'skip',
-            name: `${model} (${date}) connecting line`
-          };
-          traces.unshift(connectingLine); // Add at beginning so it's drawn under other traces
-        }
-
-        return traces;
       })
     );
     return [groundTruthTrace, ...modelTraces];
@@ -241,7 +190,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    showlegend: false, // Legend is handled by ModelSelector now
+    showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
     hovermode: 'x unified',
     dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
     margin: { l: 60, r: 30, t: 30, b: 30 },
@@ -287,7 +236,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         }
       };
     })
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, xAxisRange, getDefaultRange]); 
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange]); 
 
   const config = useMemo(() => ({
     responsive: true,
