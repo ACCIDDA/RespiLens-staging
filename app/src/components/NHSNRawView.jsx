@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Select, Group } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
