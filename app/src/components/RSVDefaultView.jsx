@@ -204,6 +204,8 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
     // modeBarPosition: 'left', ? perhaps not needed
     showSendToCloud: false,
     plotlyServerURL: "",
+    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
+    doubleClick: 'reset', // Allow double-click to reset view
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'

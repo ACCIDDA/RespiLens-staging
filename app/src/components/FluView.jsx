@@ -203,6 +203,8 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     modeBarPosition: 'left',
     showSendToCloud: false,
     plotlyServerURL: "",
+    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
+    doubleClick: 'reset', // Allow double-click to reset view
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
