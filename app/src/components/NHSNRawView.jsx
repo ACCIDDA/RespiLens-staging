@@ -212,23 +212,7 @@ const NHSNRawView = ({ location }) => {
     if(data) {
       setDataRevision(d => d + 1);
     }
-  }, [data, selectedColumns, selectedTarget]); 
-
-  const calculateNHSNYRange = () => {
-    if (!data?.series || selectedColumns.length === 0) return null;
-    const allValues = selectedColumns.reduce((acc, column) => {
-        const valuesArray = data.series[column];
-        if (valuesArray) {
-            const numericValues = valuesArray.filter(v => typeof v === 'number' && !isNaN(v));
-            return acc.concat(numericValues);
-        }
-        return acc;
-    }, []);
-    if (allValues.length === 0) return null;
-    const maxY = Math.max(...allValues);
-    const padding = maxY * 0.15; 
-    return [0, maxY + padding];
-  };
+  }, [data, selectedColumns, selectedTarget]);
 
   if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
   if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
@@ -303,7 +287,8 @@ const NHSNRawView = ({ location }) => {
     },
     yaxis: {
       title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
-      range: calculateNHSNYRange()
+      autorange: true,
+      rangemode: 'tozero'
     },
     height: 600,
     showlegend: false,
