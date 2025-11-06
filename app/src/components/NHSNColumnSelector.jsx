@@ -1,15 +1,15 @@
-import { Stack, Title, Group, Button, Text, SimpleGrid, Paper } from '@mantine/core';
+import { Stack, Title, Group, Button, Text, SimpleGrid } from '@mantine/core';
 import { MODEL_COLORS } from '../config/datasets';
 
 // Function to organize columns by disease first, then by subcategory
 const organizeByDisease = (columns) => {
   const diseases = {
-    covid: { total: [], adult: [], adultByAge: [], pediatric: [], pediatricByAge: [], icu: [], percent: [] },
-    influenza: { total: [], adult: [], adultByAge: [], pediatric: [], pediatricByAge: [], icu: [], percent: [] },
-    rsv: { total: [], adult: [], adultByAge: [], pediatric: [], pediatricByAge: [], icu: [], percent: [] }
+    covid: { total: [], icu: [], byAge: [], adult: [], pediatric: [], percent: [] },
+    influenza: { total: [], icu: [], byAge: [], adult: [], pediatric: [], percent: [] },
+    rsv: { total: [], icu: [], byAge: [], adult: [], pediatric: [], percent: [] }
   };
 
-  const other = { beds: [], other: [] };
+  const other = { beds: [], bedPercent: [], other: [] };
 
   const sortByAge = (a, b) => {
     const ageRanges = ['0-4', '5-17', '18-49', '50-64', '65-74', '75+'];
@@ -30,7 +30,11 @@ const organizeByDisease = (columns) => {
 
     // Bed capacity (non-disease specific)
     if (colLower.includes('bed') && !colLower.includes('occupied by covid') && !colLower.includes('occupied by influenza') && !colLower.includes('occupied by rsv')) {
-      other.beds.push(col);
+      if (colLower.startsWith('percent ')) {
+        other.bedPercent.push(col);
+      } else {
+        other.beds.push(col);
+      }
     }
     // Disease-specific columns
     else if (disease) {
@@ -41,19 +45,12 @@ const organizeByDisease = (columns) => {
       } else if (colLower.includes('icu patients')) {
         group.icu.push(col);
       } else if (colLower.includes('unknown age')) {
-        // Put unknown age in the age-specific sections
-        if (colLower.includes('pediatric') || colLower.includes('pedatric')) {
-          group.pediatricByAge.push(col);
-        } else if (colLower.includes('adult')) {
-          group.adultByAge.push(col);
-        } else {
-          // General admissions with unknown age go to adultByAge as it's the main age section
-          group.adultByAge.push(col);
-        }
+        // Put unknown age in the by age section
+        group.byAge.push(col);
       } else if (colLower.includes('pediatric') && (colLower.includes('0-4') || colLower.includes('5-17'))) {
-        group.pediatricByAge.push(col);
+        group.byAge.push(col);
       } else if (colLower.includes('adult') && (colLower.includes('18-49') || colLower.includes('50-64') || colLower.includes('65-74') || colLower.includes('75+'))) {
-        group.adultByAge.push(col);
+        group.byAge.push(col);
       } else if (colLower.includes('pediatric') || colLower.includes('pedatric')) {
         // Pediatric without age ranges
         group.pediatric.push(col);
@@ -119,37 +116,34 @@ const NHSNColumnSelector = ({
     );
   };
 
-  const renderDiseaseColumn = (diseaseName, diseaseData, colorScheme) => {
+  const renderDiseaseSection = (diseaseName, diseaseData, colorScheme) => {
     const subcategories = [
       { key: 'total', label: 'Total' },
+      { key: 'icu', label: 'ICU' },
+      { key: 'byAge', label: 'By Age' },
       { key: 'adult', label: 'Adult' },
-      { key: 'adultByAge', label: 'Adult by Age' },
       { key: 'pediatric', label: 'Pediatric' },
-      { key: 'pediatricByAge', label: 'Pediatric by Age' },
-      { key: 'icu', label: 'ICU Patients' },
-      { key: 'percent', label: 'Percentages' }
+      { key: 'percent', label: 'Percent' }
     ];
 
     const hasData = Object.values(diseaseData).some(arr => arr.length > 0);
     if (!hasData) return null;
 
     return (
-      <Paper key={diseaseName} p="md" withBorder>
-        <Stack gap="xs">
-          <Title order={5} c={colorScheme} mb="xs">{diseaseName}</Title>
-          {subcategories.map(({ key, label }) => {
-            if (diseaseData[key].length === 0) return null;
-            return (
-              <Group key={key} gap="xs" wrap="nowrap" align="flex-start">
-                <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '90px', flexShrink: 0 }}>{label}:</Text>
-                <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
-                  {diseaseData[key].map(renderButton)}
-                </Group>
+      <Stack key={diseaseName} gap="xs">
+        <Text size="sm" fw={700} c={colorScheme}>{diseaseName}</Text>
+        {subcategories.map(({ key, label }) => {
+          if (diseaseData[key].length === 0) return null;
+          return (
+            <Group key={key} gap="xs" wrap="nowrap" align="flex-start">
+              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>{label}:</Text>
+              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                {diseaseData[key].map(renderButton)}
               </Group>
-            );
-          })}
-        </Stack>
-      </Paper>
+            </Group>
+          );
+        })}
+      </Stack>
     );
   };
 
@@ -157,33 +151,44 @@ const NHSNColumnSelector = ({
     Object.values(disease).some(arr => arr.length > 0)
   );
 
+  const hasOtherData = other.beds.length > 0 || other.bedPercent.length > 0 || other.other.length > 0;
+
   return (
     <Stack gap="lg" mt="md">
       <Title order={4}>Data Columns</Title>
 
       {/* Disease-specific columns in 3-column layout */}
       {hasDiseaseData && (
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-          {renderDiseaseColumn('COVID-19', diseases.covid, 'blue')}
-          {renderDiseaseColumn('Influenza', diseases.influenza, 'green')}
-          {renderDiseaseColumn('RSV', diseases.rsv, 'orange')}
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+          {renderDiseaseSection('COVID-19', diseases.covid, 'blue')}
+          {renderDiseaseSection('Influenza', diseases.influenza, 'green')}
+          {renderDiseaseSection('RSV', diseases.rsv, 'orange')}
         </SimpleGrid>
       )}
 
       {/* Non-disease specific columns */}
-      {(other.beds.length > 0 || other.other.length > 0) && (
+      {hasOtherData && (
         <Stack gap="xs">
+          <Text size="sm" fw={700} c="gray">Bed Capacity</Text>
           {other.beds.length > 0 && (
             <Group gap="xs" wrap="nowrap" align="flex-start">
-              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px', flexShrink: 0 }}>Bed Capacity:</Text>
+              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>Count:</Text>
               <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
                 {other.beds.map(renderButton)}
               </Group>
             </Group>
           )}
+          {other.bedPercent.length > 0 && (
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>Percent:</Text>
+              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                {other.bedPercent.map(renderButton)}
+              </Group>
+            </Group>
+          )}
           {other.other.length > 0 && (
             <Group gap="xs" wrap="nowrap" align="flex-start">
-              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px', flexShrink: 0 }}>Other:</Text>
+              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>Other:</Text>
               <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
                 {other.other.map(renderButton)}
               </Group>
