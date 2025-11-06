@@ -52,27 +52,19 @@ const ForecastViz = () => {
       content: (
         <>
           <p>
-            The COVID-19 Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
+            The COVID-19 Forecast Hub is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
             <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
               <List.Item>Weekly incident percentage of emergency department visits due to COVID-19</List.Item>
             </List>
             <p></p>
-            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+            RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the COVID-19 Forecast Hub <a href="https://github.com/CDCgov/covid19-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
           <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
-              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
-            </p>
-          </div>
-          <div>
-            <Title order={4} mb="xs">Targets</Title>
-            <p>
-              Participating models submit forecasts for "target" data, which is plotted by selecting a model.
-              Presently, RespiLens plots projections for the COVID-19 target "weekly incident of COVID-19 hospitalizations" and "weekly proportion of ED visits due to COVID-19".
+              Forecasting teams submit a probabilistic forecasts of these targets every wednesday. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -96,27 +88,19 @@ const ForecastViz = () => {
       content: (
         <>
           <p>
-            The RSV Forecast Hub is a repository run by the US CDC designed to collect forecast data for two targets:
+            The RSV Forecast Hub is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
             <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to RSV</List.Item>
               <List.Item>Weekly incident percentage of emergency department visits due to RSV</List.Item>
             </List>
             <p></p>
-            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+            RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the RSV Forecast Hub <a href="https://github.com/CDCgov/rsv-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
           <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
-              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
-            </p>
-          </div>
-          <div>
-            <Title order={4} mb="xs">Targets</Title>
-            <p>
-              Participating models submit forecasts for "target" data, which is plotted by selecting a model and a target.
-              Presently, RespiLens plots projections for the RSV target "weekly incident of RSV hospitalizations" and "weekly proportion of ED visits due to RSV".
+              Forecasting teams submit a probabilistic forecasts of these targets every wednesday of the RSV season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -140,21 +124,12 @@ const ForecastViz = () => {
       content: (
         <>
           <p>
-            FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
-            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+            FluSight is an open challenge organized by the US CDC designed to collect influenza forecasts during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
-          <div>
+    <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
-              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
-            </p>
-          </div>
-          <div>
-            <Title order={4} mb="xs">Targets</Title>
-            <p>
-              Participating models submit "target" data, which is plotted by selecting a model.
-              Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+              Forecasting teams submit a probabilistic forecasts of these targets every wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -209,8 +184,7 @@ const ForecastViz = () => {
         <>
           <p>
             Data for the RespiLens NHSN view comes from the CDC's <a href="https://data.cdc.gov/Public-Health-Surveillance/Weekly-Hospital-Respiratory-Data-HRD-Metrics-by-Ju/ua7e-t2fy/about_data" target="_blank" rel="noopener noreferrer">National Healthcare Safety Network</a> weekly "Hospital Respiratory Data" (HRD) dataset.
-            This dataset represents metrics aggregated to national and state/territory levels beginning in August 2020. To plot data, you can select
-            NHSN column(s).
+            This dataset represents metrics aggregated to national and state/territory levels beginning in August 2020.
           </p>
           <div>
             <Title order={4} mb="xs">Columns</Title>
