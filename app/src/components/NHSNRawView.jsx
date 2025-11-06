@@ -149,14 +149,40 @@ const NHSNRawView = ({ location }) => {
     if (validUrlCols.length > 0) {
       newSelectedCols = validUrlCols;
     } else if (filtered.length > 0) {
-      // Default to Total Admissions for all 3 diseases
-      const defaultColumns = [
-        'Total COVID-19 Admissions',
-        'Total Influenza Admissions',
-        'Total RSV Admissions'
-      ].filter(col => filtered.includes(col));
+      // Default columns based on target type
+      let defaultColumns = [];
 
-      newSelectedCols = defaultColumns.length > 0 ? defaultColumns : [filtered[0]];
+      if (selectedTarget === 'Hospital Admissions (count)') {
+        defaultColumns = [
+          'Total COVID-19 Admissions',
+          'Total Influenza Admissions',
+          'Total RSV Admissions'
+        ];
+      } else if (selectedTarget === 'Hospital Admissions (rates)') {
+        defaultColumns = [
+          'Total number of COVID-19 Admissions per 100,000 population',
+          'Total number of Influenza Admissions per 100,000 population',
+          'Total number of RSV Admissions per 100,000 population'
+        ];
+      } else if (selectedTarget === 'Hospital Admissions (%)') {
+        defaultColumns = [
+          'Percent Adult COVID-19 Admissions',
+          'Percent Adult Influenza Admissions',
+          'Percent Adult RSV Admissions'
+        ];
+      } else if (selectedTarget === 'Bed Capacity (count)') {
+        defaultColumns = [
+          'Number of Inpatient Beds',
+          'Number of Inpatient Beds Occupied'
+        ];
+      } else if (selectedTarget === 'Bed Capacity (%)') {
+        defaultColumns = [
+          'Percent Inpatient Beds Occupied'
+        ];
+      }
+
+      const filteredDefaults = defaultColumns.filter(col => filtered.includes(col));
+      newSelectedCols = filteredDefaults.length > 0 ? filteredDefaults : [filtered[0]];
     } else {
       newSelectedCols = [];
     }
@@ -191,14 +217,40 @@ const NHSNRawView = ({ location }) => {
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
     const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
 
-    // Default to Total Admissions for all 3 diseases
-    const defaultTotalAdmissions = [
-      'Total COVID-19 Admissions',
-      'Total Influenza Admissions',
-      'Total RSV Admissions'
-    ].filter(col => filteredCols.includes(col));
+    // Default columns based on target type
+    let defaultColumnsArray = [];
 
-    const defaultColumns = defaultTotalAdmissions.length > 0 ? defaultTotalAdmissions : (filteredCols.length > 0 ? [filteredCols[0]] : []);
+    if (selectedTarget === 'Hospital Admissions (count)') {
+      defaultColumnsArray = [
+        'Total COVID-19 Admissions',
+        'Total Influenza Admissions',
+        'Total RSV Admissions'
+      ];
+    } else if (selectedTarget === 'Hospital Admissions (rates)') {
+      defaultColumnsArray = [
+        'Total number of COVID-19 Admissions per 100,000 population',
+        'Total number of Influenza Admissions per 100,000 population',
+        'Total number of RSV Admissions per 100,000 population'
+      ];
+    } else if (selectedTarget === 'Hospital Admissions (%)') {
+      defaultColumnsArray = [
+        'Percent Adult COVID-19 Admissions',
+        'Percent Adult Influenza Admissions',
+        'Percent Adult RSV Admissions'
+      ];
+    } else if (selectedTarget === 'Bed Capacity (count)') {
+      defaultColumnsArray = [
+        'Number of Inpatient Beds',
+        'Number of Inpatient Beds Occupied'
+      ];
+    } else if (selectedTarget === 'Bed Capacity (%)') {
+      defaultColumnsArray = [
+        'Percent Inpatient Beds Occupied'
+      ];
+    }
+
+    const filteredDefaults = defaultColumnsArray.filter(col => filteredCols.includes(col));
+    const defaultColumns = filteredDefaults.length > 0 ? filteredDefaults : (filteredCols.length > 0 ? [filteredCols[0]] : []);
     
     const sortedSelected = [...selectedColumns].sort();
     const sortedDefault = [...defaultColumns].sort();
@@ -268,10 +320,15 @@ const NHSNRawView = ({ location }) => {
       return;
     }
 
-    const traces = selectedColumns.map((column) => ({
-      x: data.series.dates,
-      y: data.series[column]
-    }));
+    const isPercentage = selectedTarget && selectedTarget.includes('%');
+    const traces = selectedColumns.map((column) => {
+      const yValues = data.series[column];
+      const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
+      return {
+        x: data.series.dates,
+        y: processedYValues
+      };
+    });
 
     const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
     const twoWeeksAfter = new Date(lastDate);
@@ -286,7 +343,7 @@ const NHSNRawView = ({ location }) => {
     if (newYRange) {
       setYAxisRange(newYRange);
     }
-  }, [data, selectedColumns, xAxisRange]);
+  }, [data, selectedColumns, xAxisRange, selectedTarget]);
 
   const handleRelayout = (figure) => {
     if (figure && figure['xaxis.range']) {
@@ -301,11 +358,15 @@ const NHSNRawView = ({ location }) => {
   if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
   if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
+  const isPercentage = selectedTarget && selectedTarget.includes('%');
   const traces = selectedColumns.map((column) => {
     const columnIndex = filteredAvailableColumns.indexOf(column);
+    const yValues = data.series[column];
+    const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
+
     return {
       x: data.series.dates,
-      y: data.series[column],
+      y: processedYValues,
       name: column,
       type: 'scatter',
       mode: 'lines+markers',
