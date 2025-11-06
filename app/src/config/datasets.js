@@ -44,12 +44,12 @@ export const DATASETS = {
   },
   nhsn: {
     shortName: 'nhsn',
-    fullName: 'NHSN Raw Data',
+    fullName: 'NHSN data',
     views: [
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
     defaultView: 'nhsnall',
-    defaultColumn: 'Number of Adult COVID-19 Admissions, 18-49 years', 
+    defaultColumn: 'Number of Adult COVID-19 Admissions, 18-49 years',
     hasDateSelector: false,
     hasModelSelector: false,
     prefix: 'nhsn',

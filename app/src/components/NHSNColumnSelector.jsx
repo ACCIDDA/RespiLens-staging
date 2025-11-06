@@ -1,4 +1,4 @@
-import { Stack, Title, Group, Button, Text, SimpleGrid } from '@mantine/core';
+import { Stack, Title, Group, Button, Text, SimpleGrid, Select } from '@mantine/core';
 import { MODEL_COLORS } from '../config/datasets';
 
 // Function to organize columns by disease first, then by subcategory
@@ -87,7 +87,11 @@ const NHSNColumnSelector = ({
   availableColumns,
   selectedColumns,
   setSelectedColumns,
-  nameMap
+  nameMap,
+  selectedTarget,
+  availableTargets,
+  onTargetChange,
+  loading
 }) => {
   const toggleColumn = (column) => {
     if (selectedColumns.includes(column)) {
@@ -157,7 +161,21 @@ const NHSNColumnSelector = ({
 
   return (
     <Stack gap="lg">
-      <Title order={4}>Data Columns</Title>
+      <Group justify="space-between" align="center">
+        <Title order={4}>Data Columns</Title>
+        <Group gap="sm" align="center">
+          <Text size="sm" fw={500}>Column unit:</Text>
+          <Select
+            placeholder="Choose a column unit"
+            data={availableTargets || []}
+            value={selectedTarget}
+            onChange={onTargetChange}
+            disabled={loading}
+            allowDeselect={false}
+            style={{ width: 300 }}
+          />
+        </Group>
+      </Group>
 
       {/* Disease-specific columns in 3-column layout */}
       {hasDiseaseData && (
