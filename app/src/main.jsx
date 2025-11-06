@@ -19,7 +19,7 @@ createRoot(document.getElementById('root')).render(
     <MantineProvider
       theme={theme}
       colorSchemeManager={colorSchemeManager}
-      defaultColorScheme="light"
+      defaultColorScheme="auto"
     >
       <Notifications />
       <App />
