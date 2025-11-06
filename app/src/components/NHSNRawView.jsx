@@ -281,16 +281,16 @@ const NHSNRawView = ({ location }) => {
     <Stack gap="md" w="100%">
       <LastUpdated timestamp={metadata?.last_updated} />
 
-      <Group justify="center" gap="sm">
-        <Text size="sm" fw={500}>Select a timeseries unit:</Text>
+      <Group justify="center" gap="sm" align="center">
+        <Text size="sm" fw={500}>Column unit:</Text>
         <Select
-          placeholder="Choose a time series unit"
+          placeholder="Choose a column unit"
           data={availableTargets}
           value={selectedTarget}
           onChange={setSelectedTarget}
           disabled={loading}
           allowDeselect={false}
-          style={{ minWidth: 300, maxWidth: 400 }}
+          style={{ width: 300 }}
         />
       </Group>
 

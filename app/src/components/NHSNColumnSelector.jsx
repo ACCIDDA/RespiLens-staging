@@ -22,22 +22,24 @@ const organizeByDisease = (columns) => {
   columns.forEach(col => {
     const colLower = col.toLowerCase();
 
+    // Bed capacity columns - prioritize these over disease classification
+    if (colLower.includes('bed')) {
+      if (colLower.startsWith('percent ')) {
+        other.bedPercent.push(col);
+      } else {
+        other.beds.push(col);
+      }
+      return; // Don't process further
+    }
+
     // Determine disease
     let disease = null;
     if (colLower.includes('covid')) disease = 'covid';
     else if (colLower.includes('influenza') || colLower.includes('flu')) disease = 'influenza';
     else if (colLower.includes('rsv')) disease = 'rsv';
 
-    // Bed capacity (non-disease specific)
-    if (colLower.includes('bed') && !colLower.includes('occupied by covid') && !colLower.includes('occupied by influenza') && !colLower.includes('occupied by rsv')) {
-      if (colLower.startsWith('percent ')) {
-        other.bedPercent.push(col);
-      } else {
-        other.beds.push(col);
-      }
-    }
     // Disease-specific columns
-    else if (disease) {
+    if (disease) {
       const group = diseases[disease];
 
       if (colLower.startsWith('percent ')) {
@@ -169,30 +171,28 @@ const NHSNColumnSelector = ({
       {/* Non-disease specific columns */}
       {hasOtherData && (
         <Stack gap="xs">
-          <Text size="sm" fw={700} c="gray">Bed Capacity</Text>
-          {other.beds.length > 0 && (
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>Count:</Text>
-              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
-                {other.beds.map(renderButton)}
-              </Group>
-            </Group>
-          )}
-          {other.bedPercent.length > 0 && (
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>Percent:</Text>
-              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
-                {other.bedPercent.map(renderButton)}
-              </Group>
-            </Group>
+          {(other.beds.length > 0 || other.bedPercent.length > 0) && (
+            <>
+              <Text size="sm" fw={700} c="gray">Bed Capacity</Text>
+              {other.beds.length > 0 && (
+                <Group gap="xs" wrap="wrap" align="flex-start">
+                  {other.beds.map(renderButton)}
+                </Group>
+              )}
+              {other.bedPercent.length > 0 && (
+                <Group gap="xs" wrap="wrap" align="flex-start">
+                  {other.bedPercent.map(renderButton)}
+                </Group>
+              )}
+            </>
           )}
           {other.other.length > 0 && (
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-              <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '70px', flexShrink: 0 }}>Other:</Text>
-              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+            <>
+              <Text size="sm" fw={700} c="gray">Other</Text>
+              <Group gap="xs" wrap="wrap" align="flex-start">
                 {other.other.map(renderButton)}
               </Group>
-            </Group>
+            </>
           )}
         </Stack>
       )}
