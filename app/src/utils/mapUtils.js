@@ -453,6 +453,7 @@ export const nhsnSlugToNameMap = Object.fromEntries(
 export const nhsnNameToPrettyNameMap = {
     'Week Ending Date': 'weekendingdate',
     'Geographic aggregation': 'jurisdiction',
+    
     'Number of Inpatient Beds': 'Inpatient Beds',
     'Number of Adult Inpatient Beds': 'Adult Inpatient Beds',
     'Number of Pediatric Inpatient beds': 'Pediatric Inpatient Beds',
@@ -476,10 +477,10 @@ export const nhsnNameToPrettyNameMap = {
     'Total Patients Hospitalized with RSV': 'Total Hospitalized',
     'Number of Adult ICU Patients Hospitalized with COVID-19': 'Adult ICU Patients Hospitalized with COVID-19',
     'Number of Pediatric ICU Patients Hospitalized with COVID-19': 'Pediatric ICU Patients Hospitalized with COVID-19',
-    'Total ICU Patients Hospitalized with COVID-19 ': 'ICU Patients Hospitalized with COVID-19',
+    'Total ICU Patients Hospitalized with COVID-19 ': 'Total ICU Patients Hospitalized with COVID-19',
     'Number of Adult ICU Patients Hospitalized with Influenza': 'Adult ICU Patients Hospitalized with Influenza',
     'Number of Pediatric ICU Patients Hospitalized with Influenza': 'Pediatric ICU Patients Hospitalized with Influenza',
-    'Total ICU Patients Hospitalized with Influenza': 'ICU Patients Hospitalized with Influenza',
+    'Total ICU Patients Hospitalized with Influenza': 'Total ICU Patients Hospitalized with Influenza',
     'Number of Adult ICU Patients Hospitalized with RSV': 'Adult ICU Patients Hospitalized with RSV',
     'Number of Pediatric ICU Patients Hospitalized with RSV': 'Pediatric ICU Patients Hospitalized with RSV',
     'Total ICU Patients Hospitalized with RSV': 'ICU Patients Hospitalized with RSV',
