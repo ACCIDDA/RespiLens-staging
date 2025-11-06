@@ -148,6 +148,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     } : undefined,
     showlegend: false,
     hovermode: 'x unified',
+    dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
       domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
@@ -205,6 +206,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     plotlyServerURL: "",
     scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
     doubleClick: 'reset', // Allow double-click to reset view
+    modeBarButtonsToRemove: ['select2d', 'lasso2d'], // Remove selection tools that can interfere on mobile
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'

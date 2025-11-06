@@ -162,6 +162,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     },
     showlegend: false, // Legend is handled by ModelSelector now
     hovermode: 'x unified',
+    dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
       domain: [0, 1], // Full width
@@ -209,6 +210,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     plotlyServerURL: "",
     scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
     doubleClick: 'reset', // Allow double-click to reset view
+    modeBarButtonsToRemove: ['select2d', 'lasso2d'], // Remove selection tools that can interfere on mobile
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
