@@ -262,10 +262,44 @@ const NHSNRawView = ({ location }) => {
       rangeslider: {
         visible: true
       },
-      range: [
-        data.series.dates[0],
-        data.series.dates[data.series.dates.length - 1]
-      ]
+      rangeselector: {
+        buttons: [
+          {
+            count: 1,
+            label: '1m',
+            step: 'month',
+            stepmode: 'backward'
+          },
+          {
+            count: 6,
+            label: '6m',
+            step: 'month',
+            stepmode: 'backward'
+          },
+          {
+            count: 1,
+            label: '1y',
+            step: 'year',
+            stepmode: 'backward'
+          },
+          {
+            step: 'all',
+            label: 'All'
+          }
+        ],
+        activecolor: colorScheme === 'dark' ? '#4c6ef5' : '#228be6',
+        bgcolor: colorScheme === 'dark' ? '#2c2e33' : '#f1f3f5'
+      },
+      range: (() => {
+        const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+        const twoWeeksAfter = new Date(lastDate);
+        twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+
+        const sixMonthsAgo = new Date(lastDate);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        return [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
+      })()
     },
     yaxis: {
       title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
@@ -303,10 +337,10 @@ const NHSNRawView = ({ location }) => {
           displaylogo: false,
           modeBarButtonsToAdd: ['resetScale2d']
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', marginBottom: '-20px' }}
         revision={dataRevision}
       />
-      
+
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}

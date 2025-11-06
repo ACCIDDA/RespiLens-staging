@@ -156,7 +156,7 @@ const NHSNColumnSelector = ({
   const hasOtherData = other.beds.length > 0 || other.bedPercent.length > 0 || other.other.length > 0;
 
   return (
-    <Stack gap="lg" mt="md">
+    <Stack gap="lg">
       <Title order={4}>Data Columns</Title>
 
       {/* Disease-specific columns in 3-column layout */}
