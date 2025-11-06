@@ -773,7 +773,7 @@ const ForecastleGame = () => {
                           <Group justify="space-between">
                             <Title order={4}>Results Comparison</Title>
                             <Switch
-                              label="Show Full History"
+                              label="Show More History"
                               checked={!zoomedView}
                               onChange={(event) => setZoomedView(!event.currentTarget.checked)}
                               color="red"
@@ -981,7 +981,7 @@ const ForecastleGame = () => {
                     <Group justify="space-between">
                       <Title order={5}>Interactive Chart</Title>
                       <Switch
-                        label="Show Full History"
+                        label="Show More History"
                         checked={!zoomedView}
                         onChange={(event) => setZoomedView(!event.currentTarget.checked)}
                         color="red"
