@@ -135,14 +135,16 @@ const NHSNColumnSelector = ({
 
     return (
       <Paper key={diseaseName} p="md" withBorder>
-        <Stack gap="sm">
-          <Title order={5} c={colorScheme}>{diseaseName}</Title>
+        <Stack gap="xs">
+          <Title order={5} c={colorScheme} mb="xs">{diseaseName}</Title>
           {subcategories.map(({ key, label }) => {
             if (diseaseData[key].length === 0) return null;
             return (
-              <Group key={key} gap="xs" wrap="wrap" align="flex-start">
-                <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '80px' }}>{label}:</Text>
-                {diseaseData[key].map(renderButton)}
+              <Group key={key} gap="xs" wrap="nowrap" align="flex-start">
+                <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '90px', flexShrink: 0 }}>{label}:</Text>
+                <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                  {diseaseData[key].map(renderButton)}
+                </Group>
               </Group>
             );
           })}
@@ -151,30 +153,40 @@ const NHSNColumnSelector = ({
     );
   };
 
+  const hasDiseaseData = Object.values(diseases).some(disease =>
+    Object.values(disease).some(arr => arr.length > 0)
+  );
+
   return (
     <Stack gap="lg" mt="md">
       <Title order={4}>Data Columns</Title>
 
       {/* Disease-specific columns in 3-column layout */}
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-        {renderDiseaseColumn('COVID-19', diseases.covid, 'blue')}
-        {renderDiseaseColumn('Influenza', diseases.influenza, 'green')}
-        {renderDiseaseColumn('RSV', diseases.rsv, 'orange')}
-      </SimpleGrid>
+      {hasDiseaseData && (
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+          {renderDiseaseColumn('COVID-19', diseases.covid, 'blue')}
+          {renderDiseaseColumn('Influenza', diseases.influenza, 'green')}
+          {renderDiseaseColumn('RSV', diseases.rsv, 'orange')}
+        </SimpleGrid>
+      )}
 
       {/* Non-disease specific columns */}
       {(other.beds.length > 0 || other.other.length > 0) && (
-        <Stack gap="sm">
+        <Stack gap="xs">
           {other.beds.length > 0 && (
-            <Group gap="xs" wrap="wrap" align="flex-start">
-              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px' }}>Bed Capacity:</Text>
-              {other.beds.map(renderButton)}
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px', flexShrink: 0 }}>Bed Capacity:</Text>
+              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                {other.beds.map(renderButton)}
+              </Group>
             </Group>
           )}
           {other.other.length > 0 && (
-            <Group gap="xs" wrap="wrap" align="flex-start">
-              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px' }}>Other:</Text>
-              {other.other.map(renderButton)}
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px', flexShrink: 0 }}>Other:</Text>
+              <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                {other.other.map(renderButton)}
+              </Group>
             </Group>
           )}
         </Stack>
