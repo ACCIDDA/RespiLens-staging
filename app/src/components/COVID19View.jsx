@@ -84,12 +84,12 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       name: 'Observed',
       type: 'scatter',
       mode: 'lines+markers',
-      line: { color: '#8884d8', width: 2 },
-      marker: { size: 6 }
+      line: { color: 'black', width: 2, dash: 'dash' },
+      marker: { size: 4, color: 'black' }
     };
 
     const modelTraces = selectedModels.flatMap(model =>
-      selectedDates.flatMap((date) => {
+      selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
         // Access forecast using selectedTarget
         const forecast = forecastsForDate[selectedTarget]?.[model];
@@ -133,11 +133,12 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         if (forecastDates.length === 0) return [];
 
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        const isFirstDate = dateIndex === 0; // Only show legend for first date of each model
 
         return [
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI`, hoverinfo: 'none' },
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI`, hoverinfo: 'none' },
-          { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none', legendgroup: model },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, hoverinfo: 'none', legendgroup: model },
+          { x: forecastDates, y: medianValues, name: model, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: isFirstDate, legendgroup: model }
         ];
       })
     );
@@ -191,6 +192,18 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
     showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
+    legend: {
+      x: 1,
+      y: 1,
+      xanchor: 'right',
+      yanchor: 'top',
+      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+      borderwidth: 1,
+      font: {
+        size: 10
+      }
+    },
     hovermode: 'x unified',
     dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
     margin: { l: 60, r: 30, t: 30, b: 30 },
