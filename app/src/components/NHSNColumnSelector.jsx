@@ -54,12 +54,14 @@ const organizeByDisease = (columns) => {
         group.pediatricByAge.push(col);
       } else if (colLower.includes('adult') && (colLower.includes('18-49') || colLower.includes('50-64') || colLower.includes('65-74') || colLower.includes('75+'))) {
         group.adultByAge.push(col);
+      } else if (colLower.includes('pediatric') || colLower.includes('pedatric')) {
+        // Pediatric without age ranges
+        group.pediatric.push(col);
+      } else if (colLower.includes('adult')) {
+        // Adult without age ranges
+        group.adult.push(col);
       } else if (colLower.startsWith('total ')) {
         group.total.push(col);
-      } else if (colLower.includes('adult')) {
-        group.adult.push(col);
-      } else if (colLower.includes('pediatric') || colLower.includes('pedatric')) {
-        group.pediatric.push(col);
       } else {
         group.total.push(col);
       }
@@ -133,17 +135,15 @@ const NHSNColumnSelector = ({
 
     return (
       <Paper key={diseaseName} p="md" withBorder>
-        <Stack gap="md">
+        <Stack gap="sm">
           <Title order={5} c={colorScheme}>{diseaseName}</Title>
           {subcategories.map(({ key, label }) => {
             if (diseaseData[key].length === 0) return null;
             return (
-              <Stack key={key} gap="xs">
-                <Text size="xs" fw={600} c="dimmed">{label}</Text>
-                <Group gap="xs">
-                  {diseaseData[key].map(renderButton)}
-                </Group>
-              </Stack>
+              <Group key={key} gap="xs" wrap="wrap" align="flex-start">
+                <Text size="xs" fw={600} c="dimmed" style={{ minWidth: '80px' }}>{label}:</Text>
+                {diseaseData[key].map(renderButton)}
+              </Group>
             );
           })}
         </Stack>
@@ -164,22 +164,18 @@ const NHSNColumnSelector = ({
 
       {/* Non-disease specific columns */}
       {(other.beds.length > 0 || other.other.length > 0) && (
-        <Stack gap="md">
+        <Stack gap="sm">
           {other.beds.length > 0 && (
-            <Stack gap="xs">
-              <Text size="sm" fw={600} c="dimmed">Bed Capacity</Text>
-              <Group gap="xs">
-                {other.beds.map(renderButton)}
-              </Group>
-            </Stack>
+            <Group gap="xs" wrap="wrap" align="flex-start">
+              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px' }}>Bed Capacity:</Text>
+              {other.beds.map(renderButton)}
+            </Group>
           )}
           {other.other.length > 0 && (
-            <Stack gap="xs">
-              <Text size="sm" fw={600} c="dimmed">Other</Text>
-              <Group gap="xs">
-                {other.other.map(renderButton)}
-              </Group>
-            </Stack>
+            <Group gap="xs" wrap="wrap" align="flex-start">
+              <Text size="sm" fw={600} c="dimmed" style={{ minWidth: '100px' }}>Other:</Text>
+              {other.other.map(renderButton)}
+            </Group>
           )}
         </Stack>
       )}
