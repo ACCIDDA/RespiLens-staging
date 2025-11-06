@@ -158,7 +158,7 @@ class NHSNDataProcessor:
     def _build_metadata_file(self, columns: list[str], locations: list[str]) -> dict:
         """Build a single output metadata.json file (one per dataset output)"""
         metadata_file_contents = {
-            "last_updated": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "last_updated": pd.Timestamp.now(tz='UTC').strftime("%Y-%m-%dT%H:%M:%SZ"),
             "dataset": "NHSN",
             "columns": columns,
             "locations": locations

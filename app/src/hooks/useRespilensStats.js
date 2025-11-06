@@ -118,6 +118,10 @@ function computeGameStats(game) {
     baselineDispersion: game.baselineDispersion || null,
     baselineUnderprediction: game.baselineUnderprediction || null,
     baselineOverprediction: game.baselineOverprediction || null,
+    // Raw data needed for per-pathogen coverage calculation
+    userForecasts: game.userForecasts,
+    groundTruth: game.groundTruth,
+    horizonDates: game.horizonDates,
   };
 }
 
