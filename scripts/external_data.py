@@ -57,6 +57,7 @@ def load_inputs(
     locations_data_path: Path,
     *,
     filter_quantiles: bool = True,
+    filter_nowcasts: bool = True,
 ) -> ExternalInputs:
     """Load and validate the three core datasets required to build RespiLens projections."""
 
@@ -71,7 +72,7 @@ def load_inputs(
     _validate_location_columns(locations_df, LOCATION_REQUIRED_COLUMNS, locations_data_path)
     _validate_location_coverage(forecast_df, locations_df, data_path, locations_data_path)
 
-    processed_data = hubverse_df_preprocessor(forecast_df, filter_quantiles=filter_quantiles)
+    processed_data = hubverse_df_preprocessor(forecast_df, filter_quantiles=filter_quantiles, filter_nowcasts=filter_nowcasts)
 
     return ExternalInputs(
         data=clean_nan_values(processed_data),
