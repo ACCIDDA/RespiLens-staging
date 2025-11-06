@@ -4,9 +4,30 @@ import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import LastUpdated from './LastUpdated';
-import { MODEL_COLORS } from '../config/datasets';
+import { MODEL_COLORS, DATASETS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
+
+/**
+ * Calculate the previous occurrence of a specific day of week before a given date
+ * @param {string|Date} date - The reference date
+ * @param {number} targetDayOfWeek - Target day (0=Sunday, 1=Monday, ..., 6=Saturday)
+ * @returns {string} Date in YYYY-MM-DD format
+ */
+const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
+  const d = new Date(date);
+  const currentDayOfWeek = d.getDay();
+  let daysToSubtract = currentDayOfWeek - targetDayOfWeek;
+
+  // If the target day is the same as current day or in the future this week,
+  // go back to the previous week
+  if (daysToSubtract <= 0) {
+    daysToSubtract += 7;
+  }
+
+  d.setDate(d.getDate() - daysToSubtract);
+  return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+};
 
 const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -66,6 +87,11 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       line: { color: '#8884d8', width: 2 },
       marker: { size: 6 }
     };
+
+    // Find the last ground truth data point for connecting lines
+    const lastGroundTruthDate = groundTruth.dates?.[groundTruth.dates.length - 1];
+    const lastGroundTruthValue = groundTruthValues?.[groundTruthValues.length - 1];
+
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date) => {
         const forecastsForDate = forecasts[date] || {};
@@ -111,11 +137,29 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         if (forecastDates.length === 0) return [];
 
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-        return [
+
+        const traces = [
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 95% CI`, hoverinfo: 'none' },
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} (${date}) 50% CI`, hoverinfo: 'none' },
           { x: forecastDates, y: medianValues, name: `${model} (${date})`, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: true }
         ];
+
+        // Add connecting line from last ground truth to first forecast point
+        if (lastGroundTruthDate && lastGroundTruthValue !== undefined &&
+            forecastDates.length > 0 && medianValues.length > 0) {
+          const connectingLine = {
+            x: [lastGroundTruthDate, forecastDates[0]],
+            y: [lastGroundTruthValue, medianValues[0]],
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: modelColor, width: 1, dash: 'solid' },
+            showlegend: false,
+            hoverinfo: 'skip'
+          };
+          traces.unshift(connectingLine); // Add at beginning so it's drawn under other traces
+        }
+
+        return traces;
       })
     );
     return [groundTruthTrace, ...modelTraces];
@@ -194,19 +238,25 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       range: yAxisRange, // Use state for dynamic range updates
       autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
     },
-    shapes: selectedDates.map(date => ({
-      type: 'line',
-      x0: date,
-      x1: date,
-      y0: 0,
-      y1: 1,
-      yref: 'paper',
-      line: {
-        color: 'red',
-        width: 1,
-        dash: 'dash'
-      }
-    }))
+    shapes: selectedDates.map(date => {
+      // Calculate target line date based on hub-specific configuration
+      const targetDayOfWeek = DATASETS.covid.targetLineDayOfWeek ?? 3; // Default to Wednesday
+      const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
+
+      return {
+        type: 'line',
+        x0: targetLineDate,
+        x1: targetLineDate,
+        y0: 0,
+        y1: 1,
+        yref: 'paper',
+        line: {
+          color: 'red',
+          width: 1,
+          dash: 'dash'
+        }
+      };
+    })
   }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, yAxisRange, xAxisRange, getDefaultRange]); 
 
   const config = useMemo(() => ({
