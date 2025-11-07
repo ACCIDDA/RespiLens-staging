@@ -1,5 +1,3 @@
-// src/components/ForecastViz.jsx
-
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Stack, Container, Paper, Group, Button, Tooltip, Title, Anchor, List } from '@mantine/core';
