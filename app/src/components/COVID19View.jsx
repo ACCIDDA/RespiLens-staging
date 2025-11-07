@@ -3,7 +3,7 @@ import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
-import LastUpdated from './LastUpdated';
+import LastFetched from './LastFetched';
 import { MODEL_COLORS, DATASETS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
@@ -301,7 +301,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   return (
     <Stack>
-      <LastUpdated timestamp={metadata?.last_updated} />
+      <LastFetched timestamp={metadata?.last_updated} />
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}

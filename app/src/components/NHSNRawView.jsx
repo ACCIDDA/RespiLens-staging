@@ -6,7 +6,7 @@ import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mant
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
-import LastUpdated from './LastUpdated';
+import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import {
   nhsnTargetsToColumnsMap, // groupings
@@ -460,7 +460,7 @@ const NHSNRawView = ({ location }) => {
 
   return (
     <Stack gap="md" w="100%">
-      <LastUpdated timestamp={metadata?.last_updated} />
+      <LastFetched timestamp={metadata?.last_updated} />
 
       <Plot
         data={traces}
