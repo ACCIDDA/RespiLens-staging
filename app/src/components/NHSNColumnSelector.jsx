@@ -180,9 +180,9 @@ const NHSNColumnSelector = ({
       {/* Disease-specific columns in 3-column layout */}
       {hasDiseaseData && (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
-          {renderDiseaseSection('COVID-19', diseases.covid, 'blue')}
-          {renderDiseaseSection('Influenza', diseases.influenza, 'green')}
-          {renderDiseaseSection('RSV', diseases.rsv, 'orange')}
+          {renderDiseaseSection('COVID-19', diseases.covid, 'pink.3')}
+          {renderDiseaseSection('Influenza', diseases.influenza, 'blue.8')}
+          {renderDiseaseSection('RSV', diseases.rsv, 'gray.5')}
         </SimpleGrid>
       )}
 
