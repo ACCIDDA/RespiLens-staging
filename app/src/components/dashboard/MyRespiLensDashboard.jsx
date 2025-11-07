@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -45,6 +45,7 @@ const MyRespiLensDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [models, setModels] = useState([]);
+  const [modelsByTarget, setModelsByTarget] = useState({});
   const [selectedModels, setSelectedModels] = useState([]);
   const [availableDates, setAvailableDates] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
@@ -55,6 +56,32 @@ const MyRespiLensDashboard = () => {
 
   const [plotRevision, setPlotRevision] = useState(0);
   const [dataRevision, setDataRevision] = useState(0);
+
+  const modelsForView = useMemo(() => {
+    if (selectedTarget && modelsByTarget[selectedTarget]) {
+      return modelsByTarget[selectedTarget];
+    }
+    return []; // Default to empty
+  }, [selectedTarget, modelsByTarget]);
+
+  useEffect(() => {
+    // Don't run before data is loaded
+    if (modelsForView.length === 0 && models.length === 0) return;
+
+    const availableModelsSet = new Set(modelsForView);
+    const validSelectedModels = selectedModels.filter(model =>
+      availableModelsSet.has(model)
+    );
+
+    // If no currently-selected models are valid, auto-select the first available one
+    if (validSelectedModels.length === 0 && modelsForView.length > 0) {
+      setSelectedModels([modelsForView[0]]);
+    } 
+    // If some are valid but others aren't, clean the list
+    else if (validSelectedModels.length !== selectedModels.length) {
+      setSelectedModels(validSelectedModels);
+    }
+  }, [modelsForView, models, selectedModels, setSelectedModels]);
 
 
   useEffect(() => {
@@ -69,18 +96,66 @@ const MyRespiLensDashboard = () => {
         const data = JSON.parse(content);
         setFileData(data);
 
-        const availableModels = data.metadata?.hubverse_keys?.models || [];
         const forecastDates = Object.keys(data.forecasts || {}).sort((a, b) => new Date(a) - new Date(b));
 
-        setModels(availableModels);
-        if (availableModels.length > 0) {
-          const sortedModels = [...availableModels].sort();
-          setSelectedModels([sortedModels[0]]);
+        // Build both the full model list AND the map
+        const allModelsSet = new Set();
+        const modelsByTargetMap = new Map();
+
+        if (data.forecasts) {
+          Object.values(data.forecasts).forEach(dateData => {
+            Object.entries(dateData).forEach(([target, targetData]) => {
+              
+              if (!modelsByTargetMap.has(target)) {
+                modelsByTargetMap.set(target, new Set());
+              }
+              const modelSetForTarget = modelsByTargetMap.get(target);
+
+              Object.keys(targetData).forEach(model => {
+                allModelsSet.add(model); // Add to the master list
+                modelSetForTarget.add(model); // Add to the target-specific list
+              });
+            });
+          });
+        }
+
+        // Convert maps/sets to arrays for state
+        const allModels = Array.from(allModelsSet).sort();
+        
+        const modelsByTargetState = {};
+        for (const [target, modelSet] of modelsByTargetMap.entries()) {
+          modelsByTargetState[target] = Array.from(modelSet).sort();
+        }
+
+        // Set state
+        setModels(allModels); // Master list for stable colors
+        setModelsByTarget(modelsByTargetState); // Our new map
+
+        setAvailableDates(forecastDates);
+        
+        const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
+        setAvailableTargets(targets);
+
+        // --- Set default states intelligently ---
+        let defaultTarget = null;
+        if (targets.length > 0) {
+          defaultTarget = targets[0];
+          setSelectedTarget(defaultTarget);
+        } else {
+          setSelectedTarget(null);
+        }
+
+        // Set default models BASED on the default target
+        const modelsForDefaultTarget = modelsByTargetState[defaultTarget] || [];
+        if (modelsForDefaultTarget.length > 0) {
+          setSelectedModels([modelsForDefaultTarget[0]]);
+        } else if (allModels.length > 0) {
+          setSelectedModels([allModels[0]]); // Fallback
         } else {
           setSelectedModels([]);
         }
-
-        setAvailableDates(forecastDates);
+        
+        // Set default dates
         if (forecastDates.length > 0) {
           const latestDate = forecastDates[forecastDates.length - 1];
           setSelectedDates([latestDate]);
@@ -88,14 +163,6 @@ const MyRespiLensDashboard = () => {
         } else {
           setSelectedDates([]);
           setActiveDate(null);
-        }
-
-        const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
-        setAvailableTargets(targets);
-        if (targets.length > 0) {
-          setSelectedTarget(targets[0]);
-        } else {
-          setSelectedTarget(null);
         }
 
       } catch (error) {
@@ -211,16 +278,21 @@ const MyRespiLensDashboard = () => {
       type: 'scatter',
       mode: 'lines+markers',
       name: 'Observed',
-      line: { color: '#8884d8', width: 2 }
+      line: { color: 'black', width: 2, dash: 'dash' }, // <-- Changed
+      marker: { size: 4, color: 'black' } // <-- Added
     };
 
     const modelTraces = selectedModels.flatMap(model => {
       const modelColor = getModelColor(model);
-      return selectedDates.flatMap(forecastDate => {
+      // Add 'dateIndex' here
+      return selectedDates.flatMap((forecastDate, dateIndex) => {
         const forecastData = fileData.forecasts?.[forecastDate]?.[selectedTarget]?.[model];
         if (!forecastData || forecastData.type !== 'quantile' || !forecastData.predictions) {
           return [];
         }
+        
+        // Add 'isFirstDate' logic here
+        const isFirstDate = dateIndex === 0;
 
         const predictions = Object.values(forecastData.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
         const forecastDates = predictions.map(pred => pred.date);
@@ -240,7 +312,8 @@ const MyRespiLensDashboard = () => {
             showlegend: false,
             type: 'scatter',
             name: `${model} 95% CI`,
-            hoverinfo: 'none'
+            hoverinfo: 'none',
+            legendgroup: model
           },
           {
             x: [...forecastDates, ...[...forecastDates].reverse()],
@@ -251,7 +324,8 @@ const MyRespiLensDashboard = () => {
             showlegend: false,
             type: 'scatter',
             name: `${model} 50% CI`,
-            hoverinfo: 'none'
+            hoverinfo: 'none',
+            legendgroup: model
           },
           {
             x: forecastDates,
@@ -260,7 +334,9 @@ const MyRespiLensDashboard = () => {
             type: 'scatter',
             mode: 'lines+markers',
             line: { color: modelColor, width: 2 },
-            marker: { size: 6 }
+            marker: { size: 6 },
+            showlegend: isFirstDate,
+            legendgroup: model
           }
         ];
       });
@@ -274,7 +350,19 @@ const MyRespiLensDashboard = () => {
       font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
       height: 600,
       margin: { l: 60, r: 30, t: 50, b: 80 },
-      showlegend: false,
+      showlegend: selectedModels.length < 15,
+      legend: {
+        x: 0,
+        y: 1,
+        xanchor: 'left',
+        yanchor: 'top',
+        bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+        borderwidth: 1,
+        font: {
+          size: 10
+        }
+      },
       xaxis: { rangeslider: { thickness: 0.05 } },
       yaxis: { title: formatTargetNameForTitle(selectedTarget) },
       shapes: selectedDates.map(date => ({
@@ -335,7 +423,7 @@ const MyRespiLensDashboard = () => {
             </div>
 
             <ModelSelector
-              models={models}
+              models={modelsForView}
               selectedModels={selectedModels}
               setSelectedModels={setSelectedModels}
               getModelColor={getModelColor}
