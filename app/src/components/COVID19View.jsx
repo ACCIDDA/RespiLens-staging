@@ -193,9 +193,9 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     },
     showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
     legend: {
-      x: 1,
+      x: 0,
       y: 1,
-      xanchor: 'right',
+      xanchor: 'left',
       yanchor: 'top',
       bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
       bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
