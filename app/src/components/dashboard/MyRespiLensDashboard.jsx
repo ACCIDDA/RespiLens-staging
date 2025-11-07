@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -45,6 +45,7 @@ const MyRespiLensDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [models, setModels] = useState([]);
+  const [modelsByTarget, setModelsByTarget] = useState({});
   const [selectedModels, setSelectedModels] = useState([]);
   const [availableDates, setAvailableDates] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
@@ -55,6 +56,32 @@ const MyRespiLensDashboard = () => {
 
   const [plotRevision, setPlotRevision] = useState(0);
   const [dataRevision, setDataRevision] = useState(0);
+
+  const modelsForView = useMemo(() => {
+    if (selectedTarget && modelsByTarget[selectedTarget]) {
+      return modelsByTarget[selectedTarget];
+    }
+    return []; // Default to empty
+  }, [selectedTarget, modelsByTarget]);
+
+  useEffect(() => {
+    // Don't run before data is loaded
+    if (modelsForView.length === 0 && models.length === 0) return;
+
+    const availableModelsSet = new Set(modelsForView);
+    const validSelectedModels = selectedModels.filter(model =>
+      availableModelsSet.has(model)
+    );
+
+    // If no currently-selected models are valid, auto-select the first available one
+    if (validSelectedModels.length === 0 && modelsForView.length > 0) {
+      setSelectedModels([modelsForView[0]]);
+    } 
+    // If some are valid but others aren't, clean the list
+    else if (validSelectedModels.length !== selectedModels.length) {
+      setSelectedModels(validSelectedModels);
+    }
+  }, [modelsForView, models, selectedModels, setSelectedModels]);
 
 
   useEffect(() => {
@@ -69,18 +96,66 @@ const MyRespiLensDashboard = () => {
         const data = JSON.parse(content);
         setFileData(data);
 
-        const availableModels = data.metadata?.hubverse_keys?.models || [];
         const forecastDates = Object.keys(data.forecasts || {}).sort((a, b) => new Date(a) - new Date(b));
 
-        setModels(availableModels);
-        if (availableModels.length > 0) {
-          const sortedModels = [...availableModels].sort();
-          setSelectedModels([sortedModels[0]]);
+        // Build both the full model list AND the map
+        const allModelsSet = new Set();
+        const modelsByTargetMap = new Map();
+
+        if (data.forecasts) {
+          Object.values(data.forecasts).forEach(dateData => {
+            Object.entries(dateData).forEach(([target, targetData]) => {
+              
+              if (!modelsByTargetMap.has(target)) {
+                modelsByTargetMap.set(target, new Set());
+              }
+              const modelSetForTarget = modelsByTargetMap.get(target);
+
+              Object.keys(targetData).forEach(model => {
+                allModelsSet.add(model); // Add to the master list
+                modelSetForTarget.add(model); // Add to the target-specific list
+              });
+            });
+          });
+        }
+
+        // Convert maps/sets to arrays for state
+        const allModels = Array.from(allModelsSet).sort();
+        
+        const modelsByTargetState = {};
+        for (const [target, modelSet] of modelsByTargetMap.entries()) {
+          modelsByTargetState[target] = Array.from(modelSet).sort();
+        }
+
+        // Set state
+        setModels(allModels); // Master list for stable colors
+        setModelsByTarget(modelsByTargetState); // Our new map
+
+        setAvailableDates(forecastDates);
+        
+        const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
+        setAvailableTargets(targets);
+
+        // --- Set default states intelligently ---
+        let defaultTarget = null;
+        if (targets.length > 0) {
+          defaultTarget = targets[0];
+          setSelectedTarget(defaultTarget);
+        } else {
+          setSelectedTarget(null);
+        }
+
+        // Set default models BASED on the default target
+        const modelsForDefaultTarget = modelsByTargetState[defaultTarget] || [];
+        if (modelsForDefaultTarget.length > 0) {
+          setSelectedModels([modelsForDefaultTarget[0]]);
+        } else if (allModels.length > 0) {
+          setSelectedModels([allModels[0]]); // Fallback
         } else {
           setSelectedModels([]);
         }
-
-        setAvailableDates(forecastDates);
+        
+        // Set default dates
         if (forecastDates.length > 0) {
           const latestDate = forecastDates[forecastDates.length - 1];
           setSelectedDates([latestDate]);
@@ -88,14 +163,6 @@ const MyRespiLensDashboard = () => {
         } else {
           setSelectedDates([]);
           setActiveDate(null);
-        }
-
-        const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
-        setAvailableTargets(targets);
-        if (targets.length > 0) {
-          setSelectedTarget(targets[0]);
-        } else {
-          setSelectedTarget(null);
         }
 
       } catch (error) {
@@ -335,7 +402,7 @@ const MyRespiLensDashboard = () => {
             </div>
 
             <ModelSelector
-              models={models}
+              models={modelsForView}
               selectedModels={selectedModels}
               setSelectedModels={setSelectedModels}
               getModelColor={getModelColor}
