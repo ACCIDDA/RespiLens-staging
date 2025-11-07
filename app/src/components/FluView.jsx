@@ -79,7 +79,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     const groundTruthValues = groundTruth[targetForProjections];
     if (!groundTruthValues) {
       console.warn(`Ground truth data not found for target: ${targetForProjections}`);
-      return [];
+      return null;
     }
     const groundTruthTrace = {
       x: groundTruth.dates || [],
