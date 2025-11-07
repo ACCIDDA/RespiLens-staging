@@ -12,6 +12,7 @@ import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import Documentation from './components/Documentation'
 import { Center, Text } from '@mantine/core';
+import ShutdownBanner from './components/ShutdownBanner';
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -34,6 +35,7 @@ const AppLayout = () => {
 
   return (
     <UnifiedAppShell>
+      <ShutdownBanner />
       <Routes>
         <Route path="/" element={<ForecastApp />} />
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
