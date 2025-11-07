@@ -278,16 +278,21 @@ const MyRespiLensDashboard = () => {
       type: 'scatter',
       mode: 'lines+markers',
       name: 'Observed',
-      line: { color: '#8884d8', width: 2 }
+      line: { color: 'black', width: 2, dash: 'dash' }, // <-- Changed
+      marker: { size: 4, color: 'black' } // <-- Added
     };
 
     const modelTraces = selectedModels.flatMap(model => {
       const modelColor = getModelColor(model);
-      return selectedDates.flatMap(forecastDate => {
+      // Add 'dateIndex' here
+      return selectedDates.flatMap((forecastDate, dateIndex) => {
         const forecastData = fileData.forecasts?.[forecastDate]?.[selectedTarget]?.[model];
         if (!forecastData || forecastData.type !== 'quantile' || !forecastData.predictions) {
           return [];
         }
+        
+        // Add 'isFirstDate' logic here
+        const isFirstDate = dateIndex === 0;
 
         const predictions = Object.values(forecastData.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
         const forecastDates = predictions.map(pred => pred.date);
@@ -307,7 +312,8 @@ const MyRespiLensDashboard = () => {
             showlegend: false,
             type: 'scatter',
             name: `${model} 95% CI`,
-            hoverinfo: 'none'
+            hoverinfo: 'none',
+            legendgroup: model
           },
           {
             x: [...forecastDates, ...[...forecastDates].reverse()],
@@ -318,7 +324,8 @@ const MyRespiLensDashboard = () => {
             showlegend: false,
             type: 'scatter',
             name: `${model} 50% CI`,
-            hoverinfo: 'none'
+            hoverinfo: 'none',
+            legendgroup: model
           },
           {
             x: forecastDates,
@@ -327,7 +334,9 @@ const MyRespiLensDashboard = () => {
             type: 'scatter',
             mode: 'lines+markers',
             line: { color: modelColor, width: 2 },
-            marker: { size: 6 }
+            marker: { size: 6 },
+            showlegend: isFirstDate,
+            legendgroup: model
           }
         ];
       });
@@ -341,7 +350,19 @@ const MyRespiLensDashboard = () => {
       font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
       height: 600,
       margin: { l: 60, r: 30, t: 50, b: 80 },
-      showlegend: false,
+      showlegend: selectedModels.length < 15,
+      legend: {
+        x: 0,
+        y: 1,
+        xanchor: 'left',
+        yanchor: 'top',
+        bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+        borderwidth: 1,
+        font: {
+          size: 10
+        }
+      },
       xaxis: { rangeslider: { thickness: 0.05 } },
       yaxis: { title: formatTargetNameForTitle(selectedTarget) },
       shapes: selectedDates.map(date => ({
