@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'; 
 import { Helmet } from 'react-helmet-async';
 import {
   Container,
@@ -18,8 +17,10 @@ import {
   Select
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { useSearchParams } from 'react-router-dom';
 import { IconUpload, IconFileText, IconArrowLeft, IconInfoCircle, IconDashboard } from '@tabler/icons-react';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly'; 
 import ModelSelector from '../ModelSelector';
 import DateSelector from '../DateSelector';
 import { MODEL_COLORS } from '../../config/datasets';
@@ -34,6 +35,12 @@ const MyRespiLensDashboard = () => {
   useEffect(() => {
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
+
+  const [yAxisRange, setYAxisRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null); 
+  const plotRef = useRef(null);
+  const isResettingRef = useRef(false); 
+
 
   const [opened, { open, close }] = useDisclosure(false);
 
@@ -54,34 +61,24 @@ const MyRespiLensDashboard = () => {
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  const [plotRevision, setPlotRevision] = useState(0);
-  const [dataRevision, setDataRevision] = useState(0);
-
   const modelsForView = useMemo(() => {
     if (selectedTarget && modelsByTarget[selectedTarget]) {
       return modelsByTarget[selectedTarget];
     }
-    return []; // Default to empty
+    return []; 
   }, [selectedTarget, modelsByTarget]);
 
   useEffect(() => {
-    // Don't run before data is loaded
-    if (modelsForView.length === 0 && models.length === 0) return;
-
-    const availableModelsSet = new Set(modelsForView);
-    const validSelectedModels = selectedModels.filter(model =>
-      availableModelsSet.has(model)
-    );
-
-    // If no currently-selected models are valid, auto-select the first available one
-    if (validSelectedModels.length === 0 && modelsForView.length > 0) {
+    // This effect runs whenever the target changes (because modelsForView changes)
+    
+    if (modelsForView.length === 0) {
+      // If the new target has no models, clear the selection
+      setSelectedModels([]);
+    } else {
+      // Always reset the selection to the first available model for the new target
       setSelectedModels([modelsForView[0]]);
-    } 
-    // If some are valid but others aren't, clean the list
-    else if (validSelectedModels.length !== selectedModels.length) {
-      setSelectedModels(validSelectedModels);
     }
-  }, [modelsForView, models, selectedModels, setSelectedModels]);
+  }, [modelsForView]);
 
 
   useEffect(() => {
@@ -119,7 +116,6 @@ const MyRespiLensDashboard = () => {
           });
         }
 
-        // Convert maps/sets to arrays for state
         const allModels = Array.from(allModelsSet).sort();
         
         const modelsByTargetState = {};
@@ -127,16 +123,14 @@ const MyRespiLensDashboard = () => {
           modelsByTargetState[target] = Array.from(modelSet).sort();
         }
 
-        // Set state
-        setModels(allModels); // Master list for stable colors
-        setModelsByTarget(modelsByTargetState); // Our new map
+        setModels(allModels); 
+        setModelsByTarget(modelsByTargetState); 
 
         setAvailableDates(forecastDates);
         
         const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
         setAvailableTargets(targets);
 
-        // --- Set default states intelligently ---
         let defaultTarget = null;
         if (targets.length > 0) {
           defaultTarget = targets[0];
@@ -145,17 +139,14 @@ const MyRespiLensDashboard = () => {
           setSelectedTarget(null);
         }
 
-        // Set default models BASED on the default target
         const modelsForDefaultTarget = modelsByTargetState[defaultTarget] || [];
         if (modelsForDefaultTarget.length > 0) {
           setSelectedModels([modelsForDefaultTarget[0]]);
         } else if (allModels.length > 0) {
-          setSelectedModels([allModels[0]]); // Fallback
+          setSelectedModels([allModels[0]]);
         } else {
           setSelectedModels([]);
         }
-        
-        // Set default dates
         if (forecastDates.length > 0) {
           const latestDate = forecastDates[forecastDates.length - 1];
           setSelectedDates([latestDate]);
@@ -183,19 +174,6 @@ const MyRespiLensDashboard = () => {
 
     reader.readAsText(uploadedFile);
   }, [uploadedFile]);
-
-  useEffect(() => {
-    if (fileData) {
-      setPlotRevision(p => p + 1);
-    }
-  }, [fileData, selectedTarget]);
-
-  useEffect(() => {
-    if(fileData) {
-      setDataRevision(d => d + 1);
-    }
-  }, [fileData, selectedModels, selectedDates, selectedTarget]);
-
 
   const handleDragEnter = useCallback((event) => {
     event.preventDefault();
@@ -254,44 +232,39 @@ const MyRespiLensDashboard = () => {
     setActiveDate(null);
     setAvailableTargets([]);
     setSelectedTarget(null);
+    setXAxisRange(null);
+    setYAxisRange(null);
   }, []);
 
-  if (isProcessing) {
-    return (
-      <Container size="xl" py="xl">
-        <Center style={{ minHeight: '70vh' }}>
-          <Loader size="lg" />
-        </Center>
-      </Container>
-    );
-  }
 
-  if (fileData) {
-    const getModelColor = (model) => {
-      const index = models.indexOf(model);
-      return MODEL_COLORS[index % MODEL_COLORS.length];
-    };
-    
-    const groundTruthTrace = {
+  const getModelColor = useCallback((model) => {
+    const index = selectedModels.indexOf(model); 
+    return MODEL_COLORS[index % MODEL_COLORS.length];
+  }, [selectedModels]);
+  
+  const groundTruthTrace = useMemo(() => {
+    if (!fileData) return {};
+    return {
       x: fileData.ground_truth?.dates || [],
       y: selectedTarget ? fileData.ground_truth?.[selectedTarget] || [] : [],
       type: 'scatter',
       mode: 'lines+markers',
       name: 'Observed',
-      line: { color: 'black', width: 2, dash: 'dash' }, // <-- Changed
-      marker: { size: 4, color: 'black' } // <-- Added
+      line: { color: 'black', width: 2, dash: 'dash' },
+      marker: { size: 4, color: 'black' }
     };
+  }, [fileData, selectedTarget]);
 
-    const modelTraces = selectedModels.flatMap(model => {
+  const modelTraces = useMemo(() => {
+    if (!fileData) return [];
+    return selectedModels.flatMap(model => {
       const modelColor = getModelColor(model);
-      // Add 'dateIndex' here
       return selectedDates.flatMap((forecastDate, dateIndex) => {
         const forecastData = fileData.forecasts?.[forecastDate]?.[selectedTarget]?.[model];
         if (!forecastData || forecastData.type !== 'quantile' || !forecastData.predictions) {
           return [];
         }
         
-        // Add 'isFirstDate' logic here
         const isFirstDate = dateIndex === 0;
 
         const predictions = Object.values(forecastData.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -334,49 +307,199 @@ const MyRespiLensDashboard = () => {
             type: 'scatter',
             mode: 'lines+markers',
             line: { color: modelColor, width: 2 },
-            marker: { size: 6 },
+            marker: { size: 6, color: modelColor },
             showlegend: isFirstDate,
             legendgroup: model
           }
         ];
       });
     });
+  }, [fileData, selectedModels, selectedDates, selectedTarget, getModelColor]);
 
-    const traces = [groundTruthTrace, ...modelTraces];
-    const layout = {
-      template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
-      paper_bgcolor: 'transparent',
-      plot_bgcolor: 'transparent',
-      font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
-      height: 600,
-      margin: { l: 60, r: 30, t: 50, b: 80 },
-      showlegend: selectedModels.length < 15,
-      legend: {
-        x: 0,
-        y: 1,
-        xanchor: 'left',
-        yanchor: 'top',
-        bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-        bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
-        borderwidth: 1,
-        font: {
-          size: 10
+  const traces = useMemo(() => {
+    if (!fileData) return []; 
+    return [groundTruthTrace, ...modelTraces];
+  }, [groundTruthTrace, modelTraces, fileData]);
+
+  const calculateYRange = useCallback((data, xRange) => {
+    if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+
+    data.forEach(trace => {
+      if (!trace.x || !trace.y) return;
+      for (let i = 0; i < trace.x.length; i++) {
+        const pointDate = new Date(trace.x[i]);
+        if (pointDate >= startDate && pointDate <= endDate) {
+          const value = Number(trace.y[i]);
+          if (!isNaN(value)) {
+            minY = Math.min(minY, value);
+            maxY = Math.max(maxY, value);
+          }
         }
-      },
-      xaxis: { rangeslider: { thickness: 0.05 } },
-      yaxis: { title: formatTargetNameForTitle(selectedTarget) },
-      shapes: selectedDates.map(date => ({
-        type: 'line',
-        x0: date,
-        x1: date,
-        y0: 0,
-        y1: 1,
-        yref: 'paper',
-        line: { color: 'red', width: 1, dash: 'dash' }
-      })),
-      uirevision: plotRevision,
-    };
+      }
+    });
+    if (minY !== Infinity && maxY !== -Infinity) {
+      const padding = maxY * 0.1; 
+      const rangeMin = Math.max(0, minY - padding);
+      return [rangeMin, maxY + padding];
+    }
+    return null;
+  }, [selectedTarget]);
 
+  const getDefaultRange = useCallback((isFullRange = false) => {
+    if (isFullRange) {
+      if (!traces || traces.length === 0) return [null, null];
+      let minDate = '9999-12-31';
+      let maxDate = '1000-01-01';
+      traces.forEach(trace => {
+        if (trace.x && trace.x.length > 0) {
+          const first = trace.x[0];
+          const last = trace.x[trace.x.length - 1];
+          if (first && first < minDate) minDate = first;
+          if (last && last > maxDate) maxDate = last;
+        }
+      });
+      return (minDate === '9999-12-31') ? [null, null] : [minDate, maxDate];
+    }
+
+    if (!selectedDates || selectedDates.length === 0) return [null, null];
+    const firstDate = new Date(selectedDates[0]);
+    const lastDate = new Date(selectedDates[selectedDates.length - 1]);
+    
+    firstDate.setDate(firstDate.getDate() - 35); // 5 weeks before
+    lastDate.setDate(lastDate.getDate() + 35); // 5 weeks after
+
+    return [
+      firstDate.toISOString().split('T')[0],
+      lastDate.toISOString().split('T')[0]
+    ];
+  }, [traces, selectedDates]);
+
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+
+  // Reset xaxis range only when target changes
+  useEffect(() => {
+    setXAxisRange(null); // Reset to auto-update mode on target change
+  }, [selectedTarget]);
+
+  // Recalculate y-axis when data or x-range changes
+  useEffect(() => {
+    const currentXRange = xAxisRange || defaultRange;
+    if (traces.length > 0 && currentXRange && currentXRange[0] !== null) {
+      const initialYRange = calculateYRange(traces, currentXRange);
+      setYAxisRange(initialYRange);
+    } else {
+      setYAxisRange(null);
+    }
+  }, [traces, xAxisRange, defaultRange, calculateYRange]);
+
+  // Capture user zoom/pan from plot
+  const handlePlotUpdate = useCallback((figure) => {
+    if (isResettingRef.current) {
+      isResettingRef.current = false;
+      return;
+    }
+    if (figure && figure['xaxis.range']) {
+      const newXRange = figure['xaxis.range'];
+      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+        setXAxisRange(newXRange);
+      }
+    }
+  }, [xAxisRange]);
+
+  const layout = useMemo(() => ({
+    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
+    height: 600,
+    margin: { l: 60, r: 30, t: 50, b: 80 },
+    showlegend: selectedModels.length < 15,
+    legend: {
+      x: 0,
+      y: 1,
+      xanchor: 'left',
+      yanchor: 'top',
+      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+      borderwidth: 1,
+      font: {
+        size: 10
+      }
+    },
+    hovermode: 'x unified',
+    dragmode: false,
+    xaxis: { 
+      rangeslider: { 
+        thickness: 0.05,
+        range: getDefaultRange(true)
+      },
+      range: xAxisRange || defaultRange
+    },
+    yaxis: { 
+      title: formatTargetNameForTitle(selectedTarget),
+      range: yAxisRange,
+      autorange: yAxisRange === null
+    },
+    shapes: selectedDates.map(date => ({
+      type: 'line',
+      x0: date,
+      x1: date,
+      y0: 0,
+      y1: 1,
+      yref: 'paper',
+      line: { color: 'red', width: 1, dash: 'dash' }
+    })),
+  }), [colorScheme, selectedModels.length, selectedDates, selectedTarget, yAxisRange, xAxisRange, defaultRange, getDefaultRange, formatTargetNameForTitle]); // Added formatTargetNameForTitle
+  
+  const config = useMemo(() => ({
+    responsive: true,
+    displayModeBar: true,
+    displaylogo: false,
+    showSendToCloud: false,
+    plotlyServerURL: "",
+    scrollZoom: false,
+    doubleClick: 'reset',
+    toImageButtonOptions: {
+      format: 'png',
+      filename: 'forecast_plot'
+    },
+    modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'],
+    modeBarButtonsToAdd: [{
+      name: 'Reset view',
+      icon: Plotly.Icons.home,
+      click: function(gd) {
+        const range = getDefaultRange(); 
+        if (!range || range[0] === null) return;
+        const newYRange = traces.length > 0 ? calculateYRange(traces, range) : null;
+        isResettingRef.current = true; 
+        setXAxisRange(null); 
+        setYAxisRange(newYRange);
+        Plotly.relayout(gd, {
+          'xaxis.range': range,
+          'yaxis.range': newYRange,
+          'yaxis.autorange': newYRange === null
+        });
+      }
+    }]
+  }), [getDefaultRange, traces, calculateYRange]);
+
+
+  if (isProcessing) {
+    return (
+      <Container size="xl" py="xl">
+        <Center style={{ minHeight: '70vh' }}>
+          <Loader size="lg" />
+        </Center>
+      </Container>
+    );
+  }
+
+  if (fileData) {
     return (
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Group justify="flex-start" mb="md">
@@ -414,11 +537,12 @@ const MyRespiLensDashboard = () => {
 
             <div style={{ flex: 1, minHeight: 0 }}>
               <Plot 
+                ref={plotRef}
                 data={traces} 
                 layout={layout} 
                 style={{ width: '100%' }} 
-                config={{ responsive: true, displaylogo: false }}
-                revision={dataRevision}
+                config={config}
+                onRelayout={handlePlotUpdate}
               />
             </div>
 
