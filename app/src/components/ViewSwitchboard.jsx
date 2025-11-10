@@ -1,15 +1,15 @@
 import { Center, Stack, Loader, Text, Alert, Button } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
 import FluView from './FluView';
-import RSVDefaultView from './RSVDefaultView';
+import RSVView from './RSVView';
 import COVID19View from './COVID19View';
-import NHSNRawView from './NHSNRawView';
+import CDCView from './CDCView';
 import { CHART_CONSTANTS } from '../constants/chart';
 
 /**
  * Component that handles rendering different data visualization types
  */
-const DataVisualization = ({
+const ViewSwitchboard = ({
   viewType,
   location,
   data,
@@ -108,7 +108,7 @@ const DataVisualization = ({
 
     case 'rsv_projs':
       return (
-        <RSVDefaultView
+        <RSVView
           data={data}
           metadata={metadata}
           selectedDates={selectedDates}
@@ -140,7 +140,7 @@ const DataVisualization = ({
 
     case 'nhsnall':
       return (
-        <NHSNRawView // gets its data from within NHSNRawView.jsx file
+        <CDCView // gets its data from within CDCView.jsx file
           location={location}
         />
       );
@@ -159,4 +159,4 @@ const DataVisualization = ({
   }
 };
 
-export default DataVisualization;
+export default ViewSwitchboard;

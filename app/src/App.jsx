@@ -4,11 +4,11 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { HelmetProvider } from 'react-helmet-async';
 import { ViewProvider } from './contexts/ViewContext';
 import { useView } from './hooks/useView';
-import ForecastViz from './components/ForecastViz';
+import DataVisualizationContainer from './components/DataVisualizationContainer';
 import NarrativeBrowser from './components/narratives/NarrativeBrowser';
 import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
 import ForecastleGame from './components/forecastle/ForecastleGame';
-import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
+import MyRespiLensDashboard from './components/myrespi/MyRespiLensDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import Documentation from './components/Documentation'
 import { Center, Text } from '@mantine/core';
@@ -25,7 +25,7 @@ const ForecastApp = () => {
       </Center>
     );
   }
-  return <ForecastViz />;
+  return <DataVisualizationContainer />;
 };
 
 // We create this new component to hold our main layout.
