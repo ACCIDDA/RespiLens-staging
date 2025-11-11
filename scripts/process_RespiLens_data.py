@@ -6,6 +6,8 @@ import pandas as pd
 import sys
 from pathlib import Path
 from hubdata import connect_hub
+from hubdata import connect_target_data
+from hubdata.create_target_data_schema import TargetType
 
 
 from processors import FlusightDataProcessor, RSVDataProcessor, COVIDDataProcessor
@@ -58,7 +60,7 @@ def main():
         logger.info("Collecting data from FluSight repo...")
         flu_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=flu_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
         flu_locations_data = clean_nan_values(pd.read_csv(Path(args.flusight_hub_path) / 'auxiliary-data/locations.csv'))
-        flu_target_data = clean_nan_values(pd.read_csv(Path(args.flusight_hub_path) / 'target-data/time-series.csv'))
+        flu_target_data = clean_nan_values(connect_target_data(hub_path=args.flusight_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas()) 
         logger.info("Success ✅")
         # Initialize converter object
         flu_processor_object = FlusightDataProcessor(
@@ -87,7 +89,7 @@ def main():
         logger.info("Collecting data from RSV repo...")
         rsv_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=rsv_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
         rsv_locations_data = clean_nan_values(pd.read_csv(Path(args.rsv_hub_path) / 'auxiliary-data/locations.csv'))
-        rsv_target_data = clean_nan_values(pd.read_parquet(Path(args.rsv_hub_path) / 'target-data/time-series.parquet'))
+        rsv_target_data = clean_nan_values(connect_target_data(hub_path=args.rsv_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas()) 
         logger.info("Success ✅")
         # Initialize converter object
         rsv_processor_object = RSVDataProcessor(
@@ -115,7 +117,7 @@ def main():
         logger.info("Collecting data from covid19 repo...")
         covid_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=covid_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
         covid_locations_data = clean_nan_values(pd.read_csv(Path(args.covid_hub_path) / 'auxiliary-data/locations.csv'))
-        covid_target_data = clean_nan_values(pd.read_parquet(Path(args.covid_hub_path) / 'target-data/time-series.parquet'))
+        covid_target_data = clean_nan_values(connect_target_data(hub_path=args.covid_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas())
         logger.info("Success ✅")
         # Initialize converter object
         covid_processor_object = COVIDDataProcessor(
