@@ -1,17 +1,15 @@
-// src/components/ForecastViz.jsx
-
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Stack, Container, Paper, Group, Button, Tooltip, Title, Anchor, List } from '@mantine/core';
 import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
-import DataVisualization from './DataVisualization';
+import ViewSwitchboard from './ViewSwitchboard';
 import ErrorBoundary from './ErrorBoundary';
 import AboutHubOverlay from './AboutHubOverlay';
 import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
-const ForecastViz = () => {
+const DataVisualizationContainer = () => {
   // Get EVERYTHING from the single context hook
   const {
     selectedLocation,
@@ -52,7 +50,7 @@ const ForecastViz = () => {
       content: (
         <>
           <p>
-            The COVID-19 Forecast Hub is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
+            Data for the RespiLens COVID-19 Forecasts view is retrieved from the COVID-19 Forecast Hub, which is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
             <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
@@ -64,7 +62,7 @@ const ForecastViz = () => {
           <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Forecasting teams submit a probabilistic forecasts of these targets every wednesday. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
+              Forecasting teams submit a probabilistic forecasts of these targets every Wednesday. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -88,7 +86,7 @@ const ForecastViz = () => {
       content: (
         <>
           <p>
-            The RSV Forecast Hub is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
+            Data for the RespiLens RSV Forecasts view is retrieved from the RSV Forecast Hub, which is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
             <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to RSV</List.Item>
@@ -100,7 +98,7 @@ const ForecastViz = () => {
           <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Forecasting teams submit a probabilistic forecasts of these targets every wednesday of the RSV season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
+              Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the RSV season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -124,12 +122,12 @@ const ForecastViz = () => {
       content: (
         <>
           <p>
-            FluSight is an open challenge organized by the US CDC designed to collect influenza forecasts during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
+            Data for the RespiLens Flu Forecasts view is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect influenza forecasts during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
     <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Forecasting teams submit a probabilistic forecasts of these targets every wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
+              Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -293,8 +291,8 @@ const ForecastViz = () => {
               )}
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
-              <DataVisualization
-                // DataVisualization now receives all its data as props
+              <ViewSwitchboard
+                // ViewSwitchboard now receives all its data as props
                 viewType={viewType}
                 location={selectedLocation}
                 data={data}
@@ -321,4 +319,4 @@ const ForecastViz = () => {
   );
 };
 
-export default ForecastViz;
+export default DataVisualizationContainer;

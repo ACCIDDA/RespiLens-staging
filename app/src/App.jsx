@@ -4,14 +4,15 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { HelmetProvider } from 'react-helmet-async';
 import { ViewProvider } from './contexts/ViewContext';
 import { useView } from './hooks/useView';
-import ForecastViz from './components/ForecastViz';
+import DataVisualizationContainer from './components/DataVisualizationContainer';
 import NarrativeBrowser from './components/narratives/NarrativeBrowser';
 import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
 import ForecastleGame from './components/forecastle/ForecastleGame';
-import MyRespiLensDashboard from './components/dashboard/MyRespiLensDashboard';
+import MyRespiLensDashboard from './components/myrespi/MyRespiLensDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import Documentation from './components/Documentation'
 import { Center, Text } from '@mantine/core';
+import ShutdownBanner from './components/ShutdownBanner';
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -24,7 +25,7 @@ const ForecastApp = () => {
       </Center>
     );
   }
-  return <ForecastViz />;
+  return <DataVisualizationContainer />;
 };
 
 // We create this new component to hold our main layout.
@@ -34,6 +35,7 @@ const AppLayout = () => {
 
   return (
     <UnifiedAppShell>
+      <ShutdownBanner />
       <Routes>
         <Route path="/" element={<ForecastApp />} />
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />

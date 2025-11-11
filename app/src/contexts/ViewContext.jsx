@@ -21,12 +21,31 @@ export const ViewProvider = ({ children }) => {
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  const { data, metadata, loading, error, availableDates, models, availableTargets } = useForecastData(selectedLocation, viewType);
+  const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget } = useForecastData(selectedLocation, viewType);
 
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
   }, [viewType, urlManager]);
+
+  const modelsForView = useMemo(() => {
+    // Handle the special 'fludetailed' view, which has two hardcoded targets
+    if (viewType === 'fludetailed') {
+      const target1Models = new Set(modelsByTarget['wk inc flu hosp'] || []);
+      const target2Models = new Set(modelsByTarget['wk flu hosp rate change'] || []);
+      // Combine models from both targets
+      return Array.from(new Set([...target1Models, ...target2Models])).sort();
+    }
+
+    // For all other views, just use the selectedTarget
+    if (selectedTarget && modelsByTarget[selectedTarget]) {
+      return modelsByTarget[selectedTarget];
+    }
+    
+    // Default to an empty list (or the original location-based list)
+    // Using an empty list is safer to prevent showing models that have no data
+    return []; 
+  }, [selectedTarget, modelsByTarget, viewType]);
 
   // --- Main useEffect to sync URL params TO state ---
   useEffect(() => {
@@ -34,23 +53,24 @@ export const ViewProvider = ({ children }) => {
       return;
     }
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (loading || !currentDataset || models.length === 0 || availableDates.length === 0 || availableTargets.length === 0) {
+    if (loading || !currentDataset || modelsForView.length === 0 || availableDates.length === 0 || availableTargets.length === 0) {
       return;
     }
 
     const params = urlManager.getDatasetParams(currentDataset);
     let needsModelUrlUpdate = false;
 
-    // --- Model Logic ---
+    // --- Model Logic (NOW USES 'modelsForView') ---
     let modelsToSet = [];
-    const validUrlModels = params.models?.filter(m => models.includes(m)) || [];
+    // Use 'modelsForView' to validate models
+    const validUrlModels = params.models?.filter(m => modelsForView.includes(m)) || []; 
     if (validUrlModels.length > 0) {
         modelsToSet = validUrlModels;
-    } else if (currentDataset.defaultModel && models.includes(currentDataset.defaultModel)) {
+    } else if (currentDataset.defaultModel && modelsForView.includes(currentDataset.defaultModel)) {
         modelsToSet = [currentDataset.defaultModel];
         needsModelUrlUpdate = true;
-    } else if (models.length > 0) {
-        modelsToSet = [models[0]];
+    } else if (modelsForView.length > 0) {
+        modelsToSet = [modelsForView[0]]; // Default to first *available* model
         needsModelUrlUpdate = true;
     }
 
@@ -86,7 +106,20 @@ export const ViewProvider = ({ children }) => {
     if (needsModelUrlUpdate) {
       updateDatasetParams({ models: modelsToSet });
     }
-  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget]);
+  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView]);
+
+  useEffect(() => {
+    const availableModelsSet = new Set(modelsForView);
+    const cleanedSelectedModels = selectedModels.filter(model =>
+      availableModelsSet.has(model)
+    );
+
+    // Only update state if the list has actually changed
+    if (cleanedSelectedModels.length !== selectedModels.length) {
+      setSelectedModels(cleanedSelectedModels);
+    }
+    // This runs whenever the final list of available models changes
+  }, [modelsForView, selectedModels]);
 
   // --- useEffect to set DEFAULT target ---
   useEffect(() => {
@@ -160,7 +193,7 @@ export const ViewProvider = ({ children }) => {
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
-    data, metadata, loading, error, availableDates, models,
+    data, metadata, loading, error, availableDates, models: modelsForView,
     selectedModels, setSelectedModels: (updater) => {
       const resolveModels = (prevModels) => (
         typeof updater === 'function' ? updater(prevModels) : updater

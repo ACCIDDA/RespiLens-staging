@@ -9,6 +9,7 @@ export const useForecastData = (location, viewType) => {
   const [availableDates, setAvailableDates] = useState([]);
   const [models, setModels] = useState([]);
   const [availableTargets, setAvailableTargets] = useState([]);
+  const [modelsByTarget, setModelsByTarget] = useState({});
 
   useEffect(() => {
     if (!location || !viewType) return;
@@ -64,6 +65,35 @@ export const useForecastData = (location, viewType) => {
           setModels(Array.from(modelSet).sort());
         };
 
+        // if flu, rsv, or covid data: // loop through JSON data to get model lists by target (for dynamic model selection)
+        if (jsonData.forecasts) {
+          const modelsByTargetMap = new Map();
+            
+            Object.values(jsonData.forecasts).forEach(dateData => {
+              // Loop over [target, targetData] entries
+              Object.entries(dateData).forEach(([target, targetData]) => {
+                
+                // Get or create the Set for this specific target
+                if (!modelsByTargetMap.has(target)) {
+                  modelsByTargetMap.set(target, new Set());
+                }
+                const modelSetForTarget = modelsByTargetMap.get(target);
+                
+                // Add all models found under this target
+                Object.keys(targetData).forEach(model => {
+                  modelSetForTarget.add(model);
+                });
+              });
+            });
+
+            // Convert the Map to a plain object for React state
+            const modelsByTargetState = {};
+            for (const [target, modelSet] of modelsByTargetMap.entries()) {
+              modelsByTargetState[target] = Array.from(modelSet).sort();
+            }
+            setModelsByTarget(modelsByTargetState); // Set our new map state
+          }
+
         let targets = [];
         if (jsonData?.ground_truth) {
           targets = Object.keys(jsonData.ground_truth).filter(key => key !== 'dates');
@@ -81,5 +111,5 @@ export const useForecastData = (location, viewType) => {
     fetchData();
   }, [location, viewType]);
 
-  return { data, metadata, loading, error, availableDates, models, availableTargets };
+  return { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget };
 };

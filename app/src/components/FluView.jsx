@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMantineColorScheme, Stack } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
-import LastUpdated from './LastUpdated';
+import LastFetched from './LastFetched';
 import { MODEL_COLORS, DATASETS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
+import { targetDisplayNameMap } from '../utils/mapUtils';
 
 /**
  * Calculate the previous occurrence of a specific day of week before a given date
@@ -28,7 +29,7 @@ const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
   return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
 };
 
-const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange }) => {
+const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
@@ -67,12 +68,18 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   };
 
   const projectionsData = useMemo(() => {
-    if (!groundTruth || !forecasts || selectedDates.length === 0) {
+    // For 'flu' (projections) view, use the dynamic selectedTarget.
+    // For 'fludetailed' view, keep using the hardcoded target for the top plot. (IMPORTANT NOTE)
+    const targetForProjections = viewType === 'flu' ? selectedTarget : 'wk inc flu hosp';
+
+    if (!groundTruth || !forecasts || selectedDates.length === 0 || !targetForProjections) {
       return [];
     }
-    const groundTruthValues = groundTruth.values || groundTruth['wk inc flu hosp'];
+    
+    const groundTruthValues = groundTruth[targetForProjections];
     if (!groundTruthValues) {
-      return [];
+      console.warn(`Ground truth data not found for target: ${targetForProjections}`);
+      return null;
     }
     const groundTruthTrace = {
       x: groundTruth.dates || [],
@@ -87,9 +94,9 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
-        const forecast =
-          forecastsForDate['wk inc flu hosp']?.[model] ||
-          forecastsForDate['wk flu hosp rate change']?.[model];
+        
+        const forecast = forecastsForDate[targetForProjections]?.[model];
+
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
         const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
@@ -114,7 +121,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       })
     );
     return [groundTruthTrace, ...modelTraces];
-  }, [groundTruth, forecasts, selectedDates, selectedModels]);
+  }, [groundTruth, forecasts, selectedDates, selectedModels, viewType, selectedTarget]);
 
   const rateChangeData = useMemo(() => {
     if (!forecasts || selectedDates.length === 0) return [];
@@ -136,12 +143,10 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
-  // Reset xaxis range only when viewType changes (null = auto-follow date changes)
   useEffect(() => {
-    setXAxisRange(null); // Reset to auto-update mode on view change
-  }, [viewType]);
+    setXAxisRange(null); // Reset to auto-update mode on view or target change
+  }, [viewType, selectedTarget]);
 
-  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
     const currentXRange = xAxisRange || defaultRange;
     if (projectionsData.length > 0 && currentXRange) {
@@ -191,9 +196,9 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     } : undefined,
     showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
     legend: {
-      x: 1,
+      x: 0,
       y: 1,
-      xanchor: 'right',
+      xanchor: 'left',
       yanchor: 'top',
       bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
       bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
@@ -220,8 +225,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       range: xAxisRange || defaultRange // Use user's selection or default
     },
     yaxis: {
-      title: 'Hospitalizations',
-      range: yAxisRange
+      title: viewType === 'fludetailed'
+        ? 'Hospitalizations'
+        : targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value',
+      range: yAxisRange,
+      autorange: yAxisRange === null,
     },
     shapes: selectedDates.map(date => {
       // Calculate target line date based on hub-specific configuration
@@ -292,15 +300,24 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         // Apply the smart default view
         Plotly.relayout(gd, {
           'xaxis.range': range,
-          'yaxis.range': newYRange
+          'yaxis.range': newYRange,
+          'yaxis.autorange': newYRange === null // 12. Also apply autorange here
         });
       }
     }]
   };
 
+  if (viewType === 'flu' && !selectedTarget) {
+    return (
+        <Stack align="center" justify="center" style={{ height: '300px' }}>
+            <Text>Please select a target to view data.</Text>
+        </Stack>
+    );
+  }
+
   return (
     <Stack>
-      <LastUpdated timestamp={metadata?.last_updated} />
+      <LastFetched timestamp={metadata?.last_updated} />
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}

@@ -1,12 +1,10 @@
-// src/components/NHSNRawView.jsx
-
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
-import LastUpdated from './LastUpdated';
+import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import {
   nhsnTargetsToColumnsMap, // groupings
@@ -24,7 +22,7 @@ const nhsnYAxisLabelMap = {
   'Bed Capacity (%)': 'Percent (%)'
 };
 
-const NHSNRawView = ({ location }) => {
+const NHSNView = ({ location }) => {
   const [data, setData] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -460,7 +458,7 @@ const NHSNRawView = ({ location }) => {
 
   return (
     <Stack gap="md" w="100%">
-      <LastUpdated timestamp={metadata?.last_updated} />
+      <LastFetched timestamp={metadata?.last_updated} />
 
       <Plot
         data={traces}
@@ -490,4 +488,4 @@ const NHSNRawView = ({ location }) => {
   );
 };
 
-export default NHSNRawView;
+export default NHSNView;

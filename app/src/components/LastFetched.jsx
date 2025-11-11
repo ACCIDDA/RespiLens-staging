@@ -4,7 +4,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const LastUpdated = ({ timestamp }) => {
+const LastFetched = ({ timestamp }) => {
   if (!timestamp) return null;
 
   const date = new Date(timestamp);
@@ -22,7 +22,7 @@ const LastUpdated = ({ timestamp }) => {
 
   return (
     <Text size="xs" c="dimmed" ta="right">
-      last updated: <Tooltip label={fullTimestamp} position="left" withArrow>
+      last fetched: <Tooltip label={fullTimestamp} position="left" withArrow>
         <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>
           {relativeTimeStr}
         </span>
@@ -31,4 +31,4 @@ const LastUpdated = ({ timestamp }) => {
   );
 };
 
-export default LastUpdated;
+export default LastFetched;
