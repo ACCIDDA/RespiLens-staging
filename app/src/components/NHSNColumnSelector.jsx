@@ -83,7 +83,7 @@ const organizeByDisease = (columns) => {
   return { diseases, other };
 };
 
-const CDCColumnSelector = ({
+const NHSNColumnSelector = ({
   availableColumns,
   selectedColumns,
   setSelectedColumns,
@@ -218,4 +218,4 @@ const CDCColumnSelector = ({
   );
 };
 
-export default CDCColumnSelector;
+export default NHSNColumnSelector;

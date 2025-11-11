@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
-import CDCColumnSelector from './CDCColumnSelector';
+import NHSNColumnSelector from './NHSNColumnSelector';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import {
@@ -22,7 +22,7 @@ const nhsnYAxisLabelMap = {
   'Bed Capacity (%)': 'Percent (%)'
 };
 
-const CDCView = ({ location }) => {
+const NHSNView = ({ location }) => {
   const [data, setData] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -474,7 +474,7 @@ const CDCView = ({ location }) => {
         onRelayout={handleRelayout}
       />
 
-      <CDCColumnSelector
+      <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
         setSelectedColumns={setSelectedColumns}
@@ -488,4 +488,4 @@ const CDCView = ({ location }) => {
   );
 };
 
-export default CDCView;
+export default NHSNView;

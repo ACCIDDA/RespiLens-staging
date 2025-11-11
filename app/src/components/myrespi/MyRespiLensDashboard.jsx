@@ -51,7 +51,6 @@ const MyRespiLensDashboard = () => {
   const [fileData, setFileData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [models, setModels] = useState([]);
   const [modelsByTarget, setModelsByTarget] = useState({});
   const [selectedModels, setSelectedModels] = useState([]);
   const [availableDates, setAvailableDates] = useState([]);
@@ -123,7 +122,6 @@ const MyRespiLensDashboard = () => {
           modelsByTargetState[target] = Array.from(modelSet).sort();
         }
 
-        setModels(allModels); 
         setModelsByTarget(modelsByTargetState); 
 
         setAvailableDates(forecastDates);
@@ -225,7 +223,6 @@ const MyRespiLensDashboard = () => {
   const handleReset = useCallback(() => {
     setUploadedFile(null);
     setFileData(null);
-    setModels([]);
     setSelectedModels([]);
     setAvailableDates([]);
     setSelectedDates([]);
@@ -454,7 +451,7 @@ const MyRespiLensDashboard = () => {
       yref: 'paper',
       line: { color: 'red', width: 1, dash: 'dash' }
     })),
-  }), [colorScheme, selectedModels.length, selectedDates, selectedTarget, yAxisRange, xAxisRange, defaultRange, getDefaultRange, formatTargetNameForTitle]); // Added formatTargetNameForTitle
+  }), [colorScheme, selectedModels.length, selectedDates, selectedTarget, yAxisRange, xAxisRange, defaultRange, getDefaultRange]);
   
   const config = useMemo(() => ({
     responsive: true,

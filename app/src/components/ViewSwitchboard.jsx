@@ -3,7 +3,7 @@ import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
 import FluView from './FluView';
 import RSVView from './RSVView';
 import COVID19View from './COVID19View';
-import CDCView from './CDCView';
+import NHSNView from './NHSNView';
 import { CHART_CONSTANTS } from '../constants/chart';
 
 /**
@@ -140,7 +140,7 @@ const ViewSwitchboard = ({
 
     case 'nhsnall':
       return (
-        <CDCView // gets its data from within CDCView.jsx file
+        <NHSNView // gets its data from within NHSNView.jsx file
           location={location}
         />
       );
