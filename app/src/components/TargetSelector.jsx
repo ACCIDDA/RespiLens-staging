@@ -20,7 +20,7 @@ const TargetSelector = () => {
       <Select
         placeholder="Select a target"
         data={selectData}
-        value={selectedTarget}
+        value={isDisabled ? null : selectedTarget}
         onChange={handleTargetSelect}
         disabled={isDisabled}
         allowDeselect={false}

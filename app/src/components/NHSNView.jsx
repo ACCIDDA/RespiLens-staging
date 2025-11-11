@@ -1,5 +1,3 @@
-// src/components/NHSNRawView.jsx
-
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
@@ -24,7 +22,7 @@ const nhsnYAxisLabelMap = {
   'Bed Capacity (%)': 'Percent (%)'
 };
 
-const NHSNRawView = ({ location }) => {
+const NHSNView = ({ location }) => {
   const [data, setData] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -490,4 +488,4 @@ const NHSNRawView = ({ location }) => {
   );
 };
 
-export default NHSNRawView;
+export default NHSNView;

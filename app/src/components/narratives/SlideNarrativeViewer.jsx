@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Container, Paper, Title, Text, Group, Stack, Badge, ThemeIcon, Loader, Center, Button, ActionIcon, Box, Divider } from '@mantine/core';
 import { IconBook, IconCalendar, IconUser, IconChevronLeft, IconChevronRight, IconCode } from '@tabler/icons-react';
-import ForecastViz from '../ForecastViz';
+import DataVisualizationContainer from '../DataVisualizationContainer';
 
 // Plotly Gaussian Chart Component
 const PlotlyGaussianChart = () => {
@@ -456,7 +456,7 @@ The final view returns to the national perspective with our latest forecasts, sh
           )}
         </Group>
         <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          <ForecastViz 
+          <DataVisualizationContainer 
             location={currentVisualization.location}
             // Additional props would be passed here to control the view
           />

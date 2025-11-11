@@ -29,7 +29,7 @@ const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
   return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
 };
 
-const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
+const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
@@ -322,4 +322,4 @@ const RSVDefaultView = ({ data, metadata, selectedDates, selectedModels, models,
   );
 };
 
-export default RSVDefaultView;
+export default RSVView;

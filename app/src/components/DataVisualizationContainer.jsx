@@ -3,13 +3,13 @@ import { Helmet } from 'react-helmet-async';
 import { Stack, Container, Paper, Group, Button, Tooltip, Title, Anchor, List } from '@mantine/core';
 import { useView } from '../hooks/useView';
 import DateSelector from './DateSelector';
-import DataVisualization from './DataVisualization';
+import ViewSwitchboard from './ViewSwitchboard';
 import ErrorBoundary from './ErrorBoundary';
 import AboutHubOverlay from './AboutHubOverlay';
 import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
-const ForecastViz = () => {
+const DataVisualizationContainer = () => {
   // Get EVERYTHING from the single context hook
   const {
     selectedLocation,
@@ -291,8 +291,8 @@ const ForecastViz = () => {
               )}
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
-              <DataVisualization
-                // DataVisualization now receives all its data as props
+              <ViewSwitchboard
+                // ViewSwitchboard now receives all its data as props
                 viewType={viewType}
                 location={selectedLocation}
                 data={data}
@@ -319,4 +319,4 @@ const ForecastViz = () => {
   );
 };
 
-export default ForecastViz;
+export default DataVisualizationContainer;
