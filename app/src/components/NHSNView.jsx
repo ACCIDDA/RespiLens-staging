@@ -8,10 +8,10 @@ import NHSNColumnSelector from './NHSNColumnSelector';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import {
-  nhsnTargetsToColumnsMap,
-  nhsnNameToSlugMap,
-  nhsnSlugToNameMap,
-  nhsnNameToPrettyNameMap
+  nhsnTargetsToColumnsMap, // groupings
+  nhsnNameToSlugMap, // { longform: shortform } map
+  nhsnSlugToNameMap,   // { shortform: longform } map
+  nhsnNameToPrettyNameMap // { longform: presentable name } map
 } from '../utils/mapUtils';
 
 
@@ -30,12 +30,12 @@ const NHSNView = ({ location }) => {
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
 
-  const [allDataColumns, setAllDataColumns] = useState([]);
-  const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]);
+  const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
+  const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
 
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [availableTargets, setAvailableTargets] = useState([]);
-  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -164,7 +164,8 @@ const NHSNView = ({ location }) => {
       if (JSON.stringify(newSorted) !== JSON.stringify(currentSorted)) return newSelectedCols;
       return currentCols;
     });
-  }, [loading, selectedTarget, allDataColumns, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selectedTarget, allDataColumns]);
 
   useEffect(() => {
     if (loading || !selectedTarget || availableTargets.length === 0 || allDataColumns.length === 0) {
