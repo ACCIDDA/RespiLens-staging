@@ -141,6 +141,48 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }).filter(Boolean);
   }, [forecasts, selectedDates, selectedModels]);
 
+  /**
+   * Create a Set of all models that have forecast data for
+   * the currently selected target(s) AND at least one of the selected dates.
+   */
+  const activeModels = useMemo(() => {
+    const activeModelSet = new Set();
+    if (!forecasts || !selectedDates.length) {
+      return activeModelSet;
+    }
+
+    // Use the same logic as projectionsData to get the correct target
+    const targetForProjections = viewType === 'flu' ? selectedTarget : 'wk inc flu hosp';
+
+    // Don't run if flu view has no target and a target is required
+    if (viewType === 'flu' && !targetForProjections) return activeModelSet;
+
+    selectedDates.forEach(date => {
+      const forecastsForDate = forecasts[date];
+      if (!forecastsForDate) return;
+
+      // Check projections target
+      // Add a check for targetForProjections itself, as it could be null if viewType='flu' and selectedTarget=null
+      if (targetForProjections) {
+        const targetData = forecastsForDate[targetForProjections];
+        if (targetData) {
+          Object.keys(targetData).forEach(model => activeModelSet.add(model));
+        }
+      }
+
+
+      // If it's the detailed view, ALSO check the rate change target
+      if (viewType === 'fludetailed') {
+        const rateChangeData = forecastsForDate['wk flu hosp rate change'];
+        if (rateChangeData) {
+          Object.keys(rateChangeData).forEach(model => activeModelSet.add(model));
+        }
+      }
+    });
+
+    return activeModelSet;
+  }, [forecasts, selectedDates, selectedTarget, viewType]);
+
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
   useEffect(() => {
@@ -342,6 +384,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
+        activeModels={activeModels} 
         getModelColor={(model, selectedModels) => {
           const index = selectedModels.indexOf(model);
           return MODEL_COLORS[index % MODEL_COLORS.length];
