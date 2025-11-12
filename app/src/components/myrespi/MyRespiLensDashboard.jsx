@@ -318,6 +318,32 @@ const MyRespiLensDashboard = () => {
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruthTrace, modelTraces, fileData]);
 
+  /**
+   * Create a Set of all models that have forecast data for
+   * the currently selected target AND at least one of the selected dates.
+   */
+  const activeModels = useMemo(() => {
+    const activeModelSet = new Set();
+    if (!fileData || !fileData.forecasts || !selectedTarget || !selectedDates.length) {
+      return activeModelSet;
+    }
+
+    selectedDates.forEach(date => {
+      const forecastsForDate = fileData.forecasts[date];
+      if (!forecastsForDate) return;
+
+      const targetData = forecastsForDate[selectedTarget];
+      if (!targetData) return;
+
+      // Add all models found for this target on this date
+      Object.keys(targetData).forEach(model => {
+        activeModelSet.add(model);
+      });
+    });
+
+    return activeModelSet;
+  }, [fileData, selectedDates, selectedTarget]);
+
   const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
     let minY = Infinity;
@@ -547,6 +573,7 @@ const MyRespiLensDashboard = () => {
               models={modelsForView}
               selectedModels={selectedModels}
               setSelectedModels={setSelectedModels}
+              activeModels={activeModels}
               getModelColor={getModelColor}
             />
           </Stack>
