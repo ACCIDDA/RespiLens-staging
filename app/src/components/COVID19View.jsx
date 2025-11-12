@@ -145,6 +145,32 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
+  /**
+   * Create a Set of all models that have forecast data for
+   * the currently selected target AND at least one of the selected dates.
+   */
+  const activeModels = useMemo(() => {
+    const activeModelSet = new Set();
+    if (!forecasts || !selectedTarget || !selectedDates.length) {
+      return activeModelSet;
+    }
+
+    selectedDates.forEach(date => {
+      const forecastsForDate = forecasts[date];
+      if (!forecastsForDate) return;
+
+      const targetData = forecastsForDate[selectedTarget];
+      if (!targetData) return;
+
+      // Add all models found for this target on this date
+      Object.keys(targetData).forEach(model => {
+        activeModelSet.add(model);
+      });
+    });
+
+    return activeModelSet;
+  }, [forecasts, selectedDates, selectedTarget]);
+
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
   // Reset xaxis range only when target changes (null = auto-follow date changes)
@@ -316,6 +342,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
+        activeModels={activeModels}
         getModelColor={(model, selectedModels) => {
           const index = selectedModels.indexOf(model);
           return MODEL_COLORS[index % MODEL_COLORS.length];
