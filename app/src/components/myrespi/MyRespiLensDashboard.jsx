@@ -458,7 +458,6 @@ const MyRespiLensDashboard = () => {
     dragmode: false,
     xaxis: { 
       rangeslider: { 
-        thickness: 0.05,
         range: getDefaultRange(true)
       },
       range: xAxisRange || defaultRange
