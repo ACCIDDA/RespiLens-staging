@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
+import Plotly from 'plotly.js/dist/plotly'; 
 import { getDataPath } from '../utils/paths';
 import NHSNColumnSelector from './NHSNColumnSelector';
 import LastFetched from './LastFetched';
@@ -42,7 +43,10 @@ const NHSNView = ({ location }) => {
   const [plotRevision, setPlotRevision] = useState(0);
 
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null); 
+
+  const plotRef = useRef(null);
+  const isResettingRef = useRef(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,6 +61,8 @@ const NHSNView = ({ location }) => {
         setSelectedColumns([]);
         setAvailableTargets([]);
         setSelectedTarget(null);
+        setXAxisRange(null); 
+        setYAxisRange(null);
         setError(null);
 
         const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
@@ -84,7 +90,7 @@ const NHSNView = ({ location }) => {
         }
 
         setData(jsonData);
-        setMetadata(jsonMetadata); // Store for last_updated
+        setMetadata(jsonMetadata);
         
         const allColumnsFromData = Object.keys(jsonData.series)
           .filter(key => key !== 'dates')
@@ -104,20 +110,15 @@ const NHSNView = ({ location }) => {
     fetchData();
   }, [location]);
 
-
   useEffect(() => {
-    // Wait for fetch to complete
     if (loading || availableTargets.length === 0) {
       return;
     }
-
     const urlTarget = searchParams.get('nhsn_target');
-    
     const newTarget = (urlTarget && availableTargets.includes(urlTarget))
       ? urlTarget
       : availableTargets[0];
     
-    // Use functional update to avoid needing selectedTarget in the dependency array
     setSelectedTarget(currentTarget => {
       if (currentTarget !== newTarget) {
         return newTarget;
@@ -125,7 +126,6 @@ const NHSNView = ({ location }) => {
       return currentTarget;
     });
   }, [loading, availableTargets, searchParams]); 
-
 
   useEffect(() => {
     if (loading || !selectedTarget || allDataColumns.length === 0) {
@@ -136,49 +136,22 @@ const NHSNView = ({ location }) => {
     const filtered = allDataColumns.filter(col => columnsForTarget.includes(col));
     setFilteredAvailableColumns(filtered);
 
-    // Read slugs and convert them to full names 
     const urlSlugs = searchParams.getAll('nhsn_cols');
     const validUrlCols = urlSlugs
-      .map(slug => nhsnSlugToNameMap[slug]) // Convert slug TO full name
-      .filter(colName => colName && filtered.includes(colName)); // Check if valid
+      .map(slug => nhsnSlugToNameMap[slug])
+      .filter(colName => colName && filtered.includes(colName));
 
-    // Calculate what the new columns should be
     let newSelectedCols;
     if (validUrlCols.length > 0) {
       newSelectedCols = validUrlCols;
     } else if (filtered.length > 0) {
-      // Default columns based on target type
       let defaultColumns = [];
-
-      if (selectedTarget === 'Hospital Admissions (count)') {
-        defaultColumns = [
-          'Total COVID-19 Admissions',
-          'Total Influenza Admissions',
-          'Total RSV Admissions'
-        ];
-      } else if (selectedTarget === 'Hospital Admissions (rates)') {
-        defaultColumns = [
-          'Total number of COVID-19 Admissions per 100,000 population',
-          'Total number of Influenza Admissions per 100,000 population',
-          'Total number of RSV Admissions per 100,000 population'
-        ];
-      } else if (selectedTarget === 'Hospital Admissions (%)') {
-        defaultColumns = [
-          'Percent Adult COVID-19 Admissions',
-          'Percent Adult Influenza Admissions',
-          'Percent Adult RSV Admissions'
-        ];
-      } else if (selectedTarget === 'Bed Capacity (count)') {
-        defaultColumns = [
-          'Number of Inpatient Beds',
-          'Number of Inpatient Beds Occupied'
-        ];
-      } else if (selectedTarget === 'Bed Capacity (%)') {
-        defaultColumns = [
-          'Percent Inpatient Beds Occupied'
-        ];
-      }
-
+      if (selectedTarget === 'Hospital Admissions (count)') defaultColumns = ['Total COVID-19 Admissions', 'Total Influenza Admissions', 'Total RSV Admissions'];
+      else if (selectedTarget === 'Hospital Admissions (rates)') defaultColumns = ['Total number of COVID-19 Admissions per 100,000 population', 'Total number of Influenza Admissions per 100,000 population', 'Total number of RSV Admissions per 100,000 population'];
+      else if (selectedTarget === 'Hospital Admissions (%)') defaultColumns = ['Percent Adult COVID-19 Admissions', 'Percent Adult Influenza Admissions', 'Percent Adult RSV Admissions'];
+      else if (selectedTarget === 'Bed Capacity (count)') defaultColumns = ['Number of Inpatient Beds', 'Number of Inpatient Beds Occupied'];
+      else if (selectedTarget === 'Bed Capacity (%)') defaultColumns = ['Percent Inpatient Beds Occupied'];
+      
       const filteredDefaults = defaultColumns.filter(col => filtered.includes(col));
       newSelectedCols = filteredDefaults.length > 0 ? filteredDefaults : [filtered[0]];
     } else {
@@ -188,15 +161,11 @@ const NHSNView = ({ location }) => {
     setSelectedColumns(currentCols => {
       const newSorted = [...newSelectedCols].sort();
       const currentSorted = [...currentCols].sort();
-
-      if (JSON.stringify(newSorted) !== JSON.stringify(currentSorted)) {
-        return newSelectedCols;
-      }
+      if (JSON.stringify(newSorted) !== JSON.stringify(currentSorted)) return newSelectedCols;
       return currentCols;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, selectedTarget, allDataColumns]); // Removed searchParams to prevent loop 
-
+  }, [loading, selectedTarget, allDataColumns]);
 
   useEffect(() => {
     if (loading || !selectedTarget || availableTargets.length === 0 || allDataColumns.length === 0) {
@@ -204,87 +173,74 @@ const NHSNView = ({ location }) => {
     }
     const currentSearch = window.location.search;
     const newParams = new URLSearchParams(currentSearch);
-
     const defaultTarget = availableTargets[0];
-    if (selectedTarget && selectedTarget !== defaultTarget) {
-      newParams.set('nhsn_target', selectedTarget);
-    } else {
-      newParams.delete('nhsn_target'); 
-    }
+    if (selectedTarget && selectedTarget !== defaultTarget) newParams.set('nhsn_target', selectedTarget);
+    else newParams.delete('nhsn_target'); 
 
     const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
     const filteredCols = allDataColumns.filter(col => columnsForTarget.includes(col));
-
-    // Default columns based on target type
     let defaultColumnsArray = [];
-
-    if (selectedTarget === 'Hospital Admissions (count)') {
-      defaultColumnsArray = [
-        'Total COVID-19 Admissions',
-        'Total Influenza Admissions',
-        'Total RSV Admissions'
-      ];
-    } else if (selectedTarget === 'Hospital Admissions (rates)') {
-      defaultColumnsArray = [
-        'Total number of COVID-19 Admissions per 100,000 population',
-        'Total number of Influenza Admissions per 100,000 population',
-        'Total number of RSV Admissions per 100,000 population'
-      ];
-    } else if (selectedTarget === 'Hospital Admissions (%)') {
-      defaultColumnsArray = [
-        'Percent Adult COVID-19 Admissions',
-        'Percent Adult Influenza Admissions',
-        'Percent Adult RSV Admissions'
-      ];
-    } else if (selectedTarget === 'Bed Capacity (count)') {
-      defaultColumnsArray = [
-        'Number of Inpatient Beds',
-        'Number of Inpatient Beds Occupied'
-      ];
-    } else if (selectedTarget === 'Bed Capacity (%)') {
-      defaultColumnsArray = [
-        'Percent Inpatient Beds Occupied'
-      ];
-    }
-
+    if (selectedTarget === 'Hospital Admissions (count)') defaultColumnsArray = ['Total COVID-19 Admissions', 'Total Influenza Admissions', 'Total RSV Admissions'];
+    else if (selectedTarget === 'Hospital Admissions (rates)') defaultColumnsArray = ['Total number of COVID-19 Admissions per 100,000 population', 'Total number of Influenza Admissions per 100,000 population', 'Total number of RSV Admissions per 100,000 population'];
+    else if (selectedTarget === 'Hospital Admissions (%)') defaultColumnsArray = ['Percent Adult COVID-19 Admissions', 'Percent Adult Influenza Admissions', 'Percent Adult RSV Admissions'];
+    else if (selectedTarget === 'Bed Capacity (count)') defaultColumnsArray = ['Number of Inpatient Beds', 'Number of Inpatient Beds Occupied'];
+    else if (selectedTarget === 'Bed Capacity (%)') defaultColumnsArray = ['Percent Inpatient Beds Occupied'];
     const filteredDefaults = defaultColumnsArray.filter(col => filteredCols.includes(col));
     const defaultColumns = filteredDefaults.length > 0 ? filteredDefaults : (filteredCols.length > 0 ? [filteredCols[0]] : []);
-    
     const sortedSelected = [...selectedColumns].sort();
     const sortedDefault = [...defaultColumns].sort();
-
     const selectedSlugs = sortedSelected.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
     const defaultSlugs = sortedDefault.map(name => nhsnNameToSlugMap[name]).filter(Boolean);
-
     if (JSON.stringify(selectedSlugs) !== JSON.stringify(defaultSlugs)) {
       newParams.delete('nhsn_cols'); 
       selectedSlugs.forEach(slug => newParams.append('nhsn_cols', slug)); 
     } else {
-      newParams.delete('nhsn_cols'); // It's the default, remove it
+      newParams.delete('nhsn_cols');
     }
-
     if (newParams.toString() !== new URLSearchParams(currentSearch).toString()) {
       setSearchParams(newParams, { replace: true });
     }
-
-  }, [selectedTarget, selectedColumns, allDataColumns, availableTargets, loading, setSearchParams]); // <-- No 'searchParams'
-
+  }, [selectedTarget, selectedColumns, allDataColumns, availableTargets, loading, setSearchParams]);
 
   useEffect(() => {
-    if (data) {
-      setPlotRevision(p => p + 1);
-    }
+    if (data) setPlotRevision(p => p + 1);
   }, [data, selectedTarget]); 
 
   useEffect(() => {
-    if(data) {
-      setDataRevision(d => d + 1);
-    }
+    if(data) setDataRevision(d => d + 1);
   }, [data, selectedColumns, selectedTarget]);
 
-  // Calculate y-axis range based on visible x-axis range
-  const calculateYRange = (traces, xRange) => {
-    if (!traces || traces.length === 0 || !xRange) return null;
+  const getFullXRange = useCallback(() => {
+    if (!data) return [null, null];
+    const firstDate = data.series.dates[0];
+    const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+    const twoWeeksAfter = new Date(lastDate);
+    twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+    return [firstDate, twoWeeksAfter.toISOString().split('T')[0]];
+  }, [data]);
+
+  const getDefaultXRange = useCallback(() => {
+    if (!data) return [null, null];
+    const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
+    
+    const twoWeeksAfter = new Date(lastDate);
+    twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
+
+    const sixMonthsAgo = new Date(lastDate);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    return [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
+  }, [data]);
+
+  const defaultRange = useMemo(() => getDefaultXRange(), [getDefaultXRange]);
+  const fullRange = useMemo(() => getFullXRange(), [getFullXRange]);
+
+  useEffect(() => {
+    setXAxisRange(null); 
+  }, [selectedTarget]);
+
+  const calculateYRange = useCallback((traces, xRange) => {
+    if (!traces || traces.length === 0 || !xRange || !xRange[0]) return null;
 
     let maxY = -Infinity;
     const [startX, endX] = xRange;
@@ -305,13 +261,12 @@ const NHSNView = ({ location }) => {
     });
 
     if (maxY !== -Infinity) {
-      const padding = maxY * 0.15;
+      const padding = maxY * 0.15; 
       return [0, maxY + padding];
     }
-    return null;
-  };
+    return null; 
+  }, []); 
 
-  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
     if (!data || selectedColumns.length === 0) {
       setYAxisRange(null);
@@ -328,55 +283,57 @@ const NHSNView = ({ location }) => {
       };
     });
 
-    const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
-    const twoWeeksAfter = new Date(lastDate);
-    twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
-    const sixMonthsAgo = new Date(lastDate);
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const currentXRange = xAxisRange || defaultRange; 
 
-    const defaultRange = [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
-    const currentXRange = xAxisRange || defaultRange;
+    if (!currentXRange || currentXRange[0] === null) {
+      setYAxisRange(null); 
+      return;
+    }
 
     const newYRange = calculateYRange(traces, currentXRange);
-    if (newYRange) {
-      setYAxisRange(newYRange);
-    }
-  }, [data, selectedColumns, xAxisRange, selectedTarget]);
+    setYAxisRange(newYRange); 
 
-  const handleRelayout = (figure) => {
+  }, [data, selectedColumns, xAxisRange, selectedTarget, defaultRange, calculateYRange]);
+
+  const handleRelayout = useCallback((figure) => {
+    if (isResettingRef.current) {
+      isResettingRef.current = false; 
+      return;
+    }
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
       if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
         setXAxisRange(newXRange);
       }
     }
-  };
+  }, [xAxisRange]);
 
-  if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
-  if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
-  if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
-  const isPercentage = selectedTarget && selectedTarget.includes('%');
-  const traces = selectedColumns.map((column) => {
-    const columnIndex = filteredAvailableColumns.indexOf(column);
-    const yValues = data.series[column];
-    const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
+  const traces = useMemo(() => {
+    if (!data) return []; 
 
-    return {
-      x: data.series.dates,
-      y: processedYValues,
-      name: column,
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: {
-        color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
-        width: 2
-      },
-      marker: { size: 6 }
-    };
-  });
+    const isPercentage = selectedTarget && selectedTarget.includes('%');
+    return selectedColumns.map((column) => {
+      const columnIndex = filteredAvailableColumns.indexOf(column);
+      const yValues = data.series[column];
+      const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
 
-  const layout = {
+      return {
+        x: data.series.dates,
+        y: processedYValues,
+        name: column,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: {
+          color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
+          width: 2
+        },
+        marker: { size: 6 }
+      };
+    });
+  }, [data, selectedTarget, selectedColumns, filteredAvailableColumns]);
+
+  const layout = useMemo(() => ({
     template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
     paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
     plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
@@ -387,59 +344,27 @@ const NHSNView = ({ location }) => {
       title: 'Date',
       rangeslider: {
         visible: true,
-        range: (() => {
-          const firstDate = data.series.dates[0];
-          const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
-          const twoWeeksAfter = new Date(lastDate);
-          twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
-          return [firstDate, twoWeeksAfter.toISOString().split('T')[0]];
-        })()
+        range: fullRange, 
       },
       rangeselector: {
         buttons: [
-          {
-            count: 1,
-            label: '1m',
-            step: 'month',
-            stepmode: 'backward'
-          },
-          {
-            count: 6,
-            label: '6m',
-            step: 'month',
-            stepmode: 'backward'
-          },
-          {
-            count: 1,
-            label: '1y',
-            step: 'year',
-            stepmode: 'backward'
-          },
-          {
-            step: 'all',
-            label: 'All'
-          }
+          { count: 1, label: '1m', step: 'month', stepmode: 'backward' },
+          { count: 6, label: '6m', step: 'month', stepmode: 'backward' },
+          { count: 1, label: '1y', step: 'year', stepmode: 'backward' },
+          { step: 'all', label: 'All' }
         ],
         activecolor: colorScheme === 'dark' ? '#4c6ef5' : '#228be6',
         bgcolor: colorScheme === 'dark' ? '#2c2e33' : '#f1f3f5'
       },
-      range: (() => {
-        const lastDate = new Date(data.series.dates[data.series.dates.length - 1]);
-        const twoWeeksAfter = new Date(lastDate);
-        twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14);
-
-        const sixMonthsAgo = new Date(lastDate);
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-        return [sixMonthsAgo.toISOString().split('T')[0], twoWeeksAfter.toISOString().split('T')[0]];
-      })()
+      range: xAxisRange || defaultRange, 
     },
     yaxis: {
       title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
-      range: yAxisRange
+      range: yAxisRange, 
+      autorange: yAxisRange === null
     },
     height: 600,
-    showlegend: selectedColumns.length < 15, // Show legend only when fewer than 15 columns selected
+    showlegend: selectedColumns.length < 15,
     legend: {
       x: 0,
       y: 1,
@@ -448,30 +373,79 @@ const NHSNView = ({ location }) => {
       bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
       bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
       borderwidth: 1,
-      font: {
-        size: 10
-      }
+      font: { size: 10 }
     },
     margin: { t: 40, r: 10, l: 60, b: 120 },
     uirevision: plotRevision
-  };
+  }), [
+    colorScheme, 
+    fullRange, 
+    defaultRange, 
+    xAxisRange, 
+    yAxisRange, 
+    selectedTarget, 
+    selectedColumns.length, 
+    plotRevision
+  ]);
+
+  const config = useMemo(() => ({
+    responsive: true,
+    displayModeBar: true,
+    displaylogo: false,
+    showSendToCloud: false,
+    plotlyServerURL: "",
+    toImageButtonOptions: {
+      format: 'png',
+      filename: 'nhsn_plot'
+    },
+    modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'], 
+    modeBarButtonsToAdd: [{
+      name: 'Reset view', 
+      icon: Plotly.Icons.home,
+      click: function(gd) {
+        if (!data) return; 
+        
+        const newDefaultRange = getDefaultXRange(); 
+        if (!newDefaultRange || newDefaultRange[0] === null) return;
+
+        const isPct = selectedTarget && selectedTarget.includes('%');
+        const currentTraces = selectedColumns.map((column) => {
+          const yValues = data.series[column];
+          const pYValues = isPct ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
+          return { x: data.series.dates, y: pYValues };
+        });
+        
+        const newYRange = calculateYRange(currentTraces, newDefaultRange);
+        
+        isResettingRef.current = true; 
+        setXAxisRange(null); 
+        setYAxisRange(newYRange); 
+
+        Plotly.relayout(gd, {
+          'xaxis.range': newDefaultRange,
+          'yaxis.range': newYRange,
+          'yaxis.autorange': newYRange === null
+        });
+      }
+    }]
+  }), [data, selectedTarget, selectedColumns, getDefaultXRange, calculateYRange]);
+
+  if (loading) return <Center p="md"><Stack align="center"><Loader /><Text>Loading NHSN data...</Text></Stack></Center>;
+  if (error) return <Center p="md"><Alert color="red">Error: {error}</Alert></Center>;
+  if (!data) return <Center p="md"><Text>No NHSN data available for this location</Text></Center>;
 
   return (
     <Stack gap="md" w="100%">
       <LastFetched timestamp={metadata?.last_updated} />
 
       <Plot
+        ref={plotRef} 
         data={traces}
-        layout={layout}
-        config={{
-          responsive: true,
-          displayModeBar: true,
-          displaylogo: false,
-          modeBarButtonsToAdd: ['resetScale2d']
-        }}
+        layout={layout} 
+        config={config}
         style={{ width: '100%', marginBottom: '-20px' }}
         revision={dataRevision}
-        onRelayout={handleRelayout}
+        onRelayout={handleRelayout} 
       />
 
       <NHSNColumnSelector

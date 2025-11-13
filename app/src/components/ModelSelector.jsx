@@ -7,8 +7,9 @@ const ModelSelector = ({
   models = [],
   selectedModels = [], 
   setSelectedModels,
+  activeModels = null, // <-- ADD THIS PROP with a null default
   allowMultiple = true,
-  disabled = false
+  disabled = false // This is the prop for disabling the *whole* component
 }) => {
   const [showAllAvailable, setShowAllAvailable] = useState(true);
   const [search, setSearch] = useState('');
@@ -18,7 +19,9 @@ const ModelSelector = ({
   });
 
   const handleSelectAll = () => {
-    setSelectedModels(models);
+    // Only select models that are currently active
+    const modelsToSelect = activeModels ? models.filter(m => activeModels.has(m)) : models;
+    setSelectedModels(modelsToSelect);
   };
 
   const handleSelectNone = () => {
@@ -78,17 +81,24 @@ const ModelSelector = ({
             <Pill.Group>
               {selectedModels.map((model) => {
                 const modelColor = getModelColorByIndex(model);
+                // VVVV ADD THIS VVVV
+                // If activeModels is null, all models are considered active
+                const isActive = !activeModels || activeModels.has(model);
+                // ^^^^ ADD THIS ^^^^
                 return (
                   <Pill
                     key={model}
                     withRemoveButton
                     onRemove={() => handleValueRemove(model)}
+                    // VVVV UPDATE THIS STYLE VVVV
                     style={{
                       backgroundColor: modelColor,
                       color: 'white',
                       padding: '2px 6px',
-                      fontSize: '0.75rem'
+                      fontSize: '0.75rem',
+                      opacity: isActive ? 1 : 0.6, // Dim if not active
                     }}
+                    // ^^^^ UPDATE THIS STYLE ^^^^
                   >
                     {model}
                   </Pill>
@@ -122,8 +132,23 @@ const ModelSelector = ({
             {filteredModels.map((model) => {
               const modelColor = getModelColorByIndex(model);
               const isSelected = selectedModels.includes(model);
+              // VVVV ADD THIS VVVV
+              // If activeModels is null, all models are considered active
+              const isActive = !activeModels || activeModels.has(model);
+              // ^^^^ ADD THIS ^^^^
+              
               return (
-                <Combobox.Option value={model} key={model} style={{ padding: '4px 8px' }}>
+                <Combobox.Option 
+                  value={model} 
+                  key={model} 
+                  // VVVV UPDATE THESE PROPS VVVV
+                  style={{ 
+                    padding: '4px 8px',
+                    opacity: isActive ? 1 : 0.6, // Dim if not active
+                  }}
+                  disabled={!isActive} // Disable selection if not active
+                  // ^^^^ UPDATE THESE PROPS ^^^^
+                >
                   <Group gap="xs" justify="space-between">
                     <Group gap="xs" align="center">
                       {isSelected ? (
@@ -132,10 +157,12 @@ const ModelSelector = ({
                         <IconCircle size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
                       )}
                       <span
+                        // VVVV UPDATE THIS STYLE VVVV
                         style={{
-                          color: isSelected ? modelColor : 'inherit',
+                          color: isSelected ? modelColor : (isActive ? 'inherit' : 'var(--mantine-color-gray-5)'),
                           fontWeight: isSelected ? 600 : 400
                         }}
+                        // ^^^^ UPDATE THIS STYLE ^^^^
                       >
                         {model}
                       </span>
@@ -206,6 +233,10 @@ const ModelSelector = ({
             const isSelected = selectedModels.includes(model);
             const modelColor = getModelColorByIndex(model);
             const inactiveColor = 'var(--mantine-color-gray-5)';
+            // VVVV ADD THIS VVVV
+            const isActive = !activeModels || activeModels.has(model);
+            const isDisabled = disabled || !isActive; // Combine overall disabled with specific model active state
+            // ^^^^ ADD THIS ^^^^
             
             return (
               <Card
@@ -214,15 +245,16 @@ const ModelSelector = ({
                 radius="md"
                 withBorder={!isSelected}
                 variant={isSelected ? 'filled' : 'default'}
+                // VVVV UPDATE THESE PROPS VVVV
                 style={{
-                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
                   backgroundColor: isSelected ? modelColor : undefined,
                   borderColor: isSelected ? modelColor : undefined,
                   minWidth: 0
                 }}
-                opacity={disabled ? 0.5 : 1}
+                opacity={isDisabled ? 0.5 : 1}
                 onClick={() => {
-                  if (disabled) return;
+                  if (isDisabled) return; // Use combined disabled state
                   
                   if (isSelected) {
                     setSelectedModels(selectedModels.filter(m => m !== model));
@@ -234,6 +266,7 @@ const ModelSelector = ({
                     }
                   }
                 }}
+                // ^^^^ UPDATE THESE PROPS ^^^^
               >
                 <Group gap="xs" justify="space-between" align="center">
                   <Group gap="xs" align="center" flex={1}>

@@ -50,7 +50,7 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
   const navigationItems = [
     { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
     { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: location.pathname.startsWith('/forecastle') },
-    { href: '/dashboard', label: 'MyRespiLens', icon: IconDashboard, active: location.pathname.startsWith('/dashboard') },
+    { href: '/myrespilens', label: 'MyRespiLens', icon: IconDashboard, active: location.pathname.startsWith('/myrespilens') },
     { href: '/documentation', label: 'Documentation', icon: IconClipboard, active: location.pathname.startsWith('/documentation') }
   ];
 

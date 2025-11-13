@@ -65,26 +65,35 @@ const ViewSwitchboard = ({
   // Create default range function for chart components
   const getDefaultRange = (forRangeslider = false) => {
     if (!data?.ground_truth || !selectedDates.length) return undefined;
-    
+
     const firstGroundTruthDate = new Date(data.ground_truth.dates?.[0] || selectedDates[0]);
     const lastGroundTruthDate = new Date(data.ground_truth.dates?.slice(-1)[0] || selectedDates[0]);
-    
+
     if (forRangeslider) {
       const rangesliderEnd = new Date(lastGroundTruthDate);
       rangesliderEnd.setDate(rangesliderEnd.getDate() + (CHART_CONSTANTS.RANGESLIDER_WEEKS_AFTER * 7));
-      return [firstGroundTruthDate, rangesliderEnd];
+      
+      // Convert to YYYY-MM-DD strings
+      return [
+        firstGroundTruthDate.toISOString().split('T')[0],
+        rangesliderEnd.toISOString().split('T')[0]
+      ];
     }
-    
+
     const firstDate = new Date(selectedDates[0]);
     const lastDate = new Date(selectedDates[selectedDates.length - 1]);
-    
+
     const startDate = new Date(firstDate);
     const endDate = new Date(lastDate);
-    
+
     startDate.setDate(startDate.getDate() - (CHART_CONSTANTS.DEFAULT_WEEKS_BEFORE * 7));
     endDate.setDate(endDate.getDate() + (CHART_CONSTANTS.DEFAULT_WEEKS_AFTER * 7));
-    
-    return [startDate, endDate];
+
+    // Convert to YYYY-MM-DD strings
+    return [
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    ];
   };
 
   // Render appropriate view based on viewType

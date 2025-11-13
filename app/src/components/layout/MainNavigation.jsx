@@ -13,7 +13,7 @@ const MainNavigation = () => {
     { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
     // { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },   disable narratives for now
     { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: isActive('/forecastle') },
-    { href: '/dashboard', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/dashboard') },
+    { href: '/myrespilens', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/myrespilens') },
     { href: '/documentation', label: 'Documentation', icon: IconClipboard, active: isActive('/documentation')}
   ];
 
