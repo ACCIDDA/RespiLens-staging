@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
@@ -8,37 +8,21 @@ import { MODEL_COLORS, DATASETS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
-/**
- * Calculate the previous occurrence of a specific day of week before a given date
- * @param {string|Date} date - The reference date
- * @param {number} targetDayOfWeek - Target day (0=Sunday, 1=Monday, ..., 6=Saturday)
- * @returns {string} Date in YYYY-MM-DD format
- */
-const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
-  const d = new Date(date);
-  const currentDayOfWeek = d.getDay();
-  let daysToSubtract = currentDayOfWeek - targetDayOfWeek;
-
-  // If the target day is the same as current day or in the future this week,
-  // go back to the previous week
-  if (daysToSubtract <= 0) {
-    daysToSubtract += 7;
-  }
-
-  d.setDate(d.getDate() - daysToSubtract);
-  return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
-};
-
 const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
+  const [xAxisRange, setXAxisRange] = useState(null); 
   const plotRef = useRef(null);
-  const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
+  const isResettingRef = useRef(false); 
+  
+  // Refs to hold the latest versions of props/data for the reset button
+  const getDefaultRangeRef = useRef(getDefaultRange);
+  const projectionsDataRef = useRef([]);
+
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
-  const calculateYRange = (data, xRange) => {
+  const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
     let minY = Infinity;
     let maxY = -Infinity;
@@ -65,11 +49,9 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       return [0, maxY + padding];
     }
     return null;
-  };
+  }, []); 
 
   const projectionsData = useMemo(() => {
-    // For 'flu' (projections) view, use the dynamic selectedTarget.
-    // For 'fludetailed' view, keep using the hardcoded target for the top plot. (IMPORTANT NOTE)
     const targetForProjections = viewType === 'flu' ? selectedTarget : 'wk inc flu hosp';
 
     if (!groundTruth || !forecasts || selectedDates.length === 0 || !targetForProjections) {
@@ -79,7 +61,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     const groundTruthValues = groundTruth[targetForProjections];
     if (!groundTruthValues) {
       console.warn(`Ground truth data not found for target: ${targetForProjections}`);
-      return null;
+      return [];
     }
     const groundTruthTrace = {
       x: groundTruth.dates || [],
@@ -94,7 +76,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
-        
         const forecast = forecastsForDate[targetForProjections]?.[model];
 
         if (!forecast) return [];
@@ -104,14 +85,20 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           forecastDates.push(pred.date);
           if (forecast.type !== 'quantile') return;
           const { quantiles = [], values = [] } = pred;
-          ci95Lower.push(values[quantiles.indexOf(0.025)] || 0);
-          ci50Lower.push(values[quantiles.indexOf(0.25)] || 0);
-          medianValues.push(values[quantiles.indexOf(0.5)] || 0);
-          ci50Upper.push(values[quantiles.indexOf(0.75)] || 0);
-          ci95Upper.push(values[quantiles.indexOf(0.975)] || 0);
+          
+          const findValue = (q) => {
+            const idx = quantiles.indexOf(q);
+            return idx !== -1 ? values[idx] : 0;
+          };
+
+          ci95Lower.push(findValue(0.025));
+          ci50Lower.push(findValue(0.25));
+          medianValues.push(findValue(0.5));
+          ci50Upper.push(findValue(0.75));
+          ci95Upper.push(findValue(0.975));
         });
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-        const isFirstDate = dateIndex === 0; // Only show legend for first date of each model
+        const isFirstDate = dateIndex === 0; 
 
         return [
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, legendgroup: model },
@@ -122,6 +109,12 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     );
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, viewType, selectedTarget]);
+
+  // Update Refs on every render
+  useEffect(() => {
+    getDefaultRangeRef.current = getDefaultRange;
+    projectionsDataRef.current = projectionsData;
+  }, [getDefaultRange, projectionsData]);
 
   const rateChangeData = useMemo(() => {
     if (!forecasts || selectedDates.length === 0) return [];
@@ -141,28 +134,37 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }).filter(Boolean);
   }, [forecasts, selectedDates, selectedModels]);
 
-  /**
-   * Create a Set of all models that have forecast data for
-   * the currently selected target(s) AND at least one of the selected dates.
-   */
+  // --- FIX 4: Stable Data Construction ---
+  // We combine the projections and the rate change data here in useMemo.
+  // This prevents the histogram traces from being re-created (new object refs)
+  // every time the user drags the slider (which updates xAxisRange and causes re-renders).
+  const finalPlotData = useMemo(() => {
+    const histogramTraces = viewType === 'fludetailed' 
+      ? rateChangeData.map(trace => ({
+          ...trace,
+          orientation: 'h',
+          xaxis: 'x2',
+          yaxis: 'y2'
+        }))
+      : [];
+    
+    return [...projectionsData, ...histogramTraces];
+  }, [projectionsData, rateChangeData, viewType]);
+
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
     if (!forecasts || !selectedDates.length) {
       return activeModelSet;
     }
 
-    // Use the same logic as projectionsData to get the correct target
     const targetForProjections = viewType === 'flu' ? selectedTarget : 'wk inc flu hosp';
 
-    // Don't run if flu view has no target and a target is required
     if (viewType === 'flu' && !targetForProjections) return activeModelSet;
 
     selectedDates.forEach(date => {
       const forecastsForDate = forecasts[date];
       if (!forecastsForDate) return;
 
-      // Check projections target
-      // Add a check for targetForProjections itself, as it could be null if viewType='flu' and selectedTarget=null
       if (targetForProjections) {
         const targetData = forecastsForDate[targetForProjections];
         if (targetData) {
@@ -170,8 +172,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         }
       }
 
-
-      // If it's the detailed view, ALSO check the rate change target
       if (viewType === 'fludetailed') {
         const rateChangeData = forecastsForDate['wk flu hosp rate change'];
         if (rateChangeData) {
@@ -186,7 +186,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
   useEffect(() => {
-    setXAxisRange(null); // Reset to auto-update mode on view or target change
+    setXAxisRange(null); 
   }, [viewType, selectedTarget]);
 
   useEffect(() => {
@@ -199,27 +199,44 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     } else {
       setYAxisRange(null);
     }
-  }, [projectionsData, xAxisRange, defaultRange]);
+  }, [projectionsData, xAxisRange, defaultRange, calculateYRange]);
 
-  const handlePlotUpdate = (figure) => {
-    // Don't capture range changes during programmatic resets
+  const handlePlotUpdate = useCallback((figure) => {
     if (isResettingRef.current) {
-      isResettingRef.current = false; // Reset flag after ignoring the event
+      isResettingRef.current = false; 
       return;
     }
 
-    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
+    // --- THIS IS THE FIX ---
+    // A rangeslider drag typically only emits 'xaxis.range'.
+    // A zoom or pan gesture emits both 'xaxis.range' AND 'yaxis.range'.
+    //
+    // By checking for this combination, we can ignore the continuous
+    // "drag" events from the rangeslider, which stops the flashing.
+    // This logic only applies to the 'fludetailed' view where the bug occurs.
+    if (
+      viewType === 'fludetailed' &&  // Only apply to the problem view
+      figure['xaxis.range'] &&      // X-axis is changing
+      !figure['yaxis.range']        // BUT Y-axis is not (this is a rangeslider drag)
+    ) {
+      // This is a rangeslider drag. Let Plotly handle it internally.
+      // Do NOT call setXAxisRange, and do NOT trigger a re-render.
+      return;
+    }
+    // --- END FIX ---
+
+    // For all other cases (zoom, pan, or normal projection view),
+    // capture the new range in state.
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      // Only update if different to avoid loops
       if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
         setXAxisRange(newXRange);
-        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
     }
-  };
+    // Add viewType to the dependency array for the callback
+  }, [xAxisRange, viewType]);
 
-  const layout = {
+  const layout = useMemo(() => ({
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
     autosize: true,
@@ -236,7 +253,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       subplots: [['xy'], ['x2y2']],
       xgap: 0.15
     } : undefined,
-    showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
+    showlegend: selectedModels.length < 15, 
     legend: {
       x: 0,
       y: 1,
@@ -250,12 +267,12 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       }
     },
     hovermode: 'x unified',
-    dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
+    dragmode: false, 
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
       domain: viewType === 'fludetailed' ? [0, 0.8] : [0, 1],
       rangeslider: {
-        range: getDefaultRange(true) // Rangeslider always shows full extent
+        range: getDefaultRange(true) 
       },
       rangeselector: {
         buttons: [
@@ -264,7 +281,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           {step: 'all', label: 'all'}
         ]
       },
-      range: xAxisRange || defaultRange // Use user's selection or default
+      range: xAxisRange || defaultRange 
     },
     yaxis: {
       title: viewType === 'fludetailed'
@@ -274,7 +291,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       autorange: yAxisRange === null,
     },
     shapes: selectedDates.map(date => {
-
       return {
         type: 'line',
         x0: date,
@@ -303,18 +319,18 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         tickfont: { align: 'right' }
       }
     } : {})
-  };
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, viewType]);
 
-  const config = {
+  const config = useMemo(() => ({
     responsive: true,
     displayModeBar: true,
     displaylogo: false,
     modeBarPosition: 'left',
     showSendToCloud: false,
     plotlyServerURL: "",
-    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
-    doubleClick: 'reset', // Allow double-click to reset view
-    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], // Remove selection tools and default home
+    scrollZoom: false, 
+    doubleClick: 'reset', 
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], 
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
@@ -323,28 +339,27 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       name: 'Reset view',
       icon: Plotly.Icons.home,
       click: function(gd) {
-        // Get smart default range (selected dates ± context weeks)
-        const range = getDefaultRange();
+        const currentGetDefaultRange = getDefaultRangeRef.current;
+        const currentProjectionsData = projectionsDataRef.current;
+
+        const range = currentGetDefaultRange();
         if (!range) return;
 
-        const newYRange = projectionsData.length > 0 ? calculateYRange(projectionsData, range) : null;
+        const newYRange = currentProjectionsData.length > 0 ? calculateYRange(currentProjectionsData, range) : null;
 
-        // Set flag to prevent onRelayout handler from capturing this programmatic change
         isResettingRef.current = true;
 
-        // Reset to auto-follow mode (null = follows date changes)
         setXAxisRange(null);
         setYAxisRange(newYRange);
 
-        // Apply the smart default view
         Plotly.relayout(gd, {
           'xaxis.range': range,
           'yaxis.range': newYRange,
-          'yaxis.autorange': newYRange === null // 12. Also apply autorange here
+          'yaxis.autorange': newYRange === null
         });
       }
     }]
-  };
+  }), [calculateYRange]);
 
   if (viewType === 'flu' && !selectedTarget) {
     return (
@@ -361,17 +376,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={[
-            ...projectionsData,
-            ...(viewType === 'fludetailed' 
-              ? rateChangeData.map(trace => ({
-                  ...trace,
-                  orientation: 'h',
-                  xaxis: 'x2',
-                  yaxis: 'y2'
-                }))
-              : [])
-          ]}
+          data={finalPlotData} // <--- Use the memoized final data
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}
