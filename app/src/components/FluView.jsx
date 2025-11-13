@@ -13,6 +13,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const [xAxisRange, setXAxisRange] = useState(null); 
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); 
+  const debounceTimerRef = useRef(null);
   
   // Refs to hold the latest versions of props/data for the reset button
   const getDefaultRangeRef = useRef(getDefaultRange);
@@ -134,10 +135,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }).filter(Boolean);
   }, [forecasts, selectedDates, selectedModels]);
 
-  // --- FIX 4: Stable Data Construction ---
-  // We combine the projections and the rate change data here in useMemo.
-  // This prevents the histogram traces from being re-created (new object refs)
-  // every time the user drags the slider (which updates xAxisRange and causes re-renders).
   const finalPlotData = useMemo(() => {
     const histogramTraces = viewType === 'fludetailed' 
       ? rateChangeData.map(trace => ({
@@ -207,34 +204,20 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       return;
     }
 
-    // --- THIS IS THE FIX ---
-    // A rangeslider drag typically only emits 'xaxis.range'.
-    // A zoom or pan gesture emits both 'xaxis.range' AND 'yaxis.range'.
-    //
-    // By checking for this combination, we can ignore the continuous
-    // "drag" events from the rangeslider, which stops the flashing.
-    // This logic only applies to the 'fludetailed' view where the bug occurs.
-    if (
-      viewType === 'fludetailed' &&  // Only apply to the problem view
-      figure['xaxis.range'] &&      // X-axis is changing
-      !figure['yaxis.range']        // BUT Y-axis is not (this is a rangeslider drag)
-    ) {
-      // This is a rangeslider drag. Let Plotly handle it internally.
-      // Do NOT call setXAxisRange, and do NOT trigger a re-render.
-      return;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
-    // --- END FIX ---
 
-    // For all other cases (zoom, pan, or normal projection view),
-    // capture the new range in state.
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-        setXAxisRange(newXRange);
-      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+          setXAxisRange(newXRange);
+        }
+      }, 100); // 100ms debounce window
     }
-    // Add viewType to the dependency array for the callback
-  }, [xAxisRange, viewType]);
+  }, [xAxisRange]);
 
   const layout = useMemo(() => ({
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -376,7 +359,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={finalPlotData} // <--- Use the memoized final data
+          data={finalPlotData} 
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}
