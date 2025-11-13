@@ -4,30 +4,10 @@ import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import LastFetched from './LastFetched';
-import { MODEL_COLORS, DATASETS } from '../config/datasets';
+import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
-/**
- * Calculate the previous occurrence of a specific day of week before a given date
- * @param {string|Date} date - The reference date
- * @param {number} targetDayOfWeek - Target day (0=Sunday, 1=Monday, ..., 6=Saturday)
- * @returns {string} Date in YYYY-MM-DD format
- */
-const getPreviousDayOfWeek = (date, targetDayOfWeek) => {
-  const d = new Date(date);
-  const currentDayOfWeek = d.getDay();
-  let daysToSubtract = currentDayOfWeek - targetDayOfWeek;
-
-  // If the target day is the same as current day or in the future this week,
-  // go back to the previous week
-  if (daysToSubtract <= 0) {
-    daysToSubtract += 7;
-  }
-
-  d.setDate(d.getDate() - daysToSubtract);
-  return d.toISOString().split('T')[0]; // Return YYYY-MM-DD format
-};
 
 const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);

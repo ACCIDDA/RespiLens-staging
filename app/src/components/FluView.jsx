@@ -4,7 +4,7 @@ import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
 import LastFetched from './LastFetched';
-import { MODEL_COLORS, DATASETS } from '../config/datasets';
+import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
