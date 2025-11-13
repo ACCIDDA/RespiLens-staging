@@ -34,12 +34,17 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
+  
+  // This allows the "frozen" Plotly button to access fresh data
+  const getDefaultRangeRef = useRef(getDefaultRange);
+  const projectionsDataRef = useRef([]);
+
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
   const calculateYRange = useCallback((data, xRange) => {
-    if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null; // Added check for selectedTarget
+    if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
     let minY = Infinity;
     let maxY = -Infinity;
     const [startX, endX] = xRange;
@@ -47,7 +52,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     const endDate = new Date(endX);
 
     data.forEach(trace => {
-      // Skip if trace doesn't have data, or if it's the ground truth trace for a different target
       if (!trace.x || !trace.y) return;
 
       for (let i = 0; i < trace.x.length; i++) {
@@ -91,22 +95,18 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
-        // Access forecast using selectedTarget
         const forecast = forecastsForDate[selectedTarget]?.[model];
-        if (!forecast || forecast.type !== 'quantile') return []; // Ensure it's quantile data
+        if (!forecast || forecast.type !== 'quantile') return []; 
 
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
-        // Sort predictions by date, accessing the nested prediction object
         const sortedPredictions = Object.values(forecast.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         sortedPredictions.forEach((pred) => {
           forecastDates.push(pred.date);
           const { quantiles = [], values = [] } = pred;
-
-          // Find values for specific quantiles, defaulting to null or 0 if not found
           const findValue = (q) => {
             const index = quantiles.indexOf(q);
-            return index !== -1 ? values[index] : null; // Use null if quantile is missing
+            return index !== -1 ? values[index] : null; 
           };
 
           const val_025 = findValue(0.025);
@@ -115,7 +115,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           const val_75 = findValue(0.75);
           const val_975 = findValue(0.975);
 
-          // Only add points if median and CIs are available
           if (val_50 !== null && val_025 !== null && val_975 !== null && val_25 !== null && val_75 !== null) {
               ci95Lower.push(val_025);
               ci50Lower.push(val_25);
@@ -123,17 +122,14 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
               ci50Upper.push(val_75);
               ci95Upper.push(val_975);
           } else {
-             // If essential quantiles are missing, we might skip this point or handle it differently
-             // For now, let's just skip adding to the arrays to avoid breaking the CI shapes
              console.warn(`Missing quantiles for model ${model}, date ${date}, target ${selectedTarget}, prediction date ${pred.date}`);
           }
         });
 
-        // Ensure we have data points before creating traces
         if (forecastDates.length === 0) return [];
 
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-        const isFirstDate = dateIndex === 0; // Only show legend for first date of each model
+        const isFirstDate = dateIndex === 0; 
 
         return [
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none', legendgroup: model },
@@ -145,40 +141,34 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
-  /**
-   * Create a Set of all models that have forecast data for
-   * the currently selected target AND at least one of the selected dates.
-   */
+  useEffect(() => {
+    getDefaultRangeRef.current = getDefaultRange;
+    projectionsDataRef.current = projectionsData;
+  }, [getDefaultRange, projectionsData]);
+
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
     if (!forecasts || !selectedTarget || !selectedDates.length) {
       return activeModelSet;
     }
-
     selectedDates.forEach(date => {
       const forecastsForDate = forecasts[date];
       if (!forecastsForDate) return;
-
       const targetData = forecastsForDate[selectedTarget];
       if (!targetData) return;
-
-      // Add all models found for this target on this date
       Object.keys(targetData).forEach(model => {
         activeModelSet.add(model);
       });
     });
-
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget]);
 
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
-  // Reset xaxis range only when target changes (null = auto-follow date changes)
   useEffect(() => {
-    setXAxisRange(null); // Reset to auto-update mode on target change
+    setXAxisRange(null); 
   }, [selectedTarget]);
 
-  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
     const currentXRange = xAxisRange || defaultRange;
     if (projectionsData.length > 0 && currentXRange) {
@@ -190,24 +180,19 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   }, [projectionsData, xAxisRange, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
-    // Don't capture range changes during programmatic resets
     if (isResettingRef.current) {
-      isResettingRef.current = false; // Reset flag after ignoring the event
+      isResettingRef.current = false; 
       return;
     }
-
-    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      // Only update if different to avoid loops
       if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
         setXAxisRange(newXRange);
-        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
     }
   }, [xAxisRange]);
 
-  const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
+  const layout = useMemo(() => ({ 
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
     autosize: true,
@@ -217,7 +202,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
+    showlegend: selectedModels.length < 15, 
     legend: {
       x: 0,
       y: 1,
@@ -231,12 +216,12 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       }
     },
     hovermode: 'x unified',
-    dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
+    dragmode: false, 
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
-      domain: [0, 1], // Full width
+      domain: [0, 1], 
       rangeslider: {
-        range: getDefaultRange(true) // Rangeslider always shows full extent
+        range: getDefaultRange(true) 
       },
       rangeselector: {
         buttons: [
@@ -245,22 +230,19 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           {step: 'all', label: 'all'}
         ]
       },
-      range: xAxisRange || defaultRange, // Use user's selection or default
+      range: xAxisRange || defaultRange, 
       showline: true,
       linewidth: 1,
       linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
     },
     yaxis: {
-      // Use the map for a user-friendly title
-      title: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value', // Fallback to raw target name or 'Value'
-      range: yAxisRange, // Use state for dynamic range updates
-      autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
+      title: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value',
+      range: yAxisRange, 
+      autorange: yAxisRange === null, 
     },
     shapes: selectedDates.map(date => {
-      // Calculate target line date based on hub-specific configuration
-      const targetDayOfWeek = DATASETS.covid.targetLineDayOfWeek ?? 3; // Default to Wednesday
+      const targetDayOfWeek = DATASETS.covid.targetLineDayOfWeek ?? 3; 
       const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
-
       return {
         type: 'line',
         x0: targetLineDate,
@@ -283,31 +265,30 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     displaylogo: false,
     showSendToCloud: false,
     plotlyServerURL: "",
-    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
-    doubleClick: 'reset', // Allow double-click to reset view
+    scrollZoom: false, 
+    doubleClick: 'reset', 
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
     },
-    modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'], // Remove selection tools that can interfere on mobile
+    modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'], 
     modeBarButtonsToAdd: [{
       name: 'Reset view',
       icon: Plotly.Icons.home,
       click: function(gd) {
-        // Get smart default range (selected dates ± context weeks)
-        const range = getDefaultRange();
+        const currentGetDefaultRange = getDefaultRangeRef.current;
+        const currentProjectionsData = projectionsDataRef.current;
+
+        const range = currentGetDefaultRange();
         if (!range) return;
 
-        const newYRange = projectionsData.length > 0 ? calculateYRange(projectionsData, range) : null;
+        const newYRange = currentProjectionsData.length > 0 ? calculateYRange(currentProjectionsData, range) : null;
 
-        // Set flag to prevent onRelayout handler from capturing this programmatic change
         isResettingRef.current = true;
 
-        // Reset to auto-follow mode (null = follows date changes)
         setXAxisRange(null);
         setYAxisRange(newYRange);
 
-        // Apply the smart default view
         Plotly.relayout(gd, {
           'xaxis.range': range,
           'yaxis.range': newYRange,
@@ -315,7 +296,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         });
       }
     }]
-  }), [getDefaultRange, projectionsData, calculateYRange]);
+  }), [calculateYRange]);
 
   if (!selectedTarget) {
     return (
@@ -335,7 +316,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           data={projectionsData}
           layout={layout}
           config={config}
-          onRelayout={handlePlotUpdate} // Keep state update logic here
+          onRelayout={handlePlotUpdate} 
         />
       </div>
       <ModelSelector
