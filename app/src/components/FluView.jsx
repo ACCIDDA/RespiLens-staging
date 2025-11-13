@@ -274,14 +274,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       autorange: yAxisRange === null,
     },
     shapes: selectedDates.map(date => {
-      // Calculate target line date based on hub-specific configuration
-      const targetDayOfWeek = DATASETS.flu.targetLineDayOfWeek ?? 3; // Default to Wednesday
-      const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
 
       return {
         type: 'line',
-        x0: targetLineDate,
-        x1: targetLineDate,
+        x0: date,
+        x1: date,
         y0: 0,
         y1: 1,
         yref: 'paper',

@@ -34,6 +34,11 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
+  
+  // --- FIX 1: Create Refs to hold the latest versions of props/data ---
+  const getDefaultRangeRef = useRef(getDefaultRange);
+  const projectionsDataRef = useRef([]);
+
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
@@ -141,6 +146,12 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     );
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
+
+  // --- FIX 2: Update the Refs on every render so they are always fresh ---
+  useEffect(() => {
+    getDefaultRangeRef.current = getDefaultRange;
+    projectionsDataRef.current = projectionsData;
+  }, [getDefaultRange, projectionsData]);
 
   /**
    * Create a Set of all models that have forecast data for
@@ -254,14 +265,10 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
     },
     shapes: selectedDates.map(date => {
-      // Calculate target line date based on hub-specific configuration
-      const targetDayOfWeek = DATASETS.rsv.targetLineDayOfWeek ?? 3; // Default to Wednesday
-      const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
-
       return {
         type: 'line',
-        x0: targetLineDate,
-        x1: targetLineDate,
+        x0: date,
+        x1: date,
         y0: 0,
         y1: 1,
         yref: 'paper',
@@ -274,7 +281,7 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     })
   }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange]);
 
-  const config = {
+  const config = useMemo(() => ({
     responsive: true,
     displayModeBar: true,
     displaylogo: false,
@@ -291,20 +298,19 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       name: 'Reset view',
       icon: Plotly.Icons.home,
       click: function(gd) {
-        // Get smart default range (selected dates ± context weeks)
-        const range = getDefaultRange();
+        const currentGetDefaultRange = getDefaultRangeRef.current;
+        const currentProjectionsData = projectionsDataRef.current;
+
+        const range = currentGetDefaultRange();
         if (!range) return;
 
-        const newYRange = projectionsData.length > 0 ? calculateYRange(projectionsData, range) : null;
+        const newYRange = currentProjectionsData.length > 0 ? calculateYRange(currentProjectionsData, range) : null;
 
-        // Set flag to prevent onRelayout handler from capturing this programmatic change
         isResettingRef.current = true;
 
-        // Reset to auto-follow mode (null = follows date changes)
         setXAxisRange(null);
         setYAxisRange(newYRange);
 
-        // Apply the smart default view
         Plotly.relayout(gd, {
           'xaxis.range': range,
           'yaxis.range': newYRange,
@@ -312,7 +318,7 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         });
       }
     }]
-  };
+  }), [calculateYRange]);
 
   if (!selectedTarget) {
     return (

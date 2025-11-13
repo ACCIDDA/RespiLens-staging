@@ -241,12 +241,10 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       autorange: yAxisRange === null, 
     },
     shapes: selectedDates.map(date => {
-      const targetDayOfWeek = DATASETS.covid.targetLineDayOfWeek ?? 3; 
-      const targetLineDate = getPreviousDayOfWeek(date, targetDayOfWeek);
       return {
         type: 'line',
-        x0: targetLineDate,
-        x1: targetLineDate,
+        x0: date,
+        x1: date,
         y0: 0,
         y1: 1,
         yref: 'paper',
