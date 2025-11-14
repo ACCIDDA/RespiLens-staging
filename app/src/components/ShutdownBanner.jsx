@@ -19,7 +19,7 @@ function ShutdownBanner() {
       radius={0}
     >
       <Text>
-        Due to the U.S. government shutdown, forecasting hubs are not producing data. RespiLens will update with new forecasts as soon as they are available.
+        Due to the U.S. government shutdown, forecasting hubs are delayed in producing data. RespiLens will update with new forecasts as soon as they are available.
       </Text>
     </Alert>
   );
