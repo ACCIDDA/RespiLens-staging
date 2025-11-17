@@ -43,10 +43,11 @@ const NHSNView = ({ location }) => {
   const [plotRevision, setPlotRevision] = useState(0);
 
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null); 
+  const [xAxisRange, setXAxisRange] = useState(null);
 
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
+  const debounceTimerRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -297,14 +298,22 @@ const NHSNView = ({ location }) => {
 
   const handleRelayout = useCallback((figure) => {
     if (isResettingRef.current) {
-      isResettingRef.current = false; 
+      isResettingRef.current = false;
       return;
     }
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-        setXAxisRange(newXRange);
-      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+          setXAxisRange(newXRange);
+        }
+      }, 100); // 100ms debounce window
     }
   }, [xAxisRange]);
 

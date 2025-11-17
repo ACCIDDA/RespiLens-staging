@@ -14,7 +14,8 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
-  
+  const debounceTimerRef = useRef(null);
+
   // --- FIX 1: Create Refs to hold the latest versions of props/data ---
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
@@ -184,14 +185,21 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       return;
     }
 
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
     // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      // Only update if different to avoid loops
-      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-        setXAxisRange(newXRange);
-        // Y-axis will be recalculated by useEffect when xAxisRange changes
-      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        // Only update if different to avoid loops
+        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+          setXAxisRange(newXRange);
+          // Y-axis will be recalculated by useEffect when xAxisRange changes
+        }
+      }, 100); // 100ms debounce window
     }
   }, [xAxisRange]);
 

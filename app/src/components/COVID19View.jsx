@@ -14,7 +14,8 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
-  
+  const debounceTimerRef = useRef(null);
+
   // This allows the "frozen" Plotly button to access fresh data
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
@@ -161,14 +162,22 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
 
   const handlePlotUpdate = useCallback((figure) => {
     if (isResettingRef.current) {
-      isResettingRef.current = false; 
+      isResettingRef.current = false;
       return;
     }
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-        setXAxisRange(newXRange);
-      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
+          setXAxisRange(newXRange);
+        }
+      }, 100); // 100ms debounce window
     }
   }, [xAxisRange]);
 
