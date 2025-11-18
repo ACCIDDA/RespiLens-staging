@@ -107,7 +107,14 @@ export class URLParameterManager {
     // Check if 'models' key exists in newParams before accessing it
     if (dataset.hasModelSelector && Object.prototype.hasOwnProperty.call(newParams, 'models')) {
       if (newParams.models && newParams.models.length > 0) {
-        updatedParams.set(`${prefix}_models`, newParams.models.join(','));
+        // Only include models param if it differs from the default model
+        const isDefaultModel = newParams.models.length === 1 &&
+                               newParams.models[0] === dataset.defaultModel;
+        if (!isDefaultModel) {
+          updatedParams.set(`${prefix}_models`, newParams.models.join(','));
+        } else {
+          updatedParams.delete(`${prefix}_models`); // Delete if only default model
+        }
       } else {
         updatedParams.delete(`${prefix}_models`); // Delete if empty array or null/undefined
       }

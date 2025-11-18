@@ -63,12 +63,13 @@ export const ViewProvider = ({ children }) => {
     // --- Model Logic (NOW USES 'modelsForView') ---
     let modelsToSet = [];
     // Use 'modelsForView' to validate models
-    const validUrlModels = params.models?.filter(m => modelsForView.includes(m)) || []; 
+    const validUrlModels = params.models?.filter(m => modelsForView.includes(m)) || [];
     if (validUrlModels.length > 0) {
         modelsToSet = validUrlModels;
     } else if (currentDataset.defaultModel && modelsForView.includes(currentDataset.defaultModel)) {
+        // Use default model but don't add it to URL (keep URL clean)
         modelsToSet = [currentDataset.defaultModel];
-        needsModelUrlUpdate = true;
+        // Don't set needsModelUrlUpdate - we want the URL to remain without the default param
     } else if (modelsForView.length > 0) {
         modelsToSet = [modelsForView[0]]; // Default to first *available* model
         needsModelUrlUpdate = true;
@@ -158,7 +159,8 @@ export const ViewProvider = ({ children }) => {
     const newDataset = urlManager.getDatasetFromView(newView);
     const newSearchParams = new URLSearchParams(searchParams);
 
-    if (newView !== APP_CONFIG.defaultView || newSearchParams.toString().length > 0) {
+    // Only include view param if it differs from the default
+    if (newView !== APP_CONFIG.defaultView) {
       newSearchParams.set('view', newView);
     } else {
       newSearchParams.delete('view');
