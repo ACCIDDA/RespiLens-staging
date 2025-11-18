@@ -2,6 +2,16 @@
 
 import { DATASETS, APP_CONFIG } from '../config';
 
+/**
+ * URLParameterManager
+ *
+ * Manages query parameters for dataset-specific filters (dates, models, targets).
+ * Note: View and location are now managed via path params in the URL, not query params.
+ *
+ * Example URLs:
+ *   /forecasts/flu/california?dates=2024-01-01&models=FluSight-ensemble
+ *   /forecasts/covid/texas?dates=2024-02-15&target=wk%20inc%20covid%20hosp
+ */
 export class URLParameterManager {
   constructor(searchParams, setSearchParams) {
     this.searchParams = searchParams;
@@ -20,12 +30,12 @@ export class URLParameterManager {
   }
 
   // Get all parameters for a specific dataset
-  getDatasetParams(dataset) {
+  // Note: currentView must be passed in since view is now in the path, not query params
+  getDatasetParams(dataset, currentView) {
     if (!dataset) return {}; // Return empty object if dataset is null
 
     const prefix = dataset.prefix;
     const params = {};
-    const currentView = this.getView(); // Get the current view type
 
     if (dataset.hasDateSelector) {
       const dates = this.searchParams.get(`${prefix}_dates`);
@@ -37,7 +47,7 @@ export class URLParameterManager {
       params.models = models ? models.split(',') : [];
     }
 
-    // --- ADDED: Read prefixed target ---
+    // Read prefixed target
     // Check if the current view (derived from viewType) supports targets
     // Assuming NHSN ('nhsnall') is the only view without targets for now
     if (currentView !== 'nhsnall') {
@@ -47,7 +57,6 @@ export class URLParameterManager {
             params.target = target;
         }
     }
-    // --- END ADDED BLOCK ---
 
     // Special case for NHSN
     if (dataset.shortName === 'nhsn') {
@@ -85,13 +94,13 @@ export class URLParameterManager {
   }
 
   // Update parameters for a dataset
-  updateDatasetParams(dataset, newParams) {
+  // Note: currentView must be passed in since view is now in the path, not query params
+  updateDatasetParams(dataset, currentView, newParams) {
     if (!dataset) {
       return;
     }
     const updatedParams = new URLSearchParams(this.searchParams);
     const prefix = dataset.prefix;
-    const currentView = this.getView(); // Get the current view type
 
     // Update dates if present and dataset supports it
     // Check if 'dates' key exists in newParams before accessing it
@@ -113,7 +122,7 @@ export class URLParameterManager {
       }
     }
 
-    // --- ADDED: Update prefixed target ---
+    // Update prefixed target
     // Update target if present (and not NHSN view)
     // Check if 'target' key exists in newParams before accessing it
     if (currentView !== 'nhsnall' && Object.prototype.hasOwnProperty.call(newParams, 'target')) {
@@ -124,8 +133,6 @@ export class URLParameterManager {
             updatedParams.delete(`${prefix}_target`);
         }
     }
-    // --- END ADDED BLOCK ---
-
 
     // Special case for NHSN columns
     // Check if 'columns' key exists in newParams before accessing it
@@ -141,43 +148,5 @@ export class URLParameterManager {
     if (updatedParams.toString() !== this.searchParams.toString()) {
         this.setSearchParams(updatedParams, { replace: true });
     }
-  }
-
-
-  // Update location parameter while preserving all other params
-  updateLocation(location) {
-    const newParams = new URLSearchParams(this.searchParams);
-    if (location && location !== APP_CONFIG.defaultLocation) {
-        newParams.set('location', location);
-    } else {
-        newParams.delete('location'); // Remove if default location or falsy
-    }
-    if (newParams.toString() !== this.searchParams.toString()) {
-      this.setSearchParams(newParams, { replace: true });
-    }
-  }
-
-  // Get current location from URL
-  getLocation() {
-    return this.searchParams.get('location') || APP_CONFIG.defaultLocation;
-  }
-
-  // Get current view from URL
-  getView() {
-    // Use DATASETS config to find the default view if not in URL
-    const viewParam = this.searchParams.get('view');
-    const allViews = Object.values(DATASETS).flatMap(ds => ds.views.map(v => v.value));
-    if (viewParam && allViews.includes(viewParam)) {
-        return viewParam;
-    }
-    // Find the default view of the default dataset
-    const defaultDatasetKey = APP_CONFIG.defaultDataset;
-    return DATASETS[defaultDatasetKey]?.defaultView || APP_CONFIG.defaultView;
-  }
-
-  // Initialize URL with defaults if missing (Less critical now with context handling)
-  // This method is kept for backward compatibility but may be redundant with ViewContext
-  initializeDefaults() {
-    // Intentionally empty - URL initialization now handled by ViewContext
   }
 }

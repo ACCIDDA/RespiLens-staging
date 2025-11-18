@@ -9,7 +9,7 @@ const MainNavigation = () => {
   const isActive = (path) => location.pathname.startsWith(path);
 
   const navigationItems = [
-    { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
+    { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' || location.pathname.startsWith('/forecasts') },
     // { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },   disable narratives for now
     { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: isActive('/forecastle') },
     { href: '/myrespilens', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/myrespilens') },

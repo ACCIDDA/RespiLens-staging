@@ -219,10 +219,10 @@ title: "Flu Season Winter 2024-25: A Data Story"
 authors: "RespiLens Analytics Team"
 date: "December 24, 2024"
 abstract: "An interactive narrative exploring the 2024-25 flu season trends, forecasting insights, and public health implications using RespiLens visualization tools."
-dataset: "/?location=US&view=fludetailed&dates=2024-12-14,2024-12-21&models=FluSight-ensemble,CU-ensemble"
+dataset: "/forecasts/flu-detailed/us?flu_dates=2024-12-14,2024-12-21&flu_models=FluSight-ensemble,CU-ensemble"
 ---
 
-# Introduction: The 2024-25 Flu Season [/?location=US&view=fludetailed&dates=2024-12-14,2024-12-21&models=FluSight-ensemble]
+# Introduction: The 2024-25 Flu Season [/forecasts/flu-detailed/us?flu_dates=2024-12-14,2024-12-21&flu_models=FluSight-ensemble]
 
 The 2024-25 influenza season has shown unique patterns compared to previous years. This narrative will walk you through the key insights from our forecasting models and surveillance data.
 
@@ -234,7 +234,7 @@ The 2024-25 influenza season has shown unique patterns compared to previous year
 
 Let's explore the data together and understand what it tells us about this flu season. The visualization on the right shows the current national flu detailed view with our ensemble forecasting models.
 
-# National Trends and Patterns [/?location=US&view=flutimeseries&dates=2024-11-30,2024-12-07,2024-12-14,2024-12-21&models=FluSight-ensemble,CU-ensemble,CMU-TimeSeries]
+# National Trends and Patterns [/forecasts/flu/us?flu_dates=2024-11-30,2024-12-07,2024-12-14,2024-12-21&flu_models=FluSight-ensemble,CU-ensemble,CMU-TimeSeries]
 
 At the national level, we're seeing several interesting patterns emerge.
 
@@ -247,7 +247,7 @@ Most forecasting models are showing good agreement on the near-term trajectory, 
 **Regional Variations:**
 While the national picture shows clear trends, there's significant variation at the state level that we'll explore next.
 
-# Regional Spotlight: Northeast [/?location=NY&view=fludetailed&dates=2024-12-14,2024-12-21&models=FluSight-ensemble,CU-ensemble]
+# Regional Spotlight: Northeast [/forecasts/flu-detailed/new-york?flu_dates=2024-12-14,2024-12-21&flu_models=FluSight-ensemble,CU-ensemble]
 
 Let's examine New York as an example of the Northeast pattern.
 
@@ -262,7 +262,7 @@ Despite the early onset, the rate of increase has been steeper than historical a
 
 The visualization shows the detailed forecast view for New York, highlighting the ensemble model predictions and confidence intervals.
 
-# Regional Spotlight: Southeast [/?location=FL&view=fludetailed&dates=2024-12-14,2024-12-21&models=FluSight-ensemble,CU-ensemble,CMU-TimeSeries]
+# Regional Spotlight: Southeast [/forecasts/flu-detailed/florida?flu_dates=2024-12-14,2024-12-21&flu_models=FluSight-ensemble,CU-ensemble,CMU-TimeSeries]
 
 Now let's compare this with Florida, representing the Southeast pattern.
 
@@ -295,7 +295,7 @@ The top-performing models consistently incorporated:
 
 The custom visualization shows a detailed breakdown of model accuracy across different time horizons and regions.
 
-# Public Health Implications [/?location=US&view=fludetailed&dates=2024-12-21&models=FluSight-ensemble]
+# Public Health Implications [/forecasts/flu-detailed/us?flu_dates=2024-12-21&flu_models=FluSight-ensemble]
 
 Based on our analysis, several key implications emerge for public health decision-making.
 
