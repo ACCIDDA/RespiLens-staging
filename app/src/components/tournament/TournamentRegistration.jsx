@@ -1,0 +1,109 @@
+import { useState } from 'react';
+import { Container, Title, Text, TextInput, Button, Card, Stack, Alert } from '@mantine/core';
+import { IconUserPlus, IconAlertCircle } from '@tabler/icons-react';
+import { registerParticipant } from '../../utils/tournamentAPI';
+import { TOURNAMENT_CONFIG } from '../../config';
+
+const TournamentRegistration = ({ onSuccess }) => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Please enter both first and last name');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const data = await registerParticipant(firstName, lastName);
+      onSuccess(data.participantId, `${firstName} ${lastName}`);
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Container size="sm" py="xl" style={{ minHeight: '70vh', display: 'flex', alignItems: 'center' }}>
+      <Card shadow="lg" p="xl" radius="md" withBorder style={{ width: '100%' }}>
+        <Stack spacing="lg">
+          <div style={{ textAlign: 'center' }}>
+            <Title order={1} mb="xs">
+              Join the Tournament
+            </Title>
+            <Text color="dimmed" size="lg">
+              {TOURNAMENT_CONFIG.name}
+            </Text>
+            <Text color="dimmed" size="sm" mt="xs">
+              {TOURNAMENT_CONFIG.description}
+            </Text>
+          </div>
+
+          {error && (
+            <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
+              {error}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Stack spacing="md">
+              <TextInput
+                label="First Name"
+                placeholder="Enter your first name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                size="lg"
+              />
+
+              <TextInput
+                label="Last Name"
+                placeholder="Enter your last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                size="lg"
+              />
+
+              <Button
+                type="submit"
+                size="lg"
+                leftIcon={<IconUserPlus size={20} />}
+                loading={loading}
+                fullWidth
+                mt="md"
+              >
+                Register & Start
+              </Button>
+            </Stack>
+          </form>
+
+          <div style={{ marginTop: 16, padding: 16, backgroundColor: '#f8f9fa', borderRadius: 8 }}>
+            <Text size="sm" color="dimmed" style={{ textAlign: 'center' }}>
+              <strong>How it works:</strong>
+            </Text>
+            <Text size="sm" color="dimmed" mt="xs">
+              • Complete 5 forecasting challenges
+              <br />
+              • Predict hospitalization counts for different diseases and locations
+              <br />
+              • Get scored using Weighted Interval Score (lower is better)
+              <br />
+              • Climb the leaderboard and compete with others!
+            </Text>
+          </div>
+        </Stack>
+      </Card>
+    </Container>
+  );
+};
+
+export default TournamentRegistration;

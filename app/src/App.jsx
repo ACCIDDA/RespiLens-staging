@@ -9,6 +9,7 @@ import NarrativeBrowser from './components/narratives/NarrativeBrowser';
 import SlideNarrativeViewer from './components/narratives/SlideNarrativeViewer';
 import ForecastleGame from './components/forecastle/ForecastleGame';
 import MyRespiLensDashboard from './components/myrespi/MyRespiLensDashboard';
+import TournamentDashboard from './components/tournament/TournamentDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import Documentation from './components/Documentation'
 import { Center, Text } from '@mantine/core';
@@ -41,6 +42,7 @@ const AppLayout = () => {
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />
+        <Route path="/tournament" element={<TournamentDashboard />} />
         <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
         <Route path="/documentation" element={<Documentation />} />
       </Routes>

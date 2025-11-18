@@ -1,7 +1,7 @@
 import { useLocation, Link } from 'react-router-dom';
 import { AppShell, Center, Burger, Stack, Button, Divider } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChartLine, IconTarget, IconDashboard, IconClipboard } from '@tabler/icons-react';
+import { IconChartLine, IconTarget, IconTrophy, IconDashboard, IconClipboard } from '@tabler/icons-react';
 import MainNavigation from './MainNavigation';
 import StateSelector from '../StateSelector';
 
@@ -50,6 +50,7 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
   const navigationItems = [
     { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
     { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: location.pathname.startsWith('/forecastle') },
+    { href: '/tournament', label: 'Tournament', icon: IconTrophy, active: location.pathname.startsWith('/tournament') },
     { href: '/myrespilens', label: 'MyRespiLens', icon: IconDashboard, active: location.pathname.startsWith('/myrespilens') },
     { href: '/documentation', label: 'Documentation', icon: IconClipboard, active: location.pathname.startsWith('/documentation') }
   ];
