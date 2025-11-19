@@ -3,6 +3,7 @@ import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import ModelScorePanel from './ModelScorePanel';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
@@ -284,6 +285,12 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     );
   }
 
+  // Extract available dates from forecast data
+  const availableDates = useMemo(() => {
+    if (!forecasts) return [];
+    return Object.keys(forecasts).sort();
+  }, [forecasts]);
+
   return (
     <Stack>
       <LastFetched timestamp={metadata?.last_updated} />
@@ -294,9 +301,17 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           data={projectionsData}
           layout={layout}
           config={config}
-          onRelayout={handlePlotUpdate} 
+          onRelayout={handlePlotUpdate}
         />
       </div>
+      <ModelScorePanel
+        data={data}
+        availableDates={availableDates}
+        target={selectedTarget}
+        availableModels={models}
+        selectedModels={selectedModels}
+        setSelectedModels={setSelectedModels}
+      />
       <ModelSelector
         models={models}
         selectedModels={selectedModels}

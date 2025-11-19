@@ -3,6 +3,7 @@ import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import ModelScorePanel from './ModelScorePanel';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
@@ -352,6 +353,15 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     );
   }
 
+  // Extract available dates from forecast data
+  const availableDates = useMemo(() => {
+    if (!forecasts) return [];
+    return Object.keys(forecasts).sort();
+  }, [forecasts]);
+
+  // Determine the target for scoring (use selectedTarget for 'flu' view, default for 'flu_projs')
+  const scoringTarget = viewType === 'flu' ? selectedTarget : 'wk inc flu hosp';
+
   return (
     <Stack>
       <LastFetched timestamp={metadata?.last_updated} />
@@ -359,17 +369,25 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         <Plot
           ref={plotRef}
           style={{ width: '100%', height: '100%' }}
-          data={finalPlotData} 
+          data={finalPlotData}
           layout={layout}
           config={config}
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
-      <ModelSelector 
+      <ModelScorePanel
+        data={data}
+        availableDates={availableDates}
+        target={scoringTarget}
+        availableModels={models}
+        selectedModels={selectedModels}
+        setSelectedModels={setSelectedModels}
+      />
+      <ModelSelector
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
-        activeModels={activeModels} 
+        activeModels={activeModels}
         getModelColor={(model, selectedModels) => {
           const index = selectedModels.indexOf(model);
           return MODEL_COLORS[index % MODEL_COLORS.length];
