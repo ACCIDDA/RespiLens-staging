@@ -77,7 +77,7 @@ const ModelSelector = ({
         withinPortal
       >
         <Combobox.DropdownTarget>
-          <PillsInput onClick={() => combobox.openDropdown()} size="sm">
+          <PillsInput onClick={() => combobox.openDropdown()} size="sm" label="Search and select models">
             <Pill.Group>
               {selectedModels.map((model) => {
                 const modelColor = getModelColorByIndex(model);
@@ -90,15 +90,12 @@ const ModelSelector = ({
                     key={model}
                     withRemoveButton
                     onRemove={() => handleValueRemove(model)}
-                    // VVVV UPDATE THIS STYLE VVVV
                     style={{
-                      backgroundColor: modelColor,
+                      backgroundColor: isActive ? modelColor : 'var(--mantine-color-gray-6)',
                       color: 'white',
                       padding: '2px 6px',
                       fontSize: '0.75rem',
-                      opacity: isActive ? 1 : 0.6, // Dim if not active
                     }}
-                    // ^^^^ UPDATE THIS STYLE ^^^^
                   >
                     {model}
                   </Pill>
@@ -111,6 +108,7 @@ const ModelSelector = ({
                   onBlur={() => combobox.closeDropdown()}
                   value={search}
                   placeholder="Quick search and select models..."
+                  aria-label="Search and select forecasting models"
                   onChange={(event) => {
                     combobox.updateSelectedOptionIndex();
                     setSearch(event.currentTarget.value);
@@ -138,16 +136,13 @@ const ModelSelector = ({
               // ^^^^ ADD THIS ^^^^
               
               return (
-                <Combobox.Option 
-                  value={model} 
-                  key={model} 
-                  // VVVV UPDATE THESE PROPS VVVV
-                  style={{ 
+                <Combobox.Option
+                  value={model}
+                  key={model}
+                  style={{
                     padding: '4px 8px',
-                    opacity: isActive ? 1 : 0.6, // Dim if not active
                   }}
                   disabled={!isActive} // Disable selection if not active
-                  // ^^^^ UPDATE THESE PROPS ^^^^
                 >
                   <Group gap="xs" justify="space-between">
                     <Group gap="xs" align="center">

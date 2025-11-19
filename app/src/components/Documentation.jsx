@@ -49,6 +49,7 @@ const GlossaryTable = () => {
   return (
     <>
       <Table withTableBorder withColumnBorders>
+        <Table.Caption>RespiLens terminology and definitions</Table.Caption>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Term</Table.Th>
@@ -87,6 +88,7 @@ const CopyableCodeBlock = ({ code }) => {
           color={clipboard.copied ? 'teal' : 'gray'}
           onClick={() => clipboard.copy(code)}
           style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
+          aria-label={clipboard.copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
         >
           {clipboard.copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
         </ActionIcon>
