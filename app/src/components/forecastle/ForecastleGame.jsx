@@ -22,7 +22,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconCheck, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar, IconRefresh } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar, IconRefresh } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
