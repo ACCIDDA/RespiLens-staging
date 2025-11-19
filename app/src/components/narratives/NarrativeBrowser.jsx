@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Container, Card, Title, Text, Group, Badge, Button, Stack, Loader, Center, ThemeIcon, Paper, SimpleGrid, TextInput, Select } from '@mantine/core';
 import { IconBook, IconCalendar, IconUser, IconArrowRight, IconStar, IconClock, IconSearch } from '@tabler/icons-react';
-import { narrativeRegistry, getAllTags, searchNarratives } from '../../data/narratives/index.js';
+import { getAllTags, searchNarratives } from '../../data/narratives/index.js';
 
 const NarrativeBrowser = ({ onNarrativeSelect }) => {
   const [loading, setLoading] = useState(true);
@@ -12,7 +12,6 @@ const NarrativeBrowser = ({ onNarrativeSelect }) => {
 
   useEffect(() => {
     // Load narratives from registry
-    console.log('Loading narratives from registry:', narrativeRegistry.length);
     setLoading(false);
   }, []);
 
