@@ -19,7 +19,7 @@ export const useForecastData = (location, viewType) => {
       setError(null);
       setData(null);
       setMetadata(null);
-      setAvailableTargets([])
+      setAvailableTargets([]);
 
       try {
         // Updated map to hold both the directory name and the file suffix
@@ -63,7 +63,7 @@ export const useForecastData = (location, viewType) => {
             });
           });
           setModels(Array.from(modelSet).sort());
-        };
+        }
 
         // if flu, rsv, or covid data: // loop through JSON data to get model lists by target (for dynamic model selection)
         if (jsonData.forecasts) {
