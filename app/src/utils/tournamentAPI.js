@@ -26,11 +26,9 @@ const apiGet = async (action, params = {}) => {
   });
 
   try {
+    // No headers needed for GET - avoids CORS preflight
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
 
     if (!response.ok) {
@@ -63,10 +61,11 @@ const apiPost = async (payload) => {
   }
 
   try {
+    // Use text/plain to avoid CORS preflight
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
       },
       body: JSON.stringify(payload),
     });

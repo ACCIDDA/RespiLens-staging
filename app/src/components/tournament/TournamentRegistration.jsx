@@ -76,7 +76,7 @@ const TournamentRegistration = ({ onSuccess }) => {
               <Button
                 type="submit"
                 size="lg"
-                leftIcon={<IconUserPlus size={20} />}
+                leftSection={<IconUserPlus size={20} />}
                 loading={loading}
                 fullWidth
                 mt="md"

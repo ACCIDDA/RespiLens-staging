@@ -96,13 +96,16 @@ function doGet(e) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const action = e.parameter.action;
 
+  let result;
   if (action === 'getLeaderboard') {
-    return getLeaderboard(ss);
+    result = getLeaderboard(ss);
   } else if (action === 'getParticipant') {
-    return getParticipant(ss, e.parameter.participantId);
+    result = getParticipant(ss, e.parameter.participantId);
+  } else {
+    result = {error: 'Invalid action'};
   }
 
-  return ContentService.createTextOutput(JSON.stringify({error: 'Invalid action'}))
+  return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -111,13 +114,16 @@ function doPost(e) {
   const data = JSON.parse(e.postData.contents);
   const action = data.action;
 
+  let result;
   if (action === 'register') {
-    return registerParticipant(ss, data);
+    result = registerParticipant(ss, data);
   } else if (action === 'submitForecast') {
-    return submitForecast(ss, data);
+    result = submitForecast(ss, data);
+  } else {
+    result = {error: 'Invalid action'};
   }
 
-  return ContentService.createTextOutput(JSON.stringify({error: 'Invalid action'}))
+  return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -130,22 +136,22 @@ function registerParticipant(ss, data) {
   const existingData = sheet.getDataRange().getValues();
   for (let i = 1; i < existingData.length; i++) {
     if (existingData[i][1] === data.firstName && existingData[i][2] === data.lastName) {
-      return ContentService.createTextOutput(JSON.stringify({
+      return {
         success: true,
         participantId: existingData[i][0],
         message: 'Welcome back!'
-      })).setMimeType(ContentService.MimeType.JSON);
+      };
     }
   }
 
   // Add new participant
   sheet.appendRow([participantId, data.firstName, data.lastName, timestamp]);
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return {
     success: true,
     participantId: participantId,
     message: 'Registration successful!'
-  })).setMimeType(ContentService.MimeType.JSON);
+  };
 }
 
 function submitForecast(ss, data) {
@@ -170,11 +176,11 @@ function submitForecast(ss, data) {
         timestamp
       ]]);
 
-      return ContentService.createTextOutput(JSON.stringify({
+      return {
         success: true,
         submissionId: existingData[i][0],
         message: 'Forecast updated!'
-      })).setMimeType(ContentService.MimeType.JSON);
+      };
     }
   }
 
@@ -191,11 +197,11 @@ function submitForecast(ss, data) {
     timestamp
   ]);
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return {
     success: true,
     submissionId: submissionId,
     message: 'Forecast submitted!'
-  })).setMimeType(ContentService.MimeType.JSON);
+  };
 }
 
 function getLeaderboard(ss) {
@@ -213,10 +219,10 @@ function getLeaderboard(ss) {
     rank: row[6]
   })).filter(p => p.completed === 5); // Only show completed participants
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return {
     success: true,
     leaderboard: leaderboard
-  })).setMimeType(ContentService.MimeType.JSON);
+  };
 }
 
 function getParticipant(ss, participantId) {
@@ -238,10 +244,10 @@ function getParticipant(ss, participantId) {
   }
 
   if (!participant) {
-    return ContentService.createTextOutput(JSON.stringify({
+    return {
       success: false,
       error: 'Participant not found'
-    })).setMimeType(ContentService.MimeType.JSON);
+    };
   }
 
   // Get submissions
@@ -261,11 +267,11 @@ function getParticipant(ss, participantId) {
     }
   }
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return {
     success: true,
     participant: participant,
     submissions: submissions
-  })).setMimeType(ContentService.MimeType.JSON);
+  };
 }
 ```
 

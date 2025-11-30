@@ -93,7 +93,7 @@ const TournamentDashboard = () => {
             <Text color="dimmed">{TOURNAMENT_CONFIG.description}</Text>
           </div>
           <Button
-            leftIcon={<IconChartLine size={18} />}
+            leftSection={<IconChartLine size={18} />}
             onClick={() => setShowLeaderboard(!showLeaderboard)}
             variant={showLeaderboard ? 'filled' : 'outline'}
           >

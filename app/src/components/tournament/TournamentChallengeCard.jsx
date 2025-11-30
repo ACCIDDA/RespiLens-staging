@@ -218,7 +218,7 @@ const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubm
 
           <Button
             variant={isCompleted ? 'light' : 'filled'}
-            leftIcon={isCompleted ? <IconEdit size={16} /> : null}
+            leftSection={isCompleted ? <IconEdit size={16} /> : null}
             onClick={() => setModalOpened(true)}
             fullWidth
           >

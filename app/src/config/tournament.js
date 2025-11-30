@@ -13,9 +13,8 @@ export const TOURNAMENT_CONFIG = {
 
   // Google Sheets integration
   // IMPORTANT: Replace with your deployed Google Apps Script Web App URL
-  apiUrl: process.env.VITE_TOURNAMENT_API_URL || 'https://script.google.com/macros/s/AKfycbwB7LnE8DSk9S7ACLs20j65iB-9ryCXAiih2FlMwpeWDDE4pLZ1zF3RQilfrm6_byLU7w/exec',
+  apiUrl: import.meta.env.VITE_TOURNAMENT_API_URL || 'https://script.google.com/macros/s/AKfycbwB7LnE8DSk9S7ACLs20j65iB-9ryCXAiih2FlMwpeWDDE4pLZ1zF3RQilfrm6_byLU7w/exec',
   sheetId: '17J5KWUrVuqmqqBcVJg2A-dfVdrL4LjXTvlztCDpS0g0',
-
   // Challenges are always active (no date restrictions as per requirements)
   challengesAlwaysActive: true,
 
