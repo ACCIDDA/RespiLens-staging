@@ -479,6 +479,7 @@ const TournamentGame = ({ participantId, participantName, onAllCompleted }) => {
           <ScoreDisplay
             scores={scores}
             challenge={challenge}
+            participantId={participantId}
             participantName={participantName}
             leaderboardData={leaderboardData}
             visibleRankings={visibleRankings}
@@ -496,7 +497,7 @@ const TournamentGame = ({ participantId, participantName, onAllCompleted }) => {
   );
 };
 
-const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, visibleRankings, onNextChallenge, allCompleted, onAllCompleted }) => {
+const ScoreDisplay = ({ scores, challenge, participantId, participantName, leaderboardData, visibleRankings, onNextChallenge, allCompleted, onAllCompleted }) => {
   if (!scores) return null;
 
   const { ensemble: ensembleKey, baseline: baselineKey } = getOfficialModels(challenge.datasetKey);
@@ -511,7 +512,8 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
   if (leaderboardData) {
     leaderboardData.forEach(p => {
       const submission = p.submissions?.[challenge.number];
-      if (submission && submission.length > 0 && p.name !== participantName) {
+      // Skip current participant by checking both ID and name
+      if (submission && submission.length > 0 && p.id !== participantId && p.name !== participantName) {
         const forecastEntries = submission.map(f => ({
           horizon: f.horizon,
           median: f.median,
