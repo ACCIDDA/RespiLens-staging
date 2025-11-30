@@ -205,19 +205,52 @@ function submitForecast(ss, data) {
 }
 
 function getLeaderboard(ss) {
-  const sheet = ss.getSheetByName('Leaderboard');
-  const data = sheet.getDataRange().getValues();
+  const participantsSheet = ss.getSheetByName('Participants');
+  const submissionsSheet = ss.getSheetByName('Submissions');
 
-  // Skip header row
-  const leaderboard = data.slice(1).map(row => ({
-    participantId: row[0],
-    firstName: row[1],
-    lastName: row[2],
-    totalWIS: row[3],
-    avgWIS: row[4],
-    completed: row[5],
-    rank: row[6]
-  })).filter(p => p.completed === 5); // Only show completed participants
+  // Get all participants
+  const participantData = participantsSheet.getDataRange().getValues();
+  const participants = [];
+
+  for (let i = 1; i < participantData.length; i++) {
+    participants.push({
+      participantId: participantData[i][0],
+      firstName: participantData[i][1],
+      lastName: participantData[i][2]
+    });
+  }
+
+  // Get all submissions
+  const submissionData = submissionsSheet.getDataRange().getValues();
+
+  // Calculate stats for each participant
+  const leaderboard = participants.map(participant => {
+    // Count completed challenges
+    const userSubmissions = [];
+    for (let i = 1; i < submissionData.length; i++) {
+      if (submissionData[i][1] === participant.participantId) {
+        userSubmissions.push(submissionData[i][2]); // Challenge number
+      }
+    }
+
+    const completed = new Set(userSubmissions).size;
+
+    return {
+      participantId: participant.participantId,
+      firstName: participant.firstName,
+      lastName: participant.lastName,
+      completed: completed,
+      totalWIS: 0, // Will be calculated when ground truth is available
+      avgWIS: 0
+    };
+  })
+  .filter(p => p.completed === 3) // Only show participants who completed all 3 challenges
+  .sort((a, b) => b.completed - a.completed); // Sort by completed (desc)
+
+  // Add rank
+  leaderboard.forEach((entry, index) => {
+    entry.rank = index + 1;
+  });
 
   return {
     success: true,

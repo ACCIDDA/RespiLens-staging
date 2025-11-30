@@ -19,61 +19,41 @@ export const TOURNAMENT_CONFIG = {
   challengesAlwaysActive: true,
 
   // Number of challenges
-  numChallenges: 5,
+  numChallenges: 3,
 
   // Challenge configuration
-  // Each challenge targets a specific disease, location, and forecast horizon
+  // Each challenge shows 1, 2, and 3 week ahead forecasts (like Forecastle)
   challenges: [
     {
       id: 'ch-1',
       number: 1,
-      title: 'National Flu Forecast',
-      description: 'Predict US flu hospitalizations 1 week ahead',
+      title: 'US Influenza Forecast',
+      description: 'Predict US flu hospitalizations for 1, 2, and 3 weeks ahead',
       dataset: 'flu',
       location: 'US',
       target: 'wk ahead inc flu hosp',
-      horizon: 1, // 1 week ahead
+      horizons: [1, 2, 3], // Multiple horizons like Forecastle
       // forecastDate will be dynamically set to current date
     },
     {
       id: 'ch-2',
       number: 2,
-      title: 'California RSV Forecast',
-      description: 'Predict California RSV hospitalizations 1 week ahead',
-      dataset: 'rsv',
-      location: 'CA',
-      target: 'wk ahead inc rsv hosp',
-      horizon: 1,
+      title: 'US COVID-19 Forecast',
+      description: 'Predict US COVID hospitalizations for 1, 2, and 3 weeks ahead',
+      dataset: 'covid',
+      location: 'US',
+      target: 'wk inc covid hosp',
+      horizons: [1, 2, 3],
     },
     {
       id: 'ch-3',
       number: 3,
-      title: 'New York COVID Forecast',
-      description: 'Predict New York COVID hospitalizations 1 week ahead',
-      dataset: 'covid',
-      location: 'NY',
-      target: 'wk inc covid hosp',
-      horizon: 1,
-    },
-    {
-      id: 'ch-4',
-      number: 4,
-      title: 'Texas Flu Forecast',
-      description: 'Predict Texas flu hospitalizations 2 weeks ahead',
-      dataset: 'flu',
-      location: 'TX',
-      target: 'wk ahead inc flu hosp',
-      horizon: 2,
-    },
-    {
-      id: 'ch-5',
-      number: 5,
-      title: 'Florida RSV Forecast',
-      description: 'Predict Florida RSV hospitalizations 2 weeks ahead',
+      title: 'US RSV Forecast',
+      description: 'Predict US RSV hospitalizations for 1, 2, and 3 weeks ahead',
       dataset: 'rsv',
-      location: 'FL',
+      location: 'US',
       target: 'wk ahead inc rsv hosp',
-      horizon: 2,
+      horizons: [1, 2, 3],
     },
   ],
 
@@ -89,7 +69,7 @@ export const TOURNAMENT_CONFIG = {
     updateFrequency: 30000, // 30 seconds (polling interval)
     showRealNames: true, // Display participant names
     showScoreBreakdown: true, // Show detailed WIS breakdown
-    onlyShowCompleted: true, // Only show participants who completed all 5 challenges
+    onlyShowCompleted: true, // Only show participants who completed all 3 challenges
     rankingMethod: 'avgWIS', // Rank by average WIS across all challenges
   },
 
@@ -122,7 +102,7 @@ export const TOURNAMENT_CONFIG = {
 
   // Feature flags
   features: {
-    allowResubmit: true, // Allow participants to update their forecasts
+    allowResubmit: false, // Don't allow participants to update their forecasts
     showOtherForecasts: false, // Don't show other participants' forecasts
     showModelComparisons: false, // Don't show model forecasts in challenges
     enableSocialSharing: true, // Enable sharing results
