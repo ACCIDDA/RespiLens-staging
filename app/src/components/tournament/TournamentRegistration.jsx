@@ -82,7 +82,7 @@ const TournamentRegistration = ({ onSuccess }) => {
               <strong>How it works:</strong>
             </Text>
             <Text size="sm" color="dimmed" mt="xs">
-              • Complete 5 forecasting challenges
+              • Complete 3 forecasting challenges
               <br />
               • Predict hospitalization counts for different diseases and locations
               <br />

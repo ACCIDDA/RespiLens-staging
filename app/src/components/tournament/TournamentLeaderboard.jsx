@@ -109,7 +109,7 @@ const TournamentLeaderboard = ({ participantId }) => {
           };
         });
 
-        // Filter to only show participants who completed all 5 challenges
+        // Filter to only show participants who completed all challenges
         const completed = scoredLeaderboard.filter(p => p.completed === TOURNAMENT_CONFIG.numChallenges);
 
         // Sort by avgWIS (lower is better)
@@ -167,7 +167,7 @@ const TournamentLeaderboard = ({ participantId }) => {
           No participants have completed all challenges yet.
         </Text>
         <Text color="dimmed" size="sm">
-          Be the first to complete all 5 challenges and claim the top spot!
+          Be the first to complete all {TOURNAMENT_CONFIG.numChallenges} challenges and claim the top spot!
         </Text>
       </Stack>
     );
@@ -183,7 +183,7 @@ const TournamentLeaderboard = ({ participantId }) => {
       <Text size="sm" color="dimmed">
         Only showing participants who completed all {TOURNAMENT_CONFIG.numChallenges} challenges
         <br />
-        Ranked by average WIS (lower is better) • Scores calculated client-side like Forecastle
+        Ranked by average WIS (lower is better)
       </Text>
 
       <Table striped highlightOnHover>
@@ -244,7 +244,7 @@ const TournamentLeaderboard = ({ participantId }) => {
       </Table>
 
       <Text size="xs" color="dimmed" style={{ textAlign: 'center' }}>
-        Leaderboard updates every 30 seconds • WIS scoring done client-side (like Forecastle)
+        Updates every 30 seconds
       </Text>
     </Stack>
   );

@@ -42,7 +42,7 @@ const AppLayout = () => {
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />
-        <Route path="/tournament" element={<TournamentDashboard />} />
+        <Route path="/epidemics10" element={<TournamentDashboard />} />
         <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
         <Route path="/documentation" element={<Documentation />} />
       </Routes>

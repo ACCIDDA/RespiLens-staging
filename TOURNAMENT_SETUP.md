@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Epidemics 10 Tournament is a multi-participant forecasting competition built into RespiLens. Participants compete by making predictions for 5 different epidemic forecasting challenges, and their accuracy is tracked on a live leaderboard.
+The Epidemics 10 Tournament is a multi-participant forecasting competition built into RespiLens. Participants compete by making predictions for 3 different epidemic forecasting challenges, and their accuracy is tracked on a live leaderboard.
+
+**Just like Forecastle**: Each challenge works exactly like a Forecastle game with 3 horizons (1, 2, 3 weeks ahead). After submitting, participants see their score compared to models and other participants.
 
 ## Architecture
 
@@ -43,7 +45,7 @@ sub-1        | uuid-1         | 1             | 2       | 1600   | 1300 | 1900 |
 sub-1        | uuid-1         | 1             | 3       | 1700   | 1400 | 2000 | 1100 | 2300 | 2025-11-18 10:30
 sub-2        | uuid-1         | 2             | 1       | 2300   | 2000 | 2600 | 1800 | 2900 | 2025-11-18 11:00
 ```
-**Note**: No WIS column - all scoring is calculated on the frontend like Forecastle!
+**Note**: No WIS column - all scoring is calculated on the frontend
 
 ---
 
@@ -337,9 +339,9 @@ export const TOURNAMENT_CONFIG = {
 
 ---
 
-## Architecture: Frontend Scoring (Like Forecastle!)
+## Architecture: Frontend Scoring
 
-✅ **All scoring is done on the frontend** - exactly like how Forecastle compares against models!
+✅ **All scoring is done on the frontend** using the same code as Forecastle
 
 ### How It Works
 
@@ -358,11 +360,11 @@ export const TOURNAMENT_CONFIG = {
 
 ### Benefits
 
-✅ **Consistency**: Uses exact same scoring code as Forecastle
-✅ **Simpler backend**: Google Sheets just stores/retrieves data
-✅ **Easier debugging**: All logic visible in browser DevTools
-✅ **No backend maintenance**: No complex spreadsheet formulas
-✅ **Same data source**: Ground truth from the same files as Forecastle
+- Uses exact same scoring code as Forecastle
+- Simpler backend - Google Sheets just stores/retrieves data
+- Easier debugging - all logic visible in browser DevTools
+- No complex spreadsheet formulas
+- Ground truth from the same files as Forecastle
 
 ### Historical Challenges
 
@@ -370,7 +372,5 @@ Each tournament challenge uses a specific past date where ground truth is alread
 - Challenge 1: US Flu on **2024-01-20**
 - Challenge 2: US COVID on **2024-02-10**
 - Challenge 3: US RSV on **2024-01-27**
-- Challenge 4: California Flu on **2024-02-03**
-- Challenge 5: New York Flu on **2024-01-13**
 
-This ensures instant scoring and fair comparison!
+This ensures instant scoring and fair comparison.
