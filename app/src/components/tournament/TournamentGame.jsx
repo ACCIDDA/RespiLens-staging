@@ -512,8 +512,8 @@ const ScoreDisplay = ({ scores, challenge, participantId, participantName, leade
   if (leaderboardData) {
     leaderboardData.forEach(p => {
       const submission = p.submissions?.[challenge.number];
-      // Skip current participant by checking both ID and name
-      if (submission && submission.length > 0 && p.id !== participantId && p.name !== participantName) {
+      // Skip current participant by checking participantId
+      if (submission && submission.length > 0 && p.participantId !== participantId) {
         const forecastEntries = submission.map(f => ({
           horizon: f.horizon,
           median: f.median,
