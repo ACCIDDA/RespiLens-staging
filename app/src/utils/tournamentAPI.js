@@ -89,24 +89,22 @@ const apiPost = async (payload) => {
 
 /**
  * Register a new participant or login existing participant
- * @param {string} firstName - Participant's first name
- * @param {string} lastName - Participant's last name
+ * @param {string} name - Participant's recognizable name
  * @returns {Promise<Object>} Participant data {participantId, message}
  */
-export const registerParticipant = async (firstName, lastName) => {
-  if (!firstName || !lastName) {
-    throw new Error('First name and last name are required');
+export const registerParticipant = async (name) => {
+  if (!name) {
+    throw new Error('Name is required');
   }
 
   const data = await apiPost({
     action: 'register',
-    firstName: firstName.trim(),
-    lastName: lastName.trim(),
+    name: name.trim(),
   });
 
   // Store in localStorage
   localStorage.setItem(TOURNAMENT_CONFIG.storageKeys.participantId, data.participantId);
-  localStorage.setItem(TOURNAMENT_CONFIG.storageKeys.participantName, `${firstName} ${lastName}`);
+  localStorage.setItem(TOURNAMENT_CONFIG.storageKeys.participantName, name.trim());
 
   return data;
 };
@@ -115,10 +113,10 @@ export const registerParticipant = async (firstName, lastName) => {
  * Submit a forecast for a challenge
  * @param {string} participantId - Participant ID
  * @param {number} challengeNum - Challenge number (1-5)
- * @param {Object} forecast - Forecast data {median, q25, q75, q025, q975}
+ * @param {Array|Object} forecasts - Array of forecast entries (one per horizon) or single forecast object for backward compatibility
  * @returns {Promise<Object>} Submission data {submissionId, message}
  */
-export const submitForecast = async (participantId, challengeNum, forecast) => {
+export const submitForecast = async (participantId, challengeNum, forecasts) => {
   if (!participantId) {
     throw new Error('Participant ID is required');
   }
@@ -127,19 +125,36 @@ export const submitForecast = async (participantId, challengeNum, forecast) => {
     throw new Error(`Challenge number must be between 1 and ${TOURNAMENT_CONFIG.numChallenges}`);
   }
 
-  if (!forecast || !forecast.median) {
+  if (!forecasts) {
     throw new Error('Forecast data is required');
   }
+
+  // Convert to array if single forecast object (backward compatibility)
+  const forecastArray = Array.isArray(forecasts) ? forecasts : [forecasts];
+
+  // Validate that all forecasts have required fields
+  for (const forecast of forecastArray) {
+    if (!forecast || forecast.median === null || forecast.median === undefined) {
+      throw new Error('Each forecast must have a median value');
+    }
+  }
+
+  // Format forecasts for submission
+  const formattedForecasts = forecastArray.map(f => ({
+    horizon: f.horizon || 1,
+    median: f.median,
+    q25: f.q25 || f.lower50,
+    q75: f.q75 || f.upper50,
+    q025: f.q025 || f.lower95,
+    q975: f.q975 || f.upper95,
+  }));
 
   const data = await apiPost({
     action: 'submitForecast',
     participantId,
     challengeNum,
-    median: forecast.median,
-    q25: forecast.q25 || forecast.lower50,
-    q75: forecast.q75 || forecast.upper50,
-    q025: forecast.q025 || forecast.lower95,
-    q975: forecast.q975 || forecast.upper95,
+    forecasts: formattedForecasts,
+    // No WIS - scoring is done on frontend
   });
 
   // Update last sync time

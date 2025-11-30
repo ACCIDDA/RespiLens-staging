@@ -27,46 +27,23 @@ Your sheet should have the following tabs:
 
 ### 1. **Participants** (Sheet 1)
 ```
-participant_id | first_name | last_name | joined_at
----------------|------------|-----------|-------------------
-uuid-1         | Alice      | Smith     | 2025-11-18 10:00
-uuid-2         | Bob        | Jones     | 2025-11-18 10:15
+participant_id | name          | joined_at
+---------------|---------------|-------------------
+uuid-1         | DrForecast    | 2025-11-18 10:00
+uuid-2         | TeamBlue      | 2025-11-18 10:15
 ```
 
 ### 2. **Submissions** (Sheet 2)
+**Simple format - just raw forecasts (scoring done on frontend):**
 ```
-submission_id | participant_id | challenge_num | median | q25  | q75  | q025 | q975 | submitted_at
--------------|----------------|---------------|--------|------|------|------|------|-------------------
-sub-1        | uuid-1         | 1             | 1500   | 1200 | 1800 | 900  | 2100 | 2025-11-18 10:30
-sub-2        | uuid-1         | 2             | 2300   | 2000 | 2600 | 1800 | 2900 | 2025-11-18 11:00
+submission_id | participant_id | challenge_num | horizon | median | q25  | q75  | q025 | q975 | submitted_at
+-------------|----------------|---------------|---------|--------|------|------|------|------|-------------------
+sub-1        | uuid-1         | 1             | 1       | 1500   | 1200 | 1800 | 900  | 2100 | 2025-11-18 10:30
+sub-1        | uuid-1         | 1             | 2       | 1600   | 1300 | 1900 | 1000 | 2200 | 2025-11-18 10:30
+sub-1        | uuid-1         | 1             | 3       | 1700   | 1400 | 2000 | 1100 | 2300 | 2025-11-18 10:30
+sub-2        | uuid-1         | 2             | 1       | 2300   | 2000 | 2600 | 1800 | 2900 | 2025-11-18 11:00
 ```
-
-### 3. **Scores** (Sheet 3)
-```
-submission_id | challenge_num | wis   | dispersion | underprediction | overprediction | rank | ground_truth
--------------|---------------|-------|------------|-----------------|----------------|------|-------------
-sub-1        | 1             | 125.5 | 80.0       | 30.0            | 15.5           | 1    | 1450
-```
-
-### 4. **Leaderboard** (Sheet 4 - Calculated)
-```
-participant_id | first_name | last_name | total_wis | avg_wis | completed | rank
----------------|------------|-----------|-----------|---------|-----------|------
-uuid-1         | Alice      | Smith     | 450.2     | 90.0    | 5         | 1
-uuid-2         | Bob        | Jones     | 512.8     | 102.6   | 5         | 2
-```
-
-**Leaderboard Formula** (in Sheet 4, auto-calculated):
-```
-=QUERY(
-  {Participants!A:C,
-   ARRAYFORMULA(SUMIF(Scores!A:A, Submissions!A:A, Scores!C:C)),
-   ARRAYFORMULA(AVERAGEIF(Scores!A:A, Submissions!A:A, Scores!C:C)),
-   ARRAYFORMULA(COUNTIF(Submissions!B:B, Participants!A:A))},
-  "SELECT * WHERE Col6 = 5 ORDER BY Col5 ASC",
-  1
-)
-```
+**Note**: No WIS column - all scoring is calculated on the frontend like Forecastle!
 
 ---
 
@@ -135,7 +112,7 @@ function registerParticipant(ss, data) {
   // Check if name already exists
   const existingData = sheet.getDataRange().getValues();
   for (let i = 1; i < existingData.length; i++) {
-    if (existingData[i][1] === data.firstName && existingData[i][2] === data.lastName) {
+    if (existingData[i][1] === data.name) {
       return {
         success: true,
         participantId: existingData[i][0],
@@ -145,7 +122,7 @@ function registerParticipant(ss, data) {
   }
 
   // Add new participant
-  sheet.appendRow([participantId, data.firstName, data.lastName, timestamp]);
+  sheet.appendRow([participantId, data.name, timestamp]);
 
   return {
     success: true,
@@ -159,43 +136,45 @@ function submitForecast(ss, data) {
   const submissionId = Utilities.getUuid();
   const timestamp = new Date().toISOString();
 
-  // Check if already submitted for this challenge
-  const existingData = submissionsSheet.getDataRange().getValues();
-  for (let i = 1; i < existingData.length; i++) {
-    if (existingData[i][1] === data.participantId && existingData[i][2] === data.challengeNum) {
-      // Update existing submission
-      submissionsSheet.getRange(i + 1, 1, 1, 9).setValues([[
-        existingData[i][0], // Keep same submission ID
-        data.participantId,
-        data.challengeNum,
-        data.median,
-        data.q25,
-        data.q75,
-        data.q025,
-        data.q975,
-        timestamp
-      ]]);
+  // Handle multiple horizons (new format)
+  const forecasts = data.forecasts || [{
+    horizon: 1,
+    median: data.median,
+    q25: data.q25,
+    q75: data.q75,
+    q025: data.q025,
+    q975: data.q975
+  }];
 
-      return {
-        success: true,
-        submissionId: existingData[i][0],
-        message: 'Forecast updated!'
-      };
+  // Delete existing submissions for this challenge
+  const existingData = submissionsSheet.getDataRange().getValues();
+  const rowsToDelete = [];
+  for (let i = existingData.length - 1; i >= 1; i--) {
+    if (existingData[i][1] === data.participantId && existingData[i][2] === data.challengeNum) {
+      rowsToDelete.push(i + 1); // +1 because sheet rows are 1-indexed
     }
   }
 
-  // Add new submission
-  submissionsSheet.appendRow([
-    submissionId,
-    data.participantId,
-    data.challengeNum,
-    data.median,
-    data.q25,
-    data.q75,
-    data.q025,
-    data.q975,
-    timestamp
-  ]);
+  // Delete rows in reverse order to maintain indices
+  for (const rowIndex of rowsToDelete) {
+    submissionsSheet.deleteRow(rowIndex);
+  }
+
+  // Add new submissions (one row per horizon)
+  forecasts.forEach(forecast => {
+    submissionsSheet.appendRow([
+      submissionId,
+      data.participantId,
+      data.challengeNum,
+      forecast.horizon,
+      forecast.median,
+      forecast.q25,
+      forecast.q75,
+      forecast.q025,
+      forecast.q975,
+      timestamp
+    ]);
+  });
 
   return {
     success: true,
@@ -215,41 +194,50 @@ function getLeaderboard(ss) {
   for (let i = 1; i < participantData.length; i++) {
     participants.push({
       participantId: participantData[i][0],
-      firstName: participantData[i][1],
-      lastName: participantData[i][2]
+      name: participantData[i][1]
     });
   }
 
   // Get all submissions
   const submissionData = submissionsSheet.getDataRange().getValues();
 
-  // Calculate stats for each participant
-  const leaderboard = participants.map(participant => {
-    // Count completed challenges
-    const userSubmissions = [];
-    for (let i = 1; i < submissionData.length; i++) {
-      if (submissionData[i][1] === participant.participantId) {
-        userSubmissions.push(submissionData[i][2]); // Challenge number
-      }
+  // Group submissions by participant and challenge
+  const participantSubmissions = {};
+
+  for (let i = 1; i < submissionData.length; i++) {
+    const participantId = submissionData[i][1];
+    const challengeNum = submissionData[i][2];
+    const horizon = submissionData[i][3];
+
+    if (!participantSubmissions[participantId]) {
+      participantSubmissions[participantId] = {};
     }
 
-    const completed = new Set(userSubmissions).size;
+    if (!participantSubmissions[participantId][challengeNum]) {
+      participantSubmissions[participantId][challengeNum] = [];
+    }
+
+    participantSubmissions[participantId][challengeNum].push({
+      horizon: horizon,
+      median: submissionData[i][4],
+      q25: submissionData[i][5],
+      q75: submissionData[i][6],
+      q025: submissionData[i][7],
+      q975: submissionData[i][8]
+    });
+  }
+
+  // Build leaderboard data (frontend will calculate WIS)
+  const leaderboard = participants.map(participant => {
+    const submissions = participantSubmissions[participant.participantId] || {};
+    const completed = Object.keys(submissions).length;
 
     return {
       participantId: participant.participantId,
-      firstName: participant.firstName,
-      lastName: participant.lastName,
+      name: participant.name,
       completed: completed,
-      totalWIS: 0, // Will be calculated when ground truth is available
-      avgWIS: 0
+      submissions: submissions // Send raw submissions to frontend for scoring
     };
-  })
-  .filter(p => p.completed === 3) // Only show participants who completed all 3 challenges
-  .sort((a, b) => b.completed - a.completed); // Sort by completed (desc)
-
-  // Add rank
-  leaderboard.forEach((entry, index) => {
-    entry.rank = index + 1;
   });
 
   return {
@@ -269,8 +257,7 @@ function getParticipant(ss, participantId) {
     if (participantData[i][0] === participantId) {
       participant = {
         participantId: participantData[i][0],
-        firstName: participantData[i][1],
-        lastName: participantData[i][2]
+        name: participantData[i][1]
       };
       break;
     }
@@ -283,22 +270,39 @@ function getParticipant(ss, participantId) {
     };
   }
 
-  // Get submissions
+  // Get submissions (grouped by challenge)
   const submissionData = submissionsSheet.getDataRange().getValues();
-  const submissions = [];
+  const submissionsByChallenge = {};
+
   for (let i = 1; i < submissionData.length; i++) {
     if (submissionData[i][1] === participantId) {
-      submissions.push({
-        challengeNum: submissionData[i][2],
-        median: submissionData[i][3],
-        q25: submissionData[i][4],
-        q75: submissionData[i][5],
-        q025: submissionData[i][6],
-        q975: submissionData[i][7],
-        submittedAt: submissionData[i][8]
+      const challengeNum = submissionData[i][2];
+      const horizon = submissionData[i][3];
+
+      if (!submissionsByChallenge[challengeNum]) {
+        submissionsByChallenge[challengeNum] = {
+          challengeNum: challengeNum,
+          forecasts: [],
+          submittedAt: submissionData[i][9]
+        };
+      }
+
+      submissionsByChallenge[challengeNum].forecasts.push({
+        horizon: horizon,
+        median: submissionData[i][4],
+        q25: submissionData[i][5],
+        q75: submissionData[i][6],
+        q025: submissionData[i][7],
+        q975: submissionData[i][8]
       });
     }
   }
+
+  // Convert to array and sort forecasts by horizon
+  const submissions = Object.values(submissionsByChallenge).map(sub => ({
+    ...sub,
+    forecasts: sub.forecasts.sort((a, b) => a.horizon - b.horizon)
+  }));
 
   return {
     success: true,
@@ -327,6 +331,46 @@ export const TOURNAMENT_CONFIG = {
 
 ## Testing
 
-1. Test registration: `POST {apiUrl}?action=register` with `{firstName: 'Alice', lastName: 'Smith'}`
+1. Test registration: `POST {apiUrl}?action=register` with `{name: 'DrForecast'}`
 2. Test submission: `POST {apiUrl}?action=submitForecast` with forecast data
 3. Test leaderboard: `GET {apiUrl}?action=getLeaderboard`
+
+---
+
+## Architecture: Frontend Scoring (Like Forecastle!)
+
+✅ **All scoring is done on the frontend** - exactly like how Forecastle compares against models!
+
+### How It Works
+
+**Google Sheets = Dumb Data Store**
+- Only stores raw forecast submissions (median, q25, q75, q025, q975)
+- No WIS calculations
+- No ranking logic
+- Just stores and retrieves data
+
+**Frontend = Smart Scoring Engine**
+1. **TournamentLeaderboard** fetches all participants' forecasts from Google Sheets
+2. Loads ground truth data from the same files Forecastle uses
+3. Calculates WIS for each participant/challenge using `scoreUserForecast()`
+4. Builds leaderboard rankings in JavaScript
+5. Displays real-time scores (updates every 30 seconds)
+
+### Benefits
+
+✅ **Consistency**: Uses exact same scoring code as Forecastle
+✅ **Simpler backend**: Google Sheets just stores/retrieves data
+✅ **Easier debugging**: All logic visible in browser DevTools
+✅ **No backend maintenance**: No complex spreadsheet formulas
+✅ **Same data source**: Ground truth from the same files as Forecastle
+
+### Historical Challenges
+
+Each tournament challenge uses a specific past date where ground truth is already available:
+- Challenge 1: US Flu on **2024-01-20**
+- Challenge 2: US COVID on **2024-02-10**
+- Challenge 3: US RSV on **2024-01-27**
+- Challenge 4: California Flu on **2024-02-03**
+- Challenge 5: New York Flu on **2024-01-13**
+
+This ensures instant scoring and fair comparison!

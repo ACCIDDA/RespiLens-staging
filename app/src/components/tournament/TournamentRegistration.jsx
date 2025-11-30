@@ -5,8 +5,7 @@ import { registerParticipant } from '../../utils/tournamentAPI';
 import { TOURNAMENT_CONFIG } from '../../config';
 
 const TournamentRegistration = ({ onSuccess }) => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -14,16 +13,16 @@ const TournamentRegistration = ({ onSuccess }) => {
     e.preventDefault();
     setError(null);
 
-    if (!firstName.trim() || !lastName.trim()) {
-      setError('Please enter both first and last name');
+    if (!name.trim()) {
+      setError('Please enter a recognizable name');
       return;
     }
 
     setLoading(true);
 
     try {
-      const data = await registerParticipant(firstName, lastName);
-      onSuccess(data.participantId, `${firstName} ${lastName}`);
+      const data = await registerParticipant(name);
+      onSuccess(data.participantId, name);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -56,21 +55,13 @@ const TournamentRegistration = ({ onSuccess }) => {
           <form onSubmit={handleSubmit}>
             <Stack spacing="md">
               <TextInput
-                label="First Name"
-                placeholder="Enter your first name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                label="Your Name"
+                placeholder="Enter a recognizable name (e.g., your name :) )"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
                 size="lg"
-              />
-
-              <TextInput
-                label="Last Name"
-                placeholder="Enter your last name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                size="lg"
+                description="Choose a name that others will recognize you by on the leaderboard"
               />
 
               <Button

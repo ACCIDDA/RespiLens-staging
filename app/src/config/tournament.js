@@ -9,7 +9,7 @@ export const TOURNAMENT_CONFIG = {
 
   // Tournament metadata
   name: 'Epidemics 10 Forecasting Tournament',
-  description: 'Compete in 5 epidemic forecasting challenges and climb the leaderboard',
+  description: 'Compete in 5 epidemic forecasting challenges (3 horizons each, just like Forecastle) and climb the leaderboard',
 
   // Google Sheets integration
   // IMPORTANT: Replace with your deployed Google Apps Script Web App URL
@@ -19,10 +19,11 @@ export const TOURNAMENT_CONFIG = {
   challengesAlwaysActive: true,
 
   // Number of challenges
-  numChallenges: 3,
+  numChallenges: 5,
 
   // Challenge configuration
   // Each challenge shows 1, 2, and 3 week ahead forecasts (like Forecastle)
+  // Using historical dates where ground truth is already available
   challenges: [
     {
       id: 'ch-1',
@@ -30,10 +31,13 @@ export const TOURNAMENT_CONFIG = {
       title: 'US Influenza Forecast',
       description: 'Predict US flu hospitalizations for 1, 2, and 3 weeks ahead',
       dataset: 'flu',
+      datasetKey: 'flusight',
+      dataPath: 'flusight',
+      fileSuffix: 'flu.json',
       location: 'US',
-      target: 'wk ahead inc flu hosp',
-      horizons: [1, 2, 3], // Multiple horizons like Forecastle
-      // forecastDate will be dynamically set to current date
+      target: 'wk inc flu hosp',
+      horizons: [1, 2, 3],
+      forecastDate: '2024-01-20', // Historical date with ground truth available
     },
     {
       id: 'ch-2',
@@ -41,9 +45,13 @@ export const TOURNAMENT_CONFIG = {
       title: 'US COVID-19 Forecast',
       description: 'Predict US COVID hospitalizations for 1, 2, and 3 weeks ahead',
       dataset: 'covid',
+      datasetKey: 'covid19',
+      dataPath: 'covid19forecasthub',
+      fileSuffix: 'covid19.json',
       location: 'US',
       target: 'wk inc covid hosp',
       horizons: [1, 2, 3],
+      forecastDate: '2024-02-10',
     },
     {
       id: 'ch-3',
@@ -51,9 +59,41 @@ export const TOURNAMENT_CONFIG = {
       title: 'US RSV Forecast',
       description: 'Predict US RSV hospitalizations for 1, 2, and 3 weeks ahead',
       dataset: 'rsv',
+      datasetKey: 'rsv',
+      dataPath: 'rsvforecasthub',
+      fileSuffix: 'rsv.json',
       location: 'US',
-      target: 'wk ahead inc rsv hosp',
+      target: 'wk inc rsv hosp',
       horizons: [1, 2, 3],
+      forecastDate: '2024-01-27',
+    },
+    {
+      id: 'ch-4',
+      number: 4,
+      title: 'California Influenza Forecast',
+      description: 'Predict California flu hospitalizations for 1, 2, and 3 weeks ahead',
+      dataset: 'flu',
+      datasetKey: 'flusight',
+      dataPath: 'flusight',
+      fileSuffix: 'flu.json',
+      location: 'California',
+      target: 'wk inc flu hosp',
+      horizons: [1, 2, 3],
+      forecastDate: '2024-02-03',
+    },
+    {
+      id: 'ch-5',
+      number: 5,
+      title: 'New York Influenza Forecast',
+      description: 'Predict New York flu hospitalizations for 1, 2, and 3 weeks ahead',
+      dataset: 'flu',
+      datasetKey: 'flusight',
+      dataPath: 'flusight',
+      fileSuffix: 'flu.json',
+      location: 'New York',
+      target: 'wk inc flu hosp',
+      horizons: [1, 2, 3],
+      forecastDate: '2024-01-13',
     },
   ],
 
@@ -69,7 +109,7 @@ export const TOURNAMENT_CONFIG = {
     updateFrequency: 30000, // 30 seconds (polling interval)
     showRealNames: true, // Display participant names
     showScoreBreakdown: true, // Show detailed WIS breakdown
-    onlyShowCompleted: true, // Only show participants who completed all 3 challenges
+    onlyShowCompleted: true, // Only show participants who completed all 5 challenges
     rankingMethod: 'avgWIS', // Rank by average WIS across all challenges
   },
 
@@ -130,7 +170,7 @@ export const getChallengeByNumber = (challengeNumber) => {
 /**
  * Check if all challenges are completed
  * @param {Array} submissions - Array of submission objects
- * @returns {boolean} True if all 5 challenges have submissions
+ * @returns {boolean} True if all challenges have submissions
  */
 export const areAllChallengesCompleted = (submissions) => {
   if (!submissions || submissions.length === 0) return false;
