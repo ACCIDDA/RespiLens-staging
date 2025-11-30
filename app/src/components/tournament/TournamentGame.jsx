@@ -22,7 +22,6 @@ import { initialiseForecastInputs, convertToIntervals } from '../../utils/foreca
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
 import { TOURNAMENT_CONFIG } from '../../config';
 import {
-  extractGroundTruthForHorizons,
   scoreUserForecast,
   scoreModels,
   getOfficialModels,
@@ -56,7 +55,6 @@ const TournamentGame = ({ participantId, participantName, onAllCompleted }) => {
   const [loading, setLoading] = useState(true);
 
   const challenge = TOURNAMENT_CONFIG.challenges[currentChallengeIndex];
-  const isCurrentChallengeCompleted = completedChallenges.has(currentChallengeIndex);
   const allChallengesCompleted = completedChallenges.size === TOURNAMENT_CONFIG.numChallenges;
 
   // Load all challenge data and ground truth
@@ -502,9 +500,6 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
   if (!scores) return null;
 
   const { ensemble: ensembleKey, baseline: baselineKey } = getOfficialModels(challenge.datasetKey);
-
-  const ensembleScore = scores.models.find(m => m.modelName === ensembleKey);
-  const baselineScore = scores.models.find(m => m.modelName === baselineKey);
 
   // Create unified ranking
   const allRanked = [

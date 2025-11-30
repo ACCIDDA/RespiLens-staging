@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, Title, Text, Button, Badge, Stack, Group, Modal, Alert, Loader, Stepper, Box, Switch } from '@mantine/core';
-import { IconCheck, IconLock, IconEdit, IconAlertCircle, IconTrophy } from '@tabler/icons-react';
+import { IconCheck, IconLock, IconEdit, IconAlertCircle } from '@tabler/icons-react';
 import { useForecastData } from '../../hooks/useForecastData';
 import { submitForecast, getParticipant } from '../../utils/tournamentAPI';
-import { TOURNAMENT_CONFIG, FORECASTLE_CONFIG } from '../../config';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
-import { scoreUserForecast } from '../../utils/forecastleScoring';
 import ForecastleChartCanvas from '../forecastle/ForecastleChartCanvas';
 import ForecastleInputControls from '../forecastle/ForecastleInputControls';
 
@@ -26,8 +24,6 @@ const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubm
   const [inputMode, setInputMode] = useState('median'); // 'median' or 'intervals'
   const [existingSubmission, setExistingSubmission] = useState(null);
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view
-  const [fullGroundTruthData, setFullGroundTruthData] = useState(null);
-  const [loadingGroundTruth, setLoadingGroundTruth] = useState(true);
 
   // Map dataset to viewType
   const getViewType = (dataset) => {
@@ -42,34 +38,16 @@ const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubm
   // Load forecast data for the challenge (for displaying chart)
   const { data, loading: dataLoading } = useForecastData(challenge.location, getViewType(challenge.dataset));
 
-  // Load full ground truth data directly from data files for scoring
-  useEffect(() => {
-    const loadGroundTruth = async () => {
-      try {
-        const filePath = `/processed_data/${challenge.dataPath}/${challenge.location}_${challenge.fileSuffix}`;
-        const response = await fetch(filePath);
-        if (!response.ok) {
-          throw new Error(`Failed to load ground truth data: ${response.status}`);
-        }
-        const locationData = await response.json();
-        setFullGroundTruthData(locationData);
-      } catch (error) {
-        console.error('Failed to load ground truth data:', error);
-      } finally {
-        setLoadingGroundTruth(false);
-      }
-    };
-
-    loadGroundTruth();
-  }, [challenge.dataPath, challenge.location, challenge.fileSuffix]);
 
   // Get ground truth data for the chart
-  const groundTruthSeries = data?.ground_truth?.dates && data?.ground_truth?.[challenge.target]
-    ? data.ground_truth.dates.map((date, idx) => ({
-        date,
-        value: data.ground_truth[challenge.target][idx],
-      })).filter(entry => entry.value !== null).slice(-20) // Last 20 points
-    : [];
+  const groundTruthSeries = useMemo(() => {
+    return data?.ground_truth?.dates && data?.ground_truth?.[challenge.target]
+      ? data.ground_truth.dates.map((date, idx) => ({
+          date,
+          value: data.ground_truth[challenge.target][idx],
+        })).filter(entry => entry.value !== null).slice(-20) // Last 20 points
+      : [];
+  }, [data, challenge.target]);
 
   // Calculate latest observation value for initializing forecasts
   const latestObservationValue = useMemo(() => {

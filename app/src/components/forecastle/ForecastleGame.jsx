@@ -22,7 +22,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconTarget, IconTrophy, IconCopy, IconCheck as IconCheckCircle, IconChartBar, IconRefresh } from '@tabler/icons-react';
+import { IconAlertTriangle, IconTarget, IconTrophy, IconCopy, IconCheck, IconChartBar, IconRefresh } from '@tabler/icons-react';
 import { useForecastleScenario } from '../../hooks/useForecastleScenario';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
@@ -888,7 +888,7 @@ const ForecastleGame = () => {
                                         onClick={handleCopy}
                                         style={{ flexShrink: 0 }}
                                       >
-                                        {copied ? <IconCheckCircle size={18} /> : <IconCopy size={18} />}
+                                        {copied ? <IconCheck size={18} /> : <IconCopy size={18} />}
                                       </ActionIcon>
                                     </Tooltip>
                                   </Group>
