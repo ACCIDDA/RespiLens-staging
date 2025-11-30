@@ -28,17 +28,17 @@ export const TOURNAMENT_CONFIG = {
     {
       id: 'ch-1',
       number: 1,
-      title: 'California RSV Forecast',
-      description: 'Predict California RSV hospitalizations for 1, 2, and 3 weeks ahead',
-      dataset: 'rsv',
-      datasetKey: 'rsv',
-      dataPath: 'rsvforecasthub',
-      fileSuffix: 'rsv.json',
+      title: 'California Influenza Forecast',
+      description: 'Predict California flu hospitalizations for 1, 2, and 3 weeks ahead',
+      dataset: 'flu',
+      datasetKey: 'flusight',
+      dataPath: 'flusight',
+      fileSuffix: 'flu.json',
       location: 'CA',
       displayName: 'California',
-      target: 'wk inc rsv hosp',
+      target: 'wk inc flu hosp',
       horizons: [1, 2, 3],
-      forecastDate: '2025-09-27',
+      forecastDate: '2023-11-11',
     },
     {
       id: 'ch-2',
@@ -53,22 +53,22 @@ export const TOURNAMENT_CONFIG = {
       displayName: 'Texas',
       target: 'wk inc flu hosp',
       horizons: [1, 2, 3],
-      forecastDate: '2024-01-20',
+      forecastDate: '2025-01-18',
     },
     {
       id: 'ch-3',
       number: 3,
-      title: 'New York COVID-19 Forecast',
-      description: 'Predict New York COVID hospitalizations for 1, 2, and 3 weeks ahead',
+      title: 'North Carolina COVID-19 Forecast',
+      description: 'Predict North Carolina COVID hospitalizations for 1, 2, and 3 weeks ahead',
       dataset: 'covid',
       datasetKey: 'covid19',
       dataPath: 'covid19forecasthub',
       fileSuffix: 'covid19.json',
-      location: 'NY',
-      displayName: 'New York',
+      location: 'NC',
+      displayName: 'North Carolina',
       target: 'wk inc covid hosp',
       horizons: [1, 2, 3],
-      forecastDate: '2024-11-23',
+      forecastDate: '2025-09-13',
     },
   ],
 
@@ -84,7 +84,7 @@ export const TOURNAMENT_CONFIG = {
     updateFrequency: 30000, // 30 seconds (polling interval)
     showRealNames: true, // Display participant names
     showScoreBreakdown: true, // Show detailed WIS breakdown
-    onlyShowCompleted: true, // Only show participants who completed all 5 challenges
+    onlyShowCompleted: false, // Show all participants, not just those who completed all challenges
     rankingMethod: 'avgWIS', // Rank by average WIS across all challenges
   },
 

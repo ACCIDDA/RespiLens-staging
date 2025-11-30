@@ -512,8 +512,6 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
     ...scores.models.map(m => ({ name: m.modelName, wis: m.wis, isUser: false, type: 'model' }))
   ].sort((a, b) => a.wis - b.wis);
 
-  const userRank = allRanked.findIndex(e => e.isUser) + 1;
-
   // Add other participants if available
   if (leaderboardData) {
     leaderboardData.forEach(p => {
@@ -537,6 +535,9 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
     allRanked.sort((a, b) => a.wis - b.wis);
   }
 
+  // Calculate user rank AFTER adding all participants and final sort
+  const userRank = allRanked.findIndex(e => e.isUser) + 1;
+
   return (
     <Paper shadow="sm" p="lg" withBorder>
       <Stack spacing="lg">
@@ -548,21 +549,39 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
           <Text size="sm" c="dimmed">{challenge.title}</Text>
         </div>
 
+        {/* Action Buttons at Top */}
+        <Divider />
+        {!allCompleted ? (
+          <Button
+            size="lg"
+            onClick={onNextChallenge}
+            rightSection="→"
+            fullWidth
+          >
+            Next Challenge
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={onAllCompleted}
+            leftSection={<IconTrophy size={16} />}
+            color="green"
+            fullWidth
+          >
+            View Leaderboard
+          </Button>
+        )}
+
         <Divider />
 
-        {/* User Score */}
-        <Paper p="md" withBorder style={{ backgroundColor: '#e7f5ff' }}>
-          <Stack spacing="xs">
-            <Group position="apart">
-              <Text weight={700} size="lg">Your Forecast</Text>
-              <Badge size="xl" color="blue">Rank #{userRank}</Badge>
-            </Group>
-            <Text size="sm">
-              WIS: <strong>{scores.user.wis.toFixed(1)}</strong>
-            </Text>
-            <Text size="xs" c="dimmed">
-              Lower is better
-            </Text>
+        {/* User Score - Simple */}
+        <Paper p="lg" withBorder style={{ backgroundColor: '#e7f5ff' }}>
+          <Stack spacing="sm" align="center">
+            <Text weight={700} size="lg">Your Forecast</Text>
+            <Badge size="xl" color="blue">Rank #{userRank}</Badge>
+            {userRank / allRanked.length <= 0.1 && (
+              <Text size="md" weight={600} c="green">Bravo! 😊</Text>
+            )}
           </Stack>
         </Paper>
 
@@ -637,33 +656,6 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
             })()}
           </Stack>
         </div>
-
-        {/* Next Challenge Button */}
-        <Divider />
-        {!allCompleted ? (
-          <Button
-            size="lg"
-            onClick={onNextChallenge}
-            rightSection="→"
-          >
-            Next Challenge
-          </Button>
-        ) : (
-          <Stack spacing="md">
-            <Alert color="green" icon={<IconCheck size={16} />}>
-              <Text weight={600}>All {TOURNAMENT_CONFIG.numChallenges} challenges completed! 🎉</Text>
-              <Text size="sm">Great work! See how you rank on the global leaderboard.</Text>
-            </Alert>
-            <Button
-              size="lg"
-              onClick={onAllCompleted}
-              leftSection={<IconTrophy size={16} />}
-              color="green"
-            >
-              View Leaderboard
-            </Button>
-          </Stack>
-        )}
       </Stack>
     </Paper>
   );
