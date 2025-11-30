@@ -17,6 +17,9 @@ import { APP_CONFIG } from './app';
 // Forecastle game settings
 import { FORECASTLE_CONFIG } from './forecastle';
 
+// Tournament settings
+import { TOURNAMENT_CONFIG, getChallengeById, getChallengeByNumber, areAllChallengesCompleted } from './tournament';
+
 // Visualization and chart settings
 import { CHART_CONFIG } from './visualization';
 
@@ -24,6 +27,7 @@ import { CHART_CONFIG } from './visualization';
 export { DATASETS, getAllViewValues, MODEL_COLORS, getModelColor };
 export { APP_CONFIG };
 export { FORECASTLE_CONFIG };
+export { TOURNAMENT_CONFIG, getChallengeById, getChallengeByNumber, areAllChallengesCompleted };
 export { CHART_CONFIG };
 
 /**
