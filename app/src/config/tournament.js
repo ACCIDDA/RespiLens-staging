@@ -13,7 +13,7 @@ export const TOURNAMENT_CONFIG = {
 
   // Google Sheets integration
   // IMPORTANT: Replace with your deployed Google Apps Script Web App URL
-  apiUrl: process.env.VITE_TOURNAMENT_API_URL || '',
+  apiUrl: import.meta.env.VITE_TOURNAMENT_API_URL || '',
   sheetId: '17J5KWUrVuqmqqBcVJg2A-dfVdrL4LjXTvlztCDpS0g0',
 
   // Challenges are always active (no date restrictions as per requirements)
