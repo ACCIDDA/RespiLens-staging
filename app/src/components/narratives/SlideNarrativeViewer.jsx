@@ -532,6 +532,8 @@ The final view returns to the national perspective with our latest forecasts, sh
                     variant={index === currentSlide ? 'filled' : 'subtle'}
                     size="sm"
                     onClick={() => goToSlide(index)}
+                    aria-label={`Go to slide ${index + 1}`}
+                    aria-current={index === currentSlide ? 'true' : 'false'}
                   >
                     {index + 1}
                   </ActionIcon>

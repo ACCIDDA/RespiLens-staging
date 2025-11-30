@@ -163,8 +163,8 @@ const NHSNColumnSelector = ({
     <Stack gap="lg">
       <Group justify="space-between" align="center">
         <Group gap="sm" align="center">
-          <Text size="sm" fw={500}>Column unit:</Text>
           <Select
+            label="Column unit"
             placeholder="Choose a column unit"
             data={availableTargets || []}
             value={selectedTarget}
@@ -172,6 +172,7 @@ const NHSNColumnSelector = ({
             disabled={loading}
             allowDeselect={false}
             style={{ width: 300 }}
+            aria-label="Select column unit for NHSN data"
           />
         </Group>
       </Group>
