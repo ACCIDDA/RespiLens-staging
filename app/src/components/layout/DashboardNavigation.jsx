@@ -14,7 +14,7 @@ const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }
         </Group>
         
         <Group gap="xs">
-          <ActionIcon variant="subtle" size="lg">
+          <ActionIcon variant="subtle" size="lg" aria-label="Notifications">
             <IconBell size={20} />
           </ActionIcon>
           <Menu shadow="md" width={200}>

@@ -176,25 +176,8 @@ export class URLParameterManager {
   }
 
   // Initialize URL with defaults if missing (Less critical now with context handling)
+  // This method is kept for backward compatibility but may be redundant with ViewContext
   initializeDefaults() {
-    // This might interfere with context logic, consider removing or simplifying
-    // If kept, ensure it doesn't overwrite params set by context useEffects
-    console.warn("urlManager.initializeDefaults might be redundant or conflict with ViewContext.");
-    // const newParams = new URLSearchParams(this.searchParams);
-    // let updated = false;
-    //
-    // if (!this.searchParams.get('view')) {
-    //   newParams.set('view', this.getView()); // Use the getter which has default logic
-    //   updated = true;
-    // }
-    //
-    // if (!this.searchParams.get('location')) {
-    //   newParams.set('location', 'US');
-    //   updated = true;
-    // }
-    //
-    // if (updated) {
-    //   this.setSearchParams(newParams, { replace: true });
-    // }
+    // Intentionally empty - URL initialization now handled by ViewContext
   }
 }

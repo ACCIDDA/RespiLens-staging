@@ -22,7 +22,6 @@ import { initialiseForecastInputs, convertToIntervals } from '../../utils/foreca
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
 import { TOURNAMENT_CONFIG } from '../../config';
 import {
-  extractGroundTruthForHorizons,
   scoreUserForecast,
   scoreModels,
   getOfficialModels,
@@ -56,7 +55,6 @@ const TournamentGame = ({ participantId, participantName, onAllCompleted }) => {
   const [loading, setLoading] = useState(true);
 
   const challenge = TOURNAMENT_CONFIG.challenges[currentChallengeIndex];
-  const isCurrentChallengeCompleted = completedChallenges.has(currentChallengeIndex);
   const allChallengesCompleted = completedChallenges.size === TOURNAMENT_CONFIG.numChallenges;
 
   // Load all challenge data and ground truth
@@ -481,6 +479,7 @@ const TournamentGame = ({ participantId, participantName, onAllCompleted }) => {
           <ScoreDisplay
             scores={scores}
             challenge={challenge}
+            participantId={participantId}
             participantName={participantName}
             leaderboardData={leaderboardData}
             visibleRankings={visibleRankings}
@@ -498,13 +497,10 @@ const TournamentGame = ({ participantId, participantName, onAllCompleted }) => {
   );
 };
 
-const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, visibleRankings, onNextChallenge, allCompleted, onAllCompleted }) => {
+const ScoreDisplay = ({ scores, challenge, participantId, participantName, leaderboardData, visibleRankings, onNextChallenge, allCompleted, onAllCompleted }) => {
   if (!scores) return null;
 
   const { ensemble: ensembleKey, baseline: baselineKey } = getOfficialModels(challenge.datasetKey);
-
-  const ensembleScore = scores.models.find(m => m.modelName === ensembleKey);
-  const baselineScore = scores.models.find(m => m.modelName === baselineKey);
 
   // Create unified ranking
   const allRanked = [
@@ -516,7 +512,8 @@ const ScoreDisplay = ({ scores, challenge, participantName, leaderboardData, vis
   if (leaderboardData) {
     leaderboardData.forEach(p => {
       const submission = p.submissions?.[challenge.number];
-      if (submission && submission.length > 0 && p.name !== participantName) {
+      // Skip current participant by checking both ID and name
+      if (submission && submission.length > 0 && p.id !== participantId && p.name !== participantName) {
         const forecastEntries = submission.map(f => ({
           horizon: f.horizon,
           median: f.median,

@@ -18,12 +18,14 @@ const TargetSelector = () => {
   return (
     <Stack gap="xs">
       <Select
+        label="Select target metric"
         placeholder="Select a target"
         data={selectData}
         value={isDisabled ? null : selectedTarget}
         onChange={handleTargetSelect}
         disabled={isDisabled}
         allowDeselect={false}
+        aria-label="Select target metric for forecasting data"
       />
     </Stack>
   );
