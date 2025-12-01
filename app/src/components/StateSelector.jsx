@@ -129,12 +129,14 @@ const StateSelector = () => {
       <Stack gap="xs" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Text fw={500} size="sm" c="dimmed">Location</Text>
         <TextInput
+          label="Search locations"
           placeholder="Search states..."
           value={searchTerm}
           onChange={handleSearchChange}
           onKeyDown={handleKeyDown}
           leftSection={<IconSearch size={16} />}
           autoFocus 
+          aria-label="Search states and territories"
         />
         <ScrollArea style={{ flex: 1 }} type="auto">
           <Stack gap="xs">

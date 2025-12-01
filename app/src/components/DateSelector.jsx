@@ -12,7 +12,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               const dateIndex = availableDates.indexOf(date);
               const currentPosition = sortedDates.indexOf(date);
               const prevDate = availableDates[dateIndex - 1];
-              
+
               if (prevDate && (!sortedDates[currentPosition - 1] || new Date(prevDate) > new Date(sortedDates[currentPosition - 1]))) {
                 const newDates = [...selectedDates];
                 newDates[selectedDates.indexOf(date)] = prevDate;
@@ -26,6 +26,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
             }
             variant="subtle"
             size={{ base: 'sm', sm: 'md' }}
+            aria-label={`Previous date from ${date}`}
           >
             <IconChevronLeft size={18} />
           </ActionIcon>
@@ -48,6 +49,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               variant="subtle"
               size="xs"
               color="red"
+              aria-label={`Remove date ${date}`}
             >
               <IconX size={10} />
             </ActionIcon>
@@ -59,7 +61,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
               const dateIndex = availableDates.indexOf(date);
               const currentPosition = sortedDates.indexOf(date);
               const nextDate = availableDates[dateIndex + 1];
-              
+
               if (nextDate && (!sortedDates[currentPosition + 1] || new Date(nextDate) < new Date(sortedDates[currentPosition + 1]))) {
                 const newDates = [...selectedDates];
                 newDates[selectedDates.indexOf(date)] = nextDate;
@@ -73,6 +75,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
             }
             variant="subtle"
             size={{ base: 'sm', sm: 'md' }}
+            aria-label={`Next date from ${date}`}
           >
             <IconChevronRight size={18} />
           </ActionIcon>

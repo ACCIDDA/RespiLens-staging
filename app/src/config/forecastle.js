@@ -51,11 +51,11 @@ export const FORECASTLE_CONFIG = {
    * Default forecast interval widths
    * Used when players first load a scenario or reset their forecast
    *
-   * Values are percentages of the median (e.g., 0.2 = 20% of median)
+   * Values are percentages of the median (e.g., 0.5 = 50% of median)
    */
   defaultIntervals: {
-    width95Percent: 0.2, // 95% interval: median ± 20%
-    width50Percent: 0.1, // 50% interval: median ± 10%
+    width95Percent: 0.5, // 95% interval: median ± 50%
+    width50Percent: 0.25, // 50% interval: median ± 25%
   },
 
   /**

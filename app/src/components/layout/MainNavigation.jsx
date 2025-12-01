@@ -27,7 +27,7 @@ const MainNavigation = () => {
       </Group>
 
       {/* Desktop Navigation - Full Buttons */}
-      <Group gap="xs" visibleFrom="lg">
+      <Group gap="xs" visibleFrom="sm">
         {navigationItems.map((item) => (
           <Button
             key={item.href}

@@ -22,7 +22,6 @@ const PlotlyGaussianChart = () => {
       const script = document.createElement('script');
       script.src = 'https://cdn.plot.ly/plotly-2.27.0.min.js'; // Use specific version
       script.onload = () => {
-        console.log('Plotly loaded');
         setPlotlyLoaded(true);
       };
       script.onerror = () => {
@@ -150,11 +149,8 @@ const SlideNarrativeViewer = () => {
   }, []);
 
   const parseNarrative = useCallback((content) => {
-    console.log('parseNarrative called with content length:', content?.length);
-    
     try {
       const parts = content.split('---');
-      console.log('Split into parts:', parts.length);
       
       if (parts.length >= 3) {
         const frontmatterLines = parts[1].trim().split('\n');
@@ -165,14 +161,11 @@ const SlideNarrativeViewer = () => {
             parsedMetadata[key.trim()] = valueParts.join(':').trim().replace(/"/g, '');
           }
         });
-        console.log('Parsed metadata:', parsedMetadata);
         setMetadata(parsedMetadata);
 
         const slideContent = parts.slice(2).join('---');
-        console.log('Slide content length:', slideContent.length);
-        
+
         const slideMatches = slideContent.split(/\n# /).filter(s => s.trim());
-        console.log('Found slide matches:', slideMatches.length);
         
         const parsedSlides = slideMatches.map((slide, index) => {
           let normalizedSlide = slide;
@@ -191,7 +184,6 @@ const SlideNarrativeViewer = () => {
           return { title, url, content: body };
         });
 
-        console.log('Parsed slides:', parsedSlides.length, parsedSlides.map(s => s.title));
         setSlides(parsedSlides);
         
         const initialVisualizationUrl = parsedSlides[0]?.url || parsedMetadata.dataset;
@@ -214,12 +206,10 @@ const SlideNarrativeViewer = () => {
 
   useEffect(() => {
     const narrativeId = id || 'flu-winter-2024-25-slides';
-    console.log('Loading narrative:', narrativeId);
 
     const loadNarrative = async () => {
       try {
         const narrativeModule = await import(`../../data/narratives/${narrativeId}.js`);
-        console.log('Loaded narrative module');
         parseNarrative(narrativeModule.narrativeContent);
       } catch (error) {
         console.error('Error loading narrative module:', error);
@@ -325,7 +315,6 @@ The good model agreement provides confidence for short-term planning, though lon
 
 The final view returns to the national perspective with our latest forecasts, showing the overall trajectory as we move through the peak season.`;
 
-        console.log('Using fallback content');
         parseNarrative(fallbackContent);
       }
     };
@@ -543,6 +532,8 @@ The final view returns to the national perspective with our latest forecasts, sh
                     variant={index === currentSlide ? 'filled' : 'subtle'}
                     size="sm"
                     onClick={() => goToSlide(index)}
+                    aria-label={`Go to slide ${index + 1}`}
+                    aria-current={index === currentSlide ? 'true' : 'false'}
                   >
                     {index + 1}
                   </ActionIcon>
