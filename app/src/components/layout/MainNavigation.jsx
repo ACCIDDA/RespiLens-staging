@@ -1,11 +1,10 @@
 import { useLocation, Link } from 'react-router-dom';
-import { Group, Button, Image, Title, ActionIcon, useMantineColorScheme } from '@mantine/core';
-import { IconChartLine, IconTarget, IconDashboard, IconSun, IconMoon, IconClipboard } from '@tabler/icons-react';
+import { Group, Button, Image, Title } from '@mantine/core';
+import { IconChartLine, IconTarget, IconDashboard, IconClipboard } from '@tabler/icons-react';
 import InfoOverlay from '../InfoOverlay';
 
 const MainNavigation = () => {
   const location = useLocation();
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
 
   const isActive = (path) => location.pathname.startsWith(path);
 
@@ -45,14 +44,6 @@ const MainNavigation = () => {
 
       {/* Actions */}
       <Group gap="xs" style={{ flexShrink: 0 }}>
-        <ActionIcon
-          onClick={toggleColorScheme}
-          variant="subtle"
-          size="lg"
-          aria-label="Toggle color scheme"
-        >
-          {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-        </ActionIcon>
         <InfoOverlay />
       </Group>
     </Group>
