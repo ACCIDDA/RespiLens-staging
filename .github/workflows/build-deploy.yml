@@ -2,7 +2,10 @@ name: Build and Deploy Site
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # Daily at 4 AM ET (8 AM UTC) for a full build
+    # 1. Daily Full Build (Monday-Sunday) at 8 AM UTC (4 AM ET)
+    - cron: '0 8 * * *'
+    # 2. Hourly Wednesday Full Build (every Wednesday)
+    - cron: '0 * * * 3'  # Runs at the start of every hour (minute 0) on Wednesday (day 3)
   workflow_dispatch:
 
 permissions:
@@ -16,8 +19,7 @@ jobs:
     steps:
     - name: Checkout visualization repository
       uses: actions/checkout@v4
-
-    # This step now runs every time
+      
     - name: Clone Forecast Hubs
       run: |
         git clone https://github.com/cdcepi/FluSight-forecast-hub.git
@@ -43,7 +45,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install pandas numpy pyarrow tqdm requests hubdata jsonschema
 
-    # This single processing step now runs every time
     - name: Process All Datasets (Hubs + NHSN)
       run: |
         mkdir -p app/public/processed_data
@@ -64,14 +65,12 @@ jobs:
 
   build-and-deploy:  
     needs: [process-data]
-    if: always()
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-      # ... (The build-and-deploy job remains exactly the same) ...
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup Node.js
@@ -88,12 +87,6 @@ jobs:
       - name: Install dependencies
         working-directory: ./app
         run: npm ci
-      - name: Clean and Reinstall
-        working-directory: ./app
-        run: |
-          rm -rf node_modules
-          rm -f package-lock.json
-          npm install
       - name: Build website
         working-directory: ./app
         run: |
