@@ -60,18 +60,17 @@ export const ViewProvider = ({ children }) => {
     const params = urlManager.getDatasetParams(currentDataset);
     let needsModelUrlUpdate = false;
 
-    // --- Model Logic (NOW USES 'modelsForView') ---
+    // --- Model Logic ---
     let modelsToSet = [];
-    // Use 'modelsForView' to validate models
     const validUrlModels = params.models?.filter(m => modelsForView.includes(m)) || []; 
     if (validUrlModels.length > 0) {
         modelsToSet = validUrlModels;
     } else if (currentDataset.defaultModel && modelsForView.includes(currentDataset.defaultModel)) {
         modelsToSet = [currentDataset.defaultModel];
-        needsModelUrlUpdate = true;
+        needsModelUrlUpdate = true; 
     } else if (modelsForView.length > 0) {
-        modelsToSet = [modelsForView[0]]; // Default to first *available* model
-        needsModelUrlUpdate = true;
+        modelsToSet = [modelsForView[0]]; 
+        needsModelUrlUpdate = true; 
     }
 
     // --- Date Logic ---
@@ -104,7 +103,7 @@ export const ViewProvider = ({ children }) => {
 
     // --- Update URL if needed ---
     if (needsModelUrlUpdate) {
-      updateDatasetParams({ models: modelsToSet });
+      updateDatasetParams({ models: [] }); 
     }
   }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView]);
 
