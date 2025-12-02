@@ -345,14 +345,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }]
   }), [calculateYRange]);
 
-  if (viewType === 'flu' && !selectedTarget) {
-    return (
-        <Stack align="center" justify="center" style={{ height: '300px' }}>
-            <Text>Please select a target to view data.</Text>
-        </Stack>
-    );
-  }
-
   // Extract available dates from forecast data
   const availableDates = useMemo(() => {
     if (!forecasts) return [];
@@ -361,6 +353,14 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   // Determine the target for scoring (use selectedTarget for 'flu' view, default for 'flu_projs')
   const scoringTarget = viewType === 'flu' ? selectedTarget : 'wk inc flu hosp';
+
+  if (viewType === 'flu' && !selectedTarget) {
+    return (
+        <Stack align="center" justify="center" style={{ height: '300px' }}>
+            <Text>Please select a target to view data.</Text>
+        </Stack>
+    );
+  }
 
   return (
     <Stack>

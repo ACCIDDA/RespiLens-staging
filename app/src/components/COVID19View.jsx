@@ -277,6 +277,12 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
     }]
   }), [calculateYRange]);
 
+  // Extract available dates from forecast data
+  const availableDates = useMemo(() => {
+    if (!forecasts) return [];
+    return Object.keys(forecasts).sort();
+  }, [forecasts]);
+
   if (!selectedTarget) {
     return (
         <Stack align="center" justify="center" style={{ height: '300px' }}>
@@ -284,12 +290,6 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
         </Stack>
     );
   }
-
-  // Extract available dates from forecast data
-  const availableDates = useMemo(() => {
-    if (!forecasts) return [];
-    return Object.keys(forecasts).sort();
-  }, [forecasts]);
 
   return (
     <Stack>

@@ -301,6 +301,12 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }]
   }), [calculateYRange]);
 
+  // Extract available dates from forecast data
+  const availableDates = useMemo(() => {
+    if (!forecasts) return [];
+    return Object.keys(forecasts).sort();
+  }, [forecasts]);
+
   if (!selectedTarget) {
     return (
         <Stack align="center" justify="center" style={{ height: '300px' }}>
@@ -308,12 +314,6 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         </Stack>
     );
   }
-
-  // Extract available dates from forecast data
-  const availableDates = useMemo(() => {
-    if (!forecasts) return [];
-    return Object.keys(forecasts).sort();
-  }, [forecasts]);
 
   return (
     <Stack>
