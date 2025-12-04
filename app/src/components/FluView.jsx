@@ -23,6 +23,12 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
+  const lastSelectedDate = useMemo(() => {
+    if (selectedDates.length === 0) return null;
+    // Find the latest date
+    return selectedDates.slice().sort().pop();
+  }, [selectedDates]);
+
   const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
     let minY = Infinity;
@@ -120,7 +126,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const rateChangeData = useMemo(() => {
     if (!forecasts || selectedDates.length === 0) return [];
     const categoryOrder = RATE_CHANGE_CATEGORIES;
-    const lastSelectedDate = selectedDates.slice().sort().pop();
     return selectedModels.map(model => {
       const forecast = forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
       if (!forecast) return null;
@@ -133,7 +138,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       }));
       return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
     }).filter(Boolean);
-  }, [forecasts, selectedDates, selectedModels]);
+  }, [forecasts, selectedDates, selectedModels, lastSelectedDate]);
 
   const finalPlotData = useMemo(() => {
     const histogramTraces = viewType === 'fludetailed' 
@@ -290,6 +295,16 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }),
     ...(viewType === 'fludetailed' ? {
       xaxis2: {
+        title: {
+          text: `displaying date: ${lastSelectedDate || 'N/A'}`, 
+          font: {
+            family: 'Arial, sans-serif', 
+            size: 13,                   
+            color: '#1f77b4'
+          },
+          // Add space below the tick labels
+          standoff: 10 
+        },
         domain: [0.85, 1],
         showgrid: false
       },
@@ -302,7 +317,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         tickfont: { align: 'right' }
       }
     } : {})
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, viewType]);
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, viewType, lastSelectedDate]);
 
   const config = useMemo(() => ({
     responsive: true,
