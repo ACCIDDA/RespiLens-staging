@@ -367,6 +367,19 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     );
   }
 
+  if (viewType === 'flu_peak') {
+    return (
+        <Stack align="center" justify="center" style={{ height: '300px' }}>
+            <Text size="xl" weight={600} style={{ marginBottom: '10px' }}>
+                Flu Peak Forecast View
+            </Text>
+            <Text size="lg">
+                **Coming Soon!** 🚧 This view is currently under development 🚧.
+            </Text>
+        </Stack>
+    );
+  }
+
   return (
     <Stack>
       <LastFetched timestamp={metadata?.last_updated} />

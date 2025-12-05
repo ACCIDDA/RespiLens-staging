@@ -100,6 +100,7 @@ const ViewSwitchboard = ({
   switch (viewType) {
     case 'fludetailed':
     case 'flu_projs':
+    case 'flu_peak':
       return (
         <FluView
           data={data}

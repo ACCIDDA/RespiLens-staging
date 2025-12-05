@@ -26,6 +26,7 @@ export const useForecastData = (location, viewType) => {
         const datasetMap = {
           'fludetailed': { directory: 'flusight', suffix: 'flu' },
           'flu_projs': { directory: 'flusight', suffix: 'flu' },
+          'flu_peak': { directory: 'flusight', suffix: 'flu' },
           'covid_projs': { directory: 'covid19forecasthub', suffix: 'covid19' },
           'rsv_projs': { directory: 'rsvforecasthub', suffix: 'rsv' },
           'nhsnall': { directory: 'nhsn', suffix: 'nhsn' }

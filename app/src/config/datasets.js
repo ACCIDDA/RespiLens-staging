@@ -4,7 +4,8 @@ export const DATASETS = {
     fullName: 'Flu Forecasts',
     views: [
       { key: 'detailed', label: 'Detailed View', value: 'fludetailed' },
-      { key: 'projections', label: 'Projections', value: 'flu_projs' }
+      { key: 'projections', label: 'Projections', value: 'flu_projs' },
+      { key: 'peak', label: "Peak", value: 'flu_peak'}
     ],
     defaultView: 'flu_projs',
     defaultModel: 'FluSight-ensemble',
