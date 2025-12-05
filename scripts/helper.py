@@ -40,6 +40,12 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, fi
             - all `output_type` == sample removed.
     """
     df = df.copy()
+    # Set horizon for flu 'peak' targets = 50 (placeholder so it doesn't get filtered out)
+    peak_targets = {'peak inc flu hosp', 'peak week inc flu hosp'}
+    if 'target' in df.columns:
+        df['target'] = df['target'].astype(str)
+        is_peak_target = df['target'].isin(peak_targets)
+        df.loc[is_peak_target, 'horizon'] = 50
     # Drop NaN values in horizon column
     df = df.dropna(subset=['horizon'])
     # Ensure horizons are ints (not floats)

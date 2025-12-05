@@ -176,7 +176,21 @@ class HubDataProcessorBase:
     def _build_forecasts_key(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Build the forecasts section of an individual JSON file."""
         forecasts: Dict[str, Any] = {}
-        full_gbo = df.groupby(["reference_date", "target", "model_id", "horizon", "output_type"])
+        
+        # Define the peak targets
+        peak_targets = {'peak inc flu hosp', 'peak week inc flu hosp'}
+        standard_forecasts_df = df.copy()
+        peak_flu_targets_df = pd.DataFrame()
+        peak_targets_flag = False
+        
+        # Filter the main DataFrame into two parts: standard targets and peak targets
+        if peak_targets.intersection(set(df['target'])):
+            is_peak = df["target"].isin(peak_targets)
+            peak_flu_targets_df = df[is_peak].copy()
+            peak_targets_flag = True
+            standard_forecasts_df = df[~is_peak]
+        full_gbo = standard_forecasts_df.groupby(["reference_date", "target", "model_id", "horizon", "output_type"])
+        
         for _, grouped_df in full_gbo:
             output_type = grouped_df["output_type"].iloc[0]
             if output_type in self.config.drop_output_types:
@@ -208,10 +222,14 @@ class HubDataProcessorBase:
                     "probabilities": list(grouped_df["value"]),
                 }
             else:
+                # Note: This is based only on standard_forecasts_df
                 raise ValueError(
                     "`output_type` of input data must either be 'quantile' or 'pmf', "
                     f"received '{output_type}'"
                 )
+        
+        if peak_targets_flag: # TODO add logic that will introduce peak flu targets into the forecasts data 
+            pass
 
         return forecasts
 
