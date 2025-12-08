@@ -21,7 +21,8 @@ const DataVisualizationContainer = () => {
     currentDataset,
     selectedColumns,
     setSelectedColumns,
-    selectedTarget
+    selectedTarget, 
+    peaks
   } = useView();
 
   const [windowSize, setWindowSize] = useState({
@@ -310,6 +311,7 @@ const DataVisualizationContainer = () => {
                 setSelectedColumns={setSelectedColumns}
                 windowSize={windowSize}
                 selectedTarget={selectedTarget}
+                peaks={peaks}
               />
             </div>
           </Stack>

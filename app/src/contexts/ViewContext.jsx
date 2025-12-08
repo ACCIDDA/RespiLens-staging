@@ -21,7 +21,7 @@ export const ViewProvider = ({ children }) => {
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget } = useForecastData(selectedLocation, viewType);
+  const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks } = useForecastData(selectedLocation, viewType);
 
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
@@ -219,6 +219,7 @@ export const ViewProvider = ({ children }) => {
     availableTargets,
     selectedTarget,
     handleTargetSelect,
+    peaks
   };
 
   return (

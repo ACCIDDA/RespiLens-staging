@@ -8,7 +8,7 @@ import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
-const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget }) => {
+const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget, peaks }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); 
   const plotRef = useRef(null);
@@ -22,6 +22,9 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
+
+  const peakReferenceDatesCount = peaks ? Object.keys(peaks).length : 0;
+  const peakModelsCount = Object.keys(models || {}).length;
 
   const lastSelectedDate = useMemo(() => {
     if (selectedDates.length === 0) return null;
@@ -373,8 +376,24 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
             <Text size="xl" weight={600} style={{ marginBottom: '10px' }}>
                 Flu Peak Forecast View
             </Text>
-            <Text size="lg">
-                **Coming Soon!** 🚧 This view is currently under development 🚧.
+            
+            {/* Display basic summary data --- */}
+            {peakReferenceDatesCount > 0 ? (
+                <>
+                    <Text size="lg">
+                        ✅ **Peak Data Confirmed!** Found forecasts across **{peakReferenceDatesCount}** reference dates.
+                    </Text>
+                    <Text size="md" c="dimmed">
+                        Models available: {peakModelsCount}
+                    </Text>
+                </>
+            ) : (
+                <Text size="lg">
+                    ⚠️ **No Peak Data Found** for this location.
+                </Text>
+            )}
+            <Text size="sm" style={{ marginTop: '10px' }}>
+                🚧 View is currently under development 🚧
             </Text>
         </Stack>
     );

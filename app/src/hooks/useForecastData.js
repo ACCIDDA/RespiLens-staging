@@ -112,5 +112,5 @@ export const useForecastData = (location, viewType) => {
     fetchData();
   }, [location, viewType]);
 
-  return { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget };
+  return { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget,  peaks: data?.peaks || null };
 };
