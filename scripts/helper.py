@@ -57,14 +57,17 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, fi
     df = df[df['output_type'] != 'sample']
     if filter_quantiles:
         # Filter `output_type_id` values
-        # Only keep some quantiles, if pmf is implicated keep all `output_type_id` values
         categorical_ids = ['decrease', 'increase', 'large_decrease', 'large_increase', 'stable'] 
         numeric_ids = [0.025, 0.25, 0.5, 0.75, 0.975]
+        # Also valid, date-like values where target is 'peak' something
         numeric_output_ids = pd.to_numeric(df['output_type_id'], errors='coerce')
         is_categorical_id = df['output_type_id'].isin(categorical_ids)
         is_numeric_id = numeric_output_ids.isin(numeric_ids)
-        df = df[is_categorical_id | is_numeric_id]
-        # Ensure quantile column is numeric (if output_type = quantile)
+        date_output_ids = pd.to_datetime(df['output_type_id'], errors='coerce')
+        is_convertible_to_date = date_output_ids.notna()
+        is_peak_week_target = df['target'].astype(str).str.contains('peak week inc flu hosp', na=False)
+        is_valid_peak_date = is_convertible_to_date & is_peak_week_target
+        df = df[is_categorical_id | is_numeric_id | is_valid_peak_date]
         quantile_mask = df['output_type'] == 'quantile'
         df.loc[quantile_mask, 'output_type_id'] = df.loc[quantile_mask, 'output_type_id'].astype(float)
 
