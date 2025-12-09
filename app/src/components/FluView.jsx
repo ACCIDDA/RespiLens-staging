@@ -3,6 +3,7 @@ import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import FluPeak from './FluPeak';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
@@ -22,9 +23,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
-
-  const peakReferenceDatesCount = peaks ? Object.keys(peaks).length : 0;
-  const peakModelsCount = Object.keys(models || {}).length;
 
   const lastSelectedDate = useMemo(() => {
     if (selectedDates.length === 0) return null;
@@ -372,31 +370,8 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   if (viewType === 'flu_peak') {
     return (
-        <Stack align="center" justify="center" style={{ height: '300px' }}>
-            <Text size="xl" weight={600} style={{ marginBottom: '10px' }}>
-                Flu Peak Forecast View
-            </Text>
-            
-            {/* Display basic summary data --- */}
-            {peakReferenceDatesCount > 0 ? (
-                <>
-                    <Text size="lg">
-                        ✅ **Peak Data Confirmed!** Found forecasts across **{peakReferenceDatesCount}** reference dates.
-                    </Text>
-                    <Text size="md" c="dimmed">
-                        Models available: {peakModelsCount}
-                    </Text>
-                </>
-            ) : (
-                <Text size="lg">
-                    ⚠️ **No Peak Data Found** for this location.
-                </Text>
-            )}
-            <Text size="sm" style={{ marginTop: '10px' }}>
-                🚧 View is currently under development 🚧
-            </Text>
-        </Stack>
-    );
+      <FluPeak peaks={peaks} />
+    ); 
   }
 
   return (
