@@ -22,7 +22,9 @@ const ViewSwitchboard = ({
   setSelectedModels,
   windowSize,
   selectedTarget, 
-  peaks
+  peaks,
+  availablePeakDates, 
+  availablePeakModels
 }) => {
   // Show loading state
   if (loading) {
@@ -115,6 +117,8 @@ const ViewSwitchboard = ({
           getDefaultRange={getDefaultRange}
           selectedTarget={selectedTarget}
           peaks={peaks}
+          availablePeakDates={availablePeakDates}
+          availablePeakModels={availablePeakModels}
         />
       );
 

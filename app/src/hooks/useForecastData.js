@@ -11,6 +11,10 @@ export const useForecastData = (location, viewType) => {
   const [availableTargets, setAvailableTargets] = useState([]);
   const [modelsByTarget, setModelsByTarget] = useState({});
 
+  const [availablePeakDates, setAvailablePeakDates] = useState([]);
+  const [availablePeakModels, setAvailablePeakModels] = useState([]);
+  const peaks = data?.peaks || null;
+
   useEffect(() => {
     if (!location || !viewType) return;
 
@@ -112,5 +116,30 @@ export const useForecastData = (location, viewType) => {
     fetchData();
   }, [location, viewType]);
 
-  return { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget,  peaks: data?.peaks || null };
+  useEffect(() => {
+        if (!peaks || typeof peaks !== 'object') {
+            setAvailablePeakDates([]);
+            setAvailablePeakModels([]);
+            return;
+        }
+        
+        const dates = Object.keys(peaks).sort();
+        setAvailablePeakDates(dates);
+
+        const models = new Set();
+        const targets = new Set(); // Also extract targets here for consistency
+        Object.values(peaks).forEach(dateData => {
+            Object.entries(dateData).forEach(([targetName, targetData]) => {
+                targets.add(targetName);
+                Object.keys(targetData).forEach(modelId => {
+                    models.add(modelId);
+                });
+            });
+        });
+        setAvailablePeakModels(Array.from(models).sort());
+        // setAvailablePeakTargets(Array.from(targets).sort());, leave this for now 
+        
+    }, [peaks]);
+
+  return { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget,  peaks, availablePeakDates, availablePeakModels };
 };

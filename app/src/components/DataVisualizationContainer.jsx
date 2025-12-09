@@ -22,7 +22,9 @@ const DataVisualizationContainer = () => {
     selectedColumns,
     setSelectedColumns,
     selectedTarget, 
-    peaks
+    peaks,
+    availablePeakDates, 
+    availablePeakModels
   } = useView();
 
   const [windowSize, setWindowSize] = useState({
@@ -341,6 +343,8 @@ const DataVisualizationContainer = () => {
                 windowSize={windowSize}
                 selectedTarget={selectedTarget}
                 peaks={peaks}
+                availablePeakDates={availablePeakDates}
+                availablePeakModels={availablePeakModels}
               />
             </div>
           </Stack>

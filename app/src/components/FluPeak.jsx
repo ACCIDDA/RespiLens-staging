@@ -1,15 +1,8 @@
-import { useMemo } from 'react';
-import { Stack, Text, List } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 
-const FluPeak = ({ peaks }) => {
-    
-    // Extract available dates from peaks object (basic implementation)
-    const availablePeakDates = useMemo(() => {
-        if (!peaks || typeof peaks !== 'object') {
-            return [];
-        }
-        return Object.keys(peaks).sort().reverse();
-    }, [peaks]);
+const FluPeak = ({ peaks, peakDates, peakModels }) => {
+     // Store basic info for now
+    const hasData = peakDates && peakDates.length > 0;
 
     return (
         <Stack gap="lg" style={{ padding: '20px' }}>
@@ -17,23 +10,22 @@ const FluPeak = ({ peaks }) => {
                 Flu Peak Forecast Data Confirmation
             </Text>
 
-            {availablePeakDates.length > 0 ? (
+            {hasData ? (
                 <>
                     <Text size="md">
-                        ✅ **Data Received.** Found {availablePeakDates.length} total available peak forecast dates (reference dates).
+                        ✅ **Data Received.** Found {peakDates.length} total available peak forecast dates and {peakModels.length} total available models.
                     </Text>
                     
                     <Text size="sm" fw={600}>
-                        Available Reference Dates (Latest First):
+                        Available Reference Dates:
                     </Text>
-                    
-                    <List size="sm" spacing="xs" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {availablePeakDates.map(date => (
-                            <List.Item key={date}>
-                                {date}
-                            </List.Item>
-                        ))}
-                    </List>
+                    {/* Convert array to string for simple display */}
+                    <Text>{peakDates.join(', ')}</Text>
+
+                    <Text size="sm" fw={600}>
+                        Available Models:
+                    </Text>
+                    <Text>{peakModels.join(', ')}</Text>
                 </>
             ) : (
                 <Text size="md" c="dimmed">
