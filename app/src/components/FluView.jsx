@@ -297,7 +297,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     ...(viewType === 'fludetailed' ? {
       xaxis2: {
         title: {
-          text: `displaying date: ${lastSelectedDate || 'N/A'}`, 
+          text: `displaying date ${lastSelectedDate || 'N/A'}`, 
           font: {
             family: 'Arial, sans-serif', 
             size: 13,                   
