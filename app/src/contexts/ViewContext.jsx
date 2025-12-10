@@ -22,6 +22,13 @@ export const ViewProvider = ({ children }) => {
   const [selectedTarget, setSelectedTarget] = useState(null);
 
   const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
+
+  const availableDatesToExpose = useMemo(() => {
+    if (viewType === 'flu_peak') {
+      return availablePeakDates || [];
+    }
+    return availableDates || [];
+  }, [viewType, availablePeakDates, availableDates]);
   
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
@@ -197,7 +204,7 @@ export const ViewProvider = ({ children }) => {
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
-    data, metadata, loading, error, availableDates, models: modelsForView,
+    data, metadata, loading, error, availableDates: availableDatesToExpose, models: modelsForView,
     selectedModels, setSelectedModels: (updater) => {
       const resolveModels = (prevModels) => (
         typeof updater === 'function' ? updater(prevModels) : updater
