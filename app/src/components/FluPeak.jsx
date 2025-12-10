@@ -7,7 +7,7 @@ const FluPeak = ({ peaks, peakDates, peakModels }) => {
     return (
         <Stack gap="lg" style={{ padding: '20px' }}>
             <Text size="xl" fw={600}>
-                Flu Peak Forecast Data Confirmation
+                Flu Peak Forecast Data Coming Soon! 🏗️
             </Text>
 
             {hasData ? (

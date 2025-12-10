@@ -186,6 +186,16 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget, viewType]);
 
+  const finalActiveModels = useMemo(() => {
+    if (viewType === 'flu_peak') {
+      // For peak view, the model list *is* the list of active models.
+      // We wrap it in a Set to match the expected prop type of ModelSelector.
+      return new Set(availablePeakModels); 
+    }
+    // For projection views, use the complex activeModels calculation
+    return activeModels; 
+  }, [viewType, activeModels, availablePeakModels]);
+
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
   useEffect(() => {
@@ -370,11 +380,24 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   if (viewType === 'flu_peak') {
     return (
-      <FluPeak 
-      peaks={peaks}
-      peakDates={availablePeakDates}
-      peakModels={availablePeakModels}
-      />
+      <Stack>
+        <LastFetched timestamp={metadata?.last_updated} />
+        <FluPeak 
+          peaks={peaks}
+          peakDates={availablePeakDates}
+          peakModels={availablePeakModels}
+        />
+        <ModelSelector 
+          models={availablePeakModels} 
+          selectedModels={selectedModels}
+          setSelectedModels={setSelectedModels}
+          activeModels={finalActiveModels} 
+          getModelColor={(model, selectedModels) => {
+            const index = selectedModels.indexOf(model);
+            return MODEL_COLORS[index % MODEL_COLORS.length];
+          }}
+        />
+      </Stack>
     ); 
   }
 
