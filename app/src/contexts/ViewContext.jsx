@@ -75,7 +75,7 @@ export const ViewProvider = ({ children }) => {
       return;
     }
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (loading || !currentDataset || modelsForView.length === 0 || availableDates.length === 0 || availableTargets.length === 0) {
+    if (loading || !currentDataset || modelsForView.length === 0 || availableDatesToExpose.length === 0 || availableTargets.length === 0) {
       return;
     }
 
@@ -95,11 +95,11 @@ export const ViewProvider = ({ children }) => {
     }
 
     let datesToSet = [];
-    const validUrlDates = params.dates?.filter(date => availableDates.includes(date)) || [];
+    const validUrlDates = params.dates?.filter(date => availableDatesToExpose.includes(date)) || [];
     if (validUrlDates.length > 0) {
       datesToSet = validUrlDates;
     } else {
-      const latestDate = availableDates[availableDates.length - 1];
+      const latestDate = availableDatesToExpose[availableDatesToExpose.length - 1];
       if (latestDate) {
         datesToSet = [latestDate];
       }
@@ -122,7 +122,8 @@ export const ViewProvider = ({ children }) => {
     if (needsModelUrlUpdate) {
       updateDatasetParams({ models: [] }); 
     }
-  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView]);
+    // Add availableDatesToExpose to dependency array since we use it in the logic
+  }, [isForecastPage, loading, viewType, models, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView, availableDatesToExpose]);
 
   useEffect(() => {
     const availableModelsSet = new Set(modelsForView);
@@ -204,7 +205,10 @@ export const ViewProvider = ({ children }) => {
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
-    data, metadata, loading, error, availableDates: availableDatesToExpose, models: modelsForView,
+    data, metadata, loading, error, 
+    // ✅ Use the exposed dates in the context value
+    availableDates: availableDatesToExpose, 
+    models: modelsForView,
     selectedModels, setSelectedModels: (updater) => {
       const resolveModels = (prevModels) => (
         typeof updater === 'function' ? updater(prevModels) : updater
