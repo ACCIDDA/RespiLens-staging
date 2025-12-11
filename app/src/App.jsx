@@ -1,6 +1,6 @@
 // src/App.jsx
 
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { ViewProvider } from './contexts/ViewContext';
 import { useView } from './hooks/useView';
@@ -11,9 +11,11 @@ import ForecastleGame from './components/forecastle/ForecastleGame';
 import MyRespiLensDashboard from './components/myrespi/MyRespiLensDashboard';
 import TournamentDashboard from './components/tournament/TournamentDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
-import Documentation from './components/Documentation'
+import Documentation from './components/Documentation';
+import LegacyUrlRedirect from './components/LegacyUrlRedirect';
 import { Center, Text } from '@mantine/core';
 // import ShutdownBanner from './components/ShutdownBanner';, no longer necessary
+import { getDefaultForecastPath } from './utils/urlSlug';
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -38,7 +40,16 @@ const AppLayout = () => {
   return (
     <UnifiedAppShell>
       <Routes>
-        <Route path="/" element={<ForecastApp />} />
+        {/* New SEO-friendly path-based routes */}
+        <Route path="/forecasts/:view/:location" element={<ForecastApp />} />
+
+        {/* Redirect root to default forecast page */}
+        <Route path="/" element={<Navigate to={getDefaultForecastPath()} replace />} />
+
+        {/* Legacy URL redirect - handles old query-param URLs */}
+        <Route path="/legacy" element={<LegacyUrlRedirect />} />
+
+        {/* Other app routes */}
         <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />

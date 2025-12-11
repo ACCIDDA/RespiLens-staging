@@ -1,21 +1,32 @@
 // src/contexts/ViewContext.jsx
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
 import { useForecastData } from '../hooks/useForecastData';
 import { ViewContext } from './ViewContextObject';
 import { APP_CONFIG } from '../config';
+import { parseForecastPath, buildForecastPath } from '../utils/urlSlug';
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const isForecastPage = location.pathname === '/';
+  const params = useParams();
+  const navigate = useNavigate();
+  const isForecastPage = location.pathname.startsWith('/forecasts');
 
   const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
 
-  const [viewType, setViewType] = useState(() => urlManager.getView());
-  const [selectedLocation, setSelectedLocation] = useState(() => urlManager.getLocation());
+  // Parse view and location from path params (for forecast pages)
+  const pathParams = useMemo(() => {
+    if (isForecastPage && params.view && params.location) {
+      return parseForecastPath(params.view, params.location);
+    }
+    return { view: APP_CONFIG.defaultView, location: APP_CONFIG.defaultLocation };
+  }, [isForecastPage, params.view, params.location]);
+
+  const [viewType, setViewType] = useState(() => pathParams.view || APP_CONFIG.defaultView);
+  const [selectedLocation, setSelectedLocation] = useState(() => pathParams.location || APP_CONFIG.defaultLocation);
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
@@ -23,9 +34,19 @@ export const ViewProvider = ({ children }) => {
 
   const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget } = useForecastData(selectedLocation, viewType);
 
+  // Sync path params to state when URL changes
+  useEffect(() => {
+    if (pathParams.view && pathParams.view !== viewType) {
+      setViewType(pathParams.view);
+    }
+    if (pathParams.location && pathParams.location !== selectedLocation) {
+      setSelectedLocation(pathParams.location);
+    }
+  }, [pathParams.view, pathParams.location, viewType, selectedLocation]);
+
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
+    if (currentDataset) urlManager.updateDatasetParams(currentDataset, viewType, params);
   }, [viewType, urlManager]);
 
   const modelsForView = useMemo(() => {
@@ -57,7 +78,7 @@ export const ViewProvider = ({ children }) => {
       return;
     }
 
-    const params = urlManager.getDatasetParams(currentDataset);
+    const params = urlManager.getDatasetParams(currentDataset, viewType);
     let needsModelUrlUpdate = false;
 
     // --- Model Logic ---
@@ -133,13 +154,15 @@ export const ViewProvider = ({ children }) => {
 
 
   const handleLocationSelect = (newLocation) => {
-    if (newLocation !== APP_CONFIG.defaultLocation) {
-      urlManager.updateLocation(newLocation);
-    } else {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('location');
-      setSearchParams(newParams, { replace: true });
-    }
+    // Build new path with updated location
+    const newPath = buildForecastPath(viewType, newLocation);
+
+    // Preserve existing query params
+    const queryString = searchParams.toString();
+    const fullPath = queryString ? `${newPath}?${queryString}` : newPath;
+
+    // Navigate to new URL (no page reload!)
+    navigate(fullPath, { replace: true });
     setSelectedLocation(newLocation);
   };
 
@@ -157,12 +180,7 @@ export const ViewProvider = ({ children }) => {
     const newDataset = urlManager.getDatasetFromView(newView);
     const newSearchParams = new URLSearchParams(searchParams);
 
-    if (newView !== APP_CONFIG.defaultView || newSearchParams.toString().length > 0) {
-      newSearchParams.set('view', newView);
-    } else {
-      newSearchParams.delete('view');
-    }
-
+    // If changing to a different dataset, clear dataset-specific params
     if (oldDataset?.shortName !== newDataset?.shortName) {
       setSelectedDates([]);
       setSelectedModels([]);
@@ -173,22 +191,28 @@ export const ViewProvider = ({ children }) => {
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
         newSearchParams.delete(`${oldDataset.prefix}_target`);
       }
-      // --- ADDED: Clean up NHSN params when leaving ---
-        if (oldDataset.shortName === 'nhsn') {
-          newSearchParams.delete('nhsn_target');
-          newSearchParams.delete('nhsn_cols');
-        }
-        // --- END ADDITION ---
+      // Clean up NHSN params when leaving
+      if (oldDataset?.shortName === 'nhsn') {
+        newSearchParams.delete('nhsn_target');
+        newSearchParams.delete('nhsn_cols');
+      }
     } else {
+      // Same dataset, different view - just clear target
       if (newDataset) {
          newSearchParams.delete(`${newDataset.prefix}_target`);
       }
       setSelectedTarget(null);
     }
 
+    // Build new path with updated view
+    const newPath = buildForecastPath(newView, selectedLocation);
+    const queryString = newSearchParams.toString();
+    const fullPath = queryString ? `${newPath}?${queryString}` : newPath;
+
+    // Navigate to new URL (no page reload!)
+    navigate(fullPath, { replace: true });
     setViewType(newView);
-    setSearchParams(newSearchParams, { replace: true });
-  }, [viewType, searchParams, setSearchParams, urlManager]);
+  }, [viewType, selectedLocation, searchParams, navigate, urlManager]);
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
