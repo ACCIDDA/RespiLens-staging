@@ -178,21 +178,29 @@ export const ViewProvider = ({ children }) => {
       newSearchParams.delete('view');
     }
 
-    if (oldDataset?.shortName !== newDataset?.shortName) {
+    const isDatasetChange = oldDataset?.shortName !== newDataset?.shortName;
+    const isPeakTransition = oldView === 'flu_peak' || newView === 'flu_peak'; // reset if coming or going from flu_peak
+
+    if (isDatasetChange || isPeakTransition) {
       setSelectedDates([]);
       setSelectedModels([]);
       setActiveDate(null);
       setSelectedTarget(null);
+      
+      // Clean up old params
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
         newSearchParams.delete(`${oldDataset.prefix}_target`);
       }
-        if (oldDataset.shortName === 'nhsn') {
-          newSearchParams.delete('nhsn_target');
-          newSearchParams.delete('nhsn_cols');
-        }
+      
+      // Special cleanup for NHSN or other specific cases
+      if (oldDataset?.shortName === 'nhsn') {
+        newSearchParams.delete('nhsn_target');
+        newSearchParams.delete('nhsn_cols');
+      }
     } else {
+      // Logic for staying within the same compatible dataset group
       if (newDataset) {
          newSearchParams.delete(`${newDataset.prefix}_target`);
       }
