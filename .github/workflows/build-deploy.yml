@@ -4,8 +4,8 @@ on:
   schedule:
     # 1. Daily Full Build (Monday-Sunday) at 8 AM UTC (4 AM ET)
     - cron: '0 8 * * *'
-    # 2. Hourly Wednesday Full Build (every Wednesday)
-    - cron: '0 * * * 3'  # Runs at the start of every hour (minute 0) on Wednesday (day 3)
+    # 2. Hourly Wednesday and Thursday Full Build (every Wednesday)
+    - cron: '0 * * * 3,4'  # Runs at the start of every hour (minute 0) on Wednesdays and Thursdays (days 3, 4)
   workflow_dispatch:
 
 permissions:
