@@ -53,7 +53,7 @@ const DataVisualizationContainer = () => {
       content: (
         <>
           <p>
-            Data for the RespiLens COVID-19 Forecasts view is retrieved from the COVID-19 Forecast Hub, which is an open challenge organized by the US CDC designed to collect forecasts for the following two targets:
+            Data for the RespiLens COVID-19 Forecasts view is retrieved from the COVID-19 Forecast Hub, which is an open challenge organized by the <a href ="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html" target="_blank" rel="noopener noreferrer">US CDC</a> designed to collect forecasts for the following two targets:
             <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
@@ -125,7 +125,7 @@ const DataVisualizationContainer = () => {
       content: (
         <>
           <p>
-            Data for the RespiLens Flu Forecasts view is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect influenza forecasts during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
+            Data for the RespiLens Flu Peaks view is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect <a href ="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener noreferrer">influenza forecasts</a> during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
     <div>
             <Title order={4} mb="xs">Forecasts</Title>
@@ -154,7 +154,7 @@ const DataVisualizationContainer = () => {
       content: (
         <>
           <p>
-            Data for the RespiLens Flu Forecasts view is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect influenza forecasts during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
+            Data for the RespiLens Flu Projections view is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect <a href ="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener noreferrer">influenza forecasts</a> during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
     <div>
             <Title order={4} mb="xs">Forecasts</Title>
@@ -183,21 +183,12 @@ const DataVisualizationContainer = () => {
       content: (
         <>
           <p>
-            FluSight is a repository run by the US CDC designed to collect flu forecast data for a particular flu season.
-            Data for a specific target can be viewed in RespiLens by model and date, with ground truth values plotted in purple.
+            Data for the RespiLens Flu Detailed View is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect <a href ="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener noreferrer">influenza forecasts</a> during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
           </p>
-          <div>
+    <div>
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
-              Models are asked to make specific quantitative forecasts about the data that will be observed in the future.
-              The confidence interval for a model's forecast for a chosen date is shown on the plot with a shadow.
-            </p>
-          </div>
-          <div>
-            <Title order={4} mb="xs">Targets</Title>
-            <p>
-              Participating models submit "target" data, which is plotted by selecting a model.
-              Presently, RespiLens plots projections for the FluSight target "weekly incident of flu hospitalizations".
+              Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>

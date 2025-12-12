@@ -604,7 +604,7 @@ const MyRespiLensDashboard = () => {
               <Title order={4}>About</Title>
               <Text>
                 MyRespiLens allows epidemiologists to visualize their own public health projections directly in their browser. 
-                All the processing happens locally meaning your data is never uploaded nor shared on any server. 
+                All the processing happens locally, meaning your data is never uploaded nor shared on any server. 
               </Text>
               <Title order={4}>Data Structure</Title>
               <Text>MyRespiLens expects uploaded data to be valid JSON and in RespiLens projections format.</Text>
