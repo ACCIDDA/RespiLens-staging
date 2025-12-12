@@ -26,6 +26,9 @@ const FluPeak = ({ peaks, peakDates, peakModels }) => {
                         Available Models:
                     </Text>
                     <Text>{peakModels.join(', ')}</Text>
+                    <Text size="xs" c="dimmed">
+                        (Debug: 'peaks' object contains data for {Object.keys(peaks || {}).length} dates)
+                    </Text>
                 </>
             ) : (
                 <Text size="md" c="dimmed">
