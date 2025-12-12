@@ -30,6 +30,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return selectedDates.slice().sort().pop();
   }, [selectedDates]);
 
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
   const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
     let minY = Infinity;
@@ -154,9 +155,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return [...projectionsData, ...histogramTraces];
   }, [projectionsData, rateChangeData, viewType]);
 
+  // activeModel logic for flu_projs and flu_detailed views
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
-    if (!forecasts || !selectedDates.length) {
+    // Don't run this logic if we are in peak view
+    if (viewType === 'flu_peak' || !forecasts || !selectedDates.length) {
       return activeModelSet;
     }
 
@@ -186,17 +189,29 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget, viewType]);
 
-  const finalActiveModels = useMemo(() => {
-    if (viewType === 'flu_peak') {
-      // For peak view, the model list *is* the list of active models.
-      // We wrap it in a Set to match the expected prop type of ModelSelector.
-      return new Set(availablePeakModels); 
+  // activeModel logic for flu_peak view. specialized to peaks data structure
+  const activePeakModels = useMemo(() => {
+    const activeModelSet = new Set();
+    
+    if (viewType !== 'flu_peak' || !peaks || !selectedDates.length) {
+      return activeModelSet;
     }
-    // For projection views, use the complex activeModels calculation
-    return activeModels; 
-  }, [viewType, activeModels, availablePeakModels]);
 
-  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+    selectedDates.forEach(date => {
+      const dateData = peaks[date];
+      if (!dateData) return;
+
+      Object.values(dateData).forEach(metricData => {
+        if (!metricData) return;
+        
+        Object.keys(metricData).forEach(model => {
+          activeModelSet.add(model);
+        });
+      });
+    });
+
+    return activeModelSet;
+  }, [viewType, peaks, selectedDates]);
 
   useEffect(() => {
     setXAxisRange(null); 
@@ -391,7 +406,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           models={availablePeakModels} 
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
-          activeModels={finalActiveModels} 
+          activeModels={activePeakModels} // <-- Updated activeModels logic applied here
           getModelColor={(model, selectedModels) => {
             const index = selectedModels.indexOf(model);
             return MODEL_COLORS[index % MODEL_COLORS.length];
