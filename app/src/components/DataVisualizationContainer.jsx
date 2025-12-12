@@ -21,7 +21,10 @@ const DataVisualizationContainer = () => {
     currentDataset,
     selectedColumns,
     setSelectedColumns,
-    selectedTarget
+    selectedTarget, 
+    peaks,
+    availablePeakDates, 
+    availablePeakModels
   } = useView();
 
   const [windowSize, setWindowSize] = useState({
@@ -99,6 +102,35 @@ const DataVisualizationContainer = () => {
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
               Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the RSV season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
+            </p>
+          </div>
+        </>
+      )
+    },
+    'flu_peak': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>FluSight Forecast Hub</Title>
+          <Anchor
+            href="https://github.com/cdcepi/FluSight-forecast-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="dimmed"
+          >
+            <IconBrandGithub size={20} />
+          </Anchor>
+        </Group>
+      ),
+      buttonLabel: "About FluSight",
+      content: (
+        <>
+          <p>
+            Data for the RespiLens Flu Forecasts view is retrieved from FluSight, which is an open challenge organized by the US CDC designed to collect influenza forecasts during the flu season. RespiLens displays forecasts for all models, dates and targets. For attribution and more information, please visit the FluSight <a href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
+          </p>
+    <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
           </div>
         </>
@@ -310,6 +342,9 @@ const DataVisualizationContainer = () => {
                 setSelectedColumns={setSelectedColumns}
                 windowSize={windowSize}
                 selectedTarget={selectedTarget}
+                peaks={peaks}
+                availablePeakDates={availablePeakDates}
+                availablePeakModels={availablePeakModels}
               />
             </div>
           </Stack>

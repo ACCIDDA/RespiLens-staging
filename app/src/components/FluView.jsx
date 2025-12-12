@@ -3,12 +3,13 @@ import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
+import FluPeak from './FluPeak';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
-const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget }) => {
+const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget, peaks, availablePeakDates, availablePeakModels }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); 
   const plotRef = useRef(null);
@@ -23,6 +24,13 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
+  const lastSelectedDate = useMemo(() => {
+    if (selectedDates.length === 0) return null;
+    // Find the latest date
+    return selectedDates.slice().sort().pop();
+  }, [selectedDates]);
+
+  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
   const calculateYRange = useCallback((data, xRange) => {
     if (!data || !xRange || !Array.isArray(data) || data.length === 0) return null;
     let minY = Infinity;
@@ -120,7 +128,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const rateChangeData = useMemo(() => {
     if (!forecasts || selectedDates.length === 0) return [];
     const categoryOrder = RATE_CHANGE_CATEGORIES;
-    const lastSelectedDate = selectedDates.slice().sort().pop();
     return selectedModels.map(model => {
       const forecast = forecasts[lastSelectedDate]?.['wk flu hosp rate change']?.[model];
       if (!forecast) return null;
@@ -133,7 +140,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       }));
       return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
     }).filter(Boolean);
-  }, [forecasts, selectedDates, selectedModels]);
+  }, [forecasts, selectedDates, selectedModels, lastSelectedDate]);
 
   const finalPlotData = useMemo(() => {
     const histogramTraces = viewType === 'fludetailed' 
@@ -148,9 +155,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return [...projectionsData, ...histogramTraces];
   }, [projectionsData, rateChangeData, viewType]);
 
+  // activeModel logic for flu_projs and flu_detailed views
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
-    if (!forecasts || !selectedDates.length) {
+    // Don't run this logic if we are in peak view
+    if (viewType === 'flu_peak' || !forecasts || !selectedDates.length) {
       return activeModelSet;
     }
 
@@ -180,7 +189,29 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget, viewType]);
 
-  const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+  // activeModel logic for flu_peak view. specialized to peaks data structure
+  const activePeakModels = useMemo(() => {
+    const activeModelSet = new Set();
+    
+    if (viewType !== 'flu_peak' || !peaks || !selectedDates.length) {
+      return activeModelSet;
+    }
+
+    selectedDates.forEach(date => {
+      const dateData = peaks[date];
+      if (!dateData) return;
+
+      Object.values(dateData).forEach(metricData => {
+        if (!metricData) return;
+        
+        Object.keys(metricData).forEach(model => {
+          activeModelSet.add(model);
+        });
+      });
+    });
+
+    return activeModelSet;
+  }, [viewType, peaks, selectedDates]);
 
   useEffect(() => {
     setXAxisRange(null); 
@@ -290,6 +321,16 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     }),
     ...(viewType === 'fludetailed' ? {
       xaxis2: {
+        title: {
+          text: `displaying date ${lastSelectedDate || 'N/A'}`, 
+          font: {
+            family: 'Arial, sans-serif', 
+            size: 13,                   
+            color: '#1f77b4'
+          },
+          // Add space below the tick labels
+          standoff: 10 
+        },
         domain: [0.85, 1],
         showgrid: false
       },
@@ -302,7 +343,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         tickfont: { align: 'right' }
       }
     } : {})
-  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, viewType]);
+  }), [colorScheme, windowSize, defaultRange, selectedTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, viewType, lastSelectedDate]);
 
   const config = useMemo(() => ({
     responsive: true,
@@ -350,6 +391,29 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
             <Text>Please select a target to view data.</Text>
         </Stack>
     );
+  }
+
+  if (viewType === 'flu_peak') {
+    return (
+      <Stack>
+        <LastFetched timestamp={metadata?.last_updated} />
+        <FluPeak 
+          peaks={peaks}
+          peakDates={availablePeakDates}
+          peakModels={availablePeakModels}
+        />
+        <ModelSelector 
+          models={availablePeakModels} 
+          selectedModels={selectedModels}
+          setSelectedModels={setSelectedModels}
+          activeModels={activePeakModels} // <-- Updated activeModels logic applied here
+          getModelColor={(model, selectedModels) => {
+            const index = selectedModels.indexOf(model);
+            return MODEL_COLORS[index % MODEL_COLORS.length];
+          }}
+        />
+      </Stack>
+    ); 
   }
 
   return (

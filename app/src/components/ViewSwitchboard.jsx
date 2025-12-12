@@ -21,7 +21,10 @@ const ViewSwitchboard = ({
   selectedModels,
   setSelectedModels,
   windowSize,
-  selectedTarget
+  selectedTarget, 
+  peaks,
+  availablePeakDates, 
+  availablePeakModels
 }) => {
   // Show loading state
   if (loading) {
@@ -100,6 +103,7 @@ const ViewSwitchboard = ({
   switch (viewType) {
     case 'fludetailed':
     case 'flu_projs':
+    case 'flu_peak':
       return (
         <FluView
           data={data}
@@ -112,6 +116,9 @@ const ViewSwitchboard = ({
           windowSize={windowSize}
           getDefaultRange={getDefaultRange}
           selectedTarget={selectedTarget}
+          peaks={peaks}
+          availablePeakDates={availablePeakDates}
+          availablePeakModels={availablePeakModels}
         />
       );
 
