@@ -90,6 +90,9 @@ const MyRespiLensDashboard = () => {
       try {
         const content = event.target?.result;
         const data = JSON.parse(content);
+        if (!data.forecasts || !data.ground_truth) {
+          throw new Error("Missing required RespiLens fields");
+        }
         setFileData(data);
 
         const forecastDates = Object.keys(data.forecasts || {}).sort((a, b) => new Date(a) - new Date(b));
@@ -156,7 +159,7 @@ const MyRespiLensDashboard = () => {
 
       } catch (error) {
         console.error('Error parsing JSON file:', error);
-        alert('Could not read the file. Please ensure it is a valid JSON file.');
+        alert('Could not read the file. Please ensure it is a valid RespiLens projections JSON file.');
         setUploadedFile(null);
         setFileData(null);
       } finally {
@@ -610,19 +613,11 @@ const MyRespiLensDashboard = () => {
               <Text>MyRespiLens expects uploaded data to be valid JSON and in RespiLens projections format.</Text>
               <Text fw={700}>
                 RespiLens projections format is the internally-defined JSON style for
-                forecast data. Documentation for this JSON format can be found on the RespiLens
+                forecast data. Documentation for this JSON format can be found on the MyRespiLens
                 <Anchor href="https://staging.respilens.com/documentation" target="_blank" rel="noopener noreferrer"> documentation</Anchor> page.
-                You can convert your .csv Hubverse-style data to .json RespiLens projections-style data using either:
+                The documentation will delineate how you can convert your <Anchor href="https://docs.hubverse.io/en/latest/user-guide/model-output.html" target="_blank" rel="noopener noreferrer">Hubverse-style</Anchor> <code>.csv</code> to ResiLens projections <code>.json</code>.
               </Text>
-              <Text><code>external_to_projections.py</code> using python, or</Text>
-              <Text><code>external_to_projections.R</code> using R.</Text>
-              <Text>
-                Both files can be found in the <code>scripts/</code> directory of the RespiLens GitHub repository,
-                and have functionality documented  
-                <Anchor href="https://github.com/ACCIDDA/RespiLens-staging/tree/main/scripts#readme" target="_blank" rel="noopener noreferrer"> on GitHub.</Anchor>,
-                or on the RespiLens <Anchor href="https://staging.respilens.com/documentation" target="_blank" rel="noopener noreferrer"> documentation</Anchor> page.
-              </Text>
-              <Text> Don't hesitate to contact the RespiLens Team, we would love to make MyRespiLens useful to you!</Text>
+              <Text> If you have questions or concerns, don't hesitate to <Anchor href="https://github.com/ACCIDDA/RespiLens/issues/new" target="_blank" rel="noopener noreferrer">contact the RespiLens Team.</Anchor>. We would love to make MyRespiLens useful to you!</Text>
             </Stack>
           </Modal>
 
