@@ -631,6 +631,17 @@ const MyRespiLensDashboard = () => {
             >
               What is MyRespiLens?
             </Button>
+            <Button
+              component="a" 
+              href="/documentation" 
+              target="_blank"
+              variant="light"
+              size="xs"
+              color="blue"
+              leftSection={<IconFileText size={16} />}
+            >
+              View Documentation
+            </Button>
           </Group>
 
           <Paper
