@@ -21,8 +21,15 @@ export const ViewProvider = ({ children }) => {
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget } = useForecastData(selectedLocation, viewType);
+  const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
 
+  const availableDatesToExpose = useMemo(() => {
+    if (viewType === 'flu_peak') {
+      return availablePeakDates || [];
+    }
+    return availableDates || [];
+  }, [viewType, availablePeakDates, availableDates]);
+  
   const updateDatasetParams = useCallback((params) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
@@ -37,6 +44,11 @@ export const ViewProvider = ({ children }) => {
       return Array.from(new Set([...target1Models, ...target2Models])).sort();
     }
 
+    if (viewType === 'flu_peak') {
+      // Use the list calculated in useForecastData.js from the peaks data
+      return availablePeakModels || [];
+    }
+
     // For all other views, just use the selectedTarget
     if (selectedTarget && modelsByTarget[selectedTarget]) {
       return modelsByTarget[selectedTarget];
@@ -45,22 +57,31 @@ export const ViewProvider = ({ children }) => {
     // Default to an empty list (or the original location-based list)
     // Using an empty list is safer to prevent showing models that have no data
     return []; 
-  }, [selectedTarget, modelsByTarget, viewType]);
+  }, [selectedTarget, modelsByTarget, viewType, availablePeakModels]); // Dependency added
 
-  // --- Main useEffect to sync URL params TO state ---
+  const availableTargetsToExpose = useMemo(() => {
+    if (viewType === 'flu_peak') {
+      return [];
+    }
+    
+    const peakTargets = ['peak inc flu hosp', 'peak week inc flu hosp'];
+    
+    return availableTargets.filter(target => !peakTargets.includes(target));
+  }, [availableTargets, viewType]);
+
+
   useEffect(() => {
     if (!isForecastPage) {
       return;
     }
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (loading || !currentDataset || modelsForView.length === 0 || availableDates.length === 0 || availableTargets.length === 0) {
+    if (loading || !currentDataset || modelsForView.length === 0 || availableDatesToExpose.length === 0 || availableTargets.length === 0) {
       return;
     }
 
     const params = urlManager.getDatasetParams(currentDataset);
     let needsModelUrlUpdate = false;
 
-    // --- Model Logic ---
     let modelsToSet = [];
     const validUrlModels = params.models?.filter(m => modelsForView.includes(m)) || []; 
     if (validUrlModels.length > 0) {
@@ -73,26 +94,23 @@ export const ViewProvider = ({ children }) => {
         needsModelUrlUpdate = true; 
     }
 
-    // --- Date Logic ---
     let datesToSet = [];
-    const validUrlDates = params.dates?.filter(date => availableDates.includes(date)) || [];
+    const validUrlDates = params.dates?.filter(date => availableDatesToExpose.includes(date)) || [];
     if (validUrlDates.length > 0) {
       datesToSet = validUrlDates;
     } else {
-      const latestDate = availableDates[availableDates.length - 1];
+      const latestDate = availableDatesToExpose[availableDatesToExpose.length - 1];
       if (latestDate) {
         datesToSet = [latestDate];
       }
     }
 
-    // --- Target Logic ---
     const urlTarget = params.target;
     let targetToSet = null;
     if (urlTarget && availableTargets.includes(urlTarget)) {
         targetToSet = urlTarget;
     }
 
-    // --- Apply State Updates ---
     setSelectedModels(current => JSON.stringify(current) !== JSON.stringify(modelsToSet) ? modelsToSet : current);
     setSelectedDates(current => JSON.stringify(current) !== JSON.stringify(datesToSet) ? datesToSet : current);
     setActiveDate(datesToSet.length > 0 ? datesToSet[datesToSet.length - 1] : null);
@@ -101,11 +119,11 @@ export const ViewProvider = ({ children }) => {
       setSelectedTarget(targetToSet);
     }
 
-    // --- Update URL if needed ---
     if (needsModelUrlUpdate) {
       updateDatasetParams({ models: [] }); 
     }
-  }, [isForecastPage, loading, viewType, models, availableDates, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView]);
+    // Add availableDatesToExpose to dependency array since we use it in the logic
+  }, [isForecastPage, loading, viewType, models, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView, availableDatesToExpose]);
 
   useEffect(() => {
     const availableModelsSet = new Set(modelsForView);
@@ -113,14 +131,11 @@ export const ViewProvider = ({ children }) => {
       availableModelsSet.has(model)
     );
 
-    // Only update state if the list has actually changed
     if (cleanedSelectedModels.length !== selectedModels.length) {
       setSelectedModels(cleanedSelectedModels);
     }
-    // This runs whenever the final list of available models changes
   }, [modelsForView, selectedModels]);
 
-  // --- useEffect to set DEFAULT target ---
   useEffect(() => {
     if (loading || !availableTargets || availableTargets.length === 0) {
       return;
@@ -163,23 +178,29 @@ export const ViewProvider = ({ children }) => {
       newSearchParams.delete('view');
     }
 
-    if (oldDataset?.shortName !== newDataset?.shortName) {
+    const isDatasetChange = oldDataset?.shortName !== newDataset?.shortName;
+    const isPeakTransition = oldView === 'flu_peak' || newView === 'flu_peak'; // reset if coming or going from flu_peak
+
+    if (isDatasetChange || isPeakTransition) {
       setSelectedDates([]);
       setSelectedModels([]);
       setActiveDate(null);
       setSelectedTarget(null);
+      
+      // Clean up old params
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
         newSearchParams.delete(`${oldDataset.prefix}_target`);
       }
-      // --- ADDED: Clean up NHSN params when leaving ---
-        if (oldDataset.shortName === 'nhsn') {
-          newSearchParams.delete('nhsn_target');
-          newSearchParams.delete('nhsn_cols');
-        }
-        // --- END ADDITION ---
+      
+      // Special cleanup for NHSN or other specific cases
+      if (oldDataset?.shortName === 'nhsn') {
+        newSearchParams.delete('nhsn_target');
+        newSearchParams.delete('nhsn_cols');
+      }
     } else {
+      // Logic for staying within the same compatible dataset group
       if (newDataset) {
          newSearchParams.delete(`${newDataset.prefix}_target`);
       }
@@ -192,7 +213,10 @@ export const ViewProvider = ({ children }) => {
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
-    data, metadata, loading, error, availableDates, models: modelsForView,
+    data, metadata, loading, error, 
+    // ✅ Use the exposed dates in the context value
+    availableDates: availableDatesToExpose, 
+    models: modelsForView,
     selectedModels, setSelectedModels: (updater) => {
       const resolveModels = (prevModels) => (
         typeof updater === 'function' ? updater(prevModels) : updater
@@ -216,9 +240,16 @@ export const ViewProvider = ({ children }) => {
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType),
-    availableTargets,
+    
+    // CORE CHANGE: Use the coerced target list
+    availableTargets: availableTargetsToExpose, 
+    
     selectedTarget,
     handleTargetSelect,
+    // Include all new peak data in the context
+    peaks,
+    availablePeakDates, 
+    availablePeakModels 
   };
 
   return (

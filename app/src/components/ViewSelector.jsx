@@ -43,7 +43,7 @@ const ViewSelector = () => {
             <Menu
               key={dataset.shortName}
               shadow="md"
-              position="right-start"
+              position="right-end"
               offset={5}
               withinPortal
               trigger="hover"
@@ -77,7 +77,7 @@ const ViewSelector = () => {
                   {dataset.fullName}
                 </Button>
               </Menu.Target>
-              <Menu.Dropdown>
+              <Menu.Dropdown style={{ maxHeight: 200, overflowY: 'auto' }}>
                 {dataset.views.map(view => (
                   <Menu.Item
                     key={view.value}

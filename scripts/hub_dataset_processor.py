@@ -83,13 +83,21 @@ class HubDataProcessorBase:
 
             metadata = self._build_metadata_key(df=loc_df)
             ground_truth = self._format_ground_truth_output(ground_truth_df=ground_truth_df)
-            forecasts = self._build_forecasts_key(df=loc_df)
+            forecasts, peaks = self._build_forecasts_key(df=loc_df)
 
-            self.output_dict[file_name] = {
-                "metadata": metadata,
-                "ground_truth": ground_truth,
-                "forecasts": forecasts,
-            }
+            if peaks is None:
+                self.output_dict[file_name] = {
+                    "metadata": metadata,
+                    "ground_truth": ground_truth,
+                    "forecasts": forecasts,
+                }
+            else:
+                self.output_dict[file_name] = {
+                    "metadata": metadata,
+                    "ground_truth": ground_truth,
+                    "forecasts": forecasts,
+                    "peaks": peaks,
+                }
 
     def _build_metadata_key(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Build metadata section of an individual JSON file."""
@@ -172,11 +180,69 @@ class HubDataProcessorBase:
             ground_truth[target_column] = [None if pd.isna(v) else v for v in values_list]
 
         return ground_truth
+    
+
+    def _build_peaks_key(self, peaks_df: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Build the `peaks` key of RespiLens JSON for hubs that participate in:
+            - peak inc flu hosp
+            - peak week inc flu hosp
+        targets
+        """
+        
+        peaks: Dict[str, Any] = {}
+        peak_inc = peaks_df[peaks_df['target'] == 'peak inc flu hosp']
+        peak_week = peaks_df[peaks_df['target'] == 'peak week inc flu hosp']
+        peak_inc_gbo = peak_inc.groupby(['reference_date', 'model_id'])
+        peak_week_gbo = peak_week.groupby(["reference_date", "model_id"])
+
+        for _, grouped_df in peak_inc_gbo: # handle PEAK INC FLU HOSP
+            reference_date = str(grouped_df["reference_date"].iloc[0])
+            target = 'peak inc flu hosp'
+            model = str(grouped_df["model_id"].iloc[0])
+
+            reference_date_dict = peaks.setdefault(reference_date, {})
+            target_dict = reference_date_dict.setdefault(target, {})
+            model_dict = target_dict.setdefault(model, {})
+            model_dict['type'] = "quantile"
+            predictions_dict = model_dict.setdefault("predictions", {})
+            predictions_dict["quantiles"] = list(grouped_df["output_type_id"])
+            predictions_dict["values"] = list(grouped_df["value"])
+
+        for _, grouped_df in peak_week_gbo: # handle PEAK WEEK INC FLU HOSP
+            reference_date = str(grouped_df["reference_date"].iloc[0])
+            target = 'peak week inc flu hosp'
+            model = str(grouped_df["model_id"].iloc[0])
+
+            reference_date_dict = peaks.setdefault(reference_date, {})
+            target_dict = reference_date_dict.setdefault(target, {})
+            model_dict = target_dict.setdefault(model, {})
+            model_dict['type'] = "pmf"
+            predictions_dict = model_dict.setdefault("predictions", {})
+            predictions_dict["peak week"] = list(grouped_df["output_type_id"])
+            predictions_dict["probabilities"] = list(grouped_df["value"])
+        
+        return peaks
+
 
     def _build_forecasts_key(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Build the forecasts section of an individual JSON file."""
         forecasts: Dict[str, Any] = {}
-        full_gbo = df.groupby(["reference_date", "target", "model_id", "horizon", "output_type"])
+        
+        # Define the peak targets
+        peak_targets = {'peak inc flu hosp', 'peak week inc flu hosp'}
+        standard_forecasts_df = df.copy()
+        peak_flu_targets_df = pd.DataFrame()
+        peak_targets_flag = False
+        
+        # Filter the main DataFrame into two parts: standard targets and peak targets
+        if peak_targets.intersection(set(df['target'])):
+            is_peak = df["target"].isin(peak_targets)
+            peak_flu_targets_df = df[is_peak].copy()
+            peak_targets_flag = True
+            standard_forecasts_df = df[~is_peak]
+        full_gbo = standard_forecasts_df.groupby(["reference_date", "target", "model_id", "horizon", "output_type"])
+        
         for _, grouped_df in full_gbo:
             output_type = grouped_df["output_type"].iloc[0]
             if output_type in self.config.drop_output_types:
@@ -208,12 +274,19 @@ class HubDataProcessorBase:
                     "probabilities": list(grouped_df["value"]),
                 }
             else:
+                # Note: This is based only on standard_forecasts_df
                 raise ValueError(
                     "`output_type` of input data must either be 'quantile' or 'pmf', "
                     f"received '{output_type}'"
                 )
+        
+        # If has peaks, redirect to other method
+        if peak_targets_flag: 
+            peaks = self._build_peaks_key(peaks_df=peak_flu_targets_df)
+        else:
+            peaks = None
 
-        return forecasts
+        return forecasts, peaks 
 
     def _build_available_models_list(self, df: pd.DataFrame) -> list:
         """Build list of models available for a specific location."""
