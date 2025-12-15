@@ -66,8 +66,8 @@ const InfoOverlay = () => {
             <Anchor href="https://hubverse.io" target="_blank" rel="noopener">
               HubVerse
             </Anchor>{' '}
-            project which standardized forecast data formats and challenge. For each of the hub displayed on RespiLens, the data, organization and forecasts
-            belong to their respective teams (see the hub-specific overlays for details). RespiLens is only a visualization layer, and contains no original work.
+            project which standardizes and consolidates forecast data formats. For each of the hub displayed on RespiLens, the data, organization and forecasts
+            belong to their respective teams (see the hub-specific overlays for details).  RespiLens is only a visualization layer, and contains no original work.
           </div>
 
           <Text>
