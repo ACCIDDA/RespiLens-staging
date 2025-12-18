@@ -1,85 +1,134 @@
-import { useState, useEffect } from 'react';
-import { Stack, Text } from '@mantine/core';
+import { useState, useEffect, useMemo } from 'react';
+import { Stack, useMantineColorScheme } from '@mantine/core';
+import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
+import { CHART_CONSTANTS } from '../constants/chart'; 
 
-const FluPeak = ({ peaks, peakDates, peakModels }) => {
+const FluPeak = ({ data, peaks, peakDates, peakModels, location, windowSize }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
     const [loadingNhsn, setLoadingNhsn] = useState(false);
 
     useEffect(() => {
         if (!location) return;
-
         const fetchNhsnData = async () => {
             setLoadingNhsn(true);
             try {
-                // Construct path exactly like NHSNView does
                 const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
                 const response = await fetch(dataUrl);
-
                 if (!response.ok) {
-                    console.warn(`FluPeak: No NHSN data found for ${location}`);
                     setNhsnData(null);
                     return;
                 }
-
                 const json = await response.json();
-
-                // Extract only dates and Total Influenza Admissions from NHSN data
                 const dates = json.series?.dates || [];
                 const admissions = json.series?.['Total Influenza Admissions'] || [];
 
                 if (dates.length > 0 && admissions.length > 0) {
-                    setNhsnData({
-                        dates: dates,
-                        admissions: admissions
-                    });
+                    setNhsnData({ dates, admissions });
                 }
-
             } catch (err) {
-                console.error("FluPeak: Error fetching NHSN data", err);
+                console.error(err);
             } finally {
                 setLoadingNhsn(false);
             }
         };
-
         fetchNhsnData();
     }, [location]);
 
-    // Store basic info for now
-    const hasHistoricData = nhsnData && nhsnData.dates.length > 0;
-    const hasData = peakDates && peakDates.length > 0;
+    const gtPlotData = useMemo(() => {
+        const targetKey = 'wk inc flu hosp';
+        const SEASON_START_DATE = '2025-10-01'; // change season to season
+        
+        if (!groundTruth || !groundTruth[targetKey] || !groundTruth.dates) {
+            return [];
+        }
+
+        const { dates, values } = groundTruth.dates.reduce((acc, date, index) => {
+            if (date >= SEASON_START_DATE) {
+                acc.dates.push(date);
+                acc.values.push(groundTruth[targetKey][index]);
+            }
+            return acc;
+        }, { dates: [], values: [] });
+        if (dates.length === 0) return [];
+
+        return [{
+            x: groundTruth.dates,
+            y: values,
+            name: 'Observed',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { 
+                color: 'black', 
+                width: 2, 
+                dash: 'dash' 
+            },
+            marker: { 
+                size: 4, 
+                color: 'black' 
+            }
+        }];
+    }, [groundTruth]);
+
+    const layout = useMemo(() => ({
+        width: windowSize ? Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO) : undefined,
+        height: windowSize ? Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * 0.5) : 500, 
+        autosize: true,
+        template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
+        paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+        plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+        font: {
+            color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
+        },
+        margin: { l: 60, r: 30, t: 30, b: 50 },
+        legend: {
+            x: 0, y: 1,
+            xanchor: 'left', yanchor: 'top',
+            bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+            bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+            borderwidth: 1,
+            font: { size: 10 }
+        },
+        hovermode: 'x unified',
+        dragmode: 'pan', 
+        xaxis: {
+            title: 'Date',
+            // no data ranges yet, so we can't meaningfully set rangeselectors/sliders yet
+        },
+        yaxis: {
+            title: 'Hospitalizations',
+            rangemode: 'tozero', 
+        },
+    }), [colorScheme, windowSize]);
+
+    const config = useMemo(() => ({
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false,
+        modeBarPosition: 'left',
+        scrollZoom: false, 
+        doubleClick: 'reset',
+        modeBarButtonsToRemove: ['select2d', 'lasso2d'],
+        toImageButtonOptions: {
+            format: 'png',
+            filename: 'peak_plot'
+        },
+    }), []);
+
 
     return (
-        <Stack gap="lg" style={{ padding: '20px' }}>
-            <Text size="xl" fw={600}>
-                Flu Peak Forecast Data Coming Soon! 🏗️
-            </Text>
-
-            {hasData ? (
-                <>
-                    <Text size="md">
-                        ✅ **Data Received.** Found {peakDates.length} total available peak forecast dates and {peakModels.length} total available models.
-                    </Text>
-                    
-                    <Text size="sm" fw={600}>
-                        Available Reference Dates:
-                    </Text>
-                    {/* Convert array to string for simple display */}
-                    <Text>{peakDates.join(', ')}</Text>
-
-                    <Text size="sm" fw={600}>
-                        Available Models:
-                    </Text>
-                    <Text>{peakModels.join(', ')}</Text>
-                    <Text size="xs" c="dimmed">
-                        (Debug: 'peaks' object contains data for {Object.keys(peaks || {}).length} dates)
-                    </Text>
-                </>
-            ) : (
-                <Text size="md" c="dimmed">
-                    ⚠️ No peak forecast data available for this location or view type.
-                </Text>
-            )}
+        <Stack gap="md" style={{ padding: '20px' }}>
+            <div style={{ width: '100%', minHeight: '400px' }}>
+                 <Plot
+                    data={gtPlotData}
+                    layout={layout}
+                    config={config}
+                    style={{ width: '100%', height: '100%' }}
+                    useResizeHandler={true}
+                />
+            </div>
         </Stack>
     );
 };

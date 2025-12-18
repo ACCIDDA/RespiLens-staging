@@ -19,7 +19,7 @@ const TargetSelector = () => {
     <Stack gap="xs">
       <Select
         label="Select target metric"
-        placeholder="Select a target"
+        placeholder="None"
         data={selectData}
         value={isDisabled ? null : selectedTarget}
         onChange={handleTargetSelect}

@@ -398,6 +398,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       <Stack>
         <LastFetched timestamp={metadata?.last_updated} />
         <FluPeak 
+          data={data}
           peaks={peaks}
           peakDates={availablePeakDates}
           peakModels={availablePeakModels}
@@ -406,7 +407,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           models={availablePeakModels} 
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
-          activeModels={activePeakModels} // <-- Updated activeModels logic applied here
+          activeModels={activePeakModels} 
           getModelColor={(model, selectedModels) => {
             const index = selectedModels.indexOf(model);
             return MODEL_COLORS[index % MODEL_COLORS.length];
