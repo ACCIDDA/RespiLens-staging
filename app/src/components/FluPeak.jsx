@@ -96,19 +96,34 @@ const FluPeak = ({
                 seasons[seasonKey].y.push(nhsnData.admissions[index]);
             });
 
-            Object.keys(seasons).sort().forEach(seasonKey => {
+            // Dummy data (to have just one historical data entry in legend)
+            // uses first valid data point, assigns it light gray
+            const sortedKeys = Object.keys(seasons).sort();
+            if (sortedKeys.length > 0) {
+                const firstKey = sortedKeys[0];
+                traces.push({
+                    x: [seasons[firstKey].x[0]], 
+                    y: [seasons[firstKey].y[0]], 
+                    name: 'Historical Seasons',  
+                    legendgroup: 'history',
+                    showlegend: true,
+                    mode: 'lines',
+                    line: { color: '#d3d3d3', width: 1.5 },
+                    hoverinfo: 'skip' // Don't show hover for this dummy point
+                });
+            }
+
+            sortedKeys.forEach(seasonKey => {
                 traces.push({
                     x: seasons[seasonKey].x,
                     y: seasons[seasonKey].y,
-                    name: `Season ${seasonKey}`, 
+                    name: `Season ${seasonKey}`, // Specific Name for Hover
+                    legendgroup: 'history',      
                     type: 'scatter',
                     mode: 'lines',
-                    line: { 
-                        color: '#d3d3d3', 
-                        width: 1.5 
-                    },
+                    line: { color: '#d3d3d3', width: 1.5 },
                     connectgaps: true,
-                    showlegend: true, 
+                    showlegend: false,      
                     hoverinfo: 'name+y' 
                 });
             });
@@ -130,7 +145,7 @@ const FluPeak = ({
                 traces.push({
                     x: dates, 
                     y: values,
-                    name: 'Observed',
+                    name: 'Current season',
                     type: 'scatter',
                     mode: 'lines+markers',
                     line: { color: 'black', width: 2, dash: 'dash' },
