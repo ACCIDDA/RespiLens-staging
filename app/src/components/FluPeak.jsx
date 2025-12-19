@@ -117,7 +117,7 @@ const FluPeak = ({
                 traces.push({
                     x: seasons[seasonKey].x,
                     y: seasons[seasonKey].y,
-                    name: `Season ${seasonKey}`, // Specific Name for Hover
+                    name: `${seasonKey} Season`, // Specific Name for Hover
                     legendgroup: 'history',      
                     type: 'scatter',
                     mode: 'lines',
@@ -150,7 +150,11 @@ const FluPeak = ({
                     mode: 'lines+markers',
                     line: { color: 'black', width: 2, dash: 'dash' },
                     showlegend: true,
-                    marker: { size: 4, color: 'black' }
+                    marker: { size: 4, color: 'black' },
+                    hovertemplate: 
+                        '<b>Current Season</b><br>' +
+                        'Hospitalizations: %{y}<br>' +
+                        'Date: %{x|%b %d}<extra></extra>'
                 });
             }
         }
@@ -179,7 +183,10 @@ const FluPeak = ({
                 size: 10
             }
         },
-        hovermode: 'x unified',
+        hovermode: 'closest',
+        hoverlabel: {
+            namelength: -1  // Show full text (no truncation)
+        },
         dragmode: false, 
         xaxis: { 
             title: 'Month', 
