@@ -9,7 +9,7 @@ import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
 import { targetDisplayNameMap } from '../utils/mapUtils';
 
-const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget, peaks, availablePeakDates, availablePeakModels }) => {
+const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget, peaks, availablePeakDates, availablePeakModels, peakLocation }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const [xAxisRange, setXAxisRange] = useState(null); 
   const plotRef = useRef(null);
@@ -402,16 +402,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           peaks={peaks}
           peakDates={availablePeakDates}
           peakModels={availablePeakModels}
-        />
-        <ModelSelector 
-          models={availablePeakModels} 
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
-          activeModels={activePeakModels} 
-          getModelColor={(model, selectedModels) => {
-            const index = selectedModels.indexOf(model);
-            return MODEL_COLORS[index % MODEL_COLORS.length];
-          }}
+          selectedDates={selectedDates}
+          windowSize={windowSize}
+          peakLocation={peakLocation}
         />
       </Stack>
     ); 

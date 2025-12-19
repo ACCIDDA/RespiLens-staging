@@ -119,6 +119,7 @@ const ViewSwitchboard = ({
           peaks={peaks}
           availablePeakDates={availablePeakDates}
           availablePeakModels={availablePeakModels}
+          peakLocation={location}
         />
       );
 
