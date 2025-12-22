@@ -93,9 +93,12 @@ const FluPeak = ({
                 seasons[seasonKey].x.push(getNormalizedDate(dateStr));
                 seasons[seasonKey].y.push(nhsnData.admissions[index]);
             });
+            const currentSeasonKey = '2025-2026';
+            const sortedKeys = Object.keys(seasons)
+                .filter(key => key !== currentSeasonKey) // <--- THIS LINE DOES THE FILTERING
+                .sort();
 
             // Dummy data for legend
-            const sortedKeys = Object.keys(seasons).sort();
             if (sortedKeys.length > 0) {
                 const firstKey = sortedKeys[0];
                 traces.push({
