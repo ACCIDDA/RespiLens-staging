@@ -189,30 +189,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget, viewType]);
 
-  // activeModel logic for flu_peak view. specialized to peaks data structure
-  const activePeakModels = useMemo(() => {
-    const activeModelSet = new Set();
-    
-    if (viewType !== 'flu_peak' || !peaks || !selectedDates.length) {
-      return activeModelSet;
-    }
-
-    selectedDates.forEach(date => {
-      const dateData = peaks[date];
-      if (!dateData) return;
-
-      Object.values(dateData).forEach(metricData => {
-        if (!metricData) return;
-        
-        Object.keys(metricData).forEach(model => {
-          activeModelSet.add(model);
-        });
-      });
-    });
-
-    return activeModelSet;
-  }, [viewType, peaks, selectedDates]);
-
   useEffect(() => {
     setXAxisRange(null); 
   }, [viewType, selectedTarget]);

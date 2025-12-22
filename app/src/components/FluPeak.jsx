@@ -20,7 +20,6 @@ const FluPeak = ({
     const { colorScheme } = useMantineColorScheme();
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
-    const [loadingNhsn, setLoadingNhsn] = useState(false);
 
     // Normalize date to a common "2000-2001" season (to put everything on one x-axis)
     const getNormalizedDate = (dateStr) => {
@@ -34,7 +33,6 @@ const FluPeak = ({
     useEffect(() => {
         if (!peakLocation) return;
         const fetchNhsnData = async () => {
-            setLoadingNhsn(true);
             try {
                 const dataUrl = getDataPath(`nhsn/${peakLocation}_nhsn.json`);
                 const response = await fetch(dataUrl);
@@ -51,9 +49,7 @@ const FluPeak = ({
                 }
             } catch (err) {
                 console.error(err);
-            } finally {
-                setLoadingNhsn(false);
-            }
+            } 
         };
         fetchNhsnData();
     }, [peakLocation]);
