@@ -240,8 +240,6 @@ export const ViewProvider = ({ children }) => {
     activeDate, setActiveDate,
     viewType, setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType),
-    
-    // CORE CHANGE: Use the coerced target list
     availableTargets: availableTargetsToExpose, 
     
     selectedTarget,
