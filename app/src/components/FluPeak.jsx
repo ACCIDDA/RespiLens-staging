@@ -6,6 +6,20 @@ import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart'; 
 import { getDataPath } from '../utils/paths';
 
+// helper to convert Hex to RGBA for opacity control
+const hexToRgba = (hex, alpha) => {
+    let c;
+    if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+        c = hex.substring(1).split('');
+        if (c.length === 3) {
+            c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+        }
+        c = '0x' + c.join('');
+        return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
+    }
+    return hex; 
+};
+
 const FluPeak = ({ 
     data, 
     peaks, 
@@ -21,7 +35,6 @@ const FluPeak = ({
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
 
-    // Normalize date to a common "2000-2001" season (to put everything on one x-axis)
     const getNormalizedDate = (dateStr) => {
         const d = new Date(dateStr);
         const month = d.getUTCMonth(); 
@@ -91,7 +104,7 @@ const FluPeak = ({
             });
             const currentSeasonKey = '2025-2026';
             const sortedKeys = Object.keys(seasons)
-                .filter(key => key !== currentSeasonKey) // <--- THIS LINE DOES THE FILTERING
+                .filter(key => key !== currentSeasonKey) 
                 .sort();
 
             // Dummy data for legend
@@ -157,19 +170,23 @@ const FluPeak = ({
 
         // Model peak predictions data
         if (peaks && selectedModels.length > 0) {
-            const datesToCheck = (selectedDates && selectedDates.length > 0) 
+            const rawDates = (selectedDates && selectedDates.length > 0) 
                 ? selectedDates : (peakDates || []);
+            const datesToCheck = [...rawDates].sort(); // Sort chronological
 
             selectedModels.forEach(model => {
                 const xValues = [];
                 const yValues = [];
                 const hoverTexts = [];
+                const pointColors = []; 
 
-                datesToCheck.forEach(refDate => {
+                // Base color for this model (Solid, used for Legend)
+                const baseColorHex = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+
+                datesToCheck.forEach((refDate, index) => {
                     const dateData = peaks[refDate];
                     if (!dateData) return;
 
-                    // Extract intensity
                     const intensityData = dateData['peak inc flu hosp']?.[model];
                     if (!intensityData || !intensityData.predictions) return;
 
@@ -178,7 +195,6 @@ const FluPeak = ({
                     if (qIdx05 === -1) return; 
                     const medianVal = iPreds.values[qIdx05];
 
-                    // Extract timing
                     const timingData = dateData['peak week inc flu hosp']?.[model];
                     if (!timingData || !timingData.predictions) return;
 
@@ -187,15 +203,11 @@ const FluPeak = ({
                     const probArray = tPreds['probabilities'];
 
                     let bestDateStr = null;
-
                     if (dateArray && probArray) {
                         let maxProb = -1;
                         let maxIdx = -1;
                         probArray.forEach((p, i) => {
-                            if (p > maxProb) {
-                                maxProb = p;
-                                maxIdx = i;
-                            }
+                            if (p > maxProb) { maxProb = p; maxIdx = i; }
                         });
                         if (maxIdx !== -1) bestDateStr = dateArray[maxIdx];
                     } else if (dateArray && dateArray.length > 0) {
@@ -204,22 +216,28 @@ const FluPeak = ({
 
                     if (!bestDateStr) return;
 
-                    // Add to trace data
+                    // Gradient Opacity Calculation
+                    const minOpacity = 0.4;
+                    const alpha = datesToCheck.length === 1 
+                        ? 1.0 
+                        : minOpacity + ((index / (datesToCheck.length - 1)) * (1 - minOpacity));
+                    
+                    const dynamicColor = hexToRgba(baseColorHex, alpha);
+
                     xValues.push(getNormalizedDate(bestDateStr));
                     yValues.push(medianVal);
+                    pointColors.push(dynamicColor); 
                     
                     hoverTexts.push(
                         `<b>${model}</b><br>` +
                         `peak week: ${bestDateStr}<br>` +
                         `peak hosp: ${Math.round(medianVal).toLocaleString()}<br>` +
-                        `<span style="color: white; font-size: 0.8em">predicted as of ${refDate}</span>`
+                        `<span style="color: ${colorScheme === 'dark' ? '#e0e0e0' : '#333333'}; font-size: 0.8em">predicted as of ${refDate}</span>`
                     );
                 });
 
                 if (xValues.length > 0) {
-                    // match colors to model selector
-                    const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-                    
+                    // ACTUAL DATA TRACE (Gradient colors, Hidden from Legend)
                     traces.push({
                         x: xValues,
                         y: yValues,
@@ -227,21 +245,39 @@ const FluPeak = ({
                         type: 'scatter',
                         mode: 'markers', 
                         marker: {
-                            color: modelColor,
+                            color: pointColors, 
                             size: 10,
                             symbol: 'diamond', 
                             line: { width: 1, color: 'white' }
                         },
                         hovertemplate: '%{text}<extra></extra>',
                         text: hoverTexts,
-                        showlegend: true
+                        showlegend: false, 
+                        legendgroup: model 
+                    });
+
+                    // DUMMY LEGEND TRACE (Solid color, Visible in Legend)
+                    traces.push({
+                        x: [null], // No data
+                        y: [null],
+                        name: model,
+                        type: 'scatter',
+                        mode: 'markers',
+                        marker: {
+                            color: baseColorHex, 
+                            size: 10,
+                            symbol: 'diamond',
+                            line: { width: 1, color: 'white' }
+                        },
+                        showlegend: true, 
+                        legendgroup: model 
                     });
                 }
             });
         }
 
         return traces; 
-    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates]);
+    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates, colorScheme]);
 
     const layout = useMemo(() => ({
         width: windowSize ? Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO) : undefined,
