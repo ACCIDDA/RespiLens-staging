@@ -6,7 +6,7 @@ import ModelSelector from './ModelSelector';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
-import { targetDisplayNameMap } from '../utils/mapUtils';
+import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 
 
 const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
@@ -216,7 +216,10 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
       linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
     },
     yaxis: {
-      title: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value',
+      title: (() => {
+        const longName = targetDisplayNameMap[selectedTarget];
+        return targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+      })(),
       range: yAxisRange, 
       autorange: yAxisRange === null, 
     },

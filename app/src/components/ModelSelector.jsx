@@ -70,7 +70,6 @@ const ModelSelector = ({
         Models ({selectedModels.length}/{models.length})
       </Text>
 
-      {/* Custom MultiSelect with Colored Pills */}
       <Combobox
         store={combobox}
         onOptionSubmit={handleValueSelect}
@@ -81,10 +80,7 @@ const ModelSelector = ({
             <Pill.Group>
               {selectedModels.map((model) => {
                 const modelColor = getModelColorByIndex(model);
-                // VVVV ADD THIS VVVV
-                // If activeModels is null, all models are considered active
                 const isActive = !activeModels || activeModels.has(model);
-                // ^^^^ ADD THIS ^^^^
                 return (
                   <Pill
                     key={model}
@@ -130,10 +126,7 @@ const ModelSelector = ({
             {filteredModels.map((model) => {
               const modelColor = getModelColorByIndex(model);
               const isSelected = selectedModels.includes(model);
-              // VVVV ADD THIS VVVV
-              // If activeModels is null, all models are considered active
               const isActive = !activeModels || activeModels.has(model);
-              // ^^^^ ADD THIS ^^^^
               
               return (
                 <Combobox.Option
@@ -152,12 +145,10 @@ const ModelSelector = ({
                         <IconCircle size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
                       )}
                       <span
-                        // VVVV UPDATE THIS STYLE VVVV
                         style={{
                           color: isSelected ? modelColor : (isActive ? 'inherit' : 'var(--mantine-color-gray-5)'),
                           fontWeight: isSelected ? 600 : 400
                         }}
-                        // ^^^^ UPDATE THIS STYLE ^^^^
                       >
                         {model}
                       </span>

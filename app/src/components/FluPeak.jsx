@@ -302,7 +302,7 @@ const FluPeak = ({
             title: 'Month', 
             tickformat: '%b' 
         },
-        yaxis: { title: 'Hospitalizations', rangemode: 'tozero' },
+        yaxis: { title: 'Flu Hospitalizations', rangemode: 'tozero' },
     }), [colorScheme, windowSize]);
 
     const config = useMemo(() => ({
