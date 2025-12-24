@@ -132,6 +132,10 @@ const DataVisualizationContainer = () => {
             <p>
               Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
+            <Title order={4} mb="xs">Peaks</Title>
+            <p>
+              Some teams elect to submit predictions for peak influenza burden (for which week the peak is expected, and what the hospitalization burden is projected to be). This data is displayed in our Flu Peaks view, where you can view participating models' median forecast for peak flu burden during the current season.
+            </p>
           </div>
         </>
       )
@@ -161,6 +165,10 @@ const DataVisualizationContainer = () => {
             <p>
               Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
             </p>
+            <Title order={4} mb="xs">Peaks</Title>
+            <p>
+              Some teams elect to submit predictions for peak influenza burden (for which week the peak is expected, and what the hospitalization burden is projected to be). This data is displayed in our Flu Peaks view, where you can view participating models' median forecast for peak flu burden during the current season.
+            </p>
           </div>
         </>
       )
@@ -189,6 +197,10 @@ const DataVisualizationContainer = () => {
             <Title order={4} mb="xs">Forecasts</Title>
             <p>
               Forecasting teams submit a probabilistic forecasts of these targets every Wednesday of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
+            </p>
+            <Title order={4} mb="xs">Peaks</Title>
+            <p>
+              Some teams elect to submit predictions for peak influenza burden (for which week the peak is expected, and what the hospitalization burden is projected to be). This data is displayed in our Flu Peaks view, where you can view participating models' median forecast for peak flu burden during the current season.
             </p>
           </div>
         </>
