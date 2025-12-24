@@ -7,6 +7,15 @@ export const targetDisplayNameMap = {
     'wk inc rsv prop ed visits':  'Proportion of ED Visits due to RSV'
 };
 
+export const targetYAxisLabelMap = {
+    'Weekly Incident COVID-19 Hospitalizations': 'COVID-19 Hospitalizations',
+    "Proportion of ED Visits due to COVID-19": "Proportion of ED Visits due to COVID-19",
+    "Weekly Incident Flu Hospitalizations": 'Flu Hospitalizations',
+    "Proportion of ED Visits due to Flu": "Proportion of ED Visits due to Flu",
+    "Weekly Incident RSV Hospitalizations": "RSV Hospitalizations",
+    "Proportion of ED Visits due to RSV": 'Proportion of ED Visits due to RSV'
+}
+
 export const nhsnTargetsToColumnsMap = {
     'Hospital Admissions (count)': [
         'Total Adult COVID-19 Admissions',
