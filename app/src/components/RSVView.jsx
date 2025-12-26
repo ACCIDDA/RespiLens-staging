@@ -6,7 +6,7 @@ import ModelSelector from './ModelSelector';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
-import { targetDisplayNameMap } from '../utils/mapUtils';
+import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 
 
 const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
@@ -240,7 +240,10 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     },
     yaxis: {
       // Use the map for a user-friendly title
-      title: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value', // Fallback to raw target name or 'Value'
+      title: (() => {
+        const longName = targetDisplayNameMap[selectedTarget];
+        return targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+      })(),
       range: yAxisRange, // Use state for dynamic range updates
       autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
     },

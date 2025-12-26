@@ -7,7 +7,7 @@ import FluPeak from './FluPeak';
 import LastFetched from './LastFetched';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS, RATE_CHANGE_CATEGORIES } from '../constants/chart';
-import { targetDisplayNameMap } from '../utils/mapUtils';
+import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 
 const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, viewType, windowSize, getDefaultRange, selectedTarget, peaks, availablePeakDates, availablePeakModels, peakLocation }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -278,9 +278,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       range: xAxisRange || defaultRange 
     },
     yaxis: {
-      title: viewType === 'fludetailed'
-        ? 'Hospitalizations'
-        : targetDisplayNameMap[selectedTarget] || selectedTarget || 'Value',
+      title: (() => {
+        if (viewType === 'flu_peak') return 'Flu Hospitalizations';
+        const longName = targetDisplayNameMap[selectedTarget];
+        return targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+      })(),
       range: yAxisRange,
       autorange: yAxisRange === null,
     },
