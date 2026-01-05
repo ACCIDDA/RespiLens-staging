@@ -5,8 +5,6 @@ import { IconChartLine, IconTarget, IconTrophy, IconDashboard, IconClipboard } f
 import MainNavigation from './MainNavigation';
 import StateSelector from '../StateSelector';
 
-import ChristmasLights from '../ChristmasLights'
-
 const getShellConfig = (pathname) => {
   // For forecast view (main page), show navbar with StateSelector
   if (pathname === '/') {
@@ -36,7 +34,6 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
   const renderHeaderNavigation = () => {
     return (
       <Center h="100%" px="md" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <ChristmasLights />
         {/* Hamburger - always on mobile, left side */}
         <Burger
           opened={mobileOpened}

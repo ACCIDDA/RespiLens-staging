@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { ViewProvider } from './contexts/ViewContext';
@@ -14,8 +12,6 @@ import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import Documentation from './components/Documentation'
 import { Center, Text } from '@mantine/core';
 // import ShutdownBanner from './components/ShutdownBanner';, no longer necessary
-
-import Snowfall from 'react-snowfall'; // delete this line for snowfall deletion
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -38,19 +34,6 @@ const AppLayout = () => {
 
   // <ShutdownBanner />  was below UnifiedAppShell, should we need it again 
   return (
-    <> {/*delete this line for snowfall deletion*/}
-      <Snowfall 
-          style={{
-            position: 'fixed',
-            width: '100vw',
-            height: '100vh',
-            zIndex: 1000, 
-            pointerEvents: 'none' 
-          }}
-          color="#dee4fd"
-          snowflakeCount={150}
-          radius={[0.9, 2.5]}
-      />
       <UnifiedAppShell>
         <Routes>
           <Route path="/" element={<ForecastApp />} />
@@ -62,7 +45,6 @@ const AppLayout = () => {
           <Route path="/documentation" element={<Documentation />} />
         </Routes>
       </UnifiedAppShell>
-    </> // delete this line for snowfall deletion
   );
 };
 
