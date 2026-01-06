@@ -62,14 +62,31 @@ const InfoOverlay = () => {
 
           <div>
             <Title order={4} mb="xs">Attribution</Title>
-            Respilens stands on the shoulders of giants. We rely heavily on the{' '}
+            RespiLens exists within a landscape of other respiratory illness data dashboards. We rely heavily on the{' '}
             <Anchor href="https://hubverse.io" target="_blank" rel="noopener">
-              HubVerse
+              Hubverse
             </Anchor>{' '}
             project which standardizes and consolidates forecast data formats. For each of the hub displayed on RespiLens, the data, organization and forecasts
-            belong to their respective teams (see the hub-specific overlays for details).  RespiLens is only a visualization layer, and contains no original work.
+            belong to their respective teams. <strong>RespiLens is only a visualization layer, and contains no original work.</strong>
           </div>
 
+          <Text>
+            You can find information and alternative visualization for each pathogen at the following locations:
+          </Text>
+          <List spacing="xs" size="sm">
+            <List.Item>
+              FluSight Forecast Hub: <Anchor href="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/flusight-dashboard/" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+            </List.Item>
+            <List.Item>
+              RSV Forecast Hub: <Anchor href="https://github.com/CDCgov/rsv-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+            </List.Item>
+            <List.Item>
+              COVID-19 Forecast Hub: <Anchor href="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/covidhub-dashboard" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/CDCgov/covid19-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+            </List.Item>
+          </List>
+
+          <Text></Text>
+          <Text></Text>
           <Text>
             RespiLens is made by Emily Przykucki (UNC Chapel Hill), {' '} 
             <Anchor href="https://josephlemaitre.com" target="_blank" rel="noopener">
