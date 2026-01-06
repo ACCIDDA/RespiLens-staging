@@ -75,13 +75,13 @@ const InfoOverlay = () => {
           </Text>
           <List spacing="xs" size="sm">
             <List.Item>
-              FluSight Forecast Hub – <Anchor href="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/flusight-dashboard/" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+              FluSight Forecast Hub: <Anchor href="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/flusight-dashboard/" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
             </List.Item>
             <List.Item>
-              RSV Forecast Hub – <Anchor href="https://github.com/CDCgov/rsv-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+              RSV Forecast Hub: <Anchor href="https://github.com/CDCgov/rsv-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
             </List.Item>
             <List.Item>
-              COVID-19 Forecast Hub – <Anchor href="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/covidhub-dashboard" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/CDCgov/covid19-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+              COVID-19 Forecast Hub: <Anchor href="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/covidhub-dashboard" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/CDCgov/covid19-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
             </List.Item>
           </List>
 
