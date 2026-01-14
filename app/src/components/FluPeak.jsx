@@ -337,10 +337,10 @@ const FluPeak = ({
                 fontStyle: 'italic', 
                 fontSize: '12px', 
                 color: '#868e96', 
-                textAlign: 'center',
+                textAlign: 'right',
                 margin: 0 
               }}>
-                forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+                Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
               </p>
             </div>
             
