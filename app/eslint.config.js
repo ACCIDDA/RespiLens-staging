@@ -35,6 +35,7 @@ export default [
       ],
       'react/prop-types': 'off',
       'react/no-unescaped-entities': 'off',
+      "no-irregular-whitespace": "off",
     },
   },
 ]
