@@ -297,6 +297,7 @@ const DataVisualizationContainer = () => {
                     loading={loading}
                   />
                 </div>
+                
               )}
               {windowSize.width > 800 && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -349,6 +350,17 @@ const DataVisualizationContainer = () => {
                 availablePeakDates={availablePeakDates}
                 availablePeakModels={availablePeakModels}
               />
+            </div>
+            <div style={{ borderTop: '1px solid #eee', paddingTop: '12px', marginTop: 'auto' }}>
+              <p style={{ 
+                fontStyle: 'italic', 
+                fontSize: '12px', 
+                color: '#868e96', 
+                textAlign: 'center',
+                margin: 0 
+              }}>
+                forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+              </p>
             </div>
           </Stack>
         </Paper>
