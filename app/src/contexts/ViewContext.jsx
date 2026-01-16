@@ -20,12 +20,14 @@ export const ViewProvider = ({ children }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
+  const CURRENT_FLU_SEASON_START = '2025-11-01'; // !! CRITICAL !!: need to change this manually based on the season
 
   const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
 
+  // filter flu_peak dates based on current season
   const availableDatesToExpose = useMemo(() => {
     if (viewType === 'flu_peak') {
-      return availablePeakDates || [];
+      return (availablePeakDates || []).filter(date => date >= CURRENT_FLU_SEASON_START);
     }
     return availableDates || [];
   }, [viewType, availablePeakDates, availableDates]);
@@ -187,14 +189,12 @@ export const ViewProvider = ({ children }) => {
       setActiveDate(null);
       setSelectedTarget(null);
       
-      // Clean up old params
       if (oldDataset) {
         newSearchParams.delete(`${oldDataset.prefix}_models`);
         newSearchParams.delete(`${oldDataset.prefix}_dates`);
         newSearchParams.delete(`${oldDataset.prefix}_target`);
       }
-      
-      // Special cleanup for NHSN or other specific cases
+
       if (oldDataset?.shortName === 'nhsn') {
         newSearchParams.delete('nhsn_target');
         newSearchParams.delete('nhsn_cols');
@@ -214,7 +214,6 @@ export const ViewProvider = ({ children }) => {
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, metadata, loading, error, 
-    // ✅ Use the exposed dates in the context value
     availableDates: availableDatesToExpose, 
     models: modelsForView,
     selectedModels, setSelectedModels: (updater) => {
@@ -244,9 +243,8 @@ export const ViewProvider = ({ children }) => {
     
     selectedTarget,
     handleTargetSelect,
-    // Include all new peak data in the context
     peaks,
-    availablePeakDates, 
+    availablePeakDates: (availablePeakDates || []).filter(date => date >= CURRENT_FLU_SEASON_START),
     availablePeakModels 
   };
 
