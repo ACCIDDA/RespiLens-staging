@@ -346,17 +346,22 @@ const FluPeak = ({
                     const formatted50 = `${Math.round(low50).toLocaleString()} - ${Math.round(high50).toLocaleString()}`;
                     const formatted95 = `${Math.round(low95).toLocaleString()} - ${Math.round(high95).toLocaleString()}`;
 
+                    const timing50Row = showUncertainty ? `50% CI: [${timing50}]<br>` : '';
+                    const timing95Row = showUncertainty ? `95% CI: [${timing95}]<br>` : '';
+                    const burden50Row = showUncertainty ? `50% CI: [${formatted50}]<br>` : '';
+                    const burden95Row = showUncertainty ? `95% CI: [${formatted95}]<br>` : '';
+
                     hoverTexts.push(
-                        `<b>${model}</b><br>` +
+                        `${model}<br>` +
                         `<b>Peak timing:</b><br>` +
                         `Median Week: <b>${bestDateStr}</b><br>` +
-                        `50% CI: [${timing50}]<br>` +
-                        `95% CI: [${timing95}]<br>` +
+                        timing50Row +
+                        timing95Row +
                         `<span style="border-bottom: 1px solid #ccc; display: block; margin: 5px 0;"></span>` +
                         `<b>Peak hospitalization:</b><br>` +
                         `Median: <b>${formattedMedian}</b><br>` +
-                        `50% CI: [${formatted50}]<br>` +
-                        `95% CI: [${formatted95}]<br>` +
+                        burden50Row +
+                        burden95Row +
                         `<span style="color: #ffffff; font-size: 0.8em">predicted as of ${refDate}</span>`
                     );
                 });
@@ -460,7 +465,6 @@ const FluPeak = ({
                     line: {
                         color: 'rgba(255, 255, 255, 0.05)',
                         width: 2,
-                        // dash: 'dash'
                     }
                 }
             ];
