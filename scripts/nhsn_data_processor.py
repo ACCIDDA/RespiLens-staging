@@ -48,6 +48,8 @@ class NHSNDataProcessor:
         non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
         for col in data.columns:
             if col not in non_numeric_cols:
+                # TEMP DEBUGGING 
+                print(col)
                 data[col] = pd.to_numeric(data[col], errors='raise')
         data = data.replace(np.nan, value=None) # cleanse NaN values 
         data.loc[data['jurisdiction'].str.lower() == 'usa', 'jurisdiction'] = 'US' # change USA jurisdiction to US
