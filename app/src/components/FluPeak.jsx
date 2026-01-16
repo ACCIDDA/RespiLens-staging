@@ -352,7 +352,7 @@ const FluPeak = ({
                         `95% CI: [${timing95}]<br>` +
                         `<span style="border-bottom: 1px solid #ccc; display: block; margin: 5px 0;"></span>` +
                         `<b>Peak hospitalization:</b><br>` +
-                        `Median: ${formattedMedian}<br>` +
+                        `Median: <b>${formattedMedian}</b><br>` +
                         `50% CI: [${formatted50}]<br>` +
                         `95% CI: [${formatted95}]<br>` +
                         `<span style="color: #ffffff; font-size: 0.8em">predicted as of ${refDate}</span>`
