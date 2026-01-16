@@ -213,18 +213,30 @@ const FluPeak = ({
                     const probArray = tPreds['probabilities'];
 
                     let bestDateStr = null;
+                    let lowDate95 = null, highDate95 = null;
+                    let lowDate50 = null, highDate50 = null;
+
                     if (dateArray && probArray) {
                         let cumulativeProb = 0;
-                        let medianIdx = -1;
+                        let medianIdx = -1, q025Idx = -1, q975Idx = -1, q25Idx = -1, q75Idx = -1;
                         for (let i = 0; i < probArray.length; i++) {
                             cumulativeProb += probArray[i];
-                            if (cumulativeProb >= 0.5) {
-                                medianIdx = i;
-                                break;
-                            }
+                            
+                            if (q025Idx === -1 && cumulativeProb >= 0.025) q025Idx = i;
+                            if (q25Idx === -1 && cumulativeProb >= 0.25) q25Idx = i;
+                            if (medianIdx === -1 && cumulativeProb >= 0.5) medianIdx = i;
+                            if (q75Idx === -1 && cumulativeProb >= 0.75) q75Idx = i;
+                            if (q975Idx === -1 && cumulativeProb >= 0.975) q975Idx = i;
                         }
-                        if (medianIdx === -1) medianIdx = probArray.length - 1; 
+                        if (medianIdx === -1) medianIdx = probArray.length - 1;
+                        if (q975Idx === -1) q975Idx = probArray.length - 1;
+                        if (q75Idx === -1) q75Idx = probArray.length - 1;
+
                         bestDateStr = dateArray[medianIdx];
+                        lowDate95 = dateArray[q025Idx !== -1 ? q025Idx : 0];
+                        highDate95 = dateArray[q975Idx];
+                        lowDate50 = dateArray[q25Idx !== -1 ? q25Idx : 0];
+                        highDate50 = dateArray[q75Idx];
                     } else if (dateArray && dateArray.length > 0) {
                         bestDateStr = dateArray[Math.floor(dateArray.length / 2)];
                     }
@@ -239,7 +251,7 @@ const FluPeak = ({
                     
                     const dynamicColor = hexToRgba(baseColorHex, alpha);
 
-                    // 95% interval (thin line)
+                    // 95% vertical whisker (hosp)
                     if (low95 !== null && high95 !== null) {
                         traces.push({
                             x: [normalizedDate, normalizedDate],
@@ -265,7 +277,7 @@ const FluPeak = ({
                         });
                     }
 
-                    // 50% interval (thick line)
+                    // 50% vertical whisker (hosp)
                     if (low50 !== null && high50 !== null) {
                         traces.push({
                             x: [normalizedDate, normalizedDate],
@@ -282,19 +294,64 @@ const FluPeak = ({
                         });
                     }
 
+                    // 95% horizontal whisker (dates)
+                    if (lowDate95 && highDate95) {
+                        traces.push({
+                            x: [getNormalizedDate(lowDate95), getNormalizedDate(highDate95)],
+                            y: [medianVal, medianVal],
+                            mode: 'lines+markers',
+                            line: { 
+                                color: dynamicColor, 
+                                width: 1, 
+                                dash: 'dash' 
+                            },
+                            marker: {
+                                symbol: 'line-ns', 
+                                color: dynamicColor,
+                                size: 10,
+                                line: { width: 1, color: dynamicColor }
+                            },
+                            legendgroup: model,
+                            showlegend: false,
+                            hoverinfo: 'skip'
+                        });
+                    }
+
+                    // 50% horizontal whisker (dates)
+                    if (lowDate50 && highDate50) {
+                        traces.push({
+                            x: [getNormalizedDate(lowDate50), getNormalizedDate(highDate50)],
+                            y: [medianVal, medianVal],
+                            mode: 'lines',
+                            line: { 
+                                color: dynamicColor, 
+                                width: 4, 
+                                dash: '6px, 3px' 
+                            },
+                            legendgroup: model,
+                            showlegend: false,
+                            hoverinfo: 'skip'
+                        });
+                    }
+
                     xValues.push(getNormalizedDate(bestDateStr));
                     yValues.push(medianVal);
                     pointColors.push(dynamicColor); 
-                    
+
+                    const timing50 = `${lowDate50} - ${highDate50}`;
+                    const timing95 = `${lowDate95} - ${highDate95}`;
                     const formattedMedian = Math.round(medianVal).toLocaleString();
                     const formatted50 = `${Math.round(low50).toLocaleString()} - ${Math.round(high50).toLocaleString()}`;
                     const formatted95 = `${Math.round(low95).toLocaleString()} - ${Math.round(high95).toLocaleString()}`;
 
                     hoverTexts.push(
                         `<b>${model}</b><br>` +
-                        `Median Peak Week: <b>${bestDateStr}</b><br>` +
+                        `<b>Peak timing:</b><br>` +
+                        `Median Week: <b>${bestDateStr}</b><br>` +
+                        `50% CI: [${timing50}]<br>` +
+                        `95% CI: [${timing95}]<br>` +
                         `<span style="border-bottom: 1px solid #ccc; display: block; margin: 5px 0;"></span>` +
-                        `<b>Peak Hospitalization Burden:</b><br>` +
+                        `<b>Peak hospitalization:</b><br>` +
                         `Median: ${formattedMedian}<br>` +
                         `50% CI: [${formatted50}]<br>` +
                         `95% CI: [${formatted95}]<br>` +
