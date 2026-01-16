@@ -432,7 +432,40 @@ const FluPeak = ({
             tickformat: '%b' 
         },
         yaxis: { title: 'Flu Hospitalizations', rangemode: 'tozero' },
-    }), [colorScheme, windowSize]);
+
+        // dynamic gray shading section
+        shapes: selectedDates.flatMap(dateStr => {
+            const normalizedRefDate = getNormalizedDate(dateStr);
+            const seasonStart = new Date('2000-08-01'); 
+            return [
+                {
+                    type: 'rect',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: seasonStart,
+                    x1: normalizedRefDate,
+                    y0: 0,
+                    y1: 1,
+                    fillcolor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(128, 128, 128, 0.1)',
+                    line: { width: 0 }, 
+                    layer: 'below'      
+                },
+                {
+                    type: 'line',
+                    x0: normalizedRefDate,
+                    x1: normalizedRefDate,
+                    y0: 0,
+                    y1: 1,
+                    yref: 'paper',
+                    line: {
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        width: 2,
+                        // dash: 'dash'
+                    }
+                }
+            ];
+        }),
+    }), [colorScheme, windowSize, selectedDates]);
 
     const config = useMemo(() => ({
         responsive: true,
