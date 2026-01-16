@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Stack, useMantineColorScheme } from '@mantine/core';
+import { Stack, useMantineColorScheme, Switch, Group } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector'; 
 import { MODEL_COLORS } from '../config/datasets'; 
@@ -34,6 +34,7 @@ const FluPeak = ({
     const { colorScheme } = useMantineColorScheme();
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
+    const [showUncertainty, setShowUncertainty] = useState(true);
 
     const getNormalizedDate = (dateStr) => {
         const d = new Date(dateStr);
@@ -250,90 +251,91 @@ const FluPeak = ({
                         : minOpacity + ((index / (datesToCheck.length - 1)) * (1 - minOpacity));
                     
                     const dynamicColor = hexToRgba(baseColorHex, alpha);
-
-                    // 95% vertical whisker (hosp)
-                    if (low95 !== null && high95 !== null) {
-                        traces.push({
-                            x: [normalizedDate, normalizedDate],
-                            y: [low95, high95],
-                            mode: 'lines+markers', 
-                            line: { 
-                                color: dynamicColor, 
-                                width: 1, 
-                                dash: 'dash' 
-                            },
-                            marker: {
-                                symbol: 'line-ew', 
-                                color: dynamicColor, 
-                                size: 10,          
+                    
+                    if (showUncertainty) {
+                        // 95% vertical whisker (hosp)
+                        if (low95 !== null && high95 !== null) {
+                            traces.push({
+                                x: [normalizedDate, normalizedDate],
+                                y: [low95, high95],
+                                mode: 'lines+markers', 
                                 line: { 
+                                    color: dynamicColor, 
                                     width: 1, 
-                                    color: dynamicColor
-                                }
-                            },
-                            legendgroup: model,
-                            showlegend: false,
-                            hoverinfo: 'skip'
-                        });
-                    }
+                                    dash: 'dash' 
+                                },
+                                marker: {
+                                    symbol: 'line-ew', 
+                                    color: dynamicColor, 
+                                    size: 10,          
+                                    line: { 
+                                        width: 1, 
+                                        color: dynamicColor
+                                    }
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
 
-                    // 50% vertical whisker (hosp)
-                    if (low50 !== null && high50 !== null) {
-                        traces.push({
-                            x: [normalizedDate, normalizedDate],
-                            y: [low50, high50],
-                            mode: 'lines',
-                            line: { 
-                                color: dynamicColor, 
-                                width: 4, 
-                                dash: '6px, 3px' 
-                            },
-                            legendgroup: model,
-                            showlegend: false,
-                            hoverinfo: 'skip'
-                        });
-                    }
+                        // 50% vertical whisker (hosp)
+                        if (low50 !== null && high50 !== null) {
+                            traces.push({
+                                x: [normalizedDate, normalizedDate],
+                                y: [low50, high50],
+                                mode: 'lines',
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 4, 
+                                    dash: '6px, 3px' 
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
 
-                    // 95% horizontal whisker (dates)
-                    if (lowDate95 && highDate95) {
-                        traces.push({
-                            x: [getNormalizedDate(lowDate95), getNormalizedDate(highDate95)],
-                            y: [medianVal, medianVal],
-                            mode: 'lines+markers',
-                            line: { 
-                                color: dynamicColor, 
-                                width: 1, 
-                                dash: 'dash' 
-                            },
-                            marker: {
-                                symbol: 'line-ns', 
-                                color: dynamicColor,
-                                size: 10,
-                                line: { width: 1, color: dynamicColor }
-                            },
-                            legendgroup: model,
-                            showlegend: false,
-                            hoverinfo: 'skip'
-                        });
-                    }
+                        // 95% horizontal whisker (dates)
+                        if (lowDate95 && highDate95) {
+                            traces.push({
+                                x: [getNormalizedDate(lowDate95), getNormalizedDate(highDate95)],
+                                y: [medianVal, medianVal],
+                                mode: 'lines+markers',
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 1, 
+                                    dash: 'dash' 
+                                },
+                                marker: {
+                                    symbol: 'line-ns', 
+                                    color: dynamicColor,
+                                    size: 10,
+                                    line: { width: 1, color: dynamicColor }
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
 
-                    // 50% horizontal whisker (dates)
-                    if (lowDate50 && highDate50) {
-                        traces.push({
-                            x: [getNormalizedDate(lowDate50), getNormalizedDate(highDate50)],
-                            y: [medianVal, medianVal],
-                            mode: 'lines',
-                            line: { 
-                                color: dynamicColor, 
-                                width: 4, 
-                                dash: '6px, 3px' 
-                            },
-                            legendgroup: model,
-                            showlegend: false,
-                            hoverinfo: 'skip'
-                        });
+                        // 50% horizontal whisker (dates)
+                        if (lowDate50 && highDate50) {
+                            traces.push({
+                                x: [getNormalizedDate(lowDate50), getNormalizedDate(highDate50)],
+                                y: [medianVal, medianVal],
+                                mode: 'lines',
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 4, 
+                                    dash: '6px, 3px' 
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
                     }
-
                     xValues.push(getNormalizedDate(bestDateStr));
                     yValues.push(medianVal);
                     pointColors.push(dynamicColor); 
@@ -404,7 +406,7 @@ const FluPeak = ({
         }
 
         return traces; 
-    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates]);
+    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates, showUncertainty]);
 
     const layout = useMemo(() => ({
         width: windowSize ? Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO) : undefined,
@@ -471,6 +473,14 @@ const FluPeak = ({
               </p>
             </div>
             
+            <Group>
+                <Switch
+                    label="Show uncertainty intervals"
+                    checked={showUncertainty}
+                    onChange={(event) => setShowUncertainty(event.currentTarget.checked)}
+                    size="sm"
+                />
+            </Group>
             <ModelSelector 
                 models={peakModels} 
                 selectedModels={selectedModels}
