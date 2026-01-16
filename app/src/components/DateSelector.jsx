@@ -1,7 +1,7 @@
 import { Group, Text, ActionIcon, Button } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
-const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeDate, setActiveDate }) => {
+const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeDate, setActiveDate, multi = true }) => {
   return (
     <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
       {selectedDates.map((date) => (
@@ -43,16 +43,18 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
             >
               {date}
             </Text>
-            <ActionIcon
-              onClick={() => setSelectedDates(dates => dates.filter(d => d !== date))}
-              disabled={selectedDates.length === 1}
-              variant="subtle"
-              size="xs"
-              color="red"
-              aria-label={`Remove date ${date}`}
-            >
-              <IconX size={10} />
-            </ActionIcon>
+            {multi && ( // only show `x` icon when multi == True
+              <ActionIcon
+                onClick={() => setSelectedDates(dates => dates.filter(d => d !== date))}
+                disabled={selectedDates.length === 1}
+                variant="subtle"
+                size="xs"
+                color="red"
+                aria-label={`Remove date ${date}`}
+              >
+                <IconX size={10} />
+              </ActionIcon>
+            )}
           </Group>
 
           <ActionIcon
@@ -82,7 +84,7 @@ const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeD
         </Group>
       ))}
       
-      {selectedDates.length < 5 && (
+      {multi && selectedDates.length < 5 && ( // only show add button if multi == True
         <Button
           onClick={() => {
             if (selectedDates.length >= 5) return;

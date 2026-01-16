@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Stack, useMantineColorScheme } from '@mantine/core';
+import { Stack, useMantineColorScheme, Switch, Group } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector'; 
 import { MODEL_COLORS } from '../config/datasets'; 
@@ -34,6 +34,7 @@ const FluPeak = ({
     const { colorScheme } = useMantineColorScheme();
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
+    const [showUncertainty, setShowUncertainty] = useState(true);
 
     const getNormalizedDate = (dateStr) => {
         const d = new Date(dateStr);
@@ -190,10 +191,20 @@ const FluPeak = ({
                     const intensityData = dateData['peak inc flu hosp']?.[model];
                     if (!intensityData || !intensityData.predictions) return;
 
+                    // extract confidence intervals
                     const iPreds = intensityData.predictions;
-                    const qIdx05 = iPreds.quantiles.indexOf(0.5);
-                    if (qIdx05 === -1) return; 
-                    const medianVal = iPreds.values[qIdx05];
+                    const getVal = (q) => {
+                        const idx = iPreds.quantiles.indexOf(q);
+                        return idx !== -1 ? iPreds.values[idx] : null;
+                    };
+
+                    const medianVal = getVal(0.5);
+                    const low95 = getVal(0.025);
+                    const high95 = getVal(0.975);
+                    const low50 = getVal(0.25);
+                    const high50 = getVal(0.75);
+
+                    if (medianVal === null) return;
 
                     const timingData = dateData['peak week inc flu hosp']?.[model];
                     if (!timingData || !timingData.predictions) return;
@@ -203,19 +214,36 @@ const FluPeak = ({
                     const probArray = tPreds['probabilities'];
 
                     let bestDateStr = null;
+                    let lowDate95 = null, highDate95 = null;
+                    let lowDate50 = null, highDate50 = null;
+
                     if (dateArray && probArray) {
-                        let maxProb = -1;
-                        let maxIdx = -1;
-                        probArray.forEach((p, i) => {
-                            if (p > maxProb) { maxProb = p; maxIdx = i; }
-                        });
-                        if (maxIdx !== -1) bestDateStr = dateArray[maxIdx];
+                        let cumulativeProb = 0;
+                        let medianIdx = -1, q025Idx = -1, q975Idx = -1, q25Idx = -1, q75Idx = -1;
+                        for (let i = 0; i < probArray.length; i++) {
+                            cumulativeProb += probArray[i];
+                            
+                            if (q025Idx === -1 && cumulativeProb >= 0.025) q025Idx = i;
+                            if (q25Idx === -1 && cumulativeProb >= 0.25) q25Idx = i;
+                            if (medianIdx === -1 && cumulativeProb >= 0.5) medianIdx = i;
+                            if (q75Idx === -1 && cumulativeProb >= 0.75) q75Idx = i;
+                            if (q975Idx === -1 && cumulativeProb >= 0.975) q975Idx = i;
+                        }
+                        if (medianIdx === -1) medianIdx = probArray.length - 1;
+                        if (q975Idx === -1) q975Idx = probArray.length - 1;
+                        if (q75Idx === -1) q75Idx = probArray.length - 1;
+
+                        bestDateStr = dateArray[medianIdx];
+                        lowDate95 = dateArray[q025Idx !== -1 ? q025Idx : 0];
+                        highDate95 = dateArray[q975Idx];
+                        lowDate50 = dateArray[q25Idx !== -1 ? q25Idx : 0];
+                        highDate50 = dateArray[q75Idx];
                     } else if (dateArray && dateArray.length > 0) {
                         bestDateStr = dateArray[Math.floor(dateArray.length / 2)];
                     }
-
                     if (!bestDateStr) return;
 
+                    const normalizedDate = getNormalizedDate(bestDateStr);
                     // Gradient Opacity Calculation
                     const minOpacity = 0.4;
                     const alpha = datesToCheck.length === 1 
@@ -223,21 +251,123 @@ const FluPeak = ({
                         : minOpacity + ((index / (datesToCheck.length - 1)) * (1 - minOpacity));
                     
                     const dynamicColor = hexToRgba(baseColorHex, alpha);
+                    
+                    if (showUncertainty) {
+                        // 95% vertical whisker (hosp)
+                        if (low95 !== null && high95 !== null) {
+                            traces.push({
+                                x: [normalizedDate, normalizedDate],
+                                y: [low95, high95],
+                                mode: 'lines+markers', 
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 1, 
+                                    dash: 'dash' 
+                                },
+                                marker: {
+                                    symbol: 'line-ew', 
+                                    color: dynamicColor, 
+                                    size: 10,          
+                                    line: { 
+                                        width: 1, 
+                                        color: dynamicColor
+                                    }
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
 
+                        // 50% vertical whisker (hosp)
+                        if (low50 !== null && high50 !== null) {
+                            traces.push({
+                                x: [normalizedDate, normalizedDate],
+                                y: [low50, high50],
+                                mode: 'lines',
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 4, 
+                                    dash: '6px, 3px' 
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
+
+                        // 95% horizontal whisker (dates)
+                        if (lowDate95 && highDate95) {
+                            traces.push({
+                                x: [getNormalizedDate(lowDate95), getNormalizedDate(highDate95)],
+                                y: [medianVal, medianVal],
+                                mode: 'lines+markers',
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 1, 
+                                    dash: 'dash' 
+                                },
+                                marker: {
+                                    symbol: 'line-ns', 
+                                    color: dynamicColor,
+                                    size: 10,
+                                    line: { width: 1, color: dynamicColor }
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
+
+                        // 50% horizontal whisker (dates)
+                        if (lowDate50 && highDate50) {
+                            traces.push({
+                                x: [getNormalizedDate(lowDate50), getNormalizedDate(highDate50)],
+                                y: [medianVal, medianVal],
+                                mode: 'lines',
+                                line: { 
+                                    color: dynamicColor, 
+                                    width: 4, 
+                                    dash: '6px, 3px' 
+                                },
+                                legendgroup: model,
+                                showlegend: false,
+                                hoverinfo: 'skip'
+                            });
+                        }
+                    }
                     xValues.push(getNormalizedDate(bestDateStr));
                     yValues.push(medianVal);
                     pointColors.push(dynamicColor); 
-                    
+
+                    const timing50 = `${lowDate50} - ${highDate50}`;
+                    const timing95 = `${lowDate95} - ${highDate95}`;
+                    const formattedMedian = Math.round(medianVal).toLocaleString();
+                    const formatted50 = `${Math.round(low50).toLocaleString()} - ${Math.round(high50).toLocaleString()}`;
+                    const formatted95 = `${Math.round(low95).toLocaleString()} - ${Math.round(high95).toLocaleString()}`;
+
+                    const timing50Row = showUncertainty ? `50% CI: [${timing50}]<br>` : '';
+                    const timing95Row = showUncertainty ? `95% CI: [${timing95}]<br>` : '';
+                    const burden50Row = showUncertainty ? `50% CI: [${formatted50}]<br>` : '';
+                    const burden95Row = showUncertainty ? `95% CI: [${formatted95}]<br>` : '';
+
                     hoverTexts.push(
-                        `<b>${model}</b><br>` +
-                        `peak week: ${bestDateStr}<br>` +
-                        `peak hosp: ${Math.round(medianVal).toLocaleString()}<br>` +
-                        `<span style="color: ${colorScheme === 'dark' ? '#e0e0e0' : '#333333'}; font-size: 0.8em">predicted as of ${refDate}</span>`
+                        `${model}<br>` +
+                        `<b>Peak timing:</b><br>` +
+                        `Median Week: <b>${bestDateStr}</b><br>` +
+                        timing50Row +
+                        timing95Row +
+                        `<span style="border-bottom: 1px solid #ccc; display: block; margin: 5px 0;"></span>` +
+                        `<b>Peak hospitalization:</b><br>` +
+                        `Median: <b>${formattedMedian}</b><br>` +
+                        burden50Row +
+                        burden95Row +
+                        `<span style="color: #ffffff; font-size: 0.8em">predicted as of ${refDate}</span>`
                     );
                 });
 
+                // actual trace
                 if (xValues.length > 0) {
-                    // ACTUAL DATA TRACE (Gradient colors, Hidden from Legend)
                     traces.push({
                         x: xValues,
                         y: yValues,
@@ -246,9 +376,13 @@ const FluPeak = ({
                         mode: 'markers', 
                         marker: {
                             color: pointColors, 
-                            size: 10,
-                            symbol: 'diamond', 
+                            size: 12,
+                            symbol: 'circle', 
                             line: { width: 1, color: 'white' }
+                        },
+                        hoverlabel: {
+                            font: { color: '#ffffff' }, 
+                            bordercolor: '#ffffff'  // maakes border white
                         },
                         hovertemplate: '%{text}<extra></extra>',
                         text: hoverTexts,
@@ -256,17 +390,17 @@ const FluPeak = ({
                         legendgroup: model 
                     });
 
-                    // DUMMY LEGEND TRACE (Solid color, Visible in Legend)
+                    // dummy legend
                     traces.push({
-                        x: [null], // No data
+                        x: [null],
                         y: [null],
                         name: model,
                         type: 'scatter',
                         mode: 'markers',
                         marker: {
                             color: baseColorHex, 
-                            size: 10,
-                            symbol: 'diamond',
+                            size: 12,
+                            symbol: 'circle',
                             line: { width: 1, color: 'white' }
                         },
                         showlegend: true, 
@@ -277,7 +411,7 @@ const FluPeak = ({
         }
 
         return traces; 
-    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates, colorScheme]);
+    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates, showUncertainty]);
 
     const layout = useMemo(() => ({
         width: windowSize ? Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO) : undefined,
@@ -303,7 +437,39 @@ const FluPeak = ({
             tickformat: '%b' 
         },
         yaxis: { title: 'Flu Hospitalizations', rangemode: 'tozero' },
-    }), [colorScheme, windowSize]);
+
+        // dynamic gray shading section
+        shapes: selectedDates.flatMap(dateStr => {
+            const normalizedRefDate = getNormalizedDate(dateStr);
+            const seasonStart = new Date('2000-08-01'); 
+            return [
+                {
+                    type: 'rect',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: seasonStart,
+                    x1: normalizedRefDate,
+                    y0: 0,
+                    y1: 1,
+                    fillcolor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(128, 128, 128, 0.1)',
+                    line: { width: 0 }, 
+                    layer: 'below'      
+                },
+                {
+                    type: 'line',
+                    x0: normalizedRefDate,
+                    x1: normalizedRefDate,
+                    y0: 0,
+                    y1: 1,
+                    yref: 'paper',
+                    line: {
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        width: 2,
+                    }
+                }
+            ];
+        }),
+    }), [colorScheme, windowSize, selectedDates]);
 
     const config = useMemo(() => ({
         responsive: true,
@@ -332,7 +498,26 @@ const FluPeak = ({
                     useResizeHandler={true}
                 />
             </div>
+            <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
+              <p style={{ 
+                fontStyle: 'italic', 
+                fontSize: '12px', 
+                color: '#868e96', 
+                textAlign: 'right',
+                margin: 0 
+              }}>
+                Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+              </p>
+            </div>
             
+            <Group>
+                <Switch
+                    label="Show uncertainty intervals"
+                    checked={showUncertainty}
+                    onChange={(event) => setShowUncertainty(event.currentTarget.checked)}
+                    size="sm"
+                />
+            </Group>
             <ModelSelector 
                 models={peakModels} 
                 selectedModels={selectedModels}

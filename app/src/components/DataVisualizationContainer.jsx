@@ -244,6 +244,15 @@ const DataVisualizationContainer = () => {
     const url = window.location.href;
     clipboard.copy(url);
   };
+
+  // for when switching from one flu view to flu_peak and there are multiple dates selected
+  useEffect(() => {
+    if (viewType === 'flu_peak' && selectedDates.length > 1) {
+      // keep only the active date, or the first date if activeDate isn't set
+      const singleDate = activeDate || selectedDates[0];
+      setSelectedDates([singleDate]);
+    }
+  }, [viewType, selectedDates, activeDate, setSelectedDates]);
   
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
@@ -295,8 +304,10 @@ const DataVisualizationContainer = () => {
                     activeDate={activeDate}
                     setActiveDate={setActiveDate}
                     loading={loading}
+                    multi={viewType !== 'flu_peak'}
                   />
                 </div>
+                
               )}
               {windowSize.width > 800 && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -321,6 +332,7 @@ const DataVisualizationContainer = () => {
                     activeDate={activeDate}
                     setActiveDate={setActiveDate}
                     loading={loading}
+                    multi={viewType !== 'flu_peak'} //disable multi date select if flu peak
                   />
                 </div>
               )}

@@ -300,6 +300,17 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           onRelayout={handlePlotUpdate} 
         />
       </div>
+      <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
+              <p style={{ 
+                fontStyle: 'italic', 
+                fontSize: '12px', 
+                color: '#868e96', 
+                textAlign: 'right',
+                margin: 0 
+              }}>
+               Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+              </p>
+      </div>
       <ModelSelector
         models={models}
         selectedModels={selectedModels}

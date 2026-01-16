@@ -46,6 +46,7 @@ class NHSNDataProcessor:
         logger.info(f"Retrieving NHSN data from {self.data_url}...")
         data = pd.DataFrame(self._retrieve_data_from_endpoint_aslist()) # read from endpoint
         non_numeric_cols = ['jurisdiction', 'weekendingdate'] # make numeric cols not strings
+        data = data.drop(columns=['respseason'])
         for col in data.columns:
             if col not in non_numeric_cols:
                 data[col] = pd.to_numeric(data[col], errors='raise')
