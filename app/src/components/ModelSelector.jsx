@@ -7,9 +7,9 @@ const ModelSelector = ({
   models = [],
   selectedModels = [], 
   setSelectedModels,
-  activeModels = null, // <-- ADD THIS PROP with a null default
+  activeModels = null, 
   allowMultiple = true,
-  disabled = false // This is the prop for disabling the *whole* component
+  disabled = false 
 }) => {
   const [showAllAvailable, setShowAllAvailable] = useState(false);
   const [search, setSearch] = useState('');
@@ -37,6 +37,7 @@ const ModelSelector = ({
   const modelsToShow = showAllAvailable ? models : selectedModels;
 
   const handleValueSelect = (val) => {
+    setSearch('');
     if (selectedModels.includes(val)) {
       setSelectedModels(selectedModels.filter(v => v !== val));
     } else if (allowMultiple) {
@@ -208,7 +209,6 @@ const ModelSelector = ({
         </Text>
       )}
 
-      {/* Model Grid Display */}
       {modelsToShow.length > 0 && (
         <SimpleGrid 
           cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 5 }}
@@ -219,10 +219,8 @@ const ModelSelector = ({
             const isSelected = selectedModels.includes(model);
             const modelColor = getModelColorByIndex(model);
             const inactiveColor = 'var(--mantine-color-gray-5)';
-            // VVVV ADD THIS VVVV
             const isActive = !activeModels || activeModels.has(model);
             const isDisabled = disabled || !isActive; // Combine overall disabled with specific model active state
-            // ^^^^ ADD THIS ^^^^
             
             return (
               <Card
@@ -231,7 +229,6 @@ const ModelSelector = ({
                 radius="md"
                 withBorder={!isSelected}
                 variant={isSelected ? 'filled' : 'default'}
-                // VVVV UPDATE THESE PROPS VVVV
                 style={{
                   cursor: isDisabled ? 'not-allowed' : 'pointer',
                   backgroundColor: isSelected ? modelColor : undefined,
@@ -252,7 +249,6 @@ const ModelSelector = ({
                     }
                   }
                 }}
-                // ^^^^ UPDATE THESE PROPS ^^^^
               >
                 <Group gap="xs" justify="space-between" align="center">
                   <Group gap="xs" align="center" flex={1}>
