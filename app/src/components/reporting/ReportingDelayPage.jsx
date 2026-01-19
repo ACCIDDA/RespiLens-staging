@@ -18,7 +18,6 @@ import {
   Select,
   SimpleGrid,
   Stack,
-  Stepper,
   Table,
   Text,
   ThemeIcon,
@@ -476,126 +475,122 @@ const ReportingDelayPage = () => {
           </Text>
         </Stack>
 
-        <Paper
-          withBorder
-          radius="md"
-          p="lg"
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setIsDragging(false);
-            handleFile(event.dataTransfer.files?.[0]);
-          }}
-          style={{
-            borderStyle: 'dashed',
-            borderColor: isDragging ? 'var(--mantine-color-blue-6)' : undefined,
-            background: isDragging ? 'var(--mantine-color-blue-0)' : undefined,
-          }}
-        >
-          <Stack align="center" gap="sm">
-            <ThemeIcon size={52} radius="xl" variant="light">
-              <IconFileUpload size={28} />
-            </ThemeIcon>
-            <Text fw={600}>Drag & drop a CSV file here</Text>
-            <Text size="sm" c="dimmed" ta="center">
-              Expected columns: <code>reference_date</code>, <code>report_date</code>, <code>value</code>.
-            </Text>
-            <Text size="sm" c="dimmed" ta="center">
-              Each row should be a cumulative total for one reference date as reported on a later report date.
-            </Text>
-            <Text size="sm" c="dimmed" ta="center">
-              Optional columns like location, age, or target are supported and can be filtered after upload.
-            </Text>
-            <Group gap="xs">
-              <Anchor href="https://github.com/epinowcast/epinowcast" target="_blank" rel="noreferrer" size="sm">
-                EpiNowcast sample datasets
-              </Anchor>
-              <Anchor href="https://baselinenowcast.epinowcast.org" target="_blank" rel="noreferrer" size="sm">
-                Baseline nowcast demo data
-              </Anchor>
-            </Group>
-            <Group>
-              <Button onClick={() => inputRef.current?.click()}>Choose file</Button>
-              <Button
-                component="a"
-                href={sampleDataUri}
-                download="sample-epinowcast.csv"
-                variant="subtle"
-                leftSection={<IconDownload size={16} />}
-              >
-                Download sample
-              </Button>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Current dataset: <strong>{fileName}</strong>
-            </Text>
-            {error && (
-              <Text size="sm" c="red">
-                {error} Showing the last valid dataset.
+        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+          <Paper
+            withBorder
+            radius="md"
+            p="lg"
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDragging(false);
+              handleFile(event.dataTransfer.files?.[0]);
+            }}
+            style={{
+              borderStyle: 'dashed',
+              borderColor: isDragging ? 'var(--mantine-color-blue-6)' : undefined,
+              background: isDragging ? 'var(--mantine-color-blue-0)' : undefined,
+            }}
+          >
+            <Stack align="center" gap="sm">
+              <ThemeIcon size={52} radius="xl" variant="light">
+                <IconFileUpload size={28} />
+              </ThemeIcon>
+              <Text fw={600}>Drag & drop a CSV file here</Text>
+              <Text size="sm" c="dimmed" ta="center">
+                Expected columns: <code>reference_date</code>, <code>report_date</code>, <code>value</code>.
               </Text>
-            )}
-            {!mappingComplete && (
-              <Text size="sm" c="orange">
-                We couldn&apos;t automatically map the required columns. Please select them below.
+              <Text size="sm" c="dimmed" ta="center">
+                Each row should be a cumulative total for one reference date as reported on a later report date.
               </Text>
-            )}
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".csv,text/csv"
-              hidden
-              onChange={(event) => handleFile(event.target.files?.[0])}
-            />
-          </Stack>
-        </Paper>
+              <Text size="sm" c="dimmed" ta="center">
+                Optional columns like location, age, or target are supported and can be filtered after upload.
+              </Text>
+              <Group gap="xs">
+                <Anchor href="https://github.com/epinowcast/epinowcast" target="_blank" rel="noreferrer" size="sm">
+                  EpiNowcast sample datasets
+                </Anchor>
+                <Anchor href="https://baselinenowcast.epinowcast.org" target="_blank" rel="noreferrer" size="sm">
+                  Baseline nowcast demo data
+                </Anchor>
+              </Group>
+              <Group>
+                <Button onClick={() => inputRef.current?.click()}>Choose file</Button>
+                <Button
+                  component="a"
+                  href={sampleDataUri}
+                  download="sample-epinowcast.csv"
+                  variant="subtle"
+                  leftSection={<IconDownload size={16} />}
+                >
+                  Download sample
+                </Button>
+              </Group>
+              <Text size="sm" c="dimmed">
+                Current dataset: <strong>{fileName}</strong>
+              </Text>
+              {error && (
+                <Text size="sm" c="red">
+                  {error} Showing the last valid dataset.
+                </Text>
+              )}
+              {!mappingComplete && (
+                <Text size="sm" c="orange">
+                  We couldn&apos;t automatically map the required columns. Please select them below.
+                </Text>
+              )}
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                onChange={(event) => handleFile(event.target.files?.[0])}
+              />
+            </Stack>
+          </Paper>
 
-        <Stepper active={1} color="blue" radius="md">
-          <Stepper.Step label="Upload & map" description="Choose your columns and filters" />
-          <Stepper.Step label="Inspect the triangle" description="Tune the window and cutoff" />
-          <Stepper.Step label="Decide" description="Review the delay summary" />
-        </Stepper>
-
-        <Card withBorder radius="md" padding="lg">
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={3}>Column mapping</Title>
-              <Badge variant="outline">{csvHeaders.length} columns detected</Badge>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Map your CSV columns to the required fields. We auto-detect when possible, but please confirm each field.
-            </Text>
-            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-              <Select
-                label="Reference date"
-                placeholder="Select column"
-                data={headerOptions}
-                value={columnMapping.referenceDate}
-                onChange={(value) => setColumnMapping((prev) => ({ ...prev, referenceDate: value ?? '' }))}
-                size="sm"
-              />
-              <Select
-                label="Report date"
-                placeholder="Select column"
-                data={headerOptions}
-                value={columnMapping.reportDate}
-                onChange={(value) => setColumnMapping((prev) => ({ ...prev, reportDate: value ?? '' }))}
-                size="sm"
-              />
-              <Select
-                label="Value"
-                placeholder="Select column"
-                data={headerOptions}
-                value={columnMapping.value}
-                onChange={(value) => setColumnMapping((prev) => ({ ...prev, value: value ?? '' }))}
-                size="sm"
-              />
-            </SimpleGrid>
-          </Stack>
-        </Card>
+          <Card withBorder radius="md" padding="lg">
+            <Stack gap="sm">
+              <Group justify="space-between">
+                <Title order={3}>Column mapping</Title>
+                <Badge variant="outline">{csvHeaders.length} columns detected</Badge>
+              </Group>
+              <Text size="sm" c="dimmed">
+                Map your CSV columns to the required fields. We auto-detect when possible, but please confirm each field.
+              </Text>
+              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+                <Select
+                  label="Reference date (rows)"
+                  placeholder="Select column"
+                  data={headerOptions}
+                  value={columnMapping.referenceDate}
+                  onChange={(value) => setColumnMapping((prev) => ({ ...prev, referenceDate: value ?? '' }))}
+                  size="sm"
+                />
+                <Select
+                  label="Report date (columns)"
+                  placeholder="Select column"
+                  data={headerOptions}
+                  value={columnMapping.reportDate}
+                  onChange={(value) => setColumnMapping((prev) => ({ ...prev, reportDate: value ?? '' }))}
+                  size="sm"
+                />
+                <Select
+                  label="Value"
+                  placeholder="Select column"
+                  data={headerOptions}
+                  value={columnMapping.value}
+                  onChange={(value) => setColumnMapping((prev) => ({ ...prev, value: value ?? '' }))}
+                  size="sm"
+                />
+              </SimpleGrid>
+            </Stack>
+          </Card>
+        </SimpleGrid>
 
         {extraColumnOptions.length > 0 && (
           <Card withBorder radius="md" padding="lg">
@@ -607,7 +602,7 @@ const ReportingDelayPage = () => {
               <Text size="sm" c="dimmed">
                 Narrow by location, age, target, or other metadata. Clear a filter to include all values.
               </Text>
-              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              <SimpleGrid cols={{ base: 1, md: 4 }} spacing="md">
                 {extraColumnOptions.map(({ column, options }) => (
                   <Select
                     key={column}
@@ -626,26 +621,20 @@ const ReportingDelayPage = () => {
           </Card>
         )}
 
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-          <Card withBorder radius="md" padding="lg">
-            <Stack gap="sm">
-              <Group justify="space-between">
-                <Title order={3}>Reporting triangle</Title>
-                <Group gap="xs">
-                  <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
-                  <ActionIcon
-                    variant="light"
-                    aria-label={isTriangleFullscreen ? 'Exit full screen' : 'Expand to full screen'}
-                    onClick={() => setIsTriangleFullscreen((prev) => !prev)}
-                  >
-                    {isTriangleFullscreen ? <IconArrowsMinimize size={16} /> : <IconArrowsMaximize size={16} />}
-                  </ActionIcon>
-                </Group>
-              </Group>
+        <Card withBorder radius="md" padding="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Title order={3}>Window & cutoff</Title>
+              <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Use the slider to focus on a subset of reference dates (rows), and set how far after reference dates to
+              include reports (columns).
+            </Text>
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap="xs">
-                <Text size="sm" c="dimmed">
-                  Use the slider to focus on a subset of reference dates, and set a report-date cutoff for longer
-                  series.
+                <Text size="sm" fw={500}>
+                  Reference-date window
                 </Text>
                 <RangeSlider
                   value={referenceRange}
@@ -659,41 +648,21 @@ const ReportingDelayPage = () => {
                 <Text size="xs" c="dimmed">
                   Showing {activeRangeLabel}
                 </Text>
-                <NumberInput
-                  label={`Report cutoff (${unit}s after reference)`}
-                  value={maxLagUnits}
-                  onChange={(value) => setMaxLagUnits(Number(value) || 0)}
-                  min={0}
-                  max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
-                  clampBehavior="strict"
-                  size="sm"
-                />
               </Stack>
-              <Text size="sm" c="dimmed">
-                Each row is a reference date, each column is a report date. Darker cells are larger cumulative counts.
-                {!showTriangleNumbers && ' Values are hidden for dense tables; hover to inspect.'}
-                {isTriangleTruncated && ' Showing a recent subset to keep the table responsive.'}
-              </Text>
-              <Box ref={triangleRef} p={isTriangleFullscreen ? 'md' : 0}>
-                <ScrollArea>
-                  <Table withTableBorder striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Reference date</Table.Th>
-                        {displayReportDates.map((date) => (
-                          <Table.Th key={date} ta="center">
-                            {formatDateLabel(date)}
-                          </Table.Th>
-                        ))}
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>{triangleRows}</Table.Tbody>
-                  </Table>
-                </ScrollArea>
-              </Box>
-            </Stack>
-          </Card>
+              <NumberInput
+                label={`Report cutoff (${unit}s after reference)`}
+                value={maxLagUnits}
+                onChange={(value) => setMaxLagUnits(Number(value) || 0)}
+                min={0}
+                max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
+                clampBehavior="strict"
+                size="sm"
+              />
+            </SimpleGrid>
+          </Stack>
+        </Card>
 
+        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
           <Card withBorder radius="md" padding="lg">
             <Stack gap="sm">
               <Group justify="space-between">
@@ -706,9 +675,7 @@ const ReportingDelayPage = () => {
               <Chart type="line" data={revisionChartData} options={chartOptions} />
             </Stack>
           </Card>
-        </SimpleGrid>
 
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
           <Card withBorder radius="md" padding="lg">
             <Stack gap="sm">
               <Group justify="space-between">
@@ -719,6 +686,66 @@ const ReportingDelayPage = () => {
                 How long it takes for reports to arrive after the reference date.
               </Text>
               <Chart type="bar" data={delayChartData} options={chartOptions} />
+            </Stack>
+          </Card>
+        </SimpleGrid>
+
+        <Card withBorder radius="md" padding="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Title order={3}>Reporting triangle</Title>
+              <Group gap="xs">
+                <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
+                <ActionIcon
+                  variant="light"
+                  aria-label={isTriangleFullscreen ? 'Exit full screen' : 'Expand to full screen'}
+                  onClick={() => setIsTriangleFullscreen((prev) => !prev)}
+                >
+                  {isTriangleFullscreen ? <IconArrowsMinimize size={16} /> : <IconArrowsMaximize size={16} />}
+                </ActionIcon>
+              </Group>
+            </Group>
+            <Group gap="sm">
+              <Text size="sm" c="dimmed">
+                Rows = <strong>reference date</strong>, columns = <strong>report date</strong>.
+              </Text>
+              <Badge variant="light">{showTriangleNumbers ? 'Values shown' : 'Heatmap mode'}</Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Darker cells are larger cumulative counts.
+              {!showTriangleNumbers && ' Values are hidden for dense tables; hover to inspect.'}
+              {isTriangleTruncated && ' Showing a recent subset to keep the table responsive.'}
+            </Text>
+            <Box ref={triangleRef} p={isTriangleFullscreen ? 'md' : 0}>
+              <ScrollArea>
+                <Table withTableBorder striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Reference date</Table.Th>
+                      {displayReportDates.map((date) => (
+                        <Table.Th key={date} ta="center">
+                          {formatDateLabel(date)}
+                        </Table.Th>
+                      ))}
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>{triangleRows}</Table.Tbody>
+                </Table>
+              </ScrollArea>
+            </Box>
+          </Stack>
+        </Card>
+
+        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+          <Card withBorder radius="md" padding="lg">
+            <Stack gap="sm">
+              <Title order={3}>Caveats from reporting triangles</Title>
+              <List spacing="xs" size="sm">
+                <List.Item>Late reports can be structurally different (e.g., lab corrections, backfills).</List.Item>
+                <List.Item>Holiday effects and reporting interruptions bias delay estimates.</List.Item>
+                <List.Item>Negative revisions need separate handling before computing cumulative totals.</List.Item>
+                <List.Item>Changes in case definitions or data pipelines break comparability over time.</List.Item>
+              </List>
             </Stack>
           </Card>
 
@@ -752,43 +779,29 @@ const ReportingDelayPage = () => {
           </Card>
         </SimpleGrid>
 
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-          <Card withBorder radius="md" padding="lg">
-            <Stack gap="sm">
-              <Title order={3}>Caveats from reporting triangles</Title>
-              <List spacing="xs" size="sm">
-                <List.Item>Late reports can be structurally different (e.g., lab corrections, backfills).</List.Item>
-                <List.Item>Holiday effects and reporting interruptions bias delay estimates.</List.Item>
-                <List.Item>Negative revisions need separate handling before computing cumulative totals.</List.Item>
-                <List.Item>Changes in case definitions or data pipelines break comparability over time.</List.Item>
-              </List>
-            </Stack>
-          </Card>
-
-          <Card withBorder radius="md" padding="lg">
-            <Stack gap="sm">
-              <Title order={3}>Useful links</Title>
-              <List spacing="xs" size="sm">
-                <List.Item>
-                  <Anchor href="https://baselinenowcast.epinowcast.org" target="_blank" rel="noreferrer">
-                    Baseline nowcast toolkit
-                  </Anchor>
-                </List.Item>
-                <List.Item>
-                  <Anchor href="https://epinowcast.org" target="_blank" rel="noreferrer">
-                    EpiNowcast documentation
-                  </Anchor>
-                </List.Item>
-              </List>
-              <Box>
-                <Text size="sm" c="dimmed">
-                  Want help operationalizing? Start with the baseline nowcast decision tree and upgrade to EpiNowcast
-                  when you need probabilistic delay distributions.
-                </Text>
-              </Box>
-            </Stack>
-          </Card>
-        </SimpleGrid>
+        <Card withBorder radius="md" padding="lg">
+          <Stack gap="sm">
+            <Title order={3}>Useful links</Title>
+            <List spacing="xs" size="sm">
+              <List.Item>
+                <Anchor href="https://baselinenowcast.epinowcast.org" target="_blank" rel="noreferrer">
+                  Baseline nowcast toolkit
+                </Anchor>
+              </List.Item>
+              <List.Item>
+                <Anchor href="https://epinowcast.org" target="_blank" rel="noreferrer">
+                  EpiNowcast documentation
+                </Anchor>
+              </List.Item>
+            </List>
+            <Box>
+              <Text size="sm" c="dimmed">
+                Want help operationalizing? Start with the baseline nowcast decision tree and upgrade to EpiNowcast
+                when you need probabilistic delay distributions.
+              </Text>
+            </Box>
+          </Stack>
+        </Card>
       </Stack>
       <Modal
         opened={isTriangleFullscreen}
