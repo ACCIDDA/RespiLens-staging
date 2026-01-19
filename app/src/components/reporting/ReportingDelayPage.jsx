@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Anchor,
+  ActionIcon,
   Badge,
   Box,
   Button,
@@ -20,7 +21,14 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconArrowRight, IconClock, IconDownload, IconFileUpload } from '@tabler/icons-react';
+import {
+  IconArrowsMaximize,
+  IconArrowsMinimize,
+  IconArrowRight,
+  IconClock,
+  IconDownload,
+  IconFileUpload,
+} from '@tabler/icons-react';
 import {
   BarElement,
   CategoryScale,
@@ -80,6 +88,16 @@ const parseCsv = (text) => {
 };
 
 const formatDateLabel = (value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+const getDefaultReferenceRange = (dates) => {
+  if (!dates.length) return [0, 0];
+  const lastDate = new Date(dates[dates.length - 1]);
+  const cutoffDate = new Date(lastDate);
+  cutoffDate.setMonth(cutoffDate.getMonth() - 4);
+  const startIndex = dates.findIndex((date) => new Date(date) >= cutoffDate);
+  const resolvedStart = startIndex >= 0 ? startIndex : 0;
+  return [resolvedStart, dates.length - 1];
+};
 
 const buildTriangle = (records, { referenceDates, maxReportDate } = {}) => {
   const allReferenceDates = Array.from(new Set(records.map((record) => record.referenceDate))).sort();
@@ -159,20 +177,23 @@ const buildRecordsFromMapping = (rows, mapping) => {
 };
 
 const INITIAL_PARSED = parseCsv(SAMPLE_CSV);
+const INITIAL_MAPPING = {
+  referenceDate: '',
+  reportDate: '',
+  value: '',
+};
 
 const ReportingDelayPage = () => {
   const inputRef = useRef(null);
+  const triangleRef = useRef(null);
   const [csvRows, setCsvRows] = useState(() => INITIAL_PARSED.records);
   const [csvHeaders, setCsvHeaders] = useState(() => INITIAL_PARSED.headers);
   const [fileName, setFileName] = useState('sample-epinowcast.csv');
   const [error, setError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [columnMapping, setColumnMapping] = useState({
-    referenceDate: 'reference_date',
-    reportDate: 'report_date',
-    value: 'value',
-  });
+  const [columnMapping, setColumnMapping] = useState(INITIAL_MAPPING);
   const [columnFilters, setColumnFilters] = useState({});
+  const [isTriangleFullscreen, setIsTriangleFullscreen] = useState(false);
 
   const headerOptions = useMemo(
     () => csvHeaders.map((header) => ({ value: header, label: header })),
@@ -220,7 +241,7 @@ const ReportingDelayPage = () => {
     () => Array.from(new Set(records.map((record) => record.reportDate))).sort(),
     [records],
   );
-  const [referenceRange, setReferenceRange] = useState([0, Math.max(0, allReferenceDates.length - 1)]);
+  const [referenceRange, setReferenceRange] = useState(() => getDefaultReferenceRange(allReferenceDates));
   const [maxReportDate, setMaxReportDate] = useState(allReportDates.at(-1) ?? null);
 
   const activeReferenceDates = useMemo(() => {
@@ -275,7 +296,7 @@ const ReportingDelayPage = () => {
       setColumnFilters({});
       const parsedReferenceDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.referenceDate))).sort();
       const parsedReportDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.reportDate))).sort();
-      setReferenceRange([0, Math.max(0, parsedReferenceDates.length - 1)]);
+      setReferenceRange(getDefaultReferenceRange(parsedReferenceDates));
       setMaxReportDate(parsedReportDates.at(-1) ?? null);
     } catch (err) {
       setError(err.message);
@@ -288,16 +309,38 @@ const ReportingDelayPage = () => {
   }, []);
 
   useEffect(() => {
+    const referenceIndex = INITIAL_PARSED.normalizedHeaders.indexOf('reference_date');
+    const reportIndex = INITIAL_PARSED.normalizedHeaders.indexOf('report_date');
+    const valueIndex = INITIAL_PARSED.normalizedHeaders.indexOf('value');
+    setColumnMapping({
+      referenceDate: referenceIndex >= 0 ? INITIAL_PARSED.headers[referenceIndex] : '',
+      reportDate: reportIndex >= 0 ? INITIAL_PARSED.headers[reportIndex] : '',
+      value: valueIndex >= 0 ? INITIAL_PARSED.headers[valueIndex] : '',
+    });
+  }, []);
+
+  useEffect(() => {
     const maxIndex = Math.max(0, allReferenceDates.length - 1);
     setReferenceRange((prev) => {
       const nextStart = Math.min(prev[0], maxIndex);
       const nextEnd = Math.min(prev[1], maxIndex);
+      if (nextStart === 0 && nextEnd === maxIndex) {
+        return getDefaultReferenceRange(allReferenceDates);
+      }
       return [nextStart, nextEnd];
     });
     if (maxReportDate && !allReportDates.includes(maxReportDate)) {
       setMaxReportDate(allReportDates.at(-1) ?? null);
     }
   }, [allReferenceDates, allReportDates, maxReportDate]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsTriangleFullscreen(document.fullscreenElement === triangleRef.current);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const reportDateOptions = useMemo(
     () => allReportDates.map((date) => ({ value: date, label: formatDateLabel(date) })),
@@ -326,6 +369,10 @@ const ReportingDelayPage = () => {
     )),
   ];
 
+  const showTriangleNumbers = triangle.referenceDates.length <= 16 && triangle.reportDates.length <= 16;
+  const activeRangeLabel = activeReferenceDates.length
+    ? `${formatDateLabel(activeReferenceDates[0])}–${formatDateLabel(activeReferenceDates.at(-1))}`
+    : 'No data selected';
   const triangleRows = triangle.referenceDates.map((referenceDate) => (
     <Table.Tr key={referenceDate}>
       <Table.Td fw={600}>{formatDateLabel(referenceDate)}</Table.Td>
@@ -341,7 +388,7 @@ const ReportingDelayPage = () => {
               borderRadius: 6,
             }}
           >
-            {value ?? '—'}
+            {showTriangleNumbers ? value ?? '—' : ''}
           </Table.Td>
         );
       })}
@@ -550,7 +597,23 @@ const ReportingDelayPage = () => {
             <Stack gap="sm">
               <Group justify="space-between">
                 <Title order={3}>Reporting triangle</Title>
-                <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
+                <Group gap="xs">
+                  <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
+                  <ActionIcon
+                    variant="light"
+                    aria-label={isTriangleFullscreen ? 'Exit full screen' : 'Expand to full screen'}
+                    onClick={() => {
+                      if (!triangleRef.current) return;
+                      if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                      } else {
+                        triangleRef.current.requestFullscreen();
+                      }
+                    }}
+                  >
+                    {isTriangleFullscreen ? <IconArrowsMinimize size={16} /> : <IconArrowsMaximize size={16} />}
+                  </ActionIcon>
+                </Group>
               </Group>
               <Stack gap="xs">
                 <Text size="sm" c="dimmed">
@@ -566,6 +629,9 @@ const ReportingDelayPage = () => {
                   marks={sliderMarks}
                   label={(value) => formatDateLabel(allReferenceDates[value])}
                 />
+                <Text size="xs" c="dimmed">
+                  Showing {activeRangeLabel}
+                </Text>
                 <Select
                   label="Report-date cutoff"
                   data={reportDateOptions}
@@ -577,15 +643,18 @@ const ReportingDelayPage = () => {
               </Stack>
               <Text size="sm" c="dimmed">
                 Each row is a reference date, each column is a report date. Darker cells are larger cumulative counts.
+                {!showTriangleNumbers && ' Values are hidden for dense tables; hover to inspect.'}
               </Text>
-              <ScrollArea>
-                <Table withTableBorder striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>{triangleHeader}</Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>{triangleRows}</Table.Tbody>
-                </Table>
-              </ScrollArea>
+              <Box ref={triangleRef} p={isTriangleFullscreen ? 'md' : 0}>
+                <ScrollArea>
+                  <Table withTableBorder striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>{triangleHeader}</Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>{triangleRows}</Table.Tbody>
+                  </Table>
+                </ScrollArea>
+              </Box>
             </Stack>
           </Card>
 
