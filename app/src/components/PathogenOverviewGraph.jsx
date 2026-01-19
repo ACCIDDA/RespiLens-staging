@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import { Card, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config';
 import { targetDisplayNameMap } from '../utils/mapUtils';
+import { useView } from '../hooks/useView';
 
 const DEFAULT_TARGETS = {
   covid_projs: 'wk inc covid hosp',
@@ -33,7 +34,7 @@ const getRangeAroundDate = (dateStr, weeksBefore = 4, weeksAfter = 4) => {
   ];
 };
 
-const buildMedianTrace = (forecast, model) => {
+const buildIntervalTraces = (forecast, model) => {
   if (!forecast || forecast.type !== 'quantile') return null;
 
   const predictionEntries = Object.values(forecast.predictions || {}).sort(
@@ -41,31 +42,91 @@ const buildMedianTrace = (forecast, model) => {
   );
 
   const x = [];
-  const y = [];
+  const median = [];
+  const lower95 = [];
+  const upper95 = [];
+  const lower50 = [];
+  const upper50 = [];
 
   predictionEntries.forEach((pred) => {
     const { quantiles = [], values = [] } = pred;
     const medianIndex = quantiles.indexOf(0.5);
-    if (medianIndex !== -1) {
+    const lower95Index = quantiles.indexOf(0.025);
+    const upper95Index = quantiles.indexOf(0.975);
+    const lower50Index = quantiles.indexOf(0.25);
+    const upper50Index = quantiles.indexOf(0.75);
+
+    if (medianIndex !== -1 && lower95Index !== -1 && upper95Index !== -1 && lower50Index !== -1 && upper50Index !== -1) {
       x.push(pred.date);
-      y.push(values[medianIndex]);
+      median.push(values[medianIndex]);
+      lower95.push(values[lower95Index]);
+      upper95.push(values[upper95Index]);
+      lower50.push(values[lower50Index]);
+      upper50.push(values[upper50Index]);
     }
   });
 
   if (x.length === 0) return null;
 
-  return {
-    x,
-    y,
-    name: `${model} median`,
-    type: 'scatter',
-    mode: 'lines+markers',
-    line: { width: 2, color: '#228be6' },
-    marker: { size: 4 }
-  };
+  return [
+    {
+      x,
+      y: upper95,
+      name: `${model} 95% interval`,
+      type: 'scatter',
+      mode: 'lines',
+      line: { width: 0 },
+      showlegend: false,
+      hoverinfo: 'skip'
+    },
+    {
+      x,
+      y: lower95,
+      name: `${model} 95% interval`,
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tonexty',
+      fillcolor: 'rgba(34, 139, 230, 0.15)',
+      line: { width: 0 },
+      showlegend: false,
+      hoverinfo: 'skip'
+    },
+    {
+      x,
+      y: upper50,
+      name: `${model} 50% interval`,
+      type: 'scatter',
+      mode: 'lines',
+      line: { width: 0 },
+      showlegend: false,
+      hoverinfo: 'skip'
+    },
+    {
+      x,
+      y: lower50,
+      name: `${model} 50% interval`,
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tonexty',
+      fillcolor: 'rgba(34, 139, 230, 0.25)',
+      line: { width: 0 },
+      showlegend: false,
+      hoverinfo: 'skip'
+    },
+    {
+      x,
+      y: median,
+      name: `${model} median`,
+      type: 'scatter',
+      mode: 'lines+markers',
+      line: { width: 2, color: '#228be6' },
+      marker: { size: 4 }
+    }
+  ];
 };
 
 const PathogenOverviewGraph = ({ viewType, title }) => {
+  const { viewType: activeViewType, setViewType } = useView();
   const { data, loading, error, availableDates, availableTargets, models } = useForecastData('US', viewType);
   const datasetKey = VIEW_TO_DATASET[viewType];
   const datasetConfig = datasetKey ? DATASETS[datasetKey] : null;
@@ -81,9 +142,12 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
     : models[0];
 
   const chartRange = useMemo(() => getRangeAroundDate(selectedDate), [selectedDate]);
+  const isActive = datasetConfig?.views?.some((view) => view.value === activeViewType) ?? false;
 
-  const traces = useMemo(() => {
-    if (!data || !selectedTarget) return [];
+  const { traces, yRange } = useMemo(() => {
+    if (!data || !selectedTarget) {
+      return { traces: [], yRange: undefined };
+    }
 
     const groundTruth = data.ground_truth;
     const groundTruthValues = groundTruth?.[selectedTarget];
@@ -103,13 +167,51 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
       ? data.forecasts?.[selectedDate]?.[selectedTarget]?.[selectedModel]
       : null;
 
-    const medianTrace = buildMedianTrace(forecast, selectedModel);
+    const intervalTraces = buildIntervalTraces(forecast, selectedModel);
 
-    return [groundTruthTrace, medianTrace].filter(Boolean);
-  }, [data, selectedDate, selectedTarget, selectedModel]);
+    const combinedTraces = [
+      groundTruthTrace,
+      ...(intervalTraces || [])
+    ].filter(Boolean);
+
+    if (!chartRange) {
+      return { traces: combinedTraces, yRange: undefined };
+    }
+
+    const [rangeStart, rangeEnd] = chartRange;
+    const startDate = new Date(rangeStart);
+    const endDate = new Date(rangeEnd);
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    combinedTraces.forEach((trace) => {
+      if (!trace?.x || !trace?.y) return;
+      trace.x.forEach((xValue, index) => {
+        const pointDate = new Date(xValue);
+        if (pointDate < startDate || pointDate > endDate) return;
+        const value = Number(trace.y[index]);
+        if (Number.isNaN(value)) return;
+        minY = Math.min(minY, value);
+        maxY = Math.max(maxY, value);
+      });
+    });
+
+    if (minY === Infinity || maxY === -Infinity) {
+      return { traces: combinedTraces, yRange: undefined };
+    }
+
+    const padding = (maxY - minY) * 0.1;
+    const paddedMin = Math.max(0, minY - padding);
+    const paddedMax = maxY + padding;
+
+    return {
+      traces: combinedTraces,
+      yRange: [paddedMin, paddedMax]
+    };
+  }, [data, selectedDate, selectedTarget, selectedModel, chartRange]);
 
   const layout = useMemo(() => ({
-    height: 260,
+    height: 280,
     margin: { l: 40, r: 20, t: 40, b: 40 },
     title: {
       text: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Forecast',
@@ -122,7 +224,8 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
     },
     yaxis: {
       automargin: true,
-      tickfont: { size: 10 }
+      tickfont: { size: 10 },
+      range: yRange
     },
     legend: {
       orientation: 'h',
@@ -130,7 +233,7 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
       x: 0
     },
     hovermode: 'x unified'
-  }), [chartRange, selectedTarget]);
+  }), [chartRange, selectedTarget, yRange]);
 
   return (
     <Card withBorder radius="md" padding="lg" shadow="xs">
@@ -161,6 +264,16 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
         {!loading && !error && traces.length === 0 && (
           <Text size="sm" c="dimmed">No data available.</Text>
         )}
+        <Group justify="space-between" align="center">
+          <Button
+            size="xs"
+            variant={isActive ? 'light' : 'filled'}
+            onClick={() => setViewType(datasetConfig?.defaultView || viewType)}
+          >
+            {isActive ? 'Viewing' : 'View forecasts'}
+          </Button>
+          <Text size="xs" c="dimmed">US national view</Text>
+        </Group>
       </Stack>
     </Card>
   );
