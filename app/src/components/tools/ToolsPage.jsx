@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 
 const tools = [
   {
-    title: 'Reporting delay explorer',
+    title: 'Reporting triangle explorer',
     description:
       'Upload an EpiNowcast-style CSV to build reporting triangles, delay distributions, and a nowcast recommendation.',
     icon: IconClock,
-    href: '/reporting-delay',
+    href: '/reporting-triangle',
     badge: 'Nowcasting',
   },
 ];
@@ -22,7 +22,7 @@ const ToolsPage = () => {
           <Title order={1}>Tools</Title>
         </Group>
         <Text c="dimmed" size="lg">
-          Browse lightweight utilities for data QA, reporting delays, and operational decisions.
+          Browse lightweight utilities for data QA, reporting triangles, and operational decisions.
         </Text>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">

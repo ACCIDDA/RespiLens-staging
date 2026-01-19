@@ -10,10 +10,10 @@ import {
   Group,
   List,
   Paper,
+  RangeSlider,
   ScrollArea,
   Select,
   SimpleGrid,
-  Slider,
   Stack,
   Table,
   Text,
@@ -392,7 +392,7 @@ const ReportingDelayPage = () => {
       <Stack gap="xl">
         <Stack gap="xs">
           <Badge variant="light" leftSection={<IconClock size={14} />} w="fit-content">
-            Reporting delay explorer
+            Reporting triangle explorer
           </Badge>
           <Title order={1}>Do I need to nowcast?</Title>
           <Text c="dimmed" size="lg">
@@ -557,7 +557,7 @@ const ReportingDelayPage = () => {
                   Use the slider to focus on a subset of reference dates, and set a report-date cutoff for longer
                   series.
                 </Text>
-                <Slider
+                <RangeSlider
                   value={referenceRange}
                   onChange={setReferenceRange}
                   min={0}
@@ -565,8 +565,6 @@ const ReportingDelayPage = () => {
                   step={1}
                   marks={sliderMarks}
                   label={(value) => formatDateLabel(allReferenceDates[value])}
-                  minRange={0}
-                  range
                 />
                 <Select
                   label="Report-date cutoff"

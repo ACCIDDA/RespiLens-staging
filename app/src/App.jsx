@@ -45,7 +45,7 @@ const AppLayout = () => {
           <Route path="/epidemics10" element={<TournamentDashboard />} />
           <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
           <Route path="/tools" element={<ToolsPage />} />
-          <Route path="/reporting-delay" element={<ReportingDelayPage />} />
+          <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
           <Route path="/documentation" element={<Documentation />} />
         </Routes>
       </UnifiedAppShell>
