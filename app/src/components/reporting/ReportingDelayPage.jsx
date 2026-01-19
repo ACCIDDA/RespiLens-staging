@@ -10,12 +10,15 @@ import {
   Divider,
   Group,
   List,
+  Modal,
+  NumberInput,
   Paper,
   RangeSlider,
   ScrollArea,
   Select,
   SimpleGrid,
   Stack,
+  Stepper,
   Table,
   Text,
   ThemeIcon,
@@ -99,21 +102,53 @@ const getDefaultReferenceRange = (dates) => {
   return [resolvedStart, dates.length - 1];
 };
 
-const buildTriangle = (records, { referenceDates, maxReportDate } = {}) => {
+const getFrequencyUnit = (dates) => {
+  if (dates.length < 2) {
+    return { unit: 'day', unitDays: 1 };
+  }
+  const diffs = dates
+    .slice(1)
+    .map((date, index) => new Date(date) - new Date(dates[index]))
+    .map((diff) => Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24))))
+    .sort((a, b) => a - b);
+  const median = diffs[Math.floor(diffs.length / 2)];
+  if (median >= 28) {
+    return { unit: 'month', unitDays: 30 };
+  }
+  if (median >= 6) {
+    return { unit: 'week', unitDays: 7 };
+  }
+  return { unit: 'day', unitDays: 1 };
+};
+
+const buildTriangle = (records, { referenceDates, maxLagDays } = {}) => {
   const allReferenceDates = Array.from(new Set(records.map((record) => record.referenceDate))).sort();
   const allReportDates = Array.from(new Set(records.map((record) => record.reportDate))).sort();
   const activeReferenceDates = referenceDates?.length ? referenceDates : allReferenceDates;
-  const activeReportDates = maxReportDate
-    ? allReportDates.filter((date) => date <= maxReportDate)
+  const activeReportDates = maxLagDays
+    ? allReportDates.filter((date) => {
+        return activeReferenceDates.some((referenceDate) => {
+          const diff = Math.round((new Date(date) - new Date(referenceDate)) / (1000 * 60 * 60 * 24));
+          return diff >= 0 && diff <= maxLagDays;
+        });
+      })
     : allReportDates;
   const allowedReferenceDates = new Set(activeReferenceDates);
   const allowedReportDates = new Set(activeReportDates);
   const filteredRecords = records.filter(
     (record) => allowedReferenceDates.has(record.referenceDate) && allowedReportDates.has(record.reportDate),
   );
-  const valueMap = new Map(filteredRecords.map((record) => [`${record.referenceDate}|${record.reportDate}`, record.value]));
+  const lagFilteredRecords = maxLagDays
+    ? filteredRecords.filter((record) => {
+        const delay = Math.round(
+          (new Date(record.reportDate) - new Date(record.referenceDate)) / (1000 * 60 * 60 * 24),
+        );
+        return delay >= 0 && delay <= maxLagDays;
+      })
+    : filteredRecords;
+  const valueMap = new Map(lagFilteredRecords.map((record) => [`${record.referenceDate}|${record.reportDate}`, record.value]));
 
-  return { referenceDates: activeReferenceDates, reportDates: activeReportDates, valueMap, filteredRecords };
+  return { referenceDates: activeReferenceDates, reportDates: activeReportDates, valueMap, filteredRecords: lagFilteredRecords };
 };
 
 const buildDelayDistribution = (records) => {
@@ -242,7 +277,16 @@ const ReportingDelayPage = () => {
     [records],
   );
   const [referenceRange, setReferenceRange] = useState(() => getDefaultReferenceRange(allReferenceDates));
-  const [maxReportDate, setMaxReportDate] = useState(allReportDates.at(-1) ?? null);
+  const { unit, unitDays } = useMemo(() => getFrequencyUnit(allReferenceDates), [allReferenceDates]);
+  const maxLagDays = useMemo(() => {
+    if (!records.length) return 0;
+    return Math.max(
+      ...records.map((record) =>
+        Math.round((new Date(record.reportDate) - new Date(record.referenceDate)) / (1000 * 60 * 60 * 24)),
+      ),
+    );
+  }, [records]);
+  const [maxLagUnits, setMaxLagUnits] = useState(() => Math.max(0, Math.ceil(maxLagDays / unitDays)));
 
   const activeReferenceDates = useMemo(() => {
     const [start, end] = referenceRange;
@@ -253,9 +297,9 @@ const ReportingDelayPage = () => {
     () =>
       buildTriangle(records, {
         referenceDates: activeReferenceDates,
-        maxReportDate,
+        maxLagDays: maxLagUnits * unitDays,
       }),
-    [records, activeReferenceDates, maxReportDate],
+    [records, activeReferenceDates, maxLagUnits, unitDays],
   );
   const distribution = useMemo(
     () => buildDelayDistribution(triangle.filteredRecords),
@@ -295,9 +339,7 @@ const ReportingDelayPage = () => {
       setColumnMapping(nextMapping);
       setColumnFilters({});
       const parsedReferenceDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.referenceDate))).sort();
-      const parsedReportDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.reportDate))).sort();
       setReferenceRange(getDefaultReferenceRange(parsedReferenceDates));
-      setMaxReportDate(parsedReportDates.at(-1) ?? null);
     } catch (err) {
       setError(err.message);
     }
@@ -329,23 +371,11 @@ const ReportingDelayPage = () => {
       }
       return [nextStart, nextEnd];
     });
-    if (maxReportDate && !allReportDates.includes(maxReportDate)) {
-      setMaxReportDate(allReportDates.at(-1) ?? null);
-    }
-  }, [allReferenceDates, allReportDates, maxReportDate]);
+  }, [allReferenceDates]);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsTriangleFullscreen(document.fullscreenElement === triangleRef.current);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const reportDateOptions = useMemo(
-    () => allReportDates.map((date) => ({ value: date, label: formatDateLabel(date) })),
-    [allReportDates],
-  );
+    setMaxLagUnits(Math.max(0, Math.ceil(maxLagDays / unitDays)));
+  }, [maxLagDays, unitDays]);
 
   const sliderMarks = useMemo(() => {
     if (allReferenceDates.length <= 1) {
@@ -360,23 +390,21 @@ const ReportingDelayPage = () => {
     ];
   }, [allReferenceDates]);
 
-  const triangleHeader = [
-    <Table.Th key="reference">Reference date</Table.Th>,
-    ...triangle.reportDates.map((date) => (
-      <Table.Th key={date} ta="center">
-        {formatDateLabel(date)}
-      </Table.Th>
-    )),
-  ];
-
   const showTriangleNumbers = triangle.referenceDates.length <= 16 && triangle.reportDates.length <= 16;
+  const maxDisplayRows = 80;
+  const maxDisplayCols = 80;
+  const displayReferenceDates = triangle.referenceDates.slice(-maxDisplayRows);
+  const displayReportDates = triangle.reportDates.slice(-maxDisplayCols);
+  const isTriangleTruncated =
+    displayReferenceDates.length < triangle.referenceDates.length ||
+    displayReportDates.length < triangle.reportDates.length;
   const activeRangeLabel = activeReferenceDates.length
     ? `${formatDateLabel(activeReferenceDates[0])}–${formatDateLabel(activeReferenceDates.at(-1))}`
     : 'No data selected';
-  const triangleRows = triangle.referenceDates.map((referenceDate) => (
+  const triangleRows = displayReferenceDates.map((referenceDate) => (
     <Table.Tr key={referenceDate}>
       <Table.Td fw={600}>{formatDateLabel(referenceDate)}</Table.Td>
-      {triangle.reportDates.map((reportDate) => {
+      {displayReportDates.map((reportDate) => {
         const value = triangle.valueMap.get(`${referenceDate}|${reportDate}`);
         const intensity = value ? Math.min(1, value / 80) : 0;
         return (
@@ -525,6 +553,12 @@ const ReportingDelayPage = () => {
           </Stack>
         </Paper>
 
+        <Stepper active={1} color="blue" radius="md">
+          <Stepper.Step label="Upload & map" description="Choose your columns and filters" />
+          <Stepper.Step label="Inspect the triangle" description="Tune the window and cutoff" />
+          <Stepper.Step label="Decide" description="Review the delay summary" />
+        </Stepper>
+
         <Card withBorder radius="md" padding="lg">
           <Stack gap="sm">
             <Group justify="space-between">
@@ -532,7 +566,7 @@ const ReportingDelayPage = () => {
               <Badge variant="outline">{csvHeaders.length} columns detected</Badge>
             </Group>
             <Text size="sm" c="dimmed">
-              Map your CSV columns to the required fields. Defaults are auto-detected when possible.
+              Map your CSV columns to the required fields. We auto-detect when possible, but please confirm each field.
             </Text>
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
               <Select
@@ -602,14 +636,7 @@ const ReportingDelayPage = () => {
                   <ActionIcon
                     variant="light"
                     aria-label={isTriangleFullscreen ? 'Exit full screen' : 'Expand to full screen'}
-                    onClick={() => {
-                      if (!triangleRef.current) return;
-                      if (document.fullscreenElement) {
-                        document.exitFullscreen();
-                      } else {
-                        triangleRef.current.requestFullscreen();
-                      }
-                    }}
+                    onClick={() => setIsTriangleFullscreen((prev) => !prev)}
                   >
                     {isTriangleFullscreen ? <IconArrowsMinimize size={16} /> : <IconArrowsMaximize size={16} />}
                   </ActionIcon>
@@ -632,24 +659,33 @@ const ReportingDelayPage = () => {
                 <Text size="xs" c="dimmed">
                   Showing {activeRangeLabel}
                 </Text>
-                <Select
-                  label="Report-date cutoff"
-                  data={reportDateOptions}
-                  value={maxReportDate}
-                  onChange={setMaxReportDate}
-                  allowDeselect={false}
+                <NumberInput
+                  label={`Report cutoff (${unit}s after reference)`}
+                  value={maxLagUnits}
+                  onChange={(value) => setMaxLagUnits(Number(value) || 0)}
+                  min={0}
+                  max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
+                  clampBehavior="strict"
                   size="sm"
                 />
               </Stack>
               <Text size="sm" c="dimmed">
                 Each row is a reference date, each column is a report date. Darker cells are larger cumulative counts.
                 {!showTriangleNumbers && ' Values are hidden for dense tables; hover to inspect.'}
+                {isTriangleTruncated && ' Showing a recent subset to keep the table responsive.'}
               </Text>
               <Box ref={triangleRef} p={isTriangleFullscreen ? 'md' : 0}>
                 <ScrollArea>
                   <Table withTableBorder striped highlightOnHover>
                     <Table.Thead>
-                      <Table.Tr>{triangleHeader}</Table.Tr>
+                      <Table.Tr>
+                        <Table.Th>Reference date</Table.Th>
+                        {displayReportDates.map((date) => (
+                          <Table.Th key={date} ta="center">
+                            {formatDateLabel(date)}
+                          </Table.Th>
+                        ))}
+                      </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>{triangleRows}</Table.Tbody>
                   </Table>
@@ -754,6 +790,36 @@ const ReportingDelayPage = () => {
           </Card>
         </SimpleGrid>
       </Stack>
+      <Modal
+        opened={isTriangleFullscreen}
+        onClose={() => setIsTriangleFullscreen(false)}
+        fullScreen
+        title="Reporting triangle"
+        padding="md"
+      >
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">
+              Showing {activeRangeLabel} · Cutoff {maxLagUnits} {unit}(s)
+            </Text>
+          </Group>
+          <ScrollArea>
+            <Table withTableBorder striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Reference date</Table.Th>
+                  {displayReportDates.map((date) => (
+                    <Table.Th key={`modal-${date}`} ta="center">
+                      {formatDateLabel(date)}
+                    </Table.Th>
+                  ))}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{triangleRows}</Table.Tbody>
+            </Table>
+          </ScrollArea>
+        </Stack>
+      </Modal>
     </Container>
   );
 };
