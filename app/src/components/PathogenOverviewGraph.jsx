@@ -214,7 +214,7 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
     height: 280,
     margin: { l: 40, r: 20, t: 40, b: 40 },
     title: {
-      text: targetDisplayNameMap[selectedTarget] || selectedTarget || 'Forecast',
+      text: '',
       font: { size: 13 }
     },
     xaxis: {
@@ -227,11 +227,7 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
       tickfont: { size: 10 },
       range: yRange
     },
-    legend: {
-      orientation: 'h',
-      y: -0.25,
-      x: 0
-    },
+    showlegend: false,
     hovermode: 'x unified'
   }), [chartRange, selectedTarget, yRange]);
 
