@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Anchor,
   Badge,
@@ -63,28 +63,20 @@ const parseCsv = (text) => {
     throw new Error('CSV appears to be empty.');
   }
 
-  const headers = rows[0].split(',').map((header) => header.trim().toLowerCase());
-  const referenceIndex = headers.indexOf('reference_date');
-  const reportIndex = headers.indexOf('report_date');
-  const valueIndex = headers.indexOf('value');
+  const headers = rows[0].split(',').map((header) => header.trim());
+  const normalizedHeaders = headers.map((header) => header.toLowerCase());
+  const dataRows = rows.slice(1).map((row) => row.split(','));
 
-  if (referenceIndex < 0 || reportIndex < 0 || valueIndex < 0) {
-    throw new Error('CSV must include reference_date, report_date, and value columns.');
-  }
-
-  return rows.slice(1).map((row, index) => {
-    const parts = row.split(',');
-    const referenceDate = parts[referenceIndex]?.trim();
-    const reportDate = parts[reportIndex]?.trim();
-    const rawValue = parts[valueIndex]?.trim();
-    const value = Number(rawValue);
-
-    if (!referenceDate || !reportDate || Number.isNaN(value)) {
-      throw new Error(`Invalid row ${index + 2}.`);
-    }
-
-    return { referenceDate, reportDate, value };
+  const records = dataRows.map((parts, index) => {
+    const entry = {};
+    headers.forEach((header, headerIndex) => {
+      entry[header] = parts[headerIndex]?.trim() ?? '';
+    });
+    entry._rowIndex = index + 2;
+    return entry;
   });
+
+  return { headers, normalizedHeaders, records };
 };
 
 const formatDateLabel = (value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -145,12 +137,80 @@ const calculateQuantiles = (delays, values) => {
   return { medianDelay, delay95, total };
 };
 
+const buildRecordsFromMapping = (rows, mapping) => {
+  const { referenceDate, reportDate, value } = mapping;
+  if (!referenceDate || !reportDate || !value) {
+    return [];
+  }
+
+  return rows.map((row) => {
+    const referenceValue = row[referenceDate];
+    const reportValue = row[reportDate];
+    const numericValue = Number(row[value]);
+    if (!referenceValue || !reportValue || Number.isNaN(numericValue)) {
+      return null;
+    }
+    return {
+      referenceDate: referenceValue,
+      reportDate: reportValue,
+      value: numericValue,
+    };
+  }).filter(Boolean);
+};
+
+const INITIAL_PARSED = parseCsv(SAMPLE_CSV);
+
 const ReportingDelayPage = () => {
   const inputRef = useRef(null);
-  const [records, setRecords] = useState(() => parseCsv(SAMPLE_CSV));
+  const [csvRows, setCsvRows] = useState(() => INITIAL_PARSED.records);
+  const [csvHeaders, setCsvHeaders] = useState(() => INITIAL_PARSED.headers);
   const [fileName, setFileName] = useState('sample-epinowcast.csv');
   const [error, setError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [columnMapping, setColumnMapping] = useState({
+    referenceDate: 'reference_date',
+    reportDate: 'report_date',
+    value: 'value',
+  });
+  const [columnFilters, setColumnFilters] = useState({});
+
+  const headerOptions = useMemo(
+    () => csvHeaders.map((header) => ({ value: header, label: header })),
+    [csvHeaders],
+  );
+
+  const extraColumns = useMemo(() => {
+    const mappedColumns = new Set(Object.values(columnMapping).filter(Boolean));
+    return csvHeaders.filter((header) => !mappedColumns.has(header));
+  }, [csvHeaders, columnMapping]);
+
+  const extraColumnOptions = useMemo(() => {
+    return extraColumns.map((column) => ({
+      column,
+      options: Array.from(new Set(csvRows.map((row) => row[column]).filter(Boolean))).sort().map((value) => ({
+        value,
+        label: value,
+      })),
+    }));
+  }, [csvRows, extraColumns]);
+
+  const filteredRows = useMemo(() => {
+    return csvRows.filter((row) => {
+      return Object.entries(columnFilters).every(([column, value]) => {
+        if (!value) return true;
+        return row[column] === value;
+      });
+    });
+  }, [csvRows, columnFilters]);
+
+  const records = useMemo(
+    () => buildRecordsFromMapping(filteredRows, columnMapping),
+    [filteredRows, columnMapping],
+  );
+
+  const mappingComplete = Boolean(
+    columnMapping.referenceDate && columnMapping.reportDate && columnMapping.value,
+  );
 
   const allReferenceDates = useMemo(
     () => Array.from(new Set(records.map((record) => record.referenceDate))).sort(),
@@ -199,11 +259,22 @@ const ReportingDelayPage = () => {
     try {
       const text = await file.text();
       const parsed = parseCsv(text);
-      setRecords(parsed);
+      setCsvRows(parsed.records);
+      setCsvHeaders(parsed.headers);
       setFileName(file.name);
       setError(null);
-      const parsedReferenceDates = Array.from(new Set(parsed.map((record) => record.referenceDate))).sort();
-      const parsedReportDates = Array.from(new Set(parsed.map((record) => record.reportDate))).sort();
+      const referenceIndex = parsed.normalizedHeaders.indexOf('reference_date');
+      const reportIndex = parsed.normalizedHeaders.indexOf('report_date');
+      const valueIndex = parsed.normalizedHeaders.indexOf('value');
+      const nextMapping = {
+        referenceDate: referenceIndex >= 0 ? parsed.headers[referenceIndex] : '',
+        reportDate: reportIndex >= 0 ? parsed.headers[reportIndex] : '',
+        value: valueIndex >= 0 ? parsed.headers[valueIndex] : '',
+      };
+      setColumnMapping(nextMapping);
+      setColumnFilters({});
+      const parsedReferenceDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.referenceDate))).sort();
+      const parsedReportDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.reportDate))).sort();
       setReferenceRange([0, Math.max(0, parsedReferenceDates.length - 1)]);
       setMaxReportDate(parsedReportDates.at(-1) ?? null);
     } catch (err) {
@@ -215,6 +286,18 @@ const ReportingDelayPage = () => {
     const encoded = encodeURIComponent(SAMPLE_CSV);
     return `data:text/csv;charset=utf-8,${encoded}`;
   }, []);
+
+  useEffect(() => {
+    const maxIndex = Math.max(0, allReferenceDates.length - 1);
+    setReferenceRange((prev) => {
+      const nextStart = Math.min(prev[0], maxIndex);
+      const nextEnd = Math.min(prev[1], maxIndex);
+      return [nextStart, nextEnd];
+    });
+    if (maxReportDate && !allReportDates.includes(maxReportDate)) {
+      setMaxReportDate(allReportDates.at(-1) ?? null);
+    }
+  }, [allReferenceDates, allReportDates, maxReportDate]);
 
   const reportDateOptions = useMemo(
     () => allReportDates.map((date) => ({ value: date, label: formatDateLabel(date) })),
@@ -349,6 +432,9 @@ const ReportingDelayPage = () => {
             <Text size="sm" c="dimmed" ta="center">
               Each row should be a cumulative total for one reference date as reported on a later report date.
             </Text>
+            <Text size="sm" c="dimmed" ta="center">
+              Optional columns like location, age, or target are supported and can be filtered after upload.
+            </Text>
             <Group gap="xs">
               <Anchor href="https://github.com/epinowcast/epinowcast" target="_blank" rel="noreferrer" size="sm">
                 EpiNowcast sample datasets
@@ -377,6 +463,11 @@ const ReportingDelayPage = () => {
                 {error} Showing the last valid dataset.
               </Text>
             )}
+            {!mappingComplete && (
+              <Text size="sm" c="orange">
+                We couldn&apos;t automatically map the required columns. Please select them below.
+              </Text>
+            )}
             <input
               ref={inputRef}
               type="file"
@@ -386,6 +477,73 @@ const ReportingDelayPage = () => {
             />
           </Stack>
         </Paper>
+
+        <Card withBorder radius="md" padding="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Title order={3}>Column mapping</Title>
+              <Badge variant="outline">{csvHeaders.length} columns detected</Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Map your CSV columns to the required fields. Defaults are auto-detected when possible.
+            </Text>
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              <Select
+                label="Reference date"
+                placeholder="Select column"
+                data={headerOptions}
+                value={columnMapping.referenceDate}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, referenceDate: value ?? '' }))}
+                size="sm"
+              />
+              <Select
+                label="Report date"
+                placeholder="Select column"
+                data={headerOptions}
+                value={columnMapping.reportDate}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, reportDate: value ?? '' }))}
+                size="sm"
+              />
+              <Select
+                label="Value"
+                placeholder="Select column"
+                data={headerOptions}
+                value={columnMapping.value}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, value: value ?? '' }))}
+                size="sm"
+              />
+            </SimpleGrid>
+          </Stack>
+        </Card>
+
+        {extraColumnOptions.length > 0 && (
+          <Card withBorder radius="md" padding="lg">
+            <Stack gap="sm">
+              <Group justify="space-between">
+                <Title order={3}>Filter optional columns</Title>
+                <Badge variant="outline">Filters update the triangle</Badge>
+              </Group>
+              <Text size="sm" c="dimmed">
+                Narrow by location, age, target, or other metadata. Clear a filter to include all values.
+              </Text>
+              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+                {extraColumnOptions.map(({ column, options }) => (
+                  <Select
+                    key={column}
+                    label={column}
+                    placeholder="All values"
+                    data={options}
+                    value={columnFilters[column] ?? null}
+                    onChange={(value) => setColumnFilters((prev) => ({ ...prev, [column]: value }))}
+                    clearable
+                    searchable
+                    size="sm"
+                  />
+                ))}
+              </SimpleGrid>
+            </Stack>
+          </Card>
+        )}
 
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
           <Card withBorder radius="md" padding="lg">
