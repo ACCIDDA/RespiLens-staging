@@ -274,10 +274,6 @@ const ReportingDelayPage = () => {
     () => Array.from(new Set(records.map((record) => record.referenceDate))).sort(),
     [records],
   );
-  const allReportDates = useMemo(
-    () => Array.from(new Set(records.map((record) => record.reportDate))).sort(),
-    [records],
-  );
   const [referenceRange, setReferenceRange] = useState(() => getDefaultReferenceRange(allReferenceDates));
   const { unit, unitDays } = useMemo(() => getFrequencyUnit(allReferenceDates), [allReferenceDates]);
   const maxLagDays = useMemo(() => {
