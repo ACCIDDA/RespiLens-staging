@@ -8,7 +8,6 @@ import {
   Card,
   Container,
   Divider,
-  Grid,
   Group,
   List,
   Modal,
@@ -218,6 +217,13 @@ const INITIAL_MAPPING = {
   reportDate: '',
   value: '',
 };
+const SAMPLE_MAPPING = {
+  referenceDate:
+    INITIAL_PARSED.headers[INITIAL_PARSED.normalizedHeaders.indexOf('reference_date')] ?? '',
+  reportDate:
+    INITIAL_PARSED.headers[INITIAL_PARSED.normalizedHeaders.indexOf('report_date')] ?? '',
+  value: INITIAL_PARSED.headers[INITIAL_PARSED.normalizedHeaders.indexOf('value')] ?? '',
+};
 
 const ReportingDelayPage = () => {
   const inputRef = useRef(null);
@@ -226,11 +232,11 @@ const ReportingDelayPage = () => {
   const [fileName, setFileName] = useState('sample-epinowcast.csv');
   const [error, setError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [columnMapping, setColumnMapping] = useState(INITIAL_MAPPING);
+  const [columnMapping, setColumnMapping] = useState(SAMPLE_MAPPING);
   const [columnFilters, setColumnFilters] = useState({});
   const [isTriangleFullscreen, setIsTriangleFullscreen] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [analysisStarted, setAnalysisStarted] = useState(false);
+  const [analysisStarted, setAnalysisStarted] = useState(true);
 
   const headerOptions = useMemo(
     () => csvHeaders.map((header) => ({ value: header, label: header })),
@@ -329,12 +335,8 @@ const ReportingDelayPage = () => {
       setColumnMapping(INITIAL_MAPPING);
       setColumnFilters({});
       setAnalysisStarted(false);
-      const referenceIndex = parsed.normalizedHeaders.indexOf('reference_date');
-      const referenceKey = referenceIndex >= 0 ? parsed.headers[referenceIndex] : null;
-      const parsedReferenceDates = referenceKey
-        ? Array.from(new Set(parsed.records.map((record) => record[referenceKey]).filter(Boolean))).sort()
-        : [];
-      setReferenceRange(getDefaultReferenceRange(parsedReferenceDates));
+      setReferenceRange([0, 0]);
+      setMaxLagUnits(0);
     } catch (err) {
       setError(err.message);
     }
@@ -345,18 +347,8 @@ const ReportingDelayPage = () => {
     return `data:text/csv;charset=utf-8,${encoded}`;
   }, []);
 
-  useEffect(() => {
-    const referenceIndex = INITIAL_PARSED.normalizedHeaders.indexOf('reference_date');
-    const reportIndex = INITIAL_PARSED.normalizedHeaders.indexOf('report_date');
-    const valueIndex = INITIAL_PARSED.normalizedHeaders.indexOf('value');
-    setColumnMapping({
-      referenceDate: referenceIndex >= 0 ? INITIAL_PARSED.headers[referenceIndex] : '',
-      reportDate: reportIndex >= 0 ? INITIAL_PARSED.headers[reportIndex] : '',
-      value: valueIndex >= 0 ? INITIAL_PARSED.headers[valueIndex] : '',
-    });
-  }, []);
-
   const startTour = () => {
+    setShowHeatmap(false);
     const tour = driver({
       showProgress: true,
       steps: [
@@ -377,11 +369,11 @@ const ReportingDelayPage = () => {
           popover: { title: 'Delay distribution', description: 'Inspect how long delays typically are.' },
         },
         {
-          element: '#reporting-triangle-axis',
+          element: '#reporting-triangle-axis-cell',
           popover: { title: 'Axes', description: 'Rows are reference dates and columns are report dates.' },
         },
         {
-          element: '#reporting-triangle-diagonal',
+          element: '#reporting-triangle-diagonal-cell',
           popover: { title: 'Diagonal', description: 'Delay = 0 reports arrive on the same day as the reference.' },
         },
       ],
@@ -438,6 +430,7 @@ const ReportingDelayPage = () => {
   const activeRangeLabel = activeReferenceDates.length
     ? `${formatDateLabel(activeReferenceDates[0])}–${formatDateLabel(activeReferenceDates.at(-1))}`
     : 'No data selected';
+  const diagonalHighlightDate = diagonalDates[0] ?? null;
   const triangleRows = displayReferenceDates.map((referenceDate) => (
     <Table.Tr key={referenceDate}>
       <Table.Td fw={600}>{formatDateLabel(referenceDate)}</Table.Td>
@@ -445,9 +438,14 @@ const ReportingDelayPage = () => {
         const value = triangle.valueMap.get(`${referenceDate}|${reportDate}`);
         const intensity = value ? Math.min(1, value / 80) : 0;
         const isDiagonal = referenceDate === reportDate;
+        const highlightDiagonal =
+          diagonalHighlightDate &&
+          referenceDate === diagonalHighlightDate &&
+          reportDate === diagonalHighlightDate;
         return (
           <Table.Td
             key={`${referenceDate}-${reportDate}`}
+            id={highlightDiagonal ? 'reporting-triangle-diagonal-cell' : undefined}
             ta="center"
             style={{
               backgroundColor: value ? `rgba(34, 139, 230, ${0.08 + intensity * 0.45})` : 'transparent',
@@ -637,7 +635,7 @@ const ReportingDelayPage = () => {
               )}
               {!mappingComplete && (
                 <Text size="sm" c="orange">
-                  We couldn&apos;t automatically map the required columns. Please select them below.
+                  Please map the required columns to continue.
                 </Text>
               )}
               <input
@@ -657,7 +655,7 @@ const ReportingDelayPage = () => {
                 <Badge variant="outline">{csvHeaders.length} columns detected</Badge>
               </Group>
               <Text size="sm" c="dimmed">
-                Map your CSV columns to the required fields. We auto-detect when possible, but please confirm each field.
+                Map your CSV columns to the required fields. Each upload resets the mapping.
               </Text>
               <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
                 <Select
@@ -665,7 +663,10 @@ const ReportingDelayPage = () => {
                   placeholder="Choose column"
                   data={headerOptions}
                   value={columnMapping.referenceDate}
-                  onChange={(value) => setColumnMapping((prev) => ({ ...prev, referenceDate: value ?? '' }))}
+                  onChange={(value) => {
+                    setColumnMapping((prev) => ({ ...prev, referenceDate: value ?? '' }));
+                    setAnalysisStarted(false);
+                  }}
                   size="sm"
                 />
                 <Select
@@ -673,7 +674,10 @@ const ReportingDelayPage = () => {
                   placeholder="Choose column"
                   data={headerOptions}
                   value={columnMapping.reportDate}
-                  onChange={(value) => setColumnMapping((prev) => ({ ...prev, reportDate: value ?? '' }))}
+                  onChange={(value) => {
+                    setColumnMapping((prev) => ({ ...prev, reportDate: value ?? '' }));
+                    setAnalysisStarted(false);
+                  }}
                   size="sm"
                 />
                 <Select
@@ -681,137 +685,140 @@ const ReportingDelayPage = () => {
                   placeholder="Choose column"
                   data={headerOptions}
                   value={columnMapping.value}
-                  onChange={(value) => setColumnMapping((prev) => ({ ...prev, value: value ?? '' }))}
+                  onChange={(value) => {
+                    setColumnMapping((prev) => ({ ...prev, value: value ?? '' }));
+                    setAnalysisStarted(false);
+                  }}
                   size="sm"
                 />
               </SimpleGrid>
-            </Stack>
-          </Card>
-        </SimpleGrid>
-
-        <SimpleGrid cols={{ base: 1, lg: showFilters ? 2 : 1 }} spacing="lg">
-          <Card withBorder radius="md" padding="lg">
-            <Stack gap="sm">
-              <Group justify="space-between">
-                <Title order={3}>Window & cutoff</Title>
-                <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
-              </Group>
-              <Text size="sm" c="dimmed">
-                Use the slider to focus on a subset of reference dates (rows), and set how far after reference dates to
-                include reports (columns).
-              </Text>
-              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Reference-date window
-                  </Text>
-                  <RangeSlider
-                    value={referenceRange}
-                    onChange={setReferenceRange}
-                    min={0}
-                    max={Math.max(0, allReferenceDates.length - 1)}
-                    step={1}
-                    marks={sliderMarks}
-                    label={(value) => formatDateLabel(allReferenceDates[value])}
-                  />
-                  <Text size="xs" c="dimmed">
-                    Showing {activeRangeLabel}
-                  </Text>
-                </Stack>
-                <Stack gap={4}>
-                  <NumberInput
-                    label={`Report cutoff (${unit}s after reference)`}
-                    value={maxLagUnits}
-                    onChange={(value) => setMaxLagUnits(Number(value) || 0)}
-                    min={0}
-                    max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
-                    clampBehavior="strict"
-                    size="sm"
-                  />
-                  <Text size="xs" c="dimmed">
-                    Latest observed delay: {maxLagDays} days (~{Math.ceil(maxLagDays / unitDays)} {unit}s)
-                  </Text>
-                </Stack>
-              </SimpleGrid>
-            </Stack>
-          </Card>
-
-          {showFilters && (
-            <Card withBorder radius="md" padding="lg">
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <Title order={3}>Filter optional columns</Title>
-                  <Badge variant="outline">Filters update the triangle</Badge>
-                </Group>
-                <Text size="sm" c="dimmed">
-                  Narrow by location, age, target, or other metadata. Clear a filter to include all values.
+              {showFilters && (
+                <>
+                  <Divider />
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text fw={600}>Filter optional columns</Text>
+                      <Badge variant="outline">Applied on start</Badge>
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                      Narrow by location, age, target, or other metadata before starting the analysis.
+                    </Text>
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                      {extraColumnOptions.map(({ column, options }) => (
+                        <Select
+                          key={column}
+                          label={column}
+                          placeholder="All values"
+                          data={options}
+                          value={columnFilters[column] ?? null}
+                          onChange={(value) => {
+                            setColumnFilters((prev) => ({ ...prev, [column]: value }));
+                            setAnalysisStarted(false);
+                          }}
+                          clearable
+                          searchable
+                          size="sm"
+                        />
+                      ))}
+                    </SimpleGrid>
+                  </Stack>
+                </>
+              )}
+              {!mappingComplete && (
+                <Text size="sm" c="orange">
+                  Please map reference date, report date, and value to continue.
                 </Text>
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                  {extraColumnOptions.map(({ column, options }) => (
-                    <Select
-                      key={column}
-                      label={column}
-                      placeholder="All values"
-                      data={options}
-                      value={columnFilters[column] ?? null}
-                      onChange={(value) => setColumnFilters((prev) => ({ ...prev, [column]: value }))}
-                      clearable
-                      searchable
-                      size="sm"
-                    />
-                  ))}
-                </SimpleGrid>
-              </Stack>
-            </Card>
-          )}
+              )}
+              <Button
+                size="sm"
+                disabled={!canAnalyze}
+                onClick={() => {
+                  setAnalysisStarted(true);
+                  setReferenceRange(getDefaultReferenceRange(allReferenceDates));
+                  setMaxLagUnits(Math.max(0, Math.ceil(maxLagDays / unitDays)));
+                }}
+              >
+                Start analysis
+              </Button>
+            </Stack>
+          </Card>
         </SimpleGrid>
-
-        <Group justify="center">
-          <Button
-            size="md"
-            disabled={!canAnalyze}
-            onClick={() => {
-              setAnalysisStarted(true);
-              setReferenceRange(getDefaultReferenceRange(allReferenceDates));
-            }}
-          >
-            Start analysis
-          </Button>
-        </Group>
 
         {analysisStarted && (
           <>
-            <Grid gutter="lg">
-              <Grid.Col span={{ base: 12, lg: showFilters ? 6 : 12 }}>
-                <Card withBorder radius="md" padding="lg" id="reporting-triangle-trajectory">
-                  <Stack gap="sm">
-                    <Group justify="space-between">
-                      <Title order={3}>Revision trajectories</Title>
-                      <Badge variant="outline">first 3 reference dates</Badge>
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      View how reported totals evolve over successive reports.
+            <Card withBorder radius="md" padding="lg">
+              <Stack gap="sm">
+                <Group justify="space-between">
+                  <Title order={3}>Window & cutoff</Title>
+                  <Badge variant="outline">{triangle.referenceDates.length} reference dates</Badge>
+                </Group>
+                <Text size="sm" c="dimmed">
+                  Use the slider to focus on a subset of reference dates (rows), and set how far after reference dates to
+                  include reports (columns).
+                </Text>
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  <Stack gap="xs">
+                    <Text size="sm" fw={500}>
+                      Reference-date window
                     </Text>
-                    <Chart type="line" data={revisionChartData} options={chartOptions} />
+                    <RangeSlider
+                      value={referenceRange}
+                      onChange={setReferenceRange}
+                      min={0}
+                      max={Math.max(0, allReferenceDates.length - 1)}
+                      step={1}
+                      marks={sliderMarks}
+                      label={(value) => formatDateLabel(allReferenceDates[value])}
+                    />
+                    <Text size="xs" c="dimmed">
+                      Showing {activeRangeLabel}
+                    </Text>
                   </Stack>
-                </Card>
-              </Grid.Col>
+                  <Stack gap={4}>
+                    <NumberInput
+                      label={`Report cutoff (${unit}s after reference)`}
+                      value={maxLagUnits}
+                      onChange={(value) => setMaxLagUnits(Number(value) || 0)}
+                      min={0}
+                      max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
+                      clampBehavior="strict"
+                      size="sm"
+                    />
+                    <Text size="xs" c="dimmed">
+                      Latest observed delay: {maxLagDays} days (~{Math.ceil(maxLagDays / unitDays)} {unit}s)
+                    </Text>
+                  </Stack>
+                </SimpleGrid>
+              </Stack>
+            </Card>
 
-              <Grid.Col span={{ base: 12, lg: showFilters ? 6 : 12 }}>
-                <Card withBorder radius="md" padding="lg" id="reporting-triangle-distribution">
-                  <Stack gap="sm">
-                    <Group justify="space-between">
-                      <Title order={3}>Delay distribution</Title>
-                      <Badge variant="outline">{summary.total} total reports</Badge>
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      How long it takes for reports to arrive after the reference date.
-                    </Text>
-                    <Chart type="bar" data={delayChartData} options={chartOptions} />
-                  </Stack>
-                </Card>
-              </Grid.Col>
-            </Grid>
+            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+              <Card withBorder radius="md" padding="lg" id="reporting-triangle-trajectory">
+                <Stack gap="sm">
+                  <Group justify="space-between">
+                    <Title order={3}>Revision trajectories</Title>
+                    <Badge variant="outline">first 3 reference dates</Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    View how reported totals evolve over successive reports.
+                  </Text>
+                  <Chart type="line" data={revisionChartData} options={chartOptions} />
+                </Stack>
+              </Card>
+
+              <Card withBorder radius="md" padding="lg" id="reporting-triangle-distribution">
+                <Stack gap="sm">
+                  <Group justify="space-between">
+                    <Title order={3}>Delay distribution</Title>
+                    <Badge variant="outline">{summary.total} total reports</Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    How long it takes for reports to arrive after the reference date.
+                  </Text>
+                  <Chart type="bar" data={delayChartData} options={chartOptions} />
+                </Stack>
+              </Card>
+            </SimpleGrid>
 
             <Card withBorder radius="md" padding="lg">
               <Stack gap="sm">
@@ -830,10 +837,10 @@ const ReportingDelayPage = () => {
                 </Group>
                 <Group justify="space-between" align="flex-start">
                   <Stack gap={2}>
-                    <Text size="sm" c="dimmed" id="reporting-triangle-axis">
+                    <Text size="sm" c="dimmed">
                       Rows = <strong>reference date</strong>, columns = <strong>report date</strong>.
                     </Text>
-                    <Text size="sm" c="dimmed" id="reporting-triangle-diagonal">
+                    <Text size="sm" c="dimmed">
                       Diagonal cells (delay = 0) represent reports received on the same day as the reference date.
                     </Text>
                   </Stack>
@@ -860,7 +867,7 @@ const ReportingDelayPage = () => {
                     <Table withTableBorder striped highlightOnHover>
                       <Table.Thead>
                         <Table.Tr>
-                          <Table.Th>Reference date</Table.Th>
+                          <Table.Th id="reporting-triangle-axis-cell">Reference date</Table.Th>
                           {displayReportDates.map((date) => (
                             <Table.Th key={date} ta="center">
                               {formatDateLabel(date)}
