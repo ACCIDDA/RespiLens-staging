@@ -10,6 +10,8 @@ import MyRespiLensDashboard from './components/myrespi/MyRespiLensDashboard';
 import TournamentDashboard from './components/tournament/TournamentDashboard';
 import UnifiedAppShell from './components/layout/UnifiedAppShell';
 import Documentation from './components/Documentation'
+import ReportingDelayPage from './components/reporting/ReportingDelayPage';
+import ToolsPage from './components/tools/ToolsPage';
 import { Center, Text } from '@mantine/core';
 // import ShutdownBanner from './components/ShutdownBanner';, no longer necessary
 
@@ -42,6 +44,8 @@ const AppLayout = () => {
           <Route path="/forecastle" element={<ForecastleGame />} />
           <Route path="/epidemics10" element={<TournamentDashboard />} />
           <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
+          <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
           <Route path="/documentation" element={<Documentation />} />
         </Routes>
       </UnifiedAppShell>
