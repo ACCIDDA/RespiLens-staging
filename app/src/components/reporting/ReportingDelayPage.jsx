@@ -18,6 +18,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Table,
   Text,
   ThemeIcon,
@@ -42,6 +43,7 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
+import Plot from 'react-plotly.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend);
 
@@ -93,12 +95,7 @@ const formatDateLabel = (value) => new Date(value).toLocaleDateString('en-US', {
 
 const getDefaultReferenceRange = (dates) => {
   if (!dates.length) return [0, 0];
-  const lastDate = new Date(dates[dates.length - 1]);
-  const cutoffDate = new Date(lastDate);
-  cutoffDate.setMonth(cutoffDate.getMonth() - 4);
-  const startIndex = dates.findIndex((date) => new Date(date) >= cutoffDate);
-  const resolvedStart = startIndex >= 0 ? startIndex : 0;
-  return [resolvedStart, dates.length - 1];
+  return [0, dates.length - 1];
 };
 
 const getFrequencyUnit = (dates) => {
@@ -118,6 +115,34 @@ const getFrequencyUnit = (dates) => {
     return { unit: 'week', unitDays: 7 };
   }
   return { unit: 'day', unitDays: 1 };
+};
+
+const loadDriver = () => {
+  if (window.driver) {
+    return Promise.resolve(window.driver);
+  }
+
+  const existingScript = document.querySelector('script[data-driverjs]');
+  if (existingScript) {
+    return new Promise((resolve) => {
+      existingScript.addEventListener('load', () => resolve(window.driver));
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.0/dist/driver.min.css';
+    document.head.appendChild(cssLink);
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.0/dist/driver.min.js';
+    script.async = true;
+    script.dataset.driverjs = 'true';
+    script.onload = () => resolve(window.driver);
+    script.onerror = reject;
+    document.body.appendChild(script);
+  });
 };
 
 const buildTriangle = (records, { referenceDates, maxLagDays } = {}) => {
@@ -219,7 +244,6 @@ const INITIAL_MAPPING = {
 
 const ReportingDelayPage = () => {
   const inputRef = useRef(null);
-  const triangleRef = useRef(null);
   const [csvRows, setCsvRows] = useState(() => INITIAL_PARSED.records);
   const [csvHeaders, setCsvHeaders] = useState(() => INITIAL_PARSED.headers);
   const [fileName, setFileName] = useState('sample-epinowcast.csv');
@@ -228,6 +252,7 @@ const ReportingDelayPage = () => {
   const [columnMapping, setColumnMapping] = useState(INITIAL_MAPPING);
   const [columnFilters, setColumnFilters] = useState({});
   const [isTriangleFullscreen, setIsTriangleFullscreen] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
   const headerOptions = useMemo(
     () => csvHeaders.map((header) => ({ value: header, label: header })),
@@ -349,16 +374,38 @@ const ReportingDelayPage = () => {
     return `data:text/csv;charset=utf-8,${encoded}`;
   }, []);
 
-  useEffect(() => {
-    const referenceIndex = INITIAL_PARSED.normalizedHeaders.indexOf('reference_date');
-    const reportIndex = INITIAL_PARSED.normalizedHeaders.indexOf('report_date');
-    const valueIndex = INITIAL_PARSED.normalizedHeaders.indexOf('value');
-    setColumnMapping({
-      referenceDate: referenceIndex >= 0 ? INITIAL_PARSED.headers[referenceIndex] : '',
-      reportDate: reportIndex >= 0 ? INITIAL_PARSED.headers[reportIndex] : '',
-      value: valueIndex >= 0 ? INITIAL_PARSED.headers[valueIndex] : '',
-    });
-  }, []);
+  const startTour = async () => {
+    try {
+      const driver = await loadDriver();
+      if (!driver) {
+        return;
+      }
+      const tour = driver({
+        showProgress: true,
+        steps: [
+          {
+            element: '#reporting-triangle-upload',
+            popover: { title: 'Import CSV', description: 'Drop your file or download the sample CSV to start.' },
+          },
+          {
+            element: '#reporting-triangle-mapping',
+            popover: { title: 'Map columns', description: 'Confirm which columns hold reference dates and reports.' },
+          },
+          {
+            element: '#reporting-triangle-trajectory',
+            popover: { title: 'Trajectories', description: 'Watch how reports revise over time.' },
+          },
+          {
+            element: '#reporting-triangle-distribution',
+            popover: { title: 'Delay distribution', description: 'Inspect how long delays typically are.' },
+          },
+        ],
+      });
+      tour.drive();
+    } catch (error) {
+      // Optional: ignore if driver.js cannot be loaded in the environment.
+    }
+  };
 
   useEffect(() => {
     const maxIndex = Math.max(0, allReferenceDates.length - 1);
@@ -389,7 +436,6 @@ const ReportingDelayPage = () => {
     ];
   }, [allReferenceDates]);
 
-  const showTriangleNumbers = triangle.referenceDates.length <= 16 && triangle.reportDates.length <= 16;
   const maxDisplayRows = 80;
   const maxDisplayCols = 80;
   const displayReferenceDates = triangle.referenceDates.slice(-maxDisplayRows);
@@ -415,12 +461,37 @@ const ReportingDelayPage = () => {
               borderRadius: 6,
             }}
           >
-            {showTriangleNumbers ? value ?? '—' : ''}
+            {value ?? '—'}
           </Table.Td>
         );
       })}
     </Table.Tr>
   ));
+
+  const heatmapData = useMemo(() => {
+    return [
+      {
+        z: displayReferenceDates.map((referenceDate) =>
+          displayReportDates.map((reportDate) => triangle.valueMap.get(`${referenceDate}|${reportDate}`) ?? null),
+        ),
+        x: displayReportDates.map(formatDateLabel),
+        y: displayReferenceDates.map(formatDateLabel),
+        type: 'heatmap',
+        colorscale: 'Blues',
+        showscale: false,
+        hovertemplate: 'Reference %{y}<br>Report %{x}<br>Value %{z}<extra></extra>',
+      },
+    ];
+  }, [displayReferenceDates, displayReportDates, triangle.valueMap]);
+
+  const heatmapLayout = useMemo(() => {
+    return {
+      margin: { l: 80, r: 20, t: 20, b: 60 },
+      xaxis: { title: 'Report date' },
+      yaxis: { title: 'Reference date' },
+      height: 520,
+    };
+  }, []);
 
   const revisionChartData = useMemo(() => {
     const referenceSeries = triangle.referenceDates.slice(0, 3);
@@ -475,11 +546,26 @@ const ReportingDelayPage = () => {
           </Text>
         </Stack>
 
+        <Card withBorder radius="md" padding="lg">
+          <Stack gap="sm">
+            <Title order={3}>Introduction</Title>
+            <Text c="dimmed">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et
+              dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
+              ex ea commodo consequat.
+            </Text>
+            <Button size="sm" w="fit-content" onClick={startTour}>
+              Start guided tour
+            </Button>
+          </Stack>
+        </Card>
+
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
           <Paper
             withBorder
             radius="md"
             p="lg"
+            id="reporting-triangle-upload"
             onDragOver={(event) => {
               event.preventDefault();
               setIsDragging(true);
@@ -553,7 +639,7 @@ const ReportingDelayPage = () => {
             </Stack>
           </Paper>
 
-          <Card withBorder radius="md" padding="lg">
+          <Card withBorder radius="md" padding="lg" id="reporting-triangle-mapping">
             <Stack gap="sm">
               <Group justify="space-between">
                 <Title order={3}>Column mapping</Title>
@@ -565,7 +651,7 @@ const ReportingDelayPage = () => {
               <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
                 <Select
                   label="Reference date (rows)"
-                  placeholder="Select column"
+                  placeholder="Choose column"
                   data={headerOptions}
                   value={columnMapping.referenceDate}
                   onChange={(value) => setColumnMapping((prev) => ({ ...prev, referenceDate: value ?? '' }))}
@@ -573,7 +659,7 @@ const ReportingDelayPage = () => {
                 />
                 <Select
                   label="Report date (columns)"
-                  placeholder="Select column"
+                  placeholder="Choose column"
                   data={headerOptions}
                   value={columnMapping.reportDate}
                   onChange={(value) => setColumnMapping((prev) => ({ ...prev, reportDate: value ?? '' }))}
@@ -581,7 +667,7 @@ const ReportingDelayPage = () => {
                 />
                 <Select
                   label="Value"
-                  placeholder="Select column"
+                  placeholder="Choose column"
                   data={headerOptions}
                   value={columnMapping.value}
                   onChange={(value) => setColumnMapping((prev) => ({ ...prev, value: value ?? '' }))}
@@ -649,21 +735,26 @@ const ReportingDelayPage = () => {
                   Showing {activeRangeLabel}
                 </Text>
               </Stack>
-              <NumberInput
-                label={`Report cutoff (${unit}s after reference)`}
-                value={maxLagUnits}
-                onChange={(value) => setMaxLagUnits(Number(value) || 0)}
-                min={0}
-                max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
-                clampBehavior="strict"
-                size="sm"
-              />
+              <Stack gap={4}>
+                <NumberInput
+                  label={`Report cutoff (${unit}s after reference)`}
+                  value={maxLagUnits}
+                  onChange={(value) => setMaxLagUnits(Number(value) || 0)}
+                  min={0}
+                  max={Math.max(0, Math.ceil(maxLagDays / unitDays))}
+                  clampBehavior="strict"
+                  size="sm"
+                />
+                <Text size="xs" c="dimmed">
+                  Latest observed delay: {maxLagDays} days (~{Math.ceil(maxLagDays / unitDays)} {unit}s)
+                </Text>
+              </Stack>
             </SimpleGrid>
           </Stack>
         </Card>
 
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-          <Card withBorder radius="md" padding="lg">
+          <Card withBorder radius="md" padding="lg" id="reporting-triangle-trajectory">
             <Stack gap="sm">
               <Group justify="space-between">
                 <Title order={3}>Revision trajectories</Title>
@@ -676,7 +767,7 @@ const ReportingDelayPage = () => {
             </Stack>
           </Card>
 
-          <Card withBorder radius="md" padding="lg">
+          <Card withBorder radius="md" padding="lg" id="reporting-triangle-distribution">
             <Stack gap="sm">
               <Group justify="space-between">
                 <Title order={3}>Delay distribution</Title>
@@ -705,18 +796,34 @@ const ReportingDelayPage = () => {
                 </ActionIcon>
               </Group>
             </Group>
-            <Group gap="sm">
-              <Text size="sm" c="dimmed">
-                Rows = <strong>reference date</strong>, columns = <strong>report date</strong>.
-              </Text>
-              <Badge variant="light">{showTriangleNumbers ? 'Values shown' : 'Heatmap mode'}</Badge>
+            <Group justify="space-between" align="flex-start">
+              <Stack gap={2}>
+                <Text size="sm" c="dimmed">
+                  Rows = <strong>reference date</strong>, columns = <strong>report date</strong>.
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Diagonal cells (delay = 0) represent reports received on the same day as the reference date.
+                </Text>
+              </Stack>
+              <Switch
+                label="Display as heatmap (best for large tables)"
+                checked={showHeatmap}
+                onChange={(event) => setShowHeatmap(event.currentTarget.checked)}
+                size="sm"
+              />
             </Group>
             <Text size="sm" c="dimmed">
               Darker cells are larger cumulative counts.
-              {!showTriangleNumbers && ' Values are hidden for dense tables; hover to inspect.'}
               {isTriangleTruncated && ' Showing a recent subset to keep the table responsive.'}
             </Text>
-            <Box ref={triangleRef} p={isTriangleFullscreen ? 'md' : 0}>
+            {showHeatmap ? (
+              <Plot
+                data={heatmapData}
+                layout={heatmapLayout}
+                config={{ displayModeBar: false }}
+                style={{ width: '100%' }}
+              />
+            ) : (
               <ScrollArea>
                 <Table withTableBorder striped highlightOnHover>
                   <Table.Thead>
@@ -732,7 +839,7 @@ const ReportingDelayPage = () => {
                   <Table.Tbody>{triangleRows}</Table.Tbody>
                 </Table>
               </ScrollArea>
-            </Box>
+            )}
           </Stack>
         </Card>
 
@@ -815,22 +922,37 @@ const ReportingDelayPage = () => {
             <Text size="sm" c="dimmed">
               Showing {activeRangeLabel} · Cutoff {maxLagUnits} {unit}(s)
             </Text>
+            <Switch
+              label="Display as heatmap"
+              checked={showHeatmap}
+              onChange={(event) => setShowHeatmap(event.currentTarget.checked)}
+              size="sm"
+            />
           </Group>
-          <ScrollArea>
-            <Table withTableBorder striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Reference date</Table.Th>
-                  {displayReportDates.map((date) => (
-                    <Table.Th key={`modal-${date}`} ta="center">
-                      {formatDateLabel(date)}
-                    </Table.Th>
-                  ))}
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{triangleRows}</Table.Tbody>
-            </Table>
-          </ScrollArea>
+          {showHeatmap ? (
+            <Plot
+              data={heatmapData}
+              layout={heatmapLayout}
+              config={{ displayModeBar: false }}
+              style={{ width: '100%' }}
+            />
+          ) : (
+            <ScrollArea>
+              <Table withTableBorder striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Reference date</Table.Th>
+                    {displayReportDates.map((date) => (
+                      <Table.Th key={`modal-${date}`} ta="center">
+                        {formatDateLabel(date)}
+                      </Table.Th>
+                    ))}
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{triangleRows}</Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
         </Stack>
       </Modal>
     </Container>
