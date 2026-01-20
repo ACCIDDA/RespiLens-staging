@@ -44,7 +44,7 @@ const AppLayout = () => {
           <Route path="/forecastle" element={<ForecastleGame />} />
           <Route path="/epidemics10" element={<TournamentDashboard />} />
           <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
-          <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/toolbox" element={<ToolsPage />} />
           <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
           <Route path="/documentation" element={<Documentation />} />
         </Routes>

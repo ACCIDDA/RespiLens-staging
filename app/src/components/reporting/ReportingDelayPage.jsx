@@ -550,10 +550,9 @@ const ReportingDelayPage = () => {
           <Badge variant="light" leftSection={<IconClock size={14} />} w="fit-content">
             Reporting triangle explorer
           </Badge>
-          <Title order={1}>Do I need to nowcast?</Title>
+          <Title order={1}>Do you need to nowcast? What is your reporting delay distribution?</Title>
           <Text c="dimmed" size="lg">
-            Drop an EpiNowcast-style CSV to build a reporting triangle, delay distribution, and a quick recommendation.
-            Everything runs locally in your browser.
+            Analyze your reporting delay distribution with RespiLens and epinowcast. Everything runs locally in your browser.
           </Text>
         </Stack>
 
@@ -561,16 +560,17 @@ const ReportingDelayPage = () => {
           <Stack gap="sm">
             <Title order={3}>Introduction</Title>
             <Text c="dimmed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et
-              dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-              ex ea commodo consequat.
+              Do you need nowcasting ? What does your reporting delay distrubution look like ? Let's dive into that using this little app. Nothing leave your computer (say how to check).
+              So upload a data with some columns indicating the refrence date of an event, the report date when it was reported, and the value reported. Optionally you can have other columns like location, age group, or target type to filter the data.
+              You'll see your reporting distrubtion and the so called reporting triangle introduced by (probably Kaitlyn Johnson et al. but really i need to check this). This 
+              For any deeper dive open the link below to epinowcast on which this work is based.
             </Text>
             <Group gap="xs">
-              <Anchor href="https://github.com/epinowcast/epinowcast" target="_blank" rel="noreferrer" size="sm">
-                EpiNowcast sample datasets
+              <Anchor href="https://package.epinowcast.org" target="_blank" rel="noreferrer" size="sm">
+                EpiNowcast
               </Anchor>
               <Anchor href="https://baselinenowcast.epinowcast.org" target="_blank" rel="noreferrer" size="sm">
-                Baseline nowcast demo data
+                Baselinenowcast
               </Anchor>
             </Group>
             <Button size="sm" w="fit-content" onClick={startTour}>
@@ -878,11 +878,10 @@ const ReportingDelayPage = () => {
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
           <Card withBorder radius="md" padding="lg">
             <Stack gap="sm">
-              <Title order={3}>Caveats from reporting triangles</Title>
+              <Title order={3}>Nota Bene</Title>
               <List spacing="xs" size="sm">
                 <List.Item>Late reports can be structurally different (e.g., lab corrections, backfills).</List.Item>
                 <List.Item>Holiday effects and reporting interruptions bias delay estimates.</List.Item>
-                <List.Item>Negative revisions need separate handling before computing cumulative totals.</List.Item>
                 <List.Item>Changes in case definitions or data pipelines break comparability over time.</List.Item>
               </List>
             </Stack>
@@ -907,11 +906,12 @@ const ReportingDelayPage = () => {
               <Divider />
 
               <Stack gap="xs">
-                <Text fw={600}>Decision tree</Text>
+                <Text fw={600}>Decision tree for nowcasting</Text>
                 <List spacing="xs" size="sm" icon={<ThemeIcon size={20} radius="xl" variant="light"><IconArrowRight size={14} /></ThemeIcon>}>
-                  <List.Item>Long delays (≥7 days): prioritize nowcasting and backfill-aware evaluation.</List.Item>
-                  <List.Item>Moderate delays (4–6 days): nowcasting for rapid reporting, forecasts for planning.</List.Item>
-                  <List.Item>Short delays (≤3 days): focus on forecasts, optional nowcast for same-week metrics.</List.Item>
+                  <List.Item>Simple: use baselinenowcast</List.Item>
+                  <List.Item>Better but more complex: use epinowcast (tood link)</List.Item>
+                  <List.Item>(both use the same data format)</List.Item>
+                  <List.Item>For more information about nowcasting (epinowcast, the forum)</List.Item>
                 </List>
               </Stack>
             </Stack>
