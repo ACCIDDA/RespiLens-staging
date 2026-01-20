@@ -11,6 +11,7 @@ repos=(
   "FluSight-forecast-hub|https://github.com/cdcepi/FluSight-forecast-hub.git"
   "rsv-forecast-hub|https://github.com/CDCgov/rsv-forecast-hub.git"
   "covid19-forecast-hub|https://github.com/CDCgov/covid19-forecast-hub.git"
+  "flu-metrocast|https://github.com/reichlab/flu-metrocast.git"
 )
 
 for entry in "${repos[@]}"; do
