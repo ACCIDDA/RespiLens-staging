@@ -6,6 +6,7 @@ import DateSelector from './DateSelector';
 import ViewSwitchboard from './ViewSwitchboard';
 import ErrorBoundary from './ErrorBoundary';
 import AboutHubOverlay from './AboutHubOverlay';
+import PathogenFrontPage from './PathogenFrontPage';
 import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
@@ -253,6 +254,21 @@ const DataVisualizationContainer = () => {
       setSelectedDates([singleDate]);
     }
   }, [viewType, selectedDates, activeDate, setSelectedDates]);
+
+  if (viewType === 'frontpage') {
+    return (
+      <ErrorBoundary onReset={() => window.location.reload()}>
+        <Helmet>
+          <title>RespiLens | Forecasts</title>
+        </Helmet>
+        <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
+          <Stack gap="lg">
+            <PathogenFrontPage />
+          </Stack>
+        </Container>
+      </ErrorBoundary>
+    );
+  }
   
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
@@ -260,8 +276,9 @@ const DataVisualizationContainer = () => {
         <title>RespiLens | {currentDataset?.fullName || 'Forecasts'}</title>
       </Helmet>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
-        <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md" style={{ minHeight: '70vh' }}>
+        <Stack gap="lg">
+          <Paper shadow="sm" p="lg" radius="md" withBorder>
+            <Stack gap="md" style={{ minHeight: '70vh' }}>
             <div style={{
               display: 'grid',
               gridTemplateColumns: windowSize.width > 800 ? 'auto 1fr auto' : '1fr',
@@ -362,8 +379,9 @@ const DataVisualizationContainer = () => {
                 availablePeakModels={availablePeakModels}
               />
             </div>
-          </Stack>
-        </Paper>
+            </Stack>
+          </Paper>
+        </Stack>
       </Container>
     </ErrorBoundary>
   );

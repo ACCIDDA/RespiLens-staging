@@ -167,12 +167,19 @@ export class URLParameterManager {
     // Use DATASETS config to find the default view if not in URL
     const viewParam = this.searchParams.get('view');
     const allViews = Object.values(DATASETS).flatMap(ds => ds.views.map(v => v.value));
-    if (viewParam && allViews.includes(viewParam)) {
+    if (viewParam) {
+      if (viewParam === APP_CONFIG.defaultView) {
         return viewParam;
+      }
+      if (allViews.includes(viewParam)) {
+        return viewParam;
+      }
     }
-    // Find the default view of the default dataset
+    if (APP_CONFIG.defaultView) {
+      return APP_CONFIG.defaultView;
+    }
     const defaultDatasetKey = APP_CONFIG.defaultDataset;
-    return DATASETS[defaultDatasetKey]?.defaultView || APP_CONFIG.defaultView;
+    return DATASETS[defaultDatasetKey]?.defaultView;
   }
 
   // Initialize URL with defaults if missing (Less critical now with context handling)
