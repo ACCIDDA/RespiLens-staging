@@ -5,7 +5,7 @@ const PathogenFrontPage = () => {
   return (
     <Paper shadow="sm" p="lg" radius="md" withBorder>
       <Stack gap="md">
-        <Title order={3}>Explore Forecasts by Pathogen</Title>
+        <Title order={3}>Explore forecasts by pathogen</Title>
         <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
           <PathogenOverviewGraph viewType="covid_projs" title="COVID-19" />
           <PathogenOverviewGraph viewType="flu_projs" title="Flu" />
