@@ -132,8 +132,9 @@ const buildTriangle = (records, { referenceDates, maxLagDays } = {}) => {
         });
       })
     : allReportDates;
+  const reportDatesWithDiagonal = Array.from(new Set([...activeReportDates, ...activeReferenceDates])).sort();
   const allowedReferenceDates = new Set(activeReferenceDates);
-  const allowedReportDates = new Set(activeReportDates);
+  const allowedReportDates = new Set(reportDatesWithDiagonal);
   const filteredRecords = records.filter(
     (record) => allowedReferenceDates.has(record.referenceDate) && allowedReportDates.has(record.reportDate),
   );
@@ -147,7 +148,7 @@ const buildTriangle = (records, { referenceDates, maxLagDays } = {}) => {
     : filteredRecords;
   const valueMap = new Map(lagFilteredRecords.map((record) => [`${record.referenceDate}|${record.reportDate}`, record.value]));
 
-  return { referenceDates: activeReferenceDates, reportDates: activeReportDates, valueMap, filteredRecords: lagFilteredRecords };
+  return { referenceDates: activeReferenceDates, reportDates: reportDatesWithDiagonal, valueMap, filteredRecords: lagFilteredRecords };
 };
 
 const buildDelayDistribution = (records) => {
@@ -327,17 +328,13 @@ const ReportingDelayPage = () => {
       setCsvHeaders(parsed.headers);
       setFileName(file.name);
       setError(null);
-      const referenceIndex = parsed.normalizedHeaders.indexOf('reference_date');
-      const reportIndex = parsed.normalizedHeaders.indexOf('report_date');
-      const valueIndex = parsed.normalizedHeaders.indexOf('value');
-      const nextMapping = {
-        referenceDate: referenceIndex >= 0 ? parsed.headers[referenceIndex] : '',
-        reportDate: reportIndex >= 0 ? parsed.headers[reportIndex] : '',
-        value: valueIndex >= 0 ? parsed.headers[valueIndex] : '',
-      };
-      setColumnMapping(nextMapping);
+      setColumnMapping(INITIAL_MAPPING);
       setColumnFilters({});
-      const parsedReferenceDates = Array.from(new Set(buildRecordsFromMapping(parsed.records, nextMapping).map((record) => record.referenceDate))).sort();
+      const referenceIndex = parsed.normalizedHeaders.indexOf('reference_date');
+      const referenceKey = referenceIndex >= 0 ? parsed.headers[referenceIndex] : null;
+      const parsedReferenceDates = referenceKey
+        ? Array.from(new Set(parsed.records.map((record) => record[referenceKey]).filter(Boolean))).sort()
+        : [];
       setReferenceRange(getDefaultReferenceRange(parsedReferenceDates));
     } catch (err) {
       setError(err.message);
@@ -347,6 +344,17 @@ const ReportingDelayPage = () => {
   const sampleDataUri = useMemo(() => {
     const encoded = encodeURIComponent(SAMPLE_CSV);
     return `data:text/csv;charset=utf-8,${encoded}`;
+  }, []);
+
+  useEffect(() => {
+    const referenceIndex = INITIAL_PARSED.normalizedHeaders.indexOf('reference_date');
+    const reportIndex = INITIAL_PARSED.normalizedHeaders.indexOf('report_date');
+    const valueIndex = INITIAL_PARSED.normalizedHeaders.indexOf('value');
+    setColumnMapping({
+      referenceDate: referenceIndex >= 0 ? INITIAL_PARSED.headers[referenceIndex] : '',
+      reportDate: reportIndex >= 0 ? INITIAL_PARSED.headers[reportIndex] : '',
+      value: valueIndex >= 0 ? INITIAL_PARSED.headers[valueIndex] : '',
+    });
   }, []);
 
   const startTour = () => {
@@ -368,6 +376,14 @@ const ReportingDelayPage = () => {
         {
           element: '#reporting-triangle-distribution',
           popover: { title: 'Delay distribution', description: 'Inspect how long delays typically are.' },
+        },
+        {
+          element: '#reporting-triangle-axis',
+          popover: { title: 'Axes', description: 'Rows are reference dates and columns are report dates.' },
+        },
+        {
+          element: '#reporting-triangle-diagonal',
+          popover: { title: 'Diagonal', description: 'Delay = 0 reports arrive on the same day as the reference.' },
         },
       ],
     });
@@ -410,6 +426,10 @@ const ReportingDelayPage = () => {
   const isTriangleTruncated =
     displayReferenceDates.length < triangle.referenceDates.length ||
     displayReportDates.length < triangle.reportDates.length;
+  const diagonalDates = useMemo(() => {
+    const reportSet = new Set(displayReportDates);
+    return displayReferenceDates.filter((date) => reportSet.has(date));
+  }, [displayReferenceDates, displayReportDates]);
   const activeRangeLabel = activeReferenceDates.length
     ? `${formatDateLabel(activeReferenceDates[0])}–${formatDateLabel(activeReferenceDates.at(-1))}`
     : 'No data selected';
@@ -419,6 +439,7 @@ const ReportingDelayPage = () => {
       {displayReportDates.map((reportDate) => {
         const value = triangle.valueMap.get(`${referenceDate}|${reportDate}`);
         const intensity = value ? Math.min(1, value / 80) : 0;
+        const isDiagonal = referenceDate === reportDate;
         return (
           <Table.Td
             key={`${referenceDate}-${reportDate}`}
@@ -426,6 +447,7 @@ const ReportingDelayPage = () => {
             style={{
               backgroundColor: value ? `rgba(34, 139, 230, ${0.08 + intensity * 0.45})` : 'transparent',
               borderRadius: 6,
+              border: isDiagonal ? '2px solid var(--mantine-color-dark-6)' : undefined,
             }}
           >
             {value ?? '—'}
@@ -452,13 +474,27 @@ const ReportingDelayPage = () => {
   }, [displayReferenceDates, displayReportDates, triangle.valueMap]);
 
   const heatmapLayout = useMemo(() => {
+    const diagonalLine =
+      diagonalDates.length > 1
+        ? [
+            {
+              type: 'line',
+              x0: formatDateLabel(diagonalDates[0]),
+              y0: formatDateLabel(diagonalDates[0]),
+              x1: formatDateLabel(diagonalDates[diagonalDates.length - 1]),
+              y1: formatDateLabel(diagonalDates[diagonalDates.length - 1]),
+              line: { color: '#1a1b1e', width: 2 },
+            },
+          ]
+        : [];
     return {
       margin: { l: 80, r: 20, t: 20, b: 60 },
       xaxis: { title: 'Report date', type: 'category' },
       yaxis: { title: 'Reference date', type: 'category', autorange: 'reversed' },
+      shapes: diagonalLine,
       height: 520,
     };
-  }, []);
+  }, [diagonalDates]);
 
   const revisionChartData = useMemo(() => {
     const referenceSeries = triangle.referenceDates.slice(0, 3);
@@ -765,10 +801,10 @@ const ReportingDelayPage = () => {
             </Group>
             <Group justify="space-between" align="flex-start">
               <Stack gap={2}>
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c="dimmed" id="reporting-triangle-axis">
                   Rows = <strong>reference date</strong>, columns = <strong>report date</strong>.
                 </Text>
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c="dimmed" id="reporting-triangle-diagonal">
                   Diagonal cells (delay = 0) represent reports received on the same day as the reference date.
                 </Text>
               </Stack>
