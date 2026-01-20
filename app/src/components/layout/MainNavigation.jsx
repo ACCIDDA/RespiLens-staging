@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router-dom';
-import { Group, Button, Image, Title } from '@mantine/core';
+import { Group, Button, Image, Title, Anchor } from '@mantine/core';
 import { IconChartLine, IconTarget, IconDashboard } from '@tabler/icons-react';
 import InfoOverlay from '../InfoOverlay';
 
@@ -19,12 +19,14 @@ const MainNavigation = () => {
   return (
     <Group justify="space-between" align="center" w="100%" wrap="nowrap" gap="sm">
       {/* Logo */}
-      <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
-        <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w="auto" fit="contain" />
-        <Title order={3} c="blue" visibleFrom="sm">
-          RespiLens<sup style={{ color: 'var(--mantine-color-red-6)', fontSize: '0.75rem' }}></sup>
-        </Title>
-      </Group>
+      <Anchor component={Link} to="/" underline="never" c="inherit">
+        <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
+          <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w="auto" fit="contain" />
+          <Title order={3} c="blue" visibleFrom="sm">
+            RespiLens<sup style={{ color: 'var(--mantine-color-red-6)', fontSize: '0.75rem' }}></sup>
+          </Title>
+        </Group>
+      </Anchor>
 
       {/* Desktop Navigation - Full Buttons */}
       <Group gap="xs" visibleFrom="sm">
