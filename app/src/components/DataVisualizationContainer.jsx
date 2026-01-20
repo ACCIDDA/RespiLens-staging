@@ -254,6 +254,21 @@ const DataVisualizationContainer = () => {
       setSelectedDates([singleDate]);
     }
   }, [viewType, selectedDates, activeDate, setSelectedDates]);
+
+  if (viewType === 'frontpage') {
+    return (
+      <ErrorBoundary onReset={() => window.location.reload()}>
+        <Helmet>
+          <title>RespiLens | Forecasts</title>
+        </Helmet>
+        <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
+          <Stack gap="lg">
+            <PathogenFrontPage />
+          </Stack>
+        </Container>
+      </ErrorBoundary>
+    );
+  }
   
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
@@ -262,7 +277,6 @@ const DataVisualizationContainer = () => {
       </Helmet>
       <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
         <Stack gap="lg">
-          <PathogenFrontPage />
           <Paper shadow="sm" p="lg" radius="md" withBorder>
             <Stack gap="md" style={{ minHeight: '70vh' }}>
             <div style={{

@@ -16,7 +16,17 @@ export const useForecastData = (location, viewType) => {
   const peaks = data?.peaks || null;
 
   useEffect(() => {
-    if (!location || !viewType) return;
+    if (!location || !viewType || viewType === 'frontpage') {
+      setLoading(false);
+      setError(null);
+      setData(null);
+      setMetadata(null);
+      setAvailableDates([]);
+      setModels([]);
+      setAvailableTargets([]);
+      setModelsByTarget({});
+      return;
+    }
 
     const fetchData = async () => {
       setLoading(true);

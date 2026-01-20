@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
 import Plot from 'react-plotly.js';
 import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config';
-import { targetDisplayNameMap } from '../utils/mapUtils';
 import { useView } from '../hooks/useView';
 
 const DEFAULT_TARGETS = {
@@ -125,9 +125,10 @@ const buildIntervalTraces = (forecast, model) => {
   ];
 };
 
-const PathogenOverviewGraph = ({ viewType, title }) => {
+const PathogenOverviewGraph = ({ viewType, title, location }) => {
   const { viewType: activeViewType, setViewType } = useView();
-  const { data, loading, error, availableDates, availableTargets, models } = useForecastData('US', viewType);
+  const resolvedLocation = location || 'US';
+  const { data, loading, error, availableDates, availableTargets, models } = useForecastData(resolvedLocation, viewType);
   const datasetKey = VIEW_TO_DATASET[viewType];
   const datasetConfig = datasetKey ? DATASETS[datasetKey] : null;
 
@@ -229,7 +230,9 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
     },
     showlegend: false,
     hovermode: 'x unified'
-  }), [chartRange, selectedTarget, yRange]);
+  }), [chartRange, yRange]);
+
+  const locationLabel = resolvedLocation === 'US' ? 'US national view' : resolvedLocation;
 
   return (
     <Card withBorder radius="md" padding="lg" shadow="xs">
@@ -265,10 +268,11 @@ const PathogenOverviewGraph = ({ viewType, title }) => {
             size="xs"
             variant={isActive ? 'light' : 'filled'}
             onClick={() => setViewType(datasetConfig?.defaultView || viewType)}
+            rightSection={<IconChevronRight size={14} />}
           >
             {isActive ? 'Viewing' : 'View forecasts'}
           </Button>
-          <Text size="xs" c="dimmed">US national view</Text>
+          <Text size="xs" c="dimmed">{locationLabel}</Text>
         </Group>
       </Stack>
     </Card>

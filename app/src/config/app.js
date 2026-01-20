@@ -12,7 +12,7 @@ export const APP_CONFIG = {
    * These determine what users see when they first visit the site
    */
   defaultDataset: 'covid',
-  defaultView: 'covid_projs',
+  defaultView: 'frontpage',
   defaultLocation: 'US',
 
   /**
