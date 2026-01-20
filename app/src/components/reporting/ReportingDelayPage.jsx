@@ -132,11 +132,11 @@ const loadDriver = () => {
   return new Promise((resolve, reject) => {
     const cssLink = document.createElement('link');
     cssLink.rel = 'stylesheet';
-    cssLink.href = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.0/dist/driver.min.css';
+    cssLink.href = '/vendor/driver.min.css';
     document.head.appendChild(cssLink);
 
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.0/dist/driver.min.js';
+    script.src = '/vendor/driver.min.js';
     script.async = true;
     script.dataset.driverjs = 'true';
     script.onload = () => resolve(window.driver);
@@ -487,8 +487,8 @@ const ReportingDelayPage = () => {
   const heatmapLayout = useMemo(() => {
     return {
       margin: { l: 80, r: 20, t: 20, b: 60 },
-      xaxis: { title: 'Report date' },
-      yaxis: { title: 'Reference date' },
+      xaxis: { title: 'Report date', type: 'category' },
+      yaxis: { title: 'Reference date', type: 'category', autorange: 'reversed' },
       height: 520,
     };
   }, []);
@@ -557,6 +557,9 @@ const ReportingDelayPage = () => {
             <Button size="sm" w="fit-content" onClick={startTour}>
               Start guided tour
             </Button>
+            <Text size="xs" c="dimmed">
+              Tour assets load from <code>/public/vendor/driver.min.js</code> and <code>/public/vendor/driver.min.css</code>.
+            </Text>
           </Stack>
         </Card>
 
