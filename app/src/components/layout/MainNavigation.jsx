@@ -2,9 +2,11 @@ import { useLocation, Link } from 'react-router-dom';
 import { Group, Button, Image, Title, Anchor } from '@mantine/core';
 import { IconChartLine, IconTarget, IconDashboard } from '@tabler/icons-react';
 import InfoOverlay from '../InfoOverlay';
+import { useView } from '../../hooks/useView';
 
 const MainNavigation = () => {
   const location = useLocation();
+  const { setViewType } = useView();
 
   const isActive = (path) => location.pathname.startsWith(path);
 
@@ -19,7 +21,13 @@ const MainNavigation = () => {
   return (
     <Group justify="space-between" align="center" w="100%" wrap="nowrap" gap="sm">
       {/* Logo */}
-      <Anchor component={Link} to="/" underline="never" c="inherit">
+      <Anchor
+        component={Link}
+        to="/"
+        underline="never"
+        c="inherit"
+        onClick={() => setViewType('frontpage')}
+      >
         <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
           <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w="auto" fit="contain" />
           <Title order={3} c="blue" visibleFrom="sm">
