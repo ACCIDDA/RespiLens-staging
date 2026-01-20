@@ -44,6 +44,8 @@ import {
 } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 import Plot from 'react-plotly.js';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend);
 
@@ -117,33 +119,6 @@ const getFrequencyUnit = (dates) => {
   return { unit: 'day', unitDays: 1 };
 };
 
-const loadDriver = () => {
-  if (window.driver) {
-    return Promise.resolve(window.driver);
-  }
-
-  const existingScript = document.querySelector('script[data-driverjs]');
-  if (existingScript) {
-    return new Promise((resolve) => {
-      existingScript.addEventListener('load', () => resolve(window.driver));
-    });
-  }
-
-  return new Promise((resolve, reject) => {
-    const cssLink = document.createElement('link');
-    cssLink.rel = 'stylesheet';
-    cssLink.href = '/vendor/driver.min.css';
-    document.head.appendChild(cssLink);
-
-    const script = document.createElement('script');
-    script.src = '/vendor/driver.min.js';
-    script.async = true;
-    script.dataset.driverjs = 'true';
-    script.onload = () => resolve(window.driver);
-    script.onerror = reject;
-    document.body.appendChild(script);
-  });
-};
 
 const buildTriangle = (records, { referenceDates, maxLagDays } = {}) => {
   const allReferenceDates = Array.from(new Set(records.map((record) => record.referenceDate))).sort();
@@ -374,37 +349,29 @@ const ReportingDelayPage = () => {
     return `data:text/csv;charset=utf-8,${encoded}`;
   }, []);
 
-  const startTour = async () => {
-    try {
-      const driver = await loadDriver();
-      if (!driver) {
-        return;
-      }
-      const tour = driver({
-        showProgress: true,
-        steps: [
-          {
-            element: '#reporting-triangle-upload',
-            popover: { title: 'Import CSV', description: 'Drop your file or download the sample CSV to start.' },
-          },
-          {
-            element: '#reporting-triangle-mapping',
-            popover: { title: 'Map columns', description: 'Confirm which columns hold reference dates and reports.' },
-          },
-          {
-            element: '#reporting-triangle-trajectory',
-            popover: { title: 'Trajectories', description: 'Watch how reports revise over time.' },
-          },
-          {
-            element: '#reporting-triangle-distribution',
-            popover: { title: 'Delay distribution', description: 'Inspect how long delays typically are.' },
-          },
-        ],
-      });
-      tour.drive();
-    } catch (error) {
-      // Optional: ignore if driver.js cannot be loaded in the environment.
-    }
+  const startTour = () => {
+    const tour = driver({
+      showProgress: true,
+      steps: [
+        {
+          element: '#reporting-triangle-upload',
+          popover: { title: 'Import CSV', description: 'Drop your file or download the sample CSV to start.' },
+        },
+        {
+          element: '#reporting-triangle-mapping',
+          popover: { title: 'Map columns', description: 'Confirm which columns hold reference dates and reports.' },
+        },
+        {
+          element: '#reporting-triangle-trajectory',
+          popover: { title: 'Trajectories', description: 'Watch how reports revise over time.' },
+        },
+        {
+          element: '#reporting-triangle-distribution',
+          popover: { title: 'Delay distribution', description: 'Inspect how long delays typically are.' },
+        },
+      ],
+    });
+    tour.drive();
   };
 
   useEffect(() => {
@@ -557,9 +524,6 @@ const ReportingDelayPage = () => {
             <Button size="sm" w="fit-content" onClick={startTour}>
               Start guided tour
             </Button>
-            <Text size="xs" c="dimmed">
-              Tour assets load from <code>/public/vendor/driver.min.js</code> and <code>/public/vendor/driver.min.css</code>.
-            </Text>
           </Stack>
         </Card>
 
