@@ -77,7 +77,7 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, fi
 def get_location_info(
         location_data: pd.DataFrame, 
         location: str, 
-        value_needed: Literal['abbreviation', 'location_name', 'population']
+        value_needed: Literal['abbreviation', 'location_name', 'population', 'original_location_code'],
 ) -> str:
     """
     Get a variety of location metadata information given the FIPS code of a location.
@@ -85,7 +85,7 @@ def get_location_info(
     Args:
         location_data: The df of location metadata
         location: FIPS code for location for which info will be retrieved ('US' for US)
-        value_needed: Which piece of info to retrieve (one of 'abbreviation', 'location_name', 'population')
+        value_needed: Which piece of info to retrieve (one of 'abbreviation', 'location_name', 'population', 'original_location_code')
 
     Returns:
         The value requested (as a str)
@@ -104,7 +104,7 @@ def get_location_info(
     
 
 def save_json_file(
-        pathogen: Literal['flusight','rsv','covid','covid19','rsvforecasthub','covid19forecasthub','nhsn'],
+        pathogen: Literal['flusight', 'flu', 'flusightforecasthub', 'rsv','covid','covid19','rsvforecasthub','covid19forecasthub','nhsn', 'flumetrocast', 'flumetrocasthub'],
         output_path: str,
         output_filename: str,
         file_contents: dict,
@@ -127,12 +127,15 @@ def save_json_file(
     output_dir_map = {
         'flu': 'flusight',
         'flusight': 'flusight',
+        'flusightforecasthub': 'flusight',
         'rsv': 'rsvforecasthub',
         'rsvforecasthub': 'rsvforecasthub',
         'covid': 'covid19forecasthub',
         'covid19': 'covid19forecasthub',
         'covid19forecasthub': 'covid19forecasthub',
         'nhsn': 'nhsn',
+        'flumetrocast': 'flumetrocast',
+        'flumetrocashtub': 'flumetrocast',
     }
 
     if pathogen not in output_dir_map:

@@ -5,6 +5,7 @@ Shared utilities for processing Hubverse forecast datasets into RespiLens JSON.
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Tuple
 import logging
+import datetime
 
 import pandas as pd
 
@@ -40,12 +41,16 @@ class HubDataProcessorBase:
         locations_data: pd.DataFrame,
         target_data: pd.DataFrame,
         config: HubDatasetConfig,
+        is_metro_cast: bool = False
     ) -> None:
         self.output_dict: Dict[str, Dict[str, Any]] = {}
         self.df_data = data
         self.locations_data = locations_data
         self.target_data = target_data
         self.config = config
+        self.is_metro_cast = is_metro_cast
+        if self.is_metro_cast: # necessary date filter for metrocast data
+            self.df_data = self.df_data[self.df_data['reference_date'] >= datetime.date(2025, 11, 19)]
 
         self.logger = logging.getLogger(self.__class__.__name__)
         self.location_dataframes: Dict[str, pd.DataFrame] = {}
@@ -73,9 +78,12 @@ class HubDataProcessorBase:
             loc_df = loc_df.copy()
             self.location_dataframes[loc_str] = loc_df
 
-            location_abbreviation = get_location_info(
-                location_data=self.locations_data, location=loc_str, value_needed="abbreviation"
-            )
+            if self.is_metro_cast:
+                location_abbreviation = loc_df['location'].iloc[0]
+            else:
+                location_abbreviation = get_location_info(
+                    location_data=self.locations_data, location=loc_str, value_needed="abbreviation"
+                )
             file_name = f"{location_abbreviation}_{self.config.file_suffix}.json"
 
             ground_truth_df = self._prepare_ground_truth_df(location=loc_str)
@@ -102,28 +110,52 @@ class HubDataProcessorBase:
     def _build_metadata_key(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Build metadata section of an individual JSON file."""
         location = str(df["location"].iloc[0])
-        metadata = {
-            "location": location,
-            "abbreviation": get_location_info(
-                self.locations_data, location=location, value_needed="abbreviation"
-            ),
-            "location_name": get_location_info(
-                self.locations_data, location=location, value_needed="location_name"
-            ),
-            "population": get_location_info(
-                self.locations_data, location=location, value_needed="population"
-            ),
-            "dataset": self.config.dataset_label,
-            "series_type": self.config.series_type,
-            "hubverse_keys": {
-                "models": self._build_available_models_list(df=df),
-                "targets": list(dict.fromkeys(df["target"])),
-                "horizons": [str(h) for h in pd.unique(df["horizon"])],
-                "output_types": [
-                    item for item in pd.unique(df["output_type"]) if item not in self.config.drop_output_types
-                ],
-            },
-        }
+        if self.is_metro_cast: # location.csv slightly different for MetroCast, requires different metadata building
+            metadata = {
+                "location": get_location_info(
+                    self.locations_data, location=location, value_needed="original_location_code"
+                ),
+                "abbreviation": location,
+                "location_name": get_location_info(
+                    self.locations_data, location=location, value_needed="location_name"
+                ),
+                "population": get_location_info(
+                    self.locations_data, location=location, value_needed="population"
+                ),
+                "dataset": self.config.dataset_label,
+                "series_type": self.config.series_type,
+                "hubverse_keys": {
+                    "models": self._build_available_models_list(df=df),
+                    "targets": list(dict.fromkeys(df["target"])),
+                    "horizons": [str(h) for h in pd.unique(df["horizon"])],
+                    "output_types": [
+                        item for item in pd.unique(df["output_type"]) if item not in self.config.drop_output_types
+                    ],
+                },
+            }
+        else:
+            metadata = {
+                "location": location,
+                "abbreviation": get_location_info(
+                    self.locations_data, location=location, value_needed="abbreviation"
+                ),
+                "location_name": get_location_info(
+                    self.locations_data, location=location, value_needed="location_name"
+                ),
+                "population": get_location_info(
+                    self.locations_data, location=location, value_needed="population"
+                ),
+                "dataset": self.config.dataset_label,
+                "series_type": self.config.series_type,
+                "hubverse_keys": {
+                    "models": self._build_available_models_list(df=df),
+                    "targets": list(dict.fromkeys(df["target"])),
+                    "horizons": [str(h) for h in pd.unique(df["horizon"])],
+                    "output_types": [
+                        item for item in pd.unique(df["output_type"]) if item not in self.config.drop_output_types
+                    ],
+                },
+            }
         return metadata
 
     def _prepare_ground_truth_df(self, location: str) -> pd.DataFrame:
@@ -305,13 +337,22 @@ class HubDataProcessorBase:
             "models": sorted(all_models),
             "locations": [],
         }
-        for _, row in self.locations_data.iterrows():
-            location_info = {
-                "location": str(row["location"]),
-                "abbreviation": str(row["abbreviation"]),
-                "location_name": str(row["location_name"]),
-                "population": None if row["population"] is None else float(row["population"]),
-            }
-            metadata_file_contents["locations"].append(location_info)
+        if self.is_metro_cast: # different building for metrocast (stems from locations.csv structure)
+            for _, row in self.locations_data.iterrows():
+                location_info = {
+                    "location": str(row["original_location_code"]),
+                    "abbreviation": str(row["location"]),
+                    "location_name": str(row["location_name"]),
+                    "population": None if row["population"] is None else float(row["population"]),
+                }
+        else:
+            for _, row in self.locations_data.iterrows():
+                location_info = {
+                    "location": str(row["location"]),
+                    "abbreviation": str(row["abbreviation"]),
+                    "location_name": str(row["location_name"]),
+                    "population": None if row["population"] is None else float(row["population"]),
+                }
+        metadata_file_contents["locations"].append(location_info)
 
         return metadata_file_contents

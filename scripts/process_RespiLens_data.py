@@ -10,7 +10,7 @@ from hubdata import connect_target_data
 from hubdata.create_target_data_schema import TargetType
 
 
-from processors import FlusightDataProcessor, RSVDataProcessor, COVIDDataProcessor
+from processors import FlusightDataProcessor, RSVDataProcessor, COVIDDataProcessor, FluMetrocastDataProcessor
 from nhsn_data_processor import NHSNDataProcessor
 from helper import save_json_file, hubverse_df_preprocessor, clean_nan_values
 
@@ -152,6 +152,22 @@ def main():
         flu_metrocast_target_data = clean_nan_values(connect_target_data(hub_path=args.flu_metrocast_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas())
         logger.info("Success ✅")
         # Initialize converter oject
+        flu_metrocast_processor_object = FluMetrocastDataProcessor(
+            data=flu_metrocast_hubverse_df,
+            locations_data=flu_metrocast_locations_data,
+            target_data=flu_metrocast_target_data
+        )
+        # Iteratively save output files
+        logger.info("Saving flu metrocast JSON files...")
+        for filename, contents in flu_metrocast_processor_object.output_dict.items():
+            save_json_file(
+                pathogen='flumetrocast',
+                output_path=args.output_path,
+                output_filename=filename,
+                file_contents=contents,
+                overwrite=True
+            )
+        logger.info("Success ✅")
 
     if args.NHSN:
         NHSN_processor_object = NHSNDataProcessor(resource_id='ua7e-t2fy', replace_column_names=True)
