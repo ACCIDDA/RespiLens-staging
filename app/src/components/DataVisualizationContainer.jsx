@@ -207,6 +207,22 @@ const DataVisualizationContainer = () => {
         </>
       )
     },
+    'metrocast_projs': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>Flu MetroCast</Title>
+        </Group>
+      ),
+      buttonLabel: "About MetroCast",
+      content: (
+        <>
+          <p>
+            MetroCast provides high-resolution influenza forecasting. 
+            This view is currently under development.
+          </p>
+        </>
+      )
+    },
     'nhsnall': {
       title: (
         <Group gap="sm">

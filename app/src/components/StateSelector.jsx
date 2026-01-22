@@ -7,7 +7,7 @@ import TargetSelector from './TargetSelector';
 import { getDataPath } from '../utils/paths';
 
 const StateSelector = () => {
-  const { selectedLocation, handleLocationSelect } = useView();
+  const { selectedLocation, handleLocationSelect, viewType, currentDataset } = useView();
 
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,29 +19,36 @@ const StateSelector = () => {
   useEffect(() => {
     const fetchStates = async () => {
       try {
-        const manifestResponse = await fetch(getDataPath('flusight/metadata.json'));
+        setLoading(true);
+        const directory = (viewType === 'metrocast_projs') 
+          ? 'flumetrocast' 
+          : 'flusight';
+        
+        const manifestResponse = await fetch(getDataPath(`${directory}/metadata.json`));
+        
         if (!manifestResponse.ok) {
           throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
         }
+        
         const metadata = await manifestResponse.json();
-        if (!metadata.locations || !Array.isArray(metadata.locations)) {
-          throw new Error('Invalid metadata format');
-        }
+        
         const sortedLocations = metadata.locations.sort((a, b) => {
           if (a.abbreviation === 'US') return -1;
           if (b.abbreviation === 'US') return 1;
           return (a.location_name || '').localeCompare(b.location_name || '');
         });
+
         setStates(sortedLocations);
       } catch (err) {
-        console.error('Error in data loading:', err);
+        console.error('Error loading locations:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchStates();
-  }, []);
+  }, [viewType]);
 
   // This ensures the keyboard focus starts on the dark blue selected item.
   useEffect(() => {
@@ -78,7 +85,6 @@ const StateSelector = () => {
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      // Use filteredStates length here for wrapping
       newIndex = (highlightedIndex + 1) % filteredStates.length;
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
@@ -99,10 +105,6 @@ const StateSelector = () => {
     
     setHighlightedIndex(newIndex);
   };
-  
-  // NOTE: The previous useEffect to handle out-of-bounds index is no longer strictly needed 
-  // because we calculate the index based on filteredStates length in handleKeyDown, 
-  // and reset it when the search term changes.
 
   if (loading) {
     return <Center><Loader /></Center>;
@@ -140,7 +142,6 @@ const StateSelector = () => {
         />
         <ScrollArea style={{ flex: 1 }} type="auto">
           <Stack gap="xs">
-            {/* Map over filteredStates but still need the index */}
             {filteredStates.map((state, index) => {
               const isSelected = selectedLocation === state.abbreviation;
               const isKeyboardHighlighted = (searchTerm.length > 0 || index === highlightedIndex) && 
@@ -154,7 +155,6 @@ const StateSelector = () => {
                 variant = 'filled';
                 color = 'blue';
               } else if (isKeyboardHighlighted) {
-                // Style for the keyboard-highlighted state (light blue) only during search/nav
                 variant = 'light';
                 color = 'blue';
               }
@@ -162,20 +162,16 @@ const StateSelector = () => {
               return (
                 <Button
                   key={state.location}
-                  // We need to match the highlight index to the index within the *filtered* array
-                  // The previous highlight index calculation assumes the *filtered* array
                   variant={variant}
                   color={color}
                   onClick={() => {
                     handleLocationSelect(state.abbreviation);
-                    // Also clear search term and reset highlight on click
                     setSearchTerm('');
                     setHighlightedIndex(states.findIndex(s => s.abbreviation === state.abbreviation));
                   }}
                   justify="start"
                   size="sm"
                   fullWidth
-                  // Only update highlight index on mouse hover if searching is active
                   onMouseEnter={() => {
                     if (searchTerm.length > 0) {
                       setHighlightedIndex(index);

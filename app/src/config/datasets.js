@@ -55,7 +55,21 @@ export const DATASETS = {
     hasModelSelector: false,
     prefix: 'nhsn',
     dataPath: 'nhsn'
-  }
+  },
+  metrocast: {
+    shortName: 'metrocast',
+    fullName: 'Flu MetroCast Forecasts',
+    views: [
+      { key: 'projections', label: 'Projections', value: 'metrocast_projs' }
+    ],
+    defaultView: 'metrocast_projs',
+    defaultModel: 'epiENGAGE-ensemble_mean', 
+    hasDateSelector: true,
+    hasModelSelector: true,
+    prefix: 'metrocast',
+    dataPath: 'flumetrocast', 
+    targetLineDayOfWeek: 3
+},
 };
 
 // Helper function to get all valid view values

@@ -36,14 +36,14 @@ export const useForecastData = (location, viewType) => {
       setAvailableTargets([]);
 
       try {
-        // Updated map to hold both the directory name and the file suffix
         const datasetMap = {
           'fludetailed': { directory: 'flusight', suffix: 'flu' },
           'flu_projs': { directory: 'flusight', suffix: 'flu' },
           'flu_peak': { directory: 'flusight', suffix: 'flu' },
           'covid_projs': { directory: 'covid19forecasthub', suffix: 'covid19' },
           'rsv_projs': { directory: 'rsvforecasthub', suffix: 'rsv' },
-          'nhsnall': { directory: 'nhsn', suffix: 'nhsn' }
+          'nhsnall': { directory: 'nhsn', suffix: 'nhsn' },
+          'metrocast_projs': {directory: 'flu-metrocast', suffix: 'flu_metrocast'}
         };
 
         const datasetConfig = datasetMap[viewType];

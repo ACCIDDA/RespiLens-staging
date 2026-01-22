@@ -345,6 +345,7 @@ class HubDataProcessorBase:
                     "location_name": str(row["location_name"]),
                     "population": None if row["population"] is None else float(row["population"]),
                 }
+                metadata_file_contents["locations"].append(location_info)
         else:
             for _, row in self.locations_data.iterrows():
                 location_info = {
@@ -353,6 +354,6 @@ class HubDataProcessorBase:
                     "location_name": str(row["location_name"]),
                     "population": None if row["population"] is None else float(row["population"]),
                 }
-        metadata_file_contents["locations"].append(location_info)
+                metadata_file_contents["locations"].append(location_info)
 
         return metadata_file_contents
