@@ -7,24 +7,31 @@ import TargetSelector from './TargetSelector';
 import { getDataPath } from '../utils/paths';
 
 const StateSelector = () => {
-  const { selectedLocation, handleLocationSelect, viewType, currentDataset } = useView();
+  const { selectedLocation, handleLocationSelect, viewType} = useView();
 
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const [highlightedIndex, setHighlightedIndex] = useState(-1); // default highlighted will be set to 0 later (US)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1); 
 
   useEffect(() => {
+    const controller = new AbortController(); // controller prevents issues if you click away while locs are loading
+    
+    setStates([]); 
+    setLoading(true);
+
     const fetchStates = async () => {
       try {
-        setLoading(true);
         const directory = (viewType === 'metrocast_projs') 
           ? 'flumetrocast' 
           : 'flusight';
         
-        const manifestResponse = await fetch(getDataPath(`${directory}/metadata.json`));
+        const manifestResponse = await fetch(
+          getDataPath(`${directory}/metadata.json`),
+          { signal: controller.signal }
+        );
         
         if (!manifestResponse.ok) {
           throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
@@ -33,28 +40,38 @@ const StateSelector = () => {
         const metadata = await manifestResponse.json();
         
         const sortedLocations = metadata.locations.sort((a, b) => {
-          if (a.abbreviation === 'US') return -1;
-          if (b.abbreviation === 'US') return 1;
+          const isA_Default = a.abbreviation === 'US' || a.abbreviation === 'athens';
+          const isB_Default = b.abbreviation === 'US' || b.abbreviation === 'athens';
+          
+          if (isA_Default) return -1;
+          if (isB_Default) return 1;
           return (a.location_name || '').localeCompare(b.location_name || '');
         });
 
         setStates(sortedLocations);
       } catch (err) {
+        // Ignore errors caused by manual cancellation
+        if (err.name === 'AbortError') return;
+        
         console.error('Error loading locations:', err);
         setError(err.message);
       } finally {
-        setLoading(false);
+        // Only set loading to false if we weren't aborted
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchStates();
+
+    return () => controller.abort();
   }, [viewType]);
 
-  // This ensures the keyboard focus starts on the dark blue selected item.
   useEffect(() => {
-    if (states.length > 0 && selectedLocation) {
-        const index = states.findIndex(state => state.abbreviation === selectedLocation);
-        setHighlightedIndex(index);
+    if (states.length > 0) {
+      const index = states.findIndex(state => state.abbreviation === selectedLocation);
+      setHighlightedIndex(index >= 0 ? index : 0);
     }
   }, [states, selectedLocation]);
 
@@ -68,13 +85,11 @@ const StateSelector = () => {
     const newSearchTerm = e.currentTarget.value;
     setSearchTerm(newSearchTerm);
     
-    // Reset highlight to the first filtered item only if we are typing.
     if (newSearchTerm.length > 0 && filteredStates.length > 0) {
         setHighlightedIndex(0); 
     } else if (newSearchTerm.length === 0) {
-        // If search is cleared, reset highlight to the currently selected item (US on load)
         const index = states.findIndex(state => state.abbreviation === selectedLocation);
-        setHighlightedIndex(index);
+        setHighlightedIndex(index >= 0 ? index : 0);
     }
   };
 
@@ -91,7 +106,6 @@ const StateSelector = () => {
       newIndex = (highlightedIndex - 1 + filteredStates.length) % filteredStates.length;
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      // Use the filteredStates array to get the state abbreviation based on the current highlight index
       const selectedState = filteredStates[highlightedIndex];
       
       if (selectedState) {
@@ -132,13 +146,13 @@ const StateSelector = () => {
         <Text fw={500} size="sm" c="dimmed">Location</Text>
         <TextInput
           label="Search locations"
-          placeholder="Search states..."
+          placeholder="Search locations"
           value={searchTerm}
           onChange={handleSearchChange}
           onKeyDown={handleKeyDown}
           leftSection={<IconSearch size={16} />}
           autoFocus 
-          aria-label="Search states and territories"
+          aria-label="Search locations"
         />
         <ScrollArea style={{ flex: 1 }} type="auto">
           <Stack gap="xs">

@@ -217,8 +217,7 @@ const DataVisualizationContainer = () => {
       content: (
         <>
           <p>
-            MetroCast provides high-resolution influenza forecasting. 
-            This view is currently under development.
+            COMING SOON
           </p>
         </>
       )

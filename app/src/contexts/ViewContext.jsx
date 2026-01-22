@@ -1,5 +1,3 @@
-// src/contexts/ViewContext.jsx
-
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { URLParameterManager } from '../utils/urlManager';
@@ -15,7 +13,16 @@ export const ViewProvider = ({ children }) => {
   const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
 
   const [viewType, setViewType] = useState(() => urlManager.getView());
-  const [selectedLocation, setSelectedLocation] = useState(() => urlManager.getLocation());
+  const [selectedLocation, setSelectedLocation] = useState(() => {
+    const urlLoc = urlManager.getLocation(); 
+    const currentView = urlManager.getView();
+    const dataset = urlManager.getDatasetFromView(currentView);
+    if (dataset?.defaultLocation && urlLoc === APP_CONFIG.defaultLocation) {
+      return dataset.defaultLocation;
+    }
+    
+    return urlLoc;
+  });
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
@@ -38,28 +45,22 @@ export const ViewProvider = ({ children }) => {
   }, [viewType, urlManager]);
 
   const modelsForView = useMemo(() => {
-    // Handle the special 'fludetailed' view, which has two hardcoded targets
     if (viewType === 'fludetailed') {
       const target1Models = new Set(modelsByTarget['wk inc flu hosp'] || []);
       const target2Models = new Set(modelsByTarget['wk flu hosp rate change'] || []);
-      // Combine models from both targets
       return Array.from(new Set([...target1Models, ...target2Models])).sort();
     }
 
     if (viewType === 'flu_peak') {
-      // Use the list calculated in useForecastData.js from the peaks data
       return availablePeakModels || [];
     }
 
-    // For all other views, just use the selectedTarget
     if (selectedTarget && modelsByTarget[selectedTarget]) {
       return modelsByTarget[selectedTarget];
     }
-    
-    // Default to an empty list (or the original location-based list)
-    // Using an empty list is safer to prevent showing models that have no data
+
     return []; 
-  }, [selectedTarget, modelsByTarget, viewType, availablePeakModels]); // Dependency added
+  }, [selectedTarget, modelsByTarget, viewType, availablePeakModels]); 
 
   const availableTargetsToExpose = useMemo(() => {
     if (viewType === 'flu_peak') {
@@ -124,7 +125,6 @@ export const ViewProvider = ({ children }) => {
     if (needsModelUrlUpdate) {
       updateDatasetParams({ models: [] }); 
     }
-    // Add availableDatesToExpose to dependency array since we use it in the logic
   }, [isForecastPage, loading, viewType, models, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView, availableDatesToExpose]);
 
   useEffect(() => {
@@ -150,7 +150,10 @@ export const ViewProvider = ({ children }) => {
 
 
   const handleLocationSelect = (newLocation) => {
-    if (newLocation !== APP_CONFIG.defaultLocation) {
+    const currentDataset = urlManager.getDatasetFromView(viewType);
+    const effectiveDefault = currentDataset?.defaultLocation || APP_CONFIG.defaultLocation;
+
+    if (newLocation !== effectiveDefault) {
       urlManager.updateLocation(newLocation);
     } else {
       const newParams = new URLSearchParams(searchParams);
@@ -173,6 +176,23 @@ export const ViewProvider = ({ children }) => {
     const oldDataset = urlManager.getDatasetFromView(oldView);
     const newDataset = urlManager.getDatasetFromView(newView);
     const newSearchParams = new URLSearchParams(searchParams);
+
+
+    const isMovingToMetrocast = newView === 'metrocast_projs';
+    
+    if (isMovingToMetrocast) {
+      const needsCityDefault = selectedLocation === APP_CONFIG.defaultLocation || selectedLocation.length === 2;
+      
+      if (needsCityDefault && newDataset?.defaultLocation) {
+        setSelectedLocation(newDataset.defaultLocation);
+        newSearchParams.set('location', newDataset.defaultLocation);
+      }
+    } else {
+      if (selectedLocation !== APP_CONFIG.defaultLocation && selectedLocation.length > 2) {
+        setSelectedLocation(APP_CONFIG.defaultLocation);
+        newSearchParams.delete('location');
+      }
+    }
 
     if (newView !== APP_CONFIG.defaultView || newSearchParams.toString().length > 0) {
       newSearchParams.set('view', newView);
@@ -200,7 +220,6 @@ export const ViewProvider = ({ children }) => {
         newSearchParams.delete('nhsn_cols');
       }
     } else {
-      // Logic for staying within the same compatible dataset group
       if (newDataset) {
          newSearchParams.delete(`${newDataset.prefix}_target`);
       }
@@ -209,7 +228,7 @@ export const ViewProvider = ({ children }) => {
 
     setViewType(newView);
     setSearchParams(newSearchParams, { replace: true });
-  }, [viewType, searchParams, setSearchParams, urlManager]);
+  }, [viewType, searchParams, setSearchParams, urlManager, selectedLocation]);
 
   const contextValue = {
     selectedLocation, handleLocationSelect,

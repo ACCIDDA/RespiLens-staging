@@ -16,6 +16,12 @@ export const useForecastData = (location, viewType) => {
   const peaks = data?.peaks || null;
 
   useEffect(() => {
+    const isMetrocastView = viewType === 'metrocast_projs';
+      const isDefaultUS = location === 'US';
+      if ((isMetrocastView && isDefaultUS) || (!isMetrocastView && location === 'athens')) {
+        setLoading(false);
+        return;
+      }
     if (!location || !viewType || viewType === 'frontpage') {
       setLoading(false);
       setError(null);
@@ -43,13 +49,12 @@ export const useForecastData = (location, viewType) => {
           'covid_projs': { directory: 'covid19forecasthub', suffix: 'covid19' },
           'rsv_projs': { directory: 'rsvforecasthub', suffix: 'rsv' },
           'nhsnall': { directory: 'nhsn', suffix: 'nhsn' },
-          'metrocast_projs': {directory: 'flu-metrocast', suffix: 'flu_metrocast'}
+          'metrocast_projs': {directory: 'flumetrocast', suffix: 'flu_metrocast'}
         };
 
         const datasetConfig = datasetMap[viewType];
         if (!datasetConfig) throw new Error(`Unknown view type: ${viewType}`);
 
-        // Build paths using the new directory and suffix properties
         const dataPath = getDataPath(`${datasetConfig.directory}/${location}_${datasetConfig.suffix}.json`);
         const metadataPath = getDataPath(`${datasetConfig.directory}/metadata.json`);
         
@@ -88,25 +93,22 @@ export const useForecastData = (location, viewType) => {
               // Loop over [target, targetData] entries
               Object.entries(dateData).forEach(([target, targetData]) => {
                 
-                // Get or create the Set for this specific target
                 if (!modelsByTargetMap.has(target)) {
                   modelsByTargetMap.set(target, new Set());
                 }
                 const modelSetForTarget = modelsByTargetMap.get(target);
                 
-                // Add all models found under this target
                 Object.keys(targetData).forEach(model => {
                   modelSetForTarget.add(model);
                 });
               });
             });
 
-            // Convert the Map to a plain object for React state
             const modelsByTargetState = {};
             for (const [target, modelSet] of modelsByTargetMap.entries()) {
               modelsByTargetState[target] = Array.from(modelSet).sort();
             }
-            setModelsByTarget(modelsByTargetState); // Set our new map state
+            setModelsByTarget(modelsByTargetState);
           }
 
         let targets = [];
@@ -137,7 +139,7 @@ export const useForecastData = (location, viewType) => {
         setAvailablePeakDates(dates);
 
         const models = new Set();
-        const targets = new Set(); // Also extract targets here for consistency
+        const targets = new Set(); 
         Object.values(peaks).forEach(dateData => {
             Object.entries(dateData).forEach(([targetName, targetData]) => {
                 targets.add(targetName);
