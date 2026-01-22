@@ -94,11 +94,33 @@ def get_location_info(
         ValueError: 
             If the location FIPS code provided via `location` param is not in the location metadata
     """
+    # The FIPS codes are unnecessary for respi needs (metrocast non-state locs use HSA id)
+    # But Respi DOES require that they be unique, and the default code value for metrocast states is 'All'
+    # So here we choose to use state FIPS codes instead of 'All' to make them keys
+    metrocast_states_to_fips = {
+        "colorado": "08",
+        "georgia": "13",
+        "indiana": "18",
+        "maine": "23",
+        "maryland": "24",
+        "massachusetts": "25",
+        "minnesota": "27",
+        "north-carolina": "37",
+        "oregon": "41",
+        "south-carolina": "45",
+        "texas": "OVERLAP-WITH-frederick_md", # putting this b/c the Texas FIPS is the same as Frederick, MD HSAid (48)
+        "utah": "49",
+        "virginia": "51"
+    }
     current_df = location_data[location_data['location'] == location]
     if current_df.empty:
         raise ValueError(f"Could not find location {location} in location data.")
     if value_needed == 'population':
         return int(current_df[value_needed].iloc[0])
+    if (value_needed == 'original_location_code') and (location in metrocast_states_to_fips.keys()):
+        try: return metrocast_states_to_fips[location]
+        except KeyError:
+            raise KeyError(f"Flu MetroCast has added a new state {location}. Update `metrocast_states_to_fips` to include this state.")
     else:
         return str(current_df[value_needed].iloc[0])
     

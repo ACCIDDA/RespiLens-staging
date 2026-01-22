@@ -339,8 +339,9 @@ class HubDataProcessorBase:
         }
         if self.is_metro_cast: # different building for metrocast (stems from locations.csv structure)
             for _, row in self.locations_data.iterrows():
+                file_name = str(row["location"]) + "_flu_metrocast.json"
                 location_info = {
-                    "location": str(row["original_location_code"]),
+                    "location": self.output_dict[file_name]["metadata"]["location"],
                     "abbreviation": str(row["location"]),
                     "location_name": str(row["location_name"]),
                     "population": None if row["population"] is None else float(row["population"]),
