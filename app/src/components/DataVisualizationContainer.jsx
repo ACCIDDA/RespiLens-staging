@@ -11,7 +11,6 @@ import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
 const DataVisualizationContainer = () => {
-  // Get EVERYTHING from the single context hook
   const {
     selectedLocation,
     data, metadata, loading, error, availableDates, models,
@@ -364,14 +363,13 @@ const DataVisualizationContainer = () => {
                     activeDate={activeDate}
                     setActiveDate={setActiveDate}
                     loading={loading}
-                    multi={viewType !== 'flu_peak'} //disable multi date select if flu peak
+                    multi={viewType !== 'flu_peak'} //this disables multi date select if flu peak
                   />
                 </div>
               )}
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ViewSwitchboard
-                // ViewSwitchboard now receives all its data as props
                 viewType={viewType}
                 location={selectedLocation}
                 data={data}

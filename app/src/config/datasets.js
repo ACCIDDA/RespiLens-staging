@@ -64,7 +64,7 @@ export const DATASETS = {
     ],
     defaultView: 'metrocast_projs',
     defaultModel: 'epiENGAGE-ensemble_mean', 
-    defaultLocation: 'athens',
+    defaultLocation: 'boulder',
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'metrocast',

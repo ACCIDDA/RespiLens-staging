@@ -6,6 +6,13 @@ import ViewSelector from './ViewSelector';
 import TargetSelector from './TargetSelector';
 import { getDataPath } from '../utils/paths';
 
+const METRO_STATE_MAP = {
+  'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME', 
+  'Maryland': 'MD', 'Massachusetts': 'MA', 'Minnesota': 'MN', 
+  'South Carolina': 'SC', 'Texas': 'TX', 'Utah': 'UT', 
+  'Virginia': 'VA', 'North Carolina': 'NC', 'Oregon': 'OR'
+};
+
 const StateSelector = () => {
   const { selectedLocation, handleLocationSelect, viewType} = useView();
 
@@ -22,44 +29,58 @@ const StateSelector = () => {
     setStates([]); 
     setLoading(true);
 
-    const fetchStates = async () => {
+    const fetchStates = async () => { // different fetching/ordering if it is metrocast vs. other views
       try {
-        const directory = (viewType === 'metrocast_projs') 
-          ? 'flumetrocast' 
-          : 'flusight';
+        const isMetro = viewType === 'metrocast_projs';
+        const directory = isMetro ? 'flumetrocast' : 'flusight';
         
         const manifestResponse = await fetch(
           getDataPath(`${directory}/metadata.json`),
           { signal: controller.signal }
         );
         
-        if (!manifestResponse.ok) {
-          throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
-        }
+        if (!manifestResponse.ok) throw new Error(`Failed: ${manifestResponse.statusText}`);
         
         const metadata = await manifestResponse.json();
-        
-        const sortedLocations = metadata.locations.sort((a, b) => {
-          const isA_Default = a.abbreviation === 'US' || a.abbreviation === 'athens';
-          const isB_Default = b.abbreviation === 'US' || b.abbreviation === 'athens';
-          
-          if (isA_Default) return -1;
-          if (isB_Default) return 1;
-          return (a.location_name || '').localeCompare(b.location_name || '');
-        });
+        let finalOrderedList = [];
 
-        setStates(sortedLocations);
+        if (isMetro) {
+          const locations = metadata.locations;
+          const statesOnly = locations.filter(l => !l.location_name.includes(','));
+          const citiesOnly = locations.filter(l => l.location_name.includes(','));
+          statesOnly.sort((a, b) => a.location_name.localeCompare(b.location_name));
+
+          statesOnly.forEach(stateObj => {
+            finalOrderedList.push(stateObj)
+            const code = METRO_STATE_MAP[stateObj.location_name];
+            
+            const children = citiesOnly
+              .filter(city => city.location_name.endsWith(`, ${code}`))
+              .sort((a, b) => a.location_name.localeCompare(b.location_name));
+
+            finalOrderedList.push(...children);
+          });
+
+          const handledIds = finalOrderedList.map(l => l.abbreviation);
+          const leftovers = locations.filter(l => !handledIds.includes(l.abbreviation));
+          finalOrderedList.push(...leftovers);
+
+        } else {
+          finalOrderedList = metadata.locations.sort((a, b) => {
+            const isA_Default = a.abbreviation === 'US';
+            const isB_Default = b.abbreviation === 'US';
+            if (isA_Default) return -1;
+            if (isB_Default) return 1;
+            return (a.location_name || '').localeCompare(b.location_name || '');
+          });
+        }
+
+        setStates(finalOrderedList);
       } catch (err) {
-        // Ignore errors caused by manual cancellation
         if (err.name === 'AbortError') return;
-        
-        console.error('Error loading locations:', err);
         setError(err.message);
       } finally {
-        // Only set loading to false if we weren't aborted
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
@@ -146,7 +167,7 @@ const StateSelector = () => {
         <Text fw={500} size="sm" c="dimmed">Location</Text>
         <TextInput
           label="Search locations"
-          placeholder="Search locations"
+          placeholder="Search locations..."
           value={searchTerm}
           onChange={handleSearchChange}
           onKeyDown={handleKeyDown}
@@ -162,6 +183,9 @@ const StateSelector = () => {
                                               index === highlightedIndex && 
                                               !isSelected;
 
+              // Only apply nested styling in Metrocast view
+              const isCity = viewType === 'metrocast_projs' && state.location_name.includes(',');
+
               let variant = 'subtle';
               let color = 'blue';
 
@@ -175,7 +199,7 @@ const StateSelector = () => {
 
               return (
                 <Button
-                  key={state.location}
+                  key={state.abbreviation}
                   variant={variant}
                   color={color}
                   onClick={() => {
@@ -190,7 +214,14 @@ const StateSelector = () => {
                     if (searchTerm.length > 0) {
                       setHighlightedIndex(index);
                     }
-                  }} 
+                  }}
+                  pl={isCity ? 28 : 10}
+                  styles={{
+                    label: {
+                      fontWeight: isCity ? 400 : 700,
+                      fontSize: isCity ? '13px' : '14px'
+                    }
+                  }}
                 >
                   {state.location_name}
                 </Button>
