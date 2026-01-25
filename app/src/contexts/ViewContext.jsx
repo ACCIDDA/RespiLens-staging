@@ -152,14 +152,7 @@ export const ViewProvider = ({ children }) => {
   const handleLocationSelect = (newLocation) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     const effectiveDefault = currentDataset?.defaultLocation || APP_CONFIG.defaultLocation;
-
-    if (newLocation !== effectiveDefault) {
-      urlManager.updateLocation(newLocation);
-    } else {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('location');
-      setSearchParams(newParams, { replace: true });
-    }
+    urlManager.updateLocation(newLocation, effectiveDefault);
     setSelectedLocation(newLocation);
   };
 
@@ -185,7 +178,7 @@ export const ViewProvider = ({ children }) => {
       
       if (needsCityDefault && newDataset?.defaultLocation) {
         setSelectedLocation(newDataset.defaultLocation);
-        newSearchParams.set('location', newDataset.defaultLocation);
+        newSearchParams.delete('location');
       }
     } else {
       if (selectedLocation !== APP_CONFIG.defaultLocation && selectedLocation.length > 2) {

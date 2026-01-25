@@ -123,14 +123,16 @@ export class URLParameterManager {
   }
 
 
-  // Update location parameter while preserving all other params
-  updateLocation(location) {
+  updateLocation(location, effectiveDefault = APP_CONFIG.defaultLocation) {
     const newParams = new URLSearchParams(this.searchParams);
-    if (location && location !== APP_CONFIG.defaultLocation) {
+    
+    // If the location matches the specific default for this view, remove it from URL
+    if (location && location !== effectiveDefault) {
         newParams.set('location', location);
     } else {
-        newParams.delete('location'); // Remove if default location or falsy
+        newParams.delete('location'); 
     }
+    
     if (newParams.toString() !== this.searchParams.toString()) {
       this.setSearchParams(newParams, { replace: true });
     }
