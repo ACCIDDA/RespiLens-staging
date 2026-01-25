@@ -3,5 +3,6 @@
 from .flusight import FlusightDataProcessor
 from .rsv_forecast_hub import RSVDataProcessor
 from .covid19_forecast_hub import COVIDDataProcessor
+from .flu_metrocast_hub import FluMetrocastDataProcessor
 
-__all__ = ["FlusightDataProcessor", "RSVDataProcessor", "COVIDDataProcessor"]
+__all__ = ["FlusightDataProcessor", "RSVDataProcessor", "COVIDDataProcessor", "FluMetrocastDataProcessor"]

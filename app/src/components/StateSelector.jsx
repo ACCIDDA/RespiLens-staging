@@ -6,48 +6,93 @@ import ViewSelector from './ViewSelector';
 import TargetSelector from './TargetSelector';
 import { getDataPath } from '../utils/paths';
 
+const METRO_STATE_MAP = {
+  'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME', 
+  'Maryland': 'MD', 'Massachusetts': 'MA', 'Minnesota': 'MN', 
+  'South Carolina': 'SC', 'Texas': 'TX', 'Utah': 'UT', 
+  'Virginia': 'VA', 'North Carolina': 'NC', 'Oregon': 'OR'
+};
+
 const StateSelector = () => {
-  const { selectedLocation, handleLocationSelect } = useView();
+  const { selectedLocation, handleLocationSelect, viewType} = useView();
 
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const [highlightedIndex, setHighlightedIndex] = useState(-1); // default highlighted will be set to 0 later (US)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1); 
 
   useEffect(() => {
-    const fetchStates = async () => {
+    const controller = new AbortController(); // controller prevents issues if you click away while locs are loading
+    
+    setStates([]); 
+    setLoading(true);
+
+    const fetchStates = async () => { // different fetching/ordering if it is metrocast vs. other views
       try {
-        const manifestResponse = await fetch(getDataPath('flusight/metadata.json'));
-        if (!manifestResponse.ok) {
-          throw new Error(`Failed to fetch metadata: ${manifestResponse.statusText}`);
-        }
+        const isMetro = viewType === 'metrocast_projs';
+        const directory = isMetro ? 'flumetrocast' : 'flusight';
+        
+        const manifestResponse = await fetch(
+          getDataPath(`${directory}/metadata.json`),
+          { signal: controller.signal }
+        );
+        
+        if (!manifestResponse.ok) throw new Error(`Failed: ${manifestResponse.statusText}`);
+        
         const metadata = await manifestResponse.json();
-        if (!metadata.locations || !Array.isArray(metadata.locations)) {
-          throw new Error('Invalid metadata format');
+        let finalOrderedList = [];
+
+        if (isMetro) {
+          const locations = metadata.locations;
+          const statesOnly = locations.filter(l => !l.location_name.includes(','));
+          const citiesOnly = locations.filter(l => l.location_name.includes(','));
+          statesOnly.sort((a, b) => a.location_name.localeCompare(b.location_name));
+
+          statesOnly.forEach(stateObj => {
+            finalOrderedList.push(stateObj)
+            const code = METRO_STATE_MAP[stateObj.location_name];
+            
+            const children = citiesOnly
+              .filter(city => city.location_name.endsWith(`, ${code}`))
+              .sort((a, b) => a.location_name.localeCompare(b.location_name));
+
+            finalOrderedList.push(...children);
+          });
+
+          const handledIds = finalOrderedList.map(l => l.abbreviation);
+          const leftovers = locations.filter(l => !handledIds.includes(l.abbreviation));
+          finalOrderedList.push(...leftovers);
+
+        } else {
+          finalOrderedList = metadata.locations.sort((a, b) => {
+            const isA_Default = a.abbreviation === 'US';
+            const isB_Default = b.abbreviation === 'US';
+            if (isA_Default) return -1;
+            if (isB_Default) return 1;
+            return (a.location_name || '').localeCompare(b.location_name || '');
+          });
         }
-        const sortedLocations = metadata.locations.sort((a, b) => {
-          if (a.abbreviation === 'US') return -1;
-          if (b.abbreviation === 'US') return 1;
-          return (a.location_name || '').localeCompare(b.location_name || '');
-        });
-        setStates(sortedLocations);
+
+        setStates(finalOrderedList);
       } catch (err) {
-        console.error('Error in data loading:', err);
+        if (err.name === 'AbortError') return;
         setError(err.message);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-    fetchStates();
-  }, []);
 
-  // This ensures the keyboard focus starts on the dark blue selected item.
+    fetchStates();
+
+    return () => controller.abort();
+  }, [viewType]);
+
   useEffect(() => {
-    if (states.length > 0 && selectedLocation) {
-        const index = states.findIndex(state => state.abbreviation === selectedLocation);
-        setHighlightedIndex(index);
+    if (states.length > 0) {
+      const index = states.findIndex(state => state.abbreviation === selectedLocation);
+      setHighlightedIndex(index >= 0 ? index : 0);
     }
   }, [states, selectedLocation]);
 
@@ -61,13 +106,11 @@ const StateSelector = () => {
     const newSearchTerm = e.currentTarget.value;
     setSearchTerm(newSearchTerm);
     
-    // Reset highlight to the first filtered item only if we are typing.
     if (newSearchTerm.length > 0 && filteredStates.length > 0) {
         setHighlightedIndex(0); 
     } else if (newSearchTerm.length === 0) {
-        // If search is cleared, reset highlight to the currently selected item (US on load)
         const index = states.findIndex(state => state.abbreviation === selectedLocation);
-        setHighlightedIndex(index);
+        setHighlightedIndex(index >= 0 ? index : 0);
     }
   };
 
@@ -78,14 +121,12 @@ const StateSelector = () => {
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      // Use filteredStates length here for wrapping
       newIndex = (highlightedIndex + 1) % filteredStates.length;
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       newIndex = (highlightedIndex - 1 + filteredStates.length) % filteredStates.length;
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      // Use the filteredStates array to get the state abbreviation based on the current highlight index
       const selectedState = filteredStates[highlightedIndex];
       
       if (selectedState) {
@@ -99,10 +140,6 @@ const StateSelector = () => {
     
     setHighlightedIndex(newIndex);
   };
-  
-  // NOTE: The previous useEffect to handle out-of-bounds index is no longer strictly needed 
-  // because we calculate the index based on filteredStates length in handleKeyDown, 
-  // and reset it when the search term changes.
 
   if (loading) {
     return <Center><Loader /></Center>;
@@ -130,22 +167,24 @@ const StateSelector = () => {
         <Text fw={500} size="sm" c="dimmed">Location</Text>
         <TextInput
           label="Search locations"
-          placeholder="Search states..."
+          placeholder="Search locations..."
           value={searchTerm}
           onChange={handleSearchChange}
           onKeyDown={handleKeyDown}
           leftSection={<IconSearch size={16} />}
           autoFocus 
-          aria-label="Search states and territories"
+          aria-label="Search locations"
         />
         <ScrollArea style={{ flex: 1 }} type="auto">
           <Stack gap="xs">
-            {/* Map over filteredStates but still need the index */}
             {filteredStates.map((state, index) => {
               const isSelected = selectedLocation === state.abbreviation;
               const isKeyboardHighlighted = (searchTerm.length > 0 || index === highlightedIndex) && 
                                               index === highlightedIndex && 
                                               !isSelected;
+
+              // Only apply nested styling in Metrocast view
+              const isCity = viewType === 'metrocast_projs' && state.location_name.includes(',');
 
               let variant = 'subtle';
               let color = 'blue';
@@ -154,33 +193,35 @@ const StateSelector = () => {
                 variant = 'filled';
                 color = 'blue';
               } else if (isKeyboardHighlighted) {
-                // Style for the keyboard-highlighted state (light blue) only during search/nav
                 variant = 'light';
                 color = 'blue';
               }
 
               return (
                 <Button
-                  key={state.location}
-                  // We need to match the highlight index to the index within the *filtered* array
-                  // The previous highlight index calculation assumes the *filtered* array
+                  key={state.abbreviation}
                   variant={variant}
                   color={color}
                   onClick={() => {
                     handleLocationSelect(state.abbreviation);
-                    // Also clear search term and reset highlight on click
                     setSearchTerm('');
                     setHighlightedIndex(states.findIndex(s => s.abbreviation === state.abbreviation));
                   }}
                   justify="start"
                   size="sm"
                   fullWidth
-                  // Only update highlight index on mouse hover if searching is active
                   onMouseEnter={() => {
                     if (searchTerm.length > 0) {
                       setHighlightedIndex(index);
                     }
-                  }} 
+                  }}
+                  pl={isCity ? 28 : 10}
+                  styles={{
+                    label: {
+                      fontWeight: isCity ? 400 : 700,
+                      fontSize: isCity ? '13px' : '14px'
+                    }
+                  }}
                 >
                   {state.location_name}
                 </Button>

@@ -4,6 +4,7 @@ __pycache__/
 FluSight-forecast-hub/
 rsv-forecast-hub/
 covid19-forecast-hub/
+flu-metrocast/
 app/public/processed_data
 processed_data/
 .DS_Store
