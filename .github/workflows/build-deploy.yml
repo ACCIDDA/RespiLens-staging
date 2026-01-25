@@ -25,6 +25,7 @@ jobs:
         git clone https://github.com/cdcepi/FluSight-forecast-hub.git
         git clone https://github.com/CDCgov/rsv-forecast-hub.git 
         git clone https://github.com/CDCgov/covid19-forecast-hub.git
+        git clone https://github.com/reichlab/flu-metrocast.git
         echo "Forecast hubs cloned successfully."
 
     - name: Set up Python
@@ -53,6 +54,7 @@ jobs:
           --flusight-hub-path $GITHUB_WORKSPACE/FluSight-forecast-hub \
           --rsv-hub-path $GITHUB_WORKSPACE/rsv-forecast-hub \
           --covid-hub-path $GITHUB_WORKSPACE/covid19-forecast-hub \
+          --flu-metrocast-hub-path $GITHUB_WORKSPACE/flu-metrocast \
           --NHSN
 
     - name: Upload all processed data as a single artifact
