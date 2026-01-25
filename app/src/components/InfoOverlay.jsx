@@ -83,6 +83,9 @@ const InfoOverlay = () => {
             <List.Item>
               COVID-19 Forecast Hub: <Anchor href="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/covidhub-dashboard" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/CDCgov/covid19-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
             </List.Item>
+            <List.Item>
+              Flu MetroCast Hub: <Anchor href="https://reichlab.io/metrocast-dashboard/forecast.html?as_of=2026-01-24&interval=95%25&target_var=ILI+ED+visits+pct&xaxis_range=2025-08-01&xaxis_range=2026-07-01&yaxis_range=0.5955774343586175&yaxis_range=11.579180135033756&model=epiENGAGE-ensemble_mean&location=nyc" target="_blank" rel="noopener noreferrer">official dashboard</Anchor> – <Anchor href="https://reichlab.io/metrocast-dashboard/" target="_blank" rel="noopener noreferrer">site</Anchor> – <Anchor href="https://github.com/reichlab/flu-metrocast" target="_blank" rel="noopener noreferrer">official GitHub repository</Anchor>
+            </List.Item>
           </List>
 
           <Text></Text>

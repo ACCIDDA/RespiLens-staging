@@ -1,6 +1,7 @@
 import { Center, Stack, Loader, Text, Alert, Button } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
 import FluView from './FluView';
+import MetroCastView from './MetroCastView';
 import RSVView from './RSVView';
 import COVID19View from './COVID19View';
 import NHSNView from './NHSNView';
@@ -159,6 +160,21 @@ const ViewSwitchboard = ({
       return (
         <NHSNView // gets its data from within NHSNView.jsx file
           location={location}
+        />
+      );
+
+    case 'metrocast_projs': 
+      return (
+        <MetroCastView
+          data={data}
+          metadata={metadata}
+          selectedDates={selectedDates}
+          selectedModels={selectedModels}
+          models={models}
+          setSelectedModels={setSelectedModels}
+          windowSize={windowSize}
+          getDefaultRange={getDefaultRange}
+          selectedTarget={selectedTarget}
         />
       );
 

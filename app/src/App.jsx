@@ -56,7 +56,6 @@ const App = () => {
   return (
     <HelmetProvider>
       <Router>
-        {/* The ViewProvider now wraps everything, making the context available to all components */}
         <ViewProvider>
           <AppLayout />
         </ViewProvider>

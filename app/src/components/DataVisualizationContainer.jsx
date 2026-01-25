@@ -11,7 +11,6 @@ import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
 const DataVisualizationContainer = () => {
-  // Get EVERYTHING from the single context hook
   const {
     selectedLocation,
     data, metadata, loading, error, availableDates, models,
@@ -207,6 +206,28 @@ const DataVisualizationContainer = () => {
         </>
       )
     },
+    'metrocast_projs': {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>Flu MetroCast</Title>
+        </Group>
+      ),
+      buttonLabel: "About MetroCast",
+      content: (
+        <>
+          <p>
+            Data for the RespiLens Flu Metrocast view is retrieved from the Flu MetroCast Hub, which is a collaborative modeling project that collects and shares weekly probabilistic forecasts of influenza activity at the metropolitan level in the United States. The hub is run by <a href="https://epiengage.org/" target="_blank" rel="noopener noreferrer">epiENGAGE</a> – an <a href="https://www.cdc.gov/insight-net/php/about/index.html" target="_blank" rel="noopener noreferrer">Insight Net</a> Center for Implementation within the U.S. Centers for Disease Control and Prevention (CDC)’s <a href="https://www.cdc.gov/forecast-outbreak-analytics/about/index.html" target="_blank" rel="noopener noreferrer">Center for Forecasting and Outbreak Analytics</a> (CFA).
+          </p>
+          <p>For more info and attribution on the Flu MetroCast Hub, please visit their <a href="https://reichlab.io/metrocast-dashboard/" target="_blank" rel="noopener noreferrer">site</a>, or visit their <a href="https://reichlab.io/metrocast-dashboard/forecast.html?as_of=2026-01-24&interval=95%25&target_var=ILI+ED+visits+pct&xaxis_range=2025-08-01&xaxis_range=2026-07-01&yaxis_range=0.5955774343586175&yaxis_range=11.579180135033756&model=epiENGAGE-ensemble_mean&location=nyc" target="_blank" rel="noopener noreferrer">visualization dashboard</a> to engage with their original visualization scheme.</p>
+          <div>
+            <Title order={4} mb="xs">Forecasts</Title>
+            <p>
+              Forecasting teams submit a probabilistic forecasts of targets every week of the flu season. RespiLens displays the 50% and 95% confidence intervals for each model's forecast for a chosen date, shown on the plot with a shadow.
+            </p>
+          </div>
+        </>
+      )
+    },
     'nhsnall': {
       title: (
         <Group gap="sm">
@@ -349,14 +370,13 @@ const DataVisualizationContainer = () => {
                     activeDate={activeDate}
                     setActiveDate={setActiveDate}
                     loading={loading}
-                    multi={viewType !== 'flu_peak'} //disable multi date select if flu peak
+                    multi={viewType !== 'flu_peak'} //this disables multi date select if flu peak
                   />
                 </div>
               )}
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ViewSwitchboard
-                // ViewSwitchboard now receives all its data as props
                 viewType={viewType}
                 location={selectedLocation}
                 data={data}

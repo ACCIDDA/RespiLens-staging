@@ -77,7 +77,7 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, fi
 def get_location_info(
         location_data: pd.DataFrame, 
         location: str, 
-        value_needed: Literal['abbreviation', 'location_name', 'population']
+        value_needed: Literal['abbreviation', 'location_name', 'population', 'original_location_code'],
 ) -> str:
     """
     Get a variety of location metadata information given the FIPS code of a location.
@@ -85,7 +85,7 @@ def get_location_info(
     Args:
         location_data: The df of location metadata
         location: FIPS code for location for which info will be retrieved ('US' for US)
-        value_needed: Which piece of info to retrieve (one of 'abbreviation', 'location_name', 'population')
+        value_needed: Which piece of info to retrieve (one of 'abbreviation', 'location_name', 'population', 'original_location_code')
 
     Returns:
         The value requested (as a str)
@@ -94,17 +94,39 @@ def get_location_info(
         ValueError: 
             If the location FIPS code provided via `location` param is not in the location metadata
     """
+    # The FIPS codes are unnecessary for respi needs (metrocast non-state locs use HSA id)
+    # But Respi DOES require that they be unique, and the default code value for metrocast states is 'All'
+    # So here we choose to use state FIPS codes instead of 'All' to make them keys
+    metrocast_states_to_fips = {
+        "colorado": "08",
+        "georgia": "13",
+        "indiana": "18",
+        "maine": "23",
+        "maryland": "24",
+        "massachusetts": "25",
+        "minnesota": "27",
+        "north-carolina": "37",
+        "oregon": "41",
+        "south-carolina": "45",
+        "texas": "OVERLAP-WITH-frederick_md", # putting this b/c the Texas FIPS is the same as Frederick, MD HSAid (48)
+        "utah": "49",
+        "virginia": "51"
+    }
     current_df = location_data[location_data['location'] == location]
     if current_df.empty:
         raise ValueError(f"Could not find location {location} in location data.")
     if value_needed == 'population':
         return int(current_df[value_needed].iloc[0])
+    if (value_needed == 'original_location_code') and (location in metrocast_states_to_fips.keys()):
+        try: return metrocast_states_to_fips[location]
+        except KeyError:
+            raise KeyError(f"Flu MetroCast has added a new state {location}. Update `metrocast_states_to_fips` to include this state.")
     else:
         return str(current_df[value_needed].iloc[0])
     
 
 def save_json_file(
-        pathogen: Literal['flusight','rsv','covid','covid19','rsvforecasthub','covid19forecasthub','nhsn'],
+        pathogen: Literal['flusight', 'flu', 'flusightforecasthub', 'rsv','covid','covid19','rsvforecasthub','covid19forecasthub','nhsn', 'flumetrocast', 'flumetrocasthub'],
         output_path: str,
         output_filename: str,
         file_contents: dict,
@@ -127,12 +149,15 @@ def save_json_file(
     output_dir_map = {
         'flu': 'flusight',
         'flusight': 'flusight',
+        'flusightforecasthub': 'flusight',
         'rsv': 'rsvforecasthub',
         'rsvforecasthub': 'rsvforecasthub',
         'covid': 'covid19forecasthub',
         'covid19': 'covid19forecasthub',
         'covid19forecasthub': 'covid19forecasthub',
         'nhsn': 'nhsn',
+        'flumetrocast': 'flumetrocast',
+        'flumetrocashtub': 'flumetrocast',
     }
 
     if pathogen not in output_dir_map:

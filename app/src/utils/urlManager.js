@@ -1,5 +1,3 @@
-// src/utils/urlManager.js
-
 import { DATASETS, APP_CONFIG } from '../config';
 
 export class URLParameterManager {
@@ -19,13 +17,12 @@ export class URLParameterManager {
     return null;
   }
 
-  // Get all parameters for a specific dataset
   getDatasetParams(dataset) {
-    if (!dataset) return {}; // Return empty object if dataset is null
+    if (!dataset) return {}; 
 
     const prefix = dataset.prefix;
     const params = {};
-    const currentView = this.getView(); // Get the current view type
+    const currentView = this.getView(); 
 
     if (dataset.hasDateSelector) {
       const dates = this.searchParams.get(`${prefix}_dates`);
@@ -37,17 +34,13 @@ export class URLParameterManager {
       params.models = models ? models.split(',') : [];
     }
 
-    // --- ADDED: Read prefixed target ---
-    // Check if the current view (derived from viewType) supports targets
-    // Assuming NHSN ('nhsnall') is the only view without targets for now
     if (currentView !== 'nhsnall') {
         const target = this.searchParams.get(`${prefix}_target`);
-        // Assign if found, otherwise it remains undefined in params object
         if (target) {
             params.target = target;
         }
     }
-    // --- END ADDED BLOCK ---
+
 
     // Special case for NHSN
     if (dataset.shortName === 'nhsn') {
@@ -71,11 +64,8 @@ export class URLParameterManager {
     if (dataset.hasModelSelector) {
       newParams.delete(`${prefix}_models`);
     }
-    
-    // --- ADDED: Clear prefixed target ---
-    // Always attempt to delete the target parameter for this dataset prefix
+
     newParams.delete(`${prefix}_target`);
-    // --- END ADDED LINE ---
 
     if (dataset.shortName === 'nhsn') {
       newParams.delete('nhsn_columns');
@@ -84,56 +74,45 @@ export class URLParameterManager {
     this.setSearchParams(newParams, { replace: true });
   }
 
-  // Update parameters for a dataset
   updateDatasetParams(dataset, newParams) {
     if (!dataset) {
       return;
     }
     const updatedParams = new URLSearchParams(this.searchParams);
     const prefix = dataset.prefix;
-    const currentView = this.getView(); // Get the current view type
+    const currentView = this.getView(); 
 
-    // Update dates if present and dataset supports it
-    // Check if 'dates' key exists in newParams before accessing it
+
     if (dataset.hasDateSelector && Object.prototype.hasOwnProperty.call(newParams, 'dates')) {
       if (newParams.dates && newParams.dates.length > 0) {
         updatedParams.set(`${prefix}_dates`, newParams.dates.join(','));
       } else {
-        updatedParams.delete(`${prefix}_dates`); // Delete if empty array or null/undefined
+        updatedParams.delete(`${prefix}_dates`); 
       }
     }
 
-    // Update models if present and dataset supports it
-    // Check if 'models' key exists in newParams before accessing it
     if (dataset.hasModelSelector && Object.prototype.hasOwnProperty.call(newParams, 'models')) {
       if (newParams.models && newParams.models.length > 0) {
         updatedParams.set(`${prefix}_models`, newParams.models.join(','));
       } else {
-        updatedParams.delete(`${prefix}_models`); // Delete if empty array or null/undefined
+        updatedParams.delete(`${prefix}_models`); 
       }
     }
 
-    // --- ADDED: Update prefixed target ---
-    // Update target if present (and not NHSN view)
-    // Check if 'target' key exists in newParams before accessing it
+ 
     if (currentView !== 'nhsnall' && Object.prototype.hasOwnProperty.call(newParams, 'target')) {
-        if (newParams.target) { // Check if target is truthy (not null, '', etc.)
+        if (newParams.target) {
             updatedParams.set(`${prefix}_target`, newParams.target);
         } else {
-            // Delete the parameter if target is explicitly set to null/undefined/''
             updatedParams.delete(`${prefix}_target`);
         }
     }
-    // --- END ADDED BLOCK ---
 
-
-    // Special case for NHSN columns
-    // Check if 'columns' key exists in newParams before accessing it
     if (dataset.shortName === 'nhsn' && Object.prototype.hasOwnProperty.call(newParams, 'columns')) {
       if (newParams.columns && newParams.columns.length > 0) {
         updatedParams.set('nhsn_columns', newParams.columns.join(','));
       } else {
-        updatedParams.delete('nhsn_columns'); // Delete if empty array or null/undefined
+        updatedParams.delete('nhsn_columns');
       }
     }
 
@@ -144,14 +123,16 @@ export class URLParameterManager {
   }
 
 
-  // Update location parameter while preserving all other params
-  updateLocation(location) {
+  updateLocation(location, effectiveDefault = APP_CONFIG.defaultLocation) {
     const newParams = new URLSearchParams(this.searchParams);
-    if (location && location !== APP_CONFIG.defaultLocation) {
+    
+    // If the location matches the specific default for this view, remove it from URL
+    if (location && location !== effectiveDefault) {
         newParams.set('location', location);
     } else {
-        newParams.delete('location'); // Remove if default location or falsy
+        newParams.delete('location'); 
     }
+    
     if (newParams.toString() !== this.searchParams.toString()) {
       this.setSearchParams(newParams, { replace: true });
     }
@@ -164,7 +145,6 @@ export class URLParameterManager {
 
   // Get current view from URL
   getView() {
-    // Use DATASETS config to find the default view if not in URL
     const viewParam = this.searchParams.get('view');
     const allViews = Object.values(DATASETS).flatMap(ds => ds.views.map(v => v.value));
     if (viewParam) {
@@ -181,10 +161,6 @@ export class URLParameterManager {
     const defaultDatasetKey = APP_CONFIG.defaultDataset;
     return DATASETS[defaultDatasetKey]?.defaultView;
   }
-
-  // Initialize URL with defaults if missing (Less critical now with context handling)
-  // This method is kept for backward compatibility but may be redundant with ViewContext
   initializeDefaults() {
-    // Intentionally empty - URL initialization now handled by ViewContext
   }
 }
