@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useMantineColorScheme, Stack, Text, Center, SimpleGrid, Paper, Loader, Box } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text, Center, SimpleGrid, Paper, Loader, Box, UnstyledButton } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector';
 import LastFetched from './LastFetched';
+import { useView } from '../hooks/useView'; // need this so the metro area cards can link to other pages
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
@@ -103,7 +104,6 @@ const MetroPlotCard = ({
 
   const hasForecasts = projectionsData.length > 1;
 
-  // conditionally returns one plot OR multiple if it is a state location
   const PlotContent = (
     <>
       <Text fw={700} size={isSmall ? "xs" : "sm"} mb={5} ta="center">{title}</Text>
@@ -120,8 +120,8 @@ const MetroPlotCard = ({
         layout={{
           autosize: true,
           template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
-          paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
-          plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+          paper_bgcolor: 'rgba(0,0,0,0)',
+          plot_bgcolor: 'rgba(0,0,0,0)',
           font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
           margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
           showlegend: !isSmall,
@@ -152,7 +152,8 @@ const MetroPlotCard = ({
           hovermode: isSmall ? false : 'x unified',
           shapes: selectedDates.map(d => ({ type: 'line', x0: d, x1: d, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 1, dash: 'dash' } }))
         }}
-        config={{ displayModeBar: !isSmall, responsive: true, displaylogo: false }}
+        // staticPlot: true for small charts to ensure clicks trigger navigation button
+        config={{ displayModeBar: !isSmall, responsive: true, displaylogo: false, staticPlot: isSmall }}
         onRelayout={(e) => {
           if (e['xaxis.range']) { setXAxisRange(e['xaxis.range']); } 
           else if (e['xaxis.autorange']) { setXAxisRange(null); }
@@ -162,8 +163,41 @@ const MetroPlotCard = ({
   );
 
   return isSmall ? (
-    <Paper withBorder p="xs" radius="md" shadow="xs" style={{ position: 'relative' }}>
+    <Paper 
+      withBorder 
+      p="xs" 
+      radius="md" 
+      shadow="xs" 
+      style={{ 
+        position: 'relative',
+        cursor: 'pointer',
+        border: '1px solid #dee2e6'
+      }}
+    >
+
       {PlotContent}
+      
+      <Box 
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 5,
+          borderRadius: '8px'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.parentElement.style.transform = 'translateY(-4px)';
+          e.currentTarget.parentElement.style.borderColor = '#2563eb';
+          e.currentTarget.parentElement.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.parentElement.style.transform = 'translateY(0)';
+          e.currentTarget.parentElement.style.borderColor = '#dee2e6';
+          e.currentTarget.parentElement.style.boxShadow = 'none';
+        }}
+      />
     </Paper>
   ) : (
     <Box style={{ position: 'relative' }}>
@@ -174,6 +208,7 @@ const MetroPlotCard = ({
 
 const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const { colorScheme } = useMantineColorScheme();
+  const { handleLocationSelect } = useView(); 
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [xAxisRange, setXAxisRange] = useState(null); 
@@ -247,20 +282,25 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
             <>
               <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
                 {Object.entries(childData).map(([abbr, cityData]) => (
-                  <MetroPlotCard 
-                    key={abbr}
-                    locationData={cityData}
-                    title={cityData.metadata?.location_name}
-                    isSmall={true}
-                    colorScheme={colorScheme}
-                    windowSize={windowSize}
-                    selectedTarget={selectedTarget}
-                    selectedModels={selectedModels}
-                    selectedDates={selectedDates}
-                    getDefaultRange={getDefaultRange}
-                    xAxisRange={xAxisRange}
-                    setXAxisRange={setXAxisRange}
-                  />
+                  <UnstyledButton // makes the small cards clickable
+                    key={abbr} 
+                    onClick={() => handleLocationSelect(abbr)} 
+                    style={{ width: '100%' }}
+                  >
+                    <MetroPlotCard 
+                      locationData={cityData}
+                      title={cityData.metadata?.location_name}
+                      isSmall={true}
+                      colorScheme={colorScheme}
+                      windowSize={windowSize}
+                      selectedTarget={selectedTarget}
+                      selectedModels={selectedModels}
+                      selectedDates={selectedDates}
+                      getDefaultRange={getDefaultRange}
+                      xAxisRange={xAxisRange}
+                      setXAxisRange={setXAxisRange}
+                    />
+                  </UnstyledButton>
                 ))}
               </SimpleGrid>
             </>
