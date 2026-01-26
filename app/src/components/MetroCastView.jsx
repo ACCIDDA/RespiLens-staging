@@ -24,8 +24,8 @@ const MetroPlotCard = ({
   selectedModels, 
   selectedDates,
   getDefaultRange,
-  xAxisRange,      
-  setXAxisRange    
+  xAxisRange,
+  setXAxisRange
 }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const groundTruth = locationData?.ground_truth;
@@ -104,8 +104,8 @@ const MetroPlotCard = ({
   const hasForecasts = projectionsData.length > 1;
 
   // conditionally returns one plot OR multiple if it is a state location
-  return (
-    <Paper withBorder p="xs" radius="md" shadow="xs" style={{ position: 'relative' }}>
+  const PlotContent = (
+    <>
       <Text fw={700} size={isSmall ? "xs" : "sm"} mb={5} ta="center">{title}</Text>
       
       {!hasForecasts && (
@@ -119,7 +119,7 @@ const MetroPlotCard = ({
         data={projectionsData}
         layout={{
           autosize: true,
-          template: colorScheme === 'plotly_white',
+          template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
           paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
           plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
           font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
@@ -133,11 +133,7 @@ const MetroPlotCard = ({
           xaxis: { 
             range: xAxisRange || defRange, 
             showticklabels: !isSmall, 
-            // only show range slider on the main plot
-            rangeslider: { 
-              visible: !isSmall,
-              range: getDefaultRange(true)
-            },
+            rangeslider: { visible: !isSmall, range: getDefaultRange(true) },
             showline: true, linewidth: 1,
             linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
           },
@@ -158,15 +154,21 @@ const MetroPlotCard = ({
         }}
         config={{ displayModeBar: !isSmall, responsive: true, displaylogo: false }}
         onRelayout={(e) => {
-          // If the range slider or zoom is used, update the shared range in parent
-          if (e['xaxis.range']) {
-            setXAxisRange(e['xaxis.range']);
-          } else if (e['xaxis.autorange']) {
-            setXAxisRange(null);
-          }
+          if (e['xaxis.range']) { setXAxisRange(e['xaxis.range']); } 
+          else if (e['xaxis.autorange']) { setXAxisRange(null); }
         }}
       />
+    </>
+  );
+
+  return isSmall ? (
+    <Paper withBorder p="xs" radius="md" shadow="xs" style={{ position: 'relative' }}>
+      {PlotContent}
     </Paper>
+  ) : (
+    <Box style={{ position: 'relative' }}>
+      {PlotContent}
+    </Box>
   );
 };
 
@@ -174,10 +176,21 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
   const { colorScheme } = useMantineColorScheme();
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
-  const [xAxisRange, setXAxisRange] = useState(null); // Shared state for all plots
+  const [xAxisRange, setXAxisRange] = useState(null); 
 
   const stateName = data?.metadata?.location_name;
   const stateCode = METRO_STATE_MAP[stateName];
+  const forecasts = data?.forecasts;
+
+  const activeModels = useMemo(() => {
+    const activeModelSet = new Set();
+    if (!forecasts || !selectedTarget || !selectedDates.length) return activeModelSet;
+    selectedDates.forEach(date => {
+      const targetData = forecasts[date]?.[selectedTarget];
+      if (targetData) Object.keys(targetData).forEach(m => activeModelSet.add(m));
+    });
+    return activeModelSet;
+  }, [forecasts, selectedDates, selectedTarget]);
 
   useEffect(() => { setXAxisRange(null); }, [selectedTarget]);
 
@@ -223,32 +236,34 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         getDefaultRange={getDefaultRange}
         xAxisRange={xAxisRange}
         setXAxisRange={setXAxisRange}
+        isSmall={false}
       />
 
       {stateCode && (
         <Stack gap="md">
-          
           {loadingChildren ? (
             <Center p="xl"><Loader size="sm" /></Center>
           ) : (
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
-              {Object.entries(childData).map(([abbr, cityData]) => (
-                <MetroPlotCard 
-                  key={abbr}
-                  locationData={cityData}
-                  title={cityData.metadata?.location_name}
-                  isSmall={true}
-                  colorScheme={colorScheme}
-                  windowSize={windowSize}
-                  selectedTarget={selectedTarget}
-                  selectedModels={selectedModels}
-                  selectedDates={selectedDates}
-                  getDefaultRange={getDefaultRange}
-                  xAxisRange={xAxisRange}
-                  setXAxisRange={setXAxisRange}
-                />
-              ))}
-            </SimpleGrid>
+            <>
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
+                {Object.entries(childData).map(([abbr, cityData]) => (
+                  <MetroPlotCard 
+                    key={abbr}
+                    locationData={cityData}
+                    title={cityData.metadata?.location_name}
+                    isSmall={true}
+                    colorScheme={colorScheme}
+                    windowSize={windowSize}
+                    selectedTarget={selectedTarget}
+                    selectedModels={selectedModels}
+                    selectedDates={selectedDates}
+                    getDefaultRange={getDefaultRange}
+                    xAxisRange={xAxisRange}
+                    setXAxisRange={setXAxisRange}
+                  />
+                ))}
+              </SimpleGrid>
+            </>
           )}
         </Stack>
       )}
@@ -257,6 +272,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
+        activeModels={activeModels} 
         getModelColor={(m, sel) => MODEL_COLORS[sel.indexOf(m) % MODEL_COLORS.length]}
       />
     </Stack>
