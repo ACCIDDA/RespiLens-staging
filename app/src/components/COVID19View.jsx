@@ -14,6 +14,7 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
   const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
+  const stateName = data?.metadata?.location_name;
   
   // This allows the "frozen" Plotly button to access fresh data
   const getDefaultRangeRef = useRef(getDefaultRange);
@@ -300,6 +301,9 @@ const COVID19View = ({ data, metadata, selectedDates, selectedModels, models, se
           onRelayout={handlePlotUpdate} 
         />
       </div>
+      <Text fw={700} size="sm" mb={5} ta="center">
+        {stateName}
+      </Text>
       <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
               <p style={{ 
                 fontStyle: 'italic', 

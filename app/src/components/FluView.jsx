@@ -15,6 +15,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); 
   const debounceTimerRef = useRef(null);
+  const stateName = data?.metadata?.location_name;
   
   // Refs to hold the latest versions of props/data for the reset button
   const getDefaultRangeRef = useRef(getDefaultRange);
@@ -407,6 +408,9 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
+      <Text fw={700} size="sm" mb={5} ta="center">
+        {stateName}
+      </Text>
       <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
               <p style={{ 
                 fontStyle: 'italic', 

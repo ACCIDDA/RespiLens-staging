@@ -11,11 +11,11 @@ import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 
 const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null); // Track user's zoom/rangeslider selection
+  const [xAxisRange, setXAxisRange] = useState(null); 
   const plotRef = useRef(null);
-  const isResettingRef = useRef(false); // Flag to prevent capturing programmatic resets
-  
-  // --- FIX 1: Create Refs to hold the latest versions of props/data ---
+  const isResettingRef = useRef(false); 
+  const stateName = data?.metadata?.location_name;
+
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
 
@@ -73,22 +73,19 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     const modelTraces = selectedModels.flatMap(model =>
       selectedDates.flatMap((date, dateIndex) => {
         const forecastsForDate = forecasts[date] || {};
-        // Access forecast using selectedTarget
         const forecast = forecastsForDate[selectedTarget]?.[model];
-        if (!forecast || forecast.type !== 'quantile') return []; // Ensure it's quantile data
+        if (!forecast || forecast.type !== 'quantile') return []; 
 
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
-        // Sort predictions by date, accessing the nested prediction object
         const sortedPredictions = Object.values(forecast.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         sortedPredictions.forEach((pred) => {
           forecastDates.push(pred.date);
           const { quantiles = [], values = [] } = pred;
 
-          // Find values for specific quantiles, defaulting to null or 0 if not found
           const findValue = (q) => {
             const index = quantiles.indexOf(q);
-            return index !== -1 ? values[index] : null; // Use null if quantile is missing
+            return index !== -1 ? values[index] : null; 
           };
 
           const val_025 = findValue(0.025);
@@ -97,7 +94,6 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           const val_75 = findValue(0.75);
           const val_975 = findValue(0.975);
 
-          // Only add points if median and CIs are available
           if (val_50 !== null && val_025 !== null && val_975 !== null && val_25 !== null && val_75 !== null) {
               ci95Lower.push(val_025);
               ci50Lower.push(val_25);
@@ -105,17 +101,14 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
               ci50Upper.push(val_75);
               ci95Upper.push(val_975);
           } else {
-             // If essential quantiles are missing, we might skip this point or handle it differently
-             // For now, let's just skip adding to the arrays to avoid breaking the CI shapes
              console.warn(`Missing quantiles for model ${model}, date ${date}, target ${selectedTarget}, prediction date ${pred.date}`);
           }
         });
 
-        // Ensure we have data points before creating traces
         if (forecastDates.length === 0) return [];
 
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-        const isFirstDate = dateIndex === 0; // Only show legend for first date of each model
+        const isFirstDate = dateIndex === 0; 
 
         return [
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none', legendgroup: model },
@@ -127,16 +120,11 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget]);
 
-  // --- FIX 2: Update the Refs on every render so they are always fresh ---
   useEffect(() => {
     getDefaultRangeRef.current = getDefaultRange;
     projectionsDataRef.current = projectionsData;
   }, [getDefaultRange, projectionsData]);
 
-  /**
-   * Create a Set of all models that have forecast data for
-   * the currently selected target AND at least one of the selected dates.
-   */
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
     if (!forecasts || !selectedTarget || !selectedDates.length) {
@@ -150,7 +138,6 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       const targetData = forecastsForDate[selectedTarget];
       if (!targetData) return;
 
-      // Add all models found for this target on this date
       Object.keys(targetData).forEach(model => {
         activeModelSet.add(model);
       });
@@ -161,12 +148,10 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
-  // Reset xaxis range only when target changes (null = auto-follow date changes)
   useEffect(() => {
-    setXAxisRange(null); // Reset to auto-update mode on target change
+    setXAxisRange(null); 
   }, [selectedTarget]);
 
-  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
     const currentXRange = xAxisRange || defaultRange;
     if (projectionsData.length > 0 && currentXRange) {
@@ -178,24 +163,20 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   }, [projectionsData, xAxisRange, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
-    // Don't capture range changes during programmatic resets
     if (isResettingRef.current) {
-      isResettingRef.current = false; // Reset flag after ignoring the event
+      isResettingRef.current = false; 
       return;
     }
 
-    // Capture xaxis range changes (from rangeslider or zoom) to preserve user's selection
     if (figure && figure['xaxis.range']) {
       const newXRange = figure['xaxis.range'];
-      // Only update if different to avoid loops
       if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
         setXAxisRange(newXRange);
-        // Y-axis will be recalculated by useEffect when xAxisRange changes
       }
     }
   }, [xAxisRange]);
 
-  const layout = useMemo(() => ({ // Memoize layout to update only when dependencies change
+  const layout = useMemo(() => ({ 
     width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
     height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
     autosize: true,
@@ -219,12 +200,12 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       }
     },
     hovermode: 'x unified',
-    dragmode: false, // Disable drag mode to prevent interference with clicks on mobile
+    dragmode: false,
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
       domain: [0, 1], // Full width
       rangeslider: {
-        range: getDefaultRange(true) // Rangeslider always shows full extent
+        range: getDefaultRange(true) 
       },
       rangeselector: {
         buttons: [
@@ -233,19 +214,18 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           {step: 'all', label: 'all'}
         ]
       },
-      range: xAxisRange || defaultRange, // Use user's selection or default
+      range: xAxisRange || defaultRange, 
       showline: true,
       linewidth: 1,
       linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
     },
     yaxis: {
-      // Use the map for a user-friendly title
       title: (() => {
         const longName = targetDisplayNameMap[selectedTarget];
         return targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
       })(),
-      range: yAxisRange, // Use state for dynamic range updates
-      autorange: yAxisRange === null, // Enable autorange if yAxisRange is null
+      range: yAxisRange, 
+      autorange: yAxisRange === null, 
     },
     shapes: selectedDates.map(date => {
       return {
@@ -270,9 +250,9 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     displaylogo: false,
     showSendToCloud: false,
     plotlyServerURL: "",
-    scrollZoom: false, // Disable scroll zoom to prevent conflicts on mobile
-    doubleClick: 'reset', // Allow double-click to reset view
-    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], // Remove selection tools and default home
+    scrollZoom: false, 
+    doubleClick: 'reset', 
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'resetScale2d'], 
     toImageButtonOptions: {
       format: 'png',
       filename: 'forecast_plot'
@@ -324,6 +304,9 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
+      <Text fw={700} size="sm" mb={5} ta="center">
+        {stateName}
+      </Text>
       <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
               <p style={{ 
                 fontStyle: 'italic', 
