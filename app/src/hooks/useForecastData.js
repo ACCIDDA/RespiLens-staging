@@ -18,7 +18,7 @@ export const useForecastData = (location, viewType) => {
   useEffect(() => {
     const isMetrocastView = viewType === 'metrocast_projs';
       const isDefaultUS = location === 'US';
-      if ((isMetrocastView && isDefaultUS) || (!isMetrocastView && location === 'boulder')) {
+      if ((isMetrocastView && isDefaultUS) || (!isMetrocastView && location === 'colorado')) {
         setLoading(false);
         return;
       }
