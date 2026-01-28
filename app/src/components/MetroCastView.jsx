@@ -61,7 +61,8 @@ const MetroPlotCard = ({
     const traces = [{
       x: groundTruth.dates || [], y: gtValues, name: 'Observed', type: 'scatter',
       mode: 'lines+markers', line: { color: 'black', width: isSmall ? 1 : 2, dash: 'dash' },
-      marker: { size: isSmall ? 2 : 4, color: 'black' }
+      marker: { size: isSmall ? 2 : 4, color: 'black' },
+      hovertemplate: '<b>Observed Data</b><br>Date: %{x}<br>Value: <b>%{y:.2f}%</b><extra></extra>'
     }];
 
     selectedModels.forEach(model => {
@@ -70,25 +71,66 @@ const MetroPlotCard = ({
         if (forecast?.type !== 'quantile') return;
 
         const fDates = [], median = [], q95U = [], q95L = [], q50U = [], q50L = [];
+        const hoverTexts = [];
+
         const sorted = Object.keys(forecast.predictions || {}).sort((a, b) => Number(a) - Number(b));
 
         sorted.forEach(h => {
           const p = forecast.predictions[h];
-          fDates.push(p.date);
-          const findQ = (q) => { const i = p.quantiles.indexOf(q); return i !== -1 ? p.values[i] : null; };
+          const pointDate = p.date;
+          fDates.push(pointDate);
+
+          const findQ = (q) => { 
+            const i = p.quantiles.indexOf(q); 
+            return i !== -1 ? p.values[i] : null; 
+          };
+
           const v50 = findQ(0.5);
           if (v50 !== null) {
             median.push(v50);
-            q95L.push(findQ(0.025) ?? v50); q50L.push(findQ(0.25) ?? v50);
-            q50U.push(findQ(0.75) ?? v50); q95U.push(findQ(0.975) ?? v50);
+            const v025 = findQ(0.025) ?? v50;
+            const v25 = findQ(0.25) ?? v50;
+            const v75 = findQ(0.75) ?? v50;
+            const v975 = findQ(0.975) ?? v50;
+
+            q95L.push(v025);
+            q50L.push(v25);
+            q50U.push(v75);
+            q95U.push(v975);
+
+            const formattedMedian = v50.toFixed(2);
+            const formatted50 = `${v25.toFixed(2)} - ${v75.toFixed(2)}`;
+            const formatted95 = `${v025.toFixed(2)} - ${v975.toFixed(2)}`;
+
+            hoverTexts.push(
+              `<b>${model}</b><br>` +
+              `Date: ${pointDate}<br>` +
+              `Median: <b>${formattedMedian}%</b><br>` +
+              `50% CI: [${formatted50}%]<br>` +
+              `95% CI: [${formatted95}%]<br>` +
+              `<span style="color: #868e96; font-size: 0.8em">predicted as of ${date}</span>` +
+              `<extra></extra>`
+            );
           }
         });
 
         const color = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
         traces.push(
-          { x: [...fDates, ...fDates.slice().reverse()], y: [...q95U, ...q95L.slice().reverse()], fill: 'toself', fillcolor: `${color}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', legendgroup: model },
-          { x: [...fDates, ...fDates.slice().reverse()], y: [...q50U, ...q50L.slice().reverse()], fill: 'toself', fillcolor: `${color}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', legendgroup: model },
-          { x: fDates, y: median, name: model, type: 'scatter', mode: 'lines+markers', line: { color, width: isSmall ? 1 : 2 }, marker: { size: isSmall ? 3 : 6, color }, showlegend: dateIdx === 0 && !isSmall, legendgroup: model }
+          { x: [...fDates, ...fDates.slice().reverse()], y: [...q95U, ...q95L.slice().reverse()], fill: 'toself', fillcolor: `${color}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', legendgroup: model, hoverinfo: 'skip' },
+          { x: [...fDates, ...fDates.slice().reverse()], y: [...q50U, ...q50L.slice().reverse()], fill: 'toself', fillcolor: `${color}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', legendgroup: model, hoverinfo: 'skip' },
+          { 
+            x: fDates, 
+            y: median, 
+            name: model, 
+            type: 'scatter', 
+            mode: 'lines+markers', 
+            line: { color, width: isSmall ? 1 : 2 }, 
+            marker: { size: isSmall ? 3 : 6, color }, 
+            showlegend: dateIdx === 0 && !isSmall, 
+            legendgroup: model,
+            text: hoverTexts, 
+            hovertemplate: '%{text}' 
+          }
         );
       });
     });
@@ -120,8 +162,8 @@ const MetroPlotCard = ({
         layout={{
           autosize: true,
           template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
-          paper_bgcolor: 'rgba(0,0,0,0)',
-          plot_bgcolor: 'rgba(0,0,0,0)',
+          paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
+          plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
           font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
           margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
           showlegend: !isSmall,
@@ -147,12 +189,19 @@ const MetroPlotCard = ({
             } : undefined,
             range: yAxisRange, 
             autorange: yAxisRange === null, 
-            tickfont: { size: 9, color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' } 
+            tickfont: { size: 9, color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
+            tickformat: '.2f',
+            ticksuffix: '%'
           },
-          hovermode: isSmall ? false : 'x unified',
+          hovermode: isSmall ? false : 'closest', 
+          hoverlabel: { 
+            namelength: -1,
+            bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#fff',
+            bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
+            font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000' }
+          },
           shapes: selectedDates.map(d => ({ type: 'line', x0: d, x1: d, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 1, dash: 'dash' } }))
         }}
-        // staticPlot: true for small charts to ensure clicks trigger navigation button
         config={{ displayModeBar: !isSmall, responsive: true, displaylogo: false, staticPlot: isSmall }}
         onRelayout={(e) => {
           if (e['xaxis.range']) { setXAxisRange(e['xaxis.range']); } 
@@ -174,9 +223,7 @@ const MetroPlotCard = ({
         border: '1px solid #dee2e6'
       }}
     >
-
       {PlotContent}
-      
       <Box 
         style={{
           position: 'absolute',
@@ -282,7 +329,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
             <>
               <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
                 {Object.entries(childData).map(([abbr, cityData]) => (
-                  <UnstyledButton // makes the small cards clickable
+                  <UnstyledButton 
                     key={abbr} 
                     onClick={() => handleLocationSelect(abbr)} 
                     style={{ width: '100%' }}
@@ -308,15 +355,15 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         </Stack>
       )}
       <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
-              <p style={{ 
-                fontStyle: 'italic', 
-                fontSize: '12px', 
-                color: '#868e96', 
-                textAlign: 'right',
-                margin: 0 
-              }}>
-               Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
-              </p>
+        <p style={{ 
+          fontStyle: 'italic', 
+          fontSize: '12px', 
+          color: '#868e96', 
+          textAlign: 'right',
+          margin: 0 
+        }}>
+          Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+        </p>
       </div>
       <ModelSelector
         models={models}
