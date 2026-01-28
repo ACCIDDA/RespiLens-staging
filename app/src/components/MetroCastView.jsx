@@ -62,7 +62,7 @@ const MetroPlotCard = ({
       x: groundTruth.dates || [], y: gtValues, name: 'Observed', type: 'scatter',
       mode: 'lines+markers', line: { color: 'black', width: isSmall ? 1 : 2, dash: 'dash' },
       marker: { size: isSmall ? 2 : 4, color: 'black' },
-      hovertemplate: '<b>Observed Data</b><br>Date: %{x}<br>Value: <b>%{y:.2f}%</b><extra></extra>'
+      hovertemplate: '<b>Ground Truth Data</b><br>Date: %{x}<br>Value: <b>%{y:.2f}%</b><extra></extra>'
     }];
 
     selectedModels.forEach(model => {
@@ -108,7 +108,7 @@ const MetroPlotCard = ({
               `Median: <b>${formattedMedian}%</b><br>` +
               `50% CI: [${formatted50}%]<br>` +
               `95% CI: [${formatted95}%]<br>` +
-              `<span style="color: #868e96; font-size: 0.8em">predicted as of ${date}</span>` +
+              `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${date}</span>` +
               `<extra></extra>`
             );
           }
@@ -129,7 +129,12 @@ const MetroPlotCard = ({
             showlegend: dateIdx === 0 && !isSmall, 
             legendgroup: model,
             text: hoverTexts, 
-            hovertemplate: '%{text}' 
+            hovertemplate: '%{text}',
+            hoverlabel: {
+              bgcolor: color,
+              font: { color: '#ffffff' },
+              bordercolor: '#ffffff'
+            }
           }
         );
       });
@@ -195,10 +200,7 @@ const MetroPlotCard = ({
           },
           hovermode: isSmall ? false : 'closest', 
           hoverlabel: { 
-            namelength: -1,
-            bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#fff',
-            bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
-            font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000' }
+            namelength: -1
           },
           shapes: selectedDates.map(d => ({ type: 'line', x0: d, x1: d, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 1, dash: 'dash' } }))
         }}
