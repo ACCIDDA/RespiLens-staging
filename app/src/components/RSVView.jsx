@@ -67,7 +67,8 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       type: 'scatter',
       mode: 'lines+markers',
       line: { color: 'black', width: 2, dash: 'dash' },
-      marker: { size: 4, color: 'black' }
+      marker: { size: 4, color: 'black' },
+      hovertemplate: '<b>Observed Data</b><br>Date: %{x}<br>Value: <b>%{y:.2f}</b><extra></extra>'
     };
 
     const modelTraces = selectedModels.flatMap(model =>
@@ -77,10 +78,13 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         if (!forecast || forecast.type !== 'quantile') return []; 
 
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
+        const hoverTexts = [];
+
         const sortedPredictions = Object.values(forecast.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         sortedPredictions.forEach((pred) => {
-          forecastDates.push(pred.date);
+          const pointDate = pred.date;
+          forecastDates.push(pointDate);
           const { quantiles = [], values = [] } = pred;
 
           const findValue = (q) => {
@@ -100,6 +104,20 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
               medianValues.push(val_50);
               ci50Upper.push(val_75);
               ci95Upper.push(val_975);
+
+              const formattedMedian = val_50.toLocaleString(undefined, { maximumFractionDigits: 2 });
+              const formatted50 = `${val_25.toLocaleString(undefined, { maximumFractionDigits: 2 })} - ${val_75.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+              const formatted95 = `${val_025.toLocaleString(undefined, { maximumFractionDigits: 2 })} - ${val_975.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+              hoverTexts.push(
+                `<b>${model}</b><br>` +
+                `Date: ${pointDate}<br>` +
+                `Median: <b>${formattedMedian}</b><br>` +
+                `50% CI: [${formatted50}]<br>` +
+                `95% CI: [${formatted95}]<br>` +
+                `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${date}</span>` +
+                `<extra></extra>`
+              );
           } else {
              console.warn(`Missing quantiles for model ${model}, date ${date}, target ${selectedTarget}, prediction date ${pred.date}`);
           }
@@ -113,7 +131,24 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         return [
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none', legendgroup: model },
           { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, hoverinfo: 'none', legendgroup: model },
-          { x: forecastDates, y: medianValues, name: model, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: isFirstDate, legendgroup: model }
+          { 
+            x: forecastDates, 
+            y: medianValues, 
+            name: model, 
+            type: 'scatter', 
+            mode: 'lines+markers', 
+            line: { color: modelColor, width: 2, dash: 'solid' }, 
+            marker: { size: 6, color: modelColor }, 
+            showlegend: isFirstDate, 
+            legendgroup: model,
+            text: hoverTexts,
+            hovertemplate: '%{text}',
+            hoverlabel: {
+              bgcolor: modelColor,
+              font: { color: '#ffffff' },
+              bordercolor: '#ffffff'
+            }
+          }
         ];
       })
     );
@@ -186,7 +221,7 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     font: {
       color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
     },
-    showlegend: selectedModels.length < 15, // Show legend only when fewer than 15 models selected
+    showlegend: selectedModels.length < 15, 
     legend: {
       x: 0,
       y: 1,
@@ -199,11 +234,11 @@ const RSVView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         size: 10
       }
     },
-    hovermode: 'x unified',
+    hovermode: 'closest',
     dragmode: false,
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
-      domain: [0, 1], // Full width
+      domain: [0, 1], 
       rangeslider: {
         range: getDefaultRange(true) 
       },
