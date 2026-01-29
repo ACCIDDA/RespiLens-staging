@@ -45,7 +45,7 @@ export const DATASETS = {
   },
   nhsn: {
     shortName: 'nhsn',
-    fullName: 'CDC Respiratory Data',
+    fullName: 'NHSN Respiratory Data',
     views: [
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
