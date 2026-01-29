@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { Group, Text, ActionIcon, Button, Box } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
@@ -10,33 +10,21 @@ const DateSelector = ({
   setActiveDate, 
   multi = true 
 }) => {
-  const targetActiveDateRef = useRef(activeDate);
-  const isInternalUpdateRef = useRef(false);
+  const [keyMovementAnchor, setKeyMovementAnchor] = useState(activeDate); // keyMovement responsible for date keydown movement
   const firstDateBoxRef = useRef(null);
 
-
-  if (activeDate && targetActiveDateRef.current !== activeDate) {
-    if (!isInternalUpdateRef.current) {
-      targetActiveDateRef.current = activeDate;
+  useEffect(() => {
+    if (activeDate) {
+      setKeyMovementAnchor(activeDate);
     }
-  }
+  }, [activeDate]);
   const hasDate = !!activeDate;
   useEffect(() => {
-    if (activeDate && firstDateBoxRef.current) {
-      const timeout = setTimeout(() => {
-        firstDateBoxRef.current?.focus();
-      }, 100);
+    if (hasDate && firstDateBoxRef.current) {
+      const timeout = setTimeout(() => firstDateBoxRef.current?.focus(), 100);
       return () => clearTimeout(timeout);
     }
-  }, [hasDate, activeDate]);
-
-  useEffect(() => {
-    if (isInternalUpdateRef.current && activeDate !== targetActiveDateRef.current) {
-      setActiveDate(targetActiveDateRef.current);
-      isInternalUpdateRef.current = false; 
-    }
-  }, [activeDate, setActiveDate]);
-
+  }, [hasDate]);
   const handleMove = useCallback((dateToMove, direction) => {
     if (!dateToMove) return;
 
@@ -52,38 +40,33 @@ const DateSelector = ({
       : (currentPositionInSelected < sortedDates.length - 1 && targetDate === sortedDates[currentPositionInSelected + 1]);
 
     if (!isBlocked) {
-      const newDates = [...selectedDates];
-      const indexInOriginal = selectedDates.indexOf(dateToMove);
-      newDates[indexInOriginal] = targetDate;
+      const newDates = selectedDates.map(d => d === dateToMove ? targetDate : d);
       
-      targetActiveDateRef.current = targetDate;
-      isInternalUpdateRef.current = true;
-
       setSelectedDates(newDates.sort());
+      
       setActiveDate(targetDate);
+      
+      setKeyMovementAnchor(targetDate);
     }
   }, [availableDates, selectedDates, setSelectedDates, setActiveDate]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      const currentTarget = targetActiveDateRef.current;
-      if (!currentTarget) return;
-      
-      // Safety check: ignore arrow keys if user is typing in an input
+      if (!keyMovementAnchor) return;
       if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        handleMove(currentTarget, -1);
+        handleMove(keyMovementAnchor, -1);
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
-        handleMove(currentTarget, 1);
+        handleMove(keyMovementAnchor, 1);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, activeDate]);
+  }, [handleMove, keyMovementAnchor]);
 
   return (
     <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
@@ -102,15 +85,14 @@ const DateSelector = ({
           </ActionIcon>
           
           <Box 
-            // Apply the auto-focus ref to the first selected date
             ref={index === 0 ? firstDateBoxRef : null}
             tabIndex={0} 
             onFocus={() => {
-              targetActiveDateRef.current = date;
+              setKeyMovementAnchor(date);
               setActiveDate(date);
             }}
             onClick={() => {
-              targetActiveDateRef.current = date;
+              setKeyMovementAnchor(date);
               setActiveDate(date);
             }}
             style={{ outline: 'none', cursor: 'pointer' }}
@@ -123,7 +105,7 @@ const DateSelector = ({
                 style={{ 
                   minWidth: 'fit-content',
                   whiteSpace: 'nowrap',
-                  textDecoration: date === activeDate ? 'underline' : 'none',
+                  textDecoration: date === keyMovementAnchor ? 'underline' : 'none',
                   textUnderlineOffset: '4px'
                 }}
               >
@@ -136,8 +118,10 @@ const DateSelector = ({
                     e.stopPropagation();
                     const newDates = selectedDates.filter(d => d !== date);
                     setSelectedDates(newDates);
-                    if (date === activeDate && newDates.length > 0) {
-                      setActiveDate(newDates[0]);
+                    if (date === keyMovementAnchor && newDates.length > 0) {
+                      const fallback = newDates[0];
+                      setActiveDate(fallback);
+                      setKeyMovementAnchor(fallback);
                     }
                   }}
                   disabled={selectedDates.length === 1}
@@ -165,6 +149,7 @@ const DateSelector = ({
         </Group>
       ))}
       
+      {/* Add Date Button */}
       {multi && selectedDates.length < 5 && (
         <Button
           onClick={() => {
@@ -182,6 +167,7 @@ const DateSelector = ({
             if (dateToAdd && !selectedDates.includes(dateToAdd)) {
               setSelectedDates([...selectedDates, dateToAdd].sort());
               setActiveDate(dateToAdd);
+              setKeyMovementAnchor(dateToAdd);
             }
           }}
           variant="light"
