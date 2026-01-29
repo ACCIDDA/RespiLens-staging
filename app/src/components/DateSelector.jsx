@@ -20,7 +20,7 @@ const DateSelector = ({
       targetActiveDateRef.current = activeDate;
     }
   }
-
+  const hasDate = !!activeDate;
   useEffect(() => {
     if (activeDate && firstDateBoxRef.current) {
       const timeout = setTimeout(() => {
@@ -28,7 +28,7 @@ const DateSelector = ({
       }, 100);
       return () => clearTimeout(timeout);
     }
-  }, [!!activeDate]);
+  }, [hasDate, activeDate]);
 
   useEffect(() => {
     if (isInternalUpdateRef.current && activeDate !== targetActiveDateRef.current) {
