@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { Group, Text, ActionIcon, Button, Box } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
@@ -10,13 +10,39 @@ const DateSelector = ({
   setActiveDate, 
   multi = true 
 }) => {
+  const targetActiveDateRef = useRef(activeDate);
+  const isInternalUpdateRef = useRef(false);
+  const firstDateBoxRef = useRef(null);
+
+
+  if (activeDate && targetActiveDateRef.current !== activeDate) {
+    if (!isInternalUpdateRef.current) {
+      targetActiveDateRef.current = activeDate;
+    }
+  }
+
+  useEffect(() => {
+    if (activeDate && firstDateBoxRef.current) {
+      const timeout = setTimeout(() => {
+        firstDateBoxRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [!!activeDate]);
+
+  useEffect(() => {
+    if (isInternalUpdateRef.current && activeDate !== targetActiveDateRef.current) {
+      setActiveDate(targetActiveDateRef.current);
+      isInternalUpdateRef.current = false; 
+    }
+  }, [activeDate, setActiveDate]);
+
   const handleMove = useCallback((dateToMove, direction) => {
     if (!dateToMove) return;
 
     const sortedDates = [...selectedDates].sort();
     const dateIndex = availableDates.indexOf(dateToMove);
     const currentPositionInSelected = sortedDates.indexOf(dateToMove);
-    
     const targetDate = availableDates[dateIndex + direction];
 
     if (!targetDate) return;
@@ -30,6 +56,9 @@ const DateSelector = ({
       const indexInOriginal = selectedDates.indexOf(dateToMove);
       newDates[indexInOriginal] = targetDate;
       
+      targetActiveDateRef.current = targetDate;
+      isInternalUpdateRef.current = true;
+
       setSelectedDates(newDates.sort());
       setActiveDate(targetDate);
     }
@@ -37,25 +66,28 @@ const DateSelector = ({
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (selectedDates.length !== 1) return;
+      const currentTarget = targetActiveDateRef.current;
+      if (!currentTarget) return;
+      
+      // Safety check: ignore arrow keys if user is typing in an input
       if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        handleMove(activeDate, -1);
+        handleMove(currentTarget, -1);
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
-        handleMove(activeDate, 1);
+        handleMove(currentTarget, 1);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeDate, handleMove, selectedDates.length]);
+  }, [handleMove, activeDate]);
 
   return (
     <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
-      {selectedDates.map((date) => (
+      {selectedDates.map((date, index) => (
         <Group key={date} gap="xs" align="center" wrap="nowrap">
           <ActionIcon
             onClick={() => handleMove(date, -1)}
@@ -65,14 +97,22 @@ const DateSelector = ({
             }
             variant="subtle"
             size={{ base: 'sm', sm: 'md' }}
-            aria-label={`Previous date from ${date}`}
           >
             <IconChevronLeft size={18} />
           </ActionIcon>
           
           <Box 
+            // Apply the auto-focus ref to the first selected date
+            ref={index === 0 ? firstDateBoxRef : null}
             tabIndex={0} 
-            onFocus={() => setActiveDate(date)}
+            onFocus={() => {
+              targetActiveDateRef.current = date;
+              setActiveDate(date);
+            }}
+            onClick={() => {
+              targetActiveDateRef.current = date;
+              setActiveDate(date);
+            }}
             style={{ outline: 'none', cursor: 'pointer' }}
           >
             <Group gap="xs" align="center" wrap="nowrap">
@@ -83,6 +123,8 @@ const DateSelector = ({
                 style={{ 
                   minWidth: 'fit-content',
                   whiteSpace: 'nowrap',
+                  textDecoration: date === activeDate ? 'underline' : 'none',
+                  textUnderlineOffset: '4px'
                 }}
               >
                 {date}
@@ -90,12 +132,18 @@ const DateSelector = ({
               
               {multi && (
                 <ActionIcon
-                  onClick={() => setSelectedDates(dates => dates.filter(d => d !== date))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newDates = selectedDates.filter(d => d !== date);
+                    setSelectedDates(newDates);
+                    if (date === activeDate && newDates.length > 0) {
+                      setActiveDate(newDates[0]);
+                    }
+                  }}
                   disabled={selectedDates.length === 1}
                   variant="subtle"
                   size="xs"
                   color="red"
-                  aria-label={`Remove date ${date}`}
                 >
                   <IconX size={10} />
                 </ActionIcon>
@@ -111,7 +159,6 @@ const DateSelector = ({
             }
             variant="subtle"
             size={{ base: 'sm', sm: 'md' }}
-            aria-label={`Next date from ${date}`}
           >
             <IconChevronRight size={18} />
           </ActionIcon>
