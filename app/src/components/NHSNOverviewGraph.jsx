@@ -13,13 +13,13 @@ const PATHOGEN_COLORS = {
   'Total RSV Admissions': '#7f7f7f'       
 };
 
-const NHSNOverviewGraph = () => {
-  const { setViewType, selectedLocation, viewType: activeViewType } = useView(); 
+const NHSNOverviewGraph = ( {location} ) => {
+  const { setViewType, viewType: activeViewType } = useView(); 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const resolvedLocation = selectedLocation || 'US';
+  const resolvedLocation = location || 'US';
   const isActive = activeViewType === 'nhsn';
 
   useEffect(() => {
@@ -85,7 +85,6 @@ const NHSNOverviewGraph = () => {
         automargin: true, 
         tickfont: { size: 10 },
         fixedrange: true,
-        range: [0, 100000]
       },
       showlegend: true,
       legend: { 

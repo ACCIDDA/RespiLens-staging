@@ -22,7 +22,7 @@ const PathogenFrontPage = () => {
         <Stack gap="md">
           <Title order={3}>Explore ground truth data</Title>
           <SimpleGrid cols={{ base: 1, sm: 2, lg:3 }} spacing="md">
-            <NHSNOverviewGraph />
+            <NHSNOverviewGraph location={selectedLocation}/>
           </SimpleGrid>
         </Stack>
       </Paper>
