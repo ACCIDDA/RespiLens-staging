@@ -60,7 +60,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   }, []); 
 
   const projectionsData = useMemo(() => {
-    const targetForProjections = (viewType === 'flu' || viewType === 'flu_projs') 
+    const targetForProjections = (viewType === 'flu' || viewType === 'flu_forecasts') 
       ? selectedTarget 
       : 'wk inc flu hosp';
 
@@ -216,11 +216,11 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       return activeModelSet;
     }
 
-    const targetForProjections = (viewType === 'flu' || viewType === 'flu_projs') 
+    const targetForProjections = (viewType === 'flu' || viewType === 'flu_forecasts') 
       ? selectedTarget 
       : 'wk inc flu hosp';
 
-    if ((viewType === 'flu' || viewType === 'flu_projs') && !targetForProjections) return activeModelSet;
+    if ((viewType === 'flu' || viewType === 'flu_forecasts') && !targetForProjections) return activeModelSet;
 
     selectedDates.forEach(date => {
       const forecastsForDate = forecasts[date];

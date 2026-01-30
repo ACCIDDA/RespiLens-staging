@@ -103,7 +103,7 @@ const ViewSwitchboard = ({
   // Render appropriate view based on viewType
   switch (viewType) {
     case 'fludetailed':
-    case 'flu_projs':
+    case 'flu_forecasts':
     case 'flu_peak':
       return (
         <FluView
@@ -124,7 +124,7 @@ const ViewSwitchboard = ({
         />
       );
 
-    case 'rsv_projs':
+    case 'rsv_forecasts':
       return (
         <RSVView
           data={data}
@@ -140,7 +140,7 @@ const ViewSwitchboard = ({
         />
       );
 
-    case 'covid_projs':
+    case 'covid_forecasts':
       return(
         <COVID19View
           data={data}
@@ -163,7 +163,7 @@ const ViewSwitchboard = ({
         />
       );
 
-    case 'metrocast_projs': 
+    case 'metrocast_forecasts': 
       return (
         <MetroCastView
           data={data}

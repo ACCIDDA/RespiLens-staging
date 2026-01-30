@@ -7,15 +7,15 @@ import { DATASETS } from '../config';
 import { useView } from '../hooks/useView';
 
 const DEFAULT_TARGETS = {
-  covid_projs: 'wk inc covid hosp',
-  flu_projs: 'wk inc flu hosp',
-  rsv_projs: 'wk inc rsv hosp'
+  covid_forecasts: 'wk inc covid hosp',
+  flu_forecasts: 'wk inc flu hosp',
+  rsv_forecasts: 'wk inc rsv hosp'
 };
 
 const VIEW_TO_DATASET = {
-  covid_projs: 'covid',
-  flu_projs: 'flu',
-  rsv_projs: 'rsv'
+  covid_forecasts: 'covid',
+  flu_forecasts: 'flu',
+  rsv_forecasts: 'rsv'
 };
 
 const getRangeAroundDate = (dateStr, weeksBefore = 4, weeksAfter = 4) => {

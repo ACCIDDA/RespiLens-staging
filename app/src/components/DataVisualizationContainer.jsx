@@ -35,7 +35,7 @@ const DataVisualizationContainer = () => {
 
   // Configuration for AboutHubOverlay based on viewType
   const aboutHubConfig = {
-    'covid_projs': {
+    'covid_forecasts': {
       title: (
         <Group gap="sm">
           <Title order={4}>COVID-19 Forecast Hub</Title>
@@ -71,7 +71,7 @@ const DataVisualizationContainer = () => {
         </>
       )
     },
-    'rsv_projs': {
+    'rsv_forecasts': {
       title: (
         <Group gap="sm">
           <Title order={4}>RSV Forecast Hub</Title>
@@ -140,7 +140,7 @@ const DataVisualizationContainer = () => {
         </>
       )
     },
-    'flu_projs': {
+    'flu_forecasts': {
       title: (
         <Group gap="sm">
           <Title order={4}>FluSight Forecast Hub</Title>
@@ -206,7 +206,7 @@ const DataVisualizationContainer = () => {
         </>
       )
     },
-    'metrocast_projs': {
+    'metrocast_forecasts': {
       title: (
         <Group gap="sm">
           <Title order={4}>Flu MetroCast</Title>
