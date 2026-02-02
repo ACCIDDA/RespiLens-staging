@@ -9,7 +9,11 @@ const PathogenFrontPage = () => {
 
   return (
     <Stack>
-      <Announcement startDate={'2026-02-01'} endDate={'2026-02-03'} text={"test test test"} announcementType={"update"} />
+      <Announcement startDate={'2026-02-01'} endDate={'2026-02-03'} text={
+        <span>
+          Check out our new <a href="https://www.respilens.com/?view=metrocast_projs" style={{ color: 'inherit', fontWeight: 700 }}>Flu MetroCast forecasts</a>!
+        </span>
+      } announcementType={"update"} />
       <Paper shadow="sm" p="lg" radius="md" withBorder>
         <Stack gap="md">
           <Title order={3}>Explore forecasts by pathogen</Title>

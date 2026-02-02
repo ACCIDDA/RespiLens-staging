@@ -1,6 +1,10 @@
 import { Paper, Group, Text, ThemeIcon, Stack } from '@mantine/core';
 import { IconSpeakerphone, IconAlertSquareRounded } from '@tabler/icons-react';
 
+// An announcement (per this component) can be one of two things:
+// an `alert`: text is displayed in a yellow bubble
+// an `update`: text is displayed in a blue bubble
+
 const Announcement = ({ startDate, endDate, text, announcementType }) => {
   const currentDate = new Date();
   const start = new Date(startDate);
@@ -53,7 +57,7 @@ const Announcement = ({ startDate, endDate, text, announcementType }) => {
                 <IconSpeakerphone size={14} />
               </ThemeIcon>
               <Text size="sm" fw={500} c="blue.9">
-                <strong>New features:</strong> {text}
+                <strong>Update:</strong> {text}
               </Text>
             </Group>
           </Group>
