@@ -1,6 +1,7 @@
 import { SimpleGrid, Stack, Title, Paper } from '@mantine/core';
 import PathogenOverviewGraph from './PathogenOverviewGraph';
 import NHSNOverviewGraph from './NHSNOverviewGraph'
+import Announcement from './Announcement'
 import { useView } from '../hooks/useView';
 
 const PathogenFrontPage = () => {
@@ -8,6 +9,7 @@ const PathogenFrontPage = () => {
 
   return (
     <Stack>
+      <Announcement startDate={'2026-02-01'} endDate={'2026-02-03'} text={"test test test"} announcementType={"update"} />
       <Paper shadow="sm" p="lg" radius="md" withBorder>
         <Stack gap="md">
           <Title order={3}>Explore forecasts by pathogen</Title>
