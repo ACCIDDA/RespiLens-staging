@@ -10,14 +10,21 @@ const Announcement = ({ startDate, endDate, text, announcementType }) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  const isVisible = currentDate >= start && currentDate <= end;
+  const validTypes = ['update', 'alert'];
+  if (!validTypes.includes(announcementType)) {
+    console.error(
+      `[Announcement Error]: Invalid type "${announcementType}". ` +
+      `Expected "update" or "alert". Check <Announcement /> props in PathogenFrontPage.jsx.`
+    );
+  }
 
+  const isVisible = currentDate >= start && currentDate <= end;
   if (!isVisible) return null;
 
   return (
     <Stack>
       {announcementType === 'alert' ? (
-        /* Alert Banner */
+        /* alert Banner */
         <Paper
           withBorder
           p="xs"
@@ -40,7 +47,7 @@ const Announcement = ({ startDate, endDate, text, announcementType }) => {
           </Group>
         </Paper>
       ) : (
-        /* Update Banner */
+        /* update Banner */
         <Paper
           withBorder
           p="xs"
