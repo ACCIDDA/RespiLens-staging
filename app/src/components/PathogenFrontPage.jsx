@@ -11,7 +11,7 @@ const PathogenFrontPage = () => {
     <Stack>
       <Announcement id={"new-metrocast"} startDate={'2026-02-01'} endDate={'2026-02-28'} text={
         <span>
-          Check out our new <a href="https://www.respilens.com/?view=metrocast_projs" style={{ color: 'inherit', fontWeight: 700 }}>Flu MetroCast forecasts</a>!
+          RespiLens now displays <a href="https://www.respilens.com/?view=metrocast_projs" style={{ color: 'inherit', fontWeight: 700 }}>Flu MetroCast forecasts</a>!
         </span>
       } announcementType={"update"} />
       <Announcement id={"hub-seasonal-warning"} startDate={'2026-05-31'} endDate={'2026-11-10'} announcementType={'alert'} text={
@@ -30,7 +30,7 @@ const PathogenFrontPage = () => {
       </Paper>
       <Paper shadow="sm" p="lg" radius="md" withBorder>
         <Stack gap="md">
-          <Title order={3}>Explore ground truth data</Title>
+          <Title order={3}>Explore surveillance data</Title>
           <SimpleGrid cols={{ base: 1, sm: 2, lg:3 }} spacing="md">
             <NHSNOverviewGraph location={selectedLocation}/>
           </SimpleGrid>
