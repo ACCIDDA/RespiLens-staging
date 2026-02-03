@@ -48,14 +48,22 @@ const NHSNOverviewGraph = ( {location} ) => {
   }, [resolvedLocation]);
 
   const { traces, layout } = useMemo(() => {
-    if (!data || !data.series) return { traces: [], layout: {} };
+    if (!data || !data.series || !data.series.dates) return { traces: [], layout: {} };
+
+    const dates = data.series.dates;
+    const lastDateStr = dates[dates.length - 1];
+    const lastDate = new Date(lastDateStr);
+    const twoMonthsAgo = new Date(lastDate);
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    
+    const xRange = [twoMonthsAgo.toISOString().split('T')[0], lastDateStr];
 
     const activeTraces = DEFAULT_COLS.map((col) => {
       const yData = data.series[col];
       if (!yData) return null;
 
       return {
-        x: data.series.dates,
+        x: dates,
         y: yData,
         name: col.replace('Total ', '').replace(' Admissions', ''),
         type: 'scatter',
@@ -68,20 +76,47 @@ const NHSNOverviewGraph = ( {location} ) => {
       };
     }).filter(Boolean);
 
-    const dates = data.series.dates;
-    const lastDate = new Date(dates[dates.length - 1]);
-    const twoMonthsAgo = new Date(lastDate);
-    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    activeTraces.forEach((trace) => {
+      trace.x.forEach((dateVal, i) => {
+        const currentPointDate = new Date(dateVal);
+        if (currentPointDate >= twoMonthsAgo && currentPointDate <= lastDate) {
+          const val = trace.y[i];
+          if (val !== null && val !== undefined && !Number.isNaN(val)) {
+            minY = Math.min(minY, val);
+            maxY = Math.max(maxY, val);
+          }
+        }
+      });
+    });
+
+    if (minY === Infinity || maxY === -Infinity) {
+      minY = 0;
+      maxY = 100;
+    }
+
+
+    const diff = maxY - minY;
+    const paddingTop = diff * 0.15; // 15% headroom
+    const paddingBottom = diff * 0.05;
+
+    const dynamicYRange = [
+      Math.max(0, minY - paddingBottom), // Maintain 0 as a hard floor for admissions
+      maxY + paddingTop
+    ];
 
     const layoutConfig = {
       height: 280,
-      margin: { l: 40, r: 20, t: 10, b: 40 },
+      margin: { l: 45, r: 20, t: 10, b: 40 },
       xaxis: {
-        range: [twoMonthsAgo.toISOString().split('T')[0], lastDate.toISOString().split('T')[0]],
+        range: xRange,
         showgrid: false,
         tickfont: { size: 10 }
       },
       yaxis: { 
+        range: dynamicYRange,
         automargin: true, 
         tickfont: { size: 10 },
         fixedrange: true,
