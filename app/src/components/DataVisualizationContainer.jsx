@@ -6,7 +6,7 @@ import DateSelector from './DateSelector';
 import ViewSwitchboard from './ViewSwitchboard';
 import ErrorBoundary from './ErrorBoundary';
 import AboutHubOverlay from './AboutHubOverlay';
-import PathogenFrontPage from './PathogenFrontPage';
+import FrontPage from './FrontPage';
 import { IconShare, IconBrandGithub } from '@tabler/icons-react';
 import { useClipboard } from '@mantine/hooks';
 
@@ -284,7 +284,7 @@ const DataVisualizationContainer = () => {
         </Helmet>
         <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
           <Stack gap="lg">
-            <PathogenFrontPage />
+            <FrontPage />
           </Stack>
         </Container>
       </ErrorBoundary>
