@@ -3,11 +3,11 @@ export const DATASETS = {
     shortName: 'flu',
     fullName: 'Flu Forecasts',
     views: [
-      { key: 'detailed', label: 'Detailed View', value: 'fludetailed' },
-      { key: 'projections', label: 'Projections', value: 'flu_projs' },
-      { key: 'peak', label: "Peak", value: 'flu_peak'}
+      { key: 'detailed', label: 'Detailed Forecasts View', value: 'fludetailed' },
+      { key: 'forecasts', label: 'Forecasts', value: 'flu_forecasts' },
+      { key: 'peak', label: "Peak Forecasts", value: 'flu_peak'}
     ],
-    defaultView: 'flu_projs',
+    defaultView: 'flu_forecasts',
     defaultModel: 'FluSight-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -19,9 +19,9 @@ export const DATASETS = {
     shortName: 'rsv',
     fullName: 'RSV Forecasts',
     views: [
-      { key: 'projections', label: 'Projections', value: 'rsv_projs' }
+      { key: 'forecasts', label: 'Forecasts', value: 'rsv_forecasts' }
     ],
-    defaultView: 'rsv_projs',
+    defaultView: 'rsv_forecasts',
     defaultModel: 'RSVHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -33,9 +33,9 @@ export const DATASETS = {
     shortName: 'covid',
     fullName: 'COVID-19 Forecasts',
     views: [
-      { key: 'projections', label: 'Projections', value: 'covid_projs' }
+      { key: 'forecasts', label: 'Forecasts', value: 'covid_forecasts' }
     ],
-    defaultView: 'covid_projs',
+    defaultView: 'covid_forecasts',
     defaultModel: 'CovidHub-ensemble',
     hasDateSelector: true,
     hasModelSelector: true,
@@ -45,7 +45,7 @@ export const DATASETS = {
   },
   nhsn: {
     shortName: 'nhsn',
-    fullName: 'CDC Respiratory Data',
+    fullName: 'NHSN Respiratory Data',
     views: [
       { key: 'all', label: 'All Data', value: 'nhsnall' }
     ],
@@ -60,11 +60,11 @@ export const DATASETS = {
     shortName: 'metrocast',
     fullName: 'Flu MetroCast Forecasts',
     views: [
-      { key: 'projections', label: 'Projections', value: 'metrocast_projs' }
+      { key: 'forecasts', label: 'Forecasts', value: 'metrocast_forecasts' }
     ],
-    defaultView: 'metrocast_projs',
+    defaultView: 'metrocast_forecasts',
     defaultModel: 'epiENGAGE-ensemble_mean', 
-    defaultLocation: 'boulder',
+    defaultLocation: 'colorado',
     hasDateSelector: true,
     hasModelSelector: true,
     prefix: 'metrocast',

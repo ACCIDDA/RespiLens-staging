@@ -1,116 +1,175 @@
-import { Group, Text, ActionIcon, Button } from '@mantine/core';
+import { useEffect, useCallback, useRef, useState } from 'react';
+import { Group, Text, ActionIcon, Button, Box } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight, IconX, IconPlus } from '@tabler/icons-react';
 
-const DateSelector = ({ availableDates, selectedDates, setSelectedDates, activeDate, setActiveDate, multi = true }) => {
+const DateSelector = ({ 
+  availableDates, 
+  selectedDates, 
+  setSelectedDates, 
+  activeDate, 
+  setActiveDate, 
+  multi = true 
+}) => {
+  const [keyMovementAnchor, setKeyMovementAnchor] = useState(activeDate); // keyMovement responsible for date keydown movement
+  const firstDateBoxRef = useRef(null);
+
+  useEffect(() => {
+    if (activeDate) {
+      setKeyMovementAnchor(activeDate);
+    }
+  }, [activeDate]);
+  const hasDate = !!activeDate;
+  useEffect(() => {
+    if (hasDate && firstDateBoxRef.current) {
+      const timeout = setTimeout(() => firstDateBoxRef.current?.focus(), 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [hasDate]);
+  const handleMove = useCallback((dateToMove, direction) => {
+    if (!dateToMove) return;
+
+    const sortedDates = [...selectedDates].sort();
+    const dateIndex = availableDates.indexOf(dateToMove);
+    const currentPositionInSelected = sortedDates.indexOf(dateToMove);
+    const targetDate = availableDates[dateIndex + direction];
+
+    if (!targetDate) return;
+
+    const isBlocked = direction === -1 
+      ? (currentPositionInSelected > 0 && targetDate === sortedDates[currentPositionInSelected - 1])
+      : (currentPositionInSelected < sortedDates.length - 1 && targetDate === sortedDates[currentPositionInSelected + 1]);
+
+    if (!isBlocked) {
+      const newDates = selectedDates.map(d => d === dateToMove ? targetDate : d);
+      
+      setSelectedDates(newDates.sort());
+      
+      setActiveDate(targetDate);
+      
+      setKeyMovementAnchor(targetDate);
+    }
+  }, [availableDates, selectedDates, setSelectedDates, setActiveDate]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (!keyMovementAnchor) return;
+      if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handleMove(keyMovementAnchor, -1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handleMove(keyMovementAnchor, 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleMove, keyMovementAnchor]);
+
   return (
     <Group gap={{ base: 'xs', sm: 'md' }} justify="center" wrap="wrap">
-      {selectedDates.map((date) => (
+      {selectedDates.map((date, index) => (
         <Group key={date} gap="xs" align="center" wrap="nowrap">
           <ActionIcon
-            onClick={() => {
-              const sortedDates = selectedDates.slice().sort();
-              const dateIndex = availableDates.indexOf(date);
-              const currentPosition = sortedDates.indexOf(date);
-              const prevDate = availableDates[dateIndex - 1];
-
-              if (prevDate && (!sortedDates[currentPosition - 1] || new Date(prevDate) > new Date(sortedDates[currentPosition - 1]))) {
-                const newDates = [...selectedDates];
-                newDates[selectedDates.indexOf(date)] = prevDate;
-                setSelectedDates(newDates.sort());
-                setActiveDate(prevDate);
-              }
-            }}
+            onClick={() => handleMove(date, -1)}
             disabled={
               availableDates.indexOf(date) === 0 ||
-              (selectedDates.includes(availableDates[availableDates.indexOf(date) - 1]))
+              selectedDates.includes(availableDates[availableDates.indexOf(date) - 1])
             }
             variant="subtle"
             size={{ base: 'sm', sm: 'md' }}
-            aria-label={`Previous date from ${date}`}
           >
             <IconChevronLeft size={18} />
           </ActionIcon>
           
-          <Group gap="xs" align="center" wrap="nowrap">
-            <Text 
-              fw={500} 
-              c={date === activeDate ? 'blue' : 'dimmed'}
-              size={{ base: 'xs', sm: 'sm' }}
-              style={{ 
-                minWidth: 'fit-content',
-                whiteSpace: 'nowrap' 
-              }}
-            >
-              {date}
-            </Text>
-            {multi && ( // only show `x` icon when multi == True
-              <ActionIcon
-                onClick={() => setSelectedDates(dates => dates.filter(d => d !== date))}
-                disabled={selectedDates.length === 1}
-                variant="subtle"
-                size="xs"
-                color="red"
-                aria-label={`Remove date ${date}`}
+          <Box 
+            ref={index === 0 ? firstDateBoxRef : null}
+            tabIndex={0} 
+            onFocus={() => {
+              setKeyMovementAnchor(date);
+              setActiveDate(date);
+            }}
+            onClick={() => {
+              setKeyMovementAnchor(date);
+              setActiveDate(date);
+            }}
+            style={{ outline: 'none', cursor: 'pointer' }}
+          >
+            <Group gap="xs" align="center" wrap="nowrap">
+              <Text 
+                fw={500} 
+                c={date === activeDate ? 'blue' : 'dimmed'}
+                size={{ base: 'xs', sm: 'sm' }}
+                style={{ 
+                  minWidth: 'fit-content',
+                  whiteSpace: 'nowrap',
+                  textDecoration: date === keyMovementAnchor ? 'underline' : 'none',
+                  textUnderlineOffset: '4px'
+                }}
               >
-                <IconX size={10} />
-              </ActionIcon>
-            )}
-          </Group>
+                {date}
+              </Text>
+              
+              {multi && (
+                <ActionIcon
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newDates = selectedDates.filter(d => d !== date);
+                    setSelectedDates(newDates);
+                    if (date === keyMovementAnchor && newDates.length > 0) {
+                      const fallback = newDates[0];
+                      setActiveDate(fallback);
+                      setKeyMovementAnchor(fallback);
+                    }
+                  }}
+                  disabled={selectedDates.length === 1}
+                  variant="subtle"
+                  size="xs"
+                  color="red"
+                >
+                  <IconX size={10} />
+                </ActionIcon>
+              )}
+            </Group>
+          </Box>
 
           <ActionIcon
-            onClick={() => {
-              const sortedDates = selectedDates.slice().sort();
-              const dateIndex = availableDates.indexOf(date);
-              const currentPosition = sortedDates.indexOf(date);
-              const nextDate = availableDates[dateIndex + 1];
-
-              if (nextDate && (!sortedDates[currentPosition + 1] || new Date(nextDate) < new Date(sortedDates[currentPosition + 1]))) {
-                const newDates = [...selectedDates];
-                newDates[selectedDates.indexOf(date)] = nextDate;
-                setSelectedDates(newDates.sort());
-                setActiveDate(nextDate);
-              }
-            }}
+            onClick={() => handleMove(date, 1)}
             disabled={
               availableDates.indexOf(date) === availableDates.length - 1 ||
-              (selectedDates.includes(availableDates[availableDates.indexOf(date) + 1]))
+              selectedDates.includes(availableDates[availableDates.indexOf(date) + 1])
             }
             variant="subtle"
             size={{ base: 'sm', sm: 'md' }}
-            aria-label={`Next date from ${date}`}
           >
             <IconChevronRight size={18} />
           </ActionIcon>
         </Group>
       ))}
       
-      {multi && selectedDates.length < 5 && ( // only show add button if multi == True
+      {/* Add Date Button */}
+      {multi && selectedDates.length < 5 && (
         <Button
           onClick={() => {
-            if (selectedDates.length >= 5) return;
-            
-            const sortedSelectedDates = selectedDates.slice().sort();
-            const latestSelectedDate = sortedSelectedDates[sortedSelectedDates.length - 1];
-            const earliestSelectedDate = sortedSelectedDates[0];
-            const latestSelectedIdx = availableDates.indexOf(latestSelectedDate);
-            const earliestSelectedIdx = availableDates.indexOf(earliestSelectedDate);
+            const sorted = [...selectedDates].sort();
+            const latestIdx = availableDates.indexOf(sorted[sorted.length - 1]);
+            const earliestIdx = availableDates.indexOf(sorted[0]);
             
             let dateToAdd;
-            
-            if (latestSelectedIdx === availableDates.length - 1) {
-              if (earliestSelectedIdx > 0) {
-                dateToAdd = availableDates[earliestSelectedIdx - 1];
-              }
-            } else {
-              dateToAdd = availableDates[latestSelectedIdx + 1];
+            if (latestIdx < availableDates.length - 1) {
+              dateToAdd = availableDates[latestIdx + 1];
+            } else if (earliestIdx > 0) {
+              dateToAdd = availableDates[earliestIdx - 1];
             }
 
             if (dateToAdd && !selectedDates.includes(dateToAdd)) {
               setSelectedDates([...selectedDates, dateToAdd].sort());
               setActiveDate(dateToAdd);
+              setKeyMovementAnchor(dateToAdd);
             }
           }}
-          disabled={selectedDates.length >= 5}
           variant="light"
           size="xs"
           leftSection={<IconPlus size={14} />}

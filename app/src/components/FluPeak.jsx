@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Stack, useMantineColorScheme, Switch, Group } from '@mantine/core';
+import { Stack, useMantineColorScheme, Switch, Group, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector'; 
 import { MODEL_COLORS } from '../config/datasets'; 
@@ -35,6 +35,7 @@ const FluPeak = ({
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
     const [showUncertainty, setShowUncertainty] = useState(true);
+    const stateName = data?.metadata?.location_name;
 
     const getNormalizedDate = (dateStr) => {
         const d = new Date(dateStr);
@@ -433,7 +434,6 @@ const FluPeak = ({
         hoverlabel: { namelength: -1 },
         dragmode: false, 
         xaxis: { 
-            title: 'Month', 
             tickformat: '%b' 
         },
         yaxis: { title: 'Flu Hospitalizations', rangemode: 'tozero' },
@@ -498,6 +498,9 @@ const FluPeak = ({
                     useResizeHandler={true}
                 />
             </div>
+            <Text fw={700} size="sm" mb={5} ta="center">
+                {stateName}
+            </Text>
             <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
               <p style={{ 
                 fontStyle: 'italic', 

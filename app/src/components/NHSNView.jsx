@@ -41,6 +41,7 @@ const NHSNView = ({ location }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
+  const stateName = data?.metadata?.location_name;
 
   const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
@@ -438,7 +439,9 @@ const NHSNView = ({ location }) => {
   return (
     <Stack gap="md" w="100%">
       <LastFetched timestamp={metadata?.last_updated} />
-
+      <Text fw={700} size="sm" mb={5} ta="center">
+        {stateName}
+      </Text>
       <Plot
         ref={plotRef} 
         data={traces}

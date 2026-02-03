@@ -116,7 +116,12 @@ export const ViewProvider = ({ children }) => {
 
     setSelectedModels(current => JSON.stringify(current) !== JSON.stringify(modelsToSet) ? modelsToSet : current);
     setSelectedDates(current => JSON.stringify(current) !== JSON.stringify(datesToSet) ? datesToSet : current);
-    setActiveDate(datesToSet.length > 0 ? datesToSet[datesToSet.length - 1] : null);
+    setActiveDate(currentActive => {
+      if (currentActive && datesToSet.includes(currentActive)) {
+        return currentActive;
+      }
+      return datesToSet.length > 0 ? datesToSet[datesToSet.length - 1] : null;
+    });
 
     if (targetToSet && targetToSet !== selectedTarget) {
       setSelectedTarget(targetToSet);

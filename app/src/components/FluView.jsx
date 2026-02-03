@@ -15,8 +15,8 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   const plotRef = useRef(null);
   const isResettingRef = useRef(false); 
   const debounceTimerRef = useRef(null);
+  const stateName = data?.metadata?.location_name;
   
-  // Refs to hold the latest versions of props/data for the reset button
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
 
@@ -26,7 +26,6 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
   const lastSelectedDate = useMemo(() => {
     if (selectedDates.length === 0) return null;
-    // Find the latest date
     return selectedDates.slice().sort().pop();
   }, [selectedDates]);
 
@@ -61,7 +60,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
   }, []); 
 
   const projectionsData = useMemo(() => {
-    const targetForProjections = (viewType === 'flu' || viewType === 'flu_projs') 
+    const targetForProjections = (viewType === 'flu' || viewType === 'flu_forecasts') 
       ? selectedTarget 
       : 'wk inc flu hosp';
 
@@ -81,7 +80,8 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
       type: 'scatter',
       mode: 'lines+markers',
       line: { color: 'black', width: 2, dash: 'dash' },
-      marker: { size: 4, color: 'black' }
+      marker: { size: 4, color: 'black' },
+      hovertemplate: '<b>Observed Data</b><br>Date: %{x}<br>Value: <b>%{y}</b><extra></extra>'
     };
 
     const modelTraces = selectedModels.flatMap(model =>
@@ -91,9 +91,13 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
 
         if (!forecast) return [];
         const forecastDates = [], medianValues = [], ci95Upper = [], ci95Lower = [], ci50Upper = [], ci50Lower = [];
+        const hoverTexts = [];
+
         const sortedPredictions = Object.entries(forecast.predictions || {}).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
+        
         sortedPredictions.forEach(([, pred]) => {
-          forecastDates.push(pred.date);
+          const pointDate = pred.date;
+          forecastDates.push(pointDate);
           if (forecast.type !== 'quantile') return;
           const { quantiles = [], values = [] } = pred;
           
@@ -102,26 +106,63 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
             return idx !== -1 ? values[idx] : 0;
           };
 
-          ci95Lower.push(findValue(0.025));
-          ci50Lower.push(findValue(0.25));
-          medianValues.push(findValue(0.5));
-          ci50Upper.push(findValue(0.75));
-          ci95Upper.push(findValue(0.975));
+          const v025 = findValue(0.025);
+          const v25 = findValue(0.25);
+          const v50 = findValue(0.5);
+          const v75 = findValue(0.75);
+          const v975 = findValue(0.975);
+
+          ci95Lower.push(v025);
+          ci50Lower.push(v25);
+          medianValues.push(v50);
+          ci50Upper.push(v75);
+          ci95Upper.push(v975);
+
+          const formattedMedian = v50.toLocaleString(undefined, { maximumFractionDigits: 2 });
+          const formatted50 = `${v25.toLocaleString(undefined, { maximumFractionDigits: 2 })} - ${v75.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+          const formatted95 = `${v025.toLocaleString(undefined, { maximumFractionDigits: 2 })} - ${v975.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+          hoverTexts.push(
+            `<b>${model}</b><br>` +
+            `Date: ${pointDate}<br>` +
+            `Median: <b>${formattedMedian}</b><br>` +
+            `50% CI: [${formatted50}]<br>` +
+            `95% CI: [${formatted95}]<br>` +
+            `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${date}</span>` +
+            `<extra></extra>`
+          );
         });
+
         const modelColor = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
         const isFirstDate = dateIndex === 0; 
 
         return [
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, legendgroup: model },
-          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, legendgroup: model },
-          { x: forecastDates, y: medianValues, name: model, type: 'scatter', mode: 'lines+markers', line: { color: modelColor, width: 2, dash: 'solid' }, marker: { size: 6, color: modelColor }, showlegend: isFirstDate, legendgroup: model }
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, legendgroup: model, hoverinfo: 'none' },
+          { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, legendgroup: model, hoverinfo: 'none' },
+          { 
+            x: forecastDates, 
+            y: medianValues, 
+            name: model, 
+            type: 'scatter', 
+            mode: 'lines+markers', 
+            line: { color: modelColor, width: 2, dash: 'solid' }, 
+            marker: { size: 6, color: modelColor }, 
+            showlegend: isFirstDate, 
+            legendgroup: model,
+            text: hoverTexts,
+            hovertemplate: '%{text}',
+            hoverlabel: {
+              bgcolor: modelColor,
+              font: { color: '#ffffff' },
+              bordercolor: '#ffffff'
+            }
+          }
         ];
       })
     );
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruth, forecasts, selectedDates, selectedModels, viewType, selectedTarget]);
 
-  // Update Refs on every render
   useEffect(() => {
     getDefaultRangeRef.current = getDefaultRange;
     projectionsDataRef.current = projectionsData;
@@ -140,7 +181,19 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         category: cat.replace('_', '<br>'),
         value: (horizon0.probabilities[horizon0.categories.indexOf(cat)] || 0) * 100
       }));
-      return { name: `${model} (${lastSelectedDate})`, y: orderedData.map(d => d.category), x: orderedData.map(d => d.value), type: 'bar', orientation: 'h', marker: { color: modelColor }, showlegend: true, legendgroup: 'histogram', xaxis: 'x2', yaxis: 'y2' };
+      return { 
+        name: `${model} (${lastSelectedDate})`, 
+        y: orderedData.map(d => d.category), 
+        x: orderedData.map(d => d.value), 
+        type: 'bar', 
+        orientation: 'h', 
+        marker: { color: modelColor }, 
+        showlegend: true, 
+        legendgroup: 'histogram', 
+        xaxis: 'x2', 
+        yaxis: 'y2',
+        hovertemplate: '<b>%{fullData.name}</b><br>%{y}: %{x:.1f}%<extra></extra>'
+      };
     }).filter(Boolean);
   }, [forecasts, selectedDates, selectedModels, lastSelectedDate]);
 
@@ -157,19 +210,17 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
     return [...projectionsData, ...histogramTraces];
   }, [projectionsData, rateChangeData, viewType]);
 
-  // activeModel logic for flu_projs and flu_detailed views
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
-    // Don't run this logic if we are in peak view
     if (viewType === 'flu_peak' || !forecasts || !selectedDates.length) {
       return activeModelSet;
     }
 
-    const targetForProjections = (viewType === 'flu' || viewType === 'flu_projs') 
+    const targetForProjections = (viewType === 'flu' || viewType === 'flu_forecasts') 
       ? selectedTarget 
       : 'wk inc flu hosp';
 
-    if ((viewType === 'flu' || viewType === 'flu_projs') && !targetForProjections) return activeModelSet;
+    if ((viewType === 'flu' || viewType === 'flu_forecasts') && !targetForProjections) return activeModelSet;
 
     selectedDates.forEach(date => {
       const forecastsForDate = forecasts[date];
@@ -226,7 +277,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
           setXAxisRange(newXRange);
         }
-      }, 100); // 100ms debounce window
+      }, 100); 
     }
   }, [xAxisRange]);
 
@@ -260,7 +311,7 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         size: 10
       }
     },
-    hovermode: 'x unified',
+    hovermode: 'closest',
     dragmode: false, 
     margin: { l: 60, r: 30, t: 30, b: 30 },
     xaxis: {
@@ -301,16 +352,16 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
         }
       };
     }),
+    hoverlabel: { namelength: -1 },
     ...(viewType === 'fludetailed' ? {
       xaxis2: {
         title: {
           text: `displaying date ${lastSelectedDate || 'N/A'}`, 
           font: {
             family: 'Arial, sans-serif', 
-            size: 13,                   
+            size: 13,                    
             color: '#1f77b4'
           },
-          // Add space below the tick labels
           standoff: 10 
         },
         domain: [0.85, 1],
@@ -407,6 +458,9 @@ const FluView = ({ data, metadata, selectedDates, selectedModels, models, setSel
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
+      <Text fw={700} size="sm" mb={5} ta="center">
+        {stateName}
+      </Text>
       <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
               <p style={{ 
                 fontStyle: 'italic', 
