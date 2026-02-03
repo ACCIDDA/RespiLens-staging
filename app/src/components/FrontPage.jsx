@@ -4,6 +4,30 @@ import NHSNOverviewGraph from './NHSNOverviewGraph'
 import Announcement from './Announcement'
 import { useView } from '../hooks/useView';
 
+const FluPeakLink = () => {
+  const { setViewType } = useView();
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    setViewType('flu_peak');
+  };
+
+  return (
+    <span>
+      RespiLens now displays{' '}
+      <Anchor
+        component="button"
+        onClick={handleClick}
+        fw={700}
+        c="blue.7"
+        style={{ fontSize: 'inherit', veriticalAlign: 'baseline' }}
+      >
+        flu peak forecasts;
+      </Anchor>
+      {' '}forecasts for peak of the current influenza season.
+    </span>
+  )
+}
 const MetroCastLink = () => {
   const { setViewType } = useView();
 
@@ -37,13 +61,17 @@ const FrontPage = () => {
       <Announcement 
         id="new-metrocast-2026" 
         startDate="2026-02-01" 
-        endDate="2026-03-01" 
+        endDate="2026-03-15" 
         announcementType="update"
         text={<MetroCastLink />} 
       />
-      <Announcement id={"new-flu-peak"} startDate={'2026-02-01'} endDate={'2026-03-01'} text={
-        "RespiLens now displays flu peak projections!"
-      } announcementType={"update"} />
+      <Announcement
+        id="new-flu-peaks-2026"
+        startDate="2026-02-01"
+        endDate="2026-03-01"
+        announcementType={"update"}
+        text={<FluPeakLink />}
+      />
       <Announcement id={"hub-seasonal-warning"} startDate={'2026-05-31'} endDate={'2026-11-10'} announcementType={'alert'} text={
         "Forecast hubs are out of season. Forecasting will begin again in Novembor."
       }
