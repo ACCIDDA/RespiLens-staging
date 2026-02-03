@@ -31,7 +31,7 @@ const StateSelector = () => {
 
     const fetchStates = async () => { // different fetching/ordering if it is metrocast vs. other views
       try {
-        const isMetro = viewType === 'metrocast_projs';
+        const isMetro = viewType === 'metrocast_forecasts';
         const directory = isMetro ? 'flumetrocast' : 'flusight';
         
         const manifestResponse = await fetch(
@@ -184,7 +184,7 @@ const StateSelector = () => {
                                               !isSelected;
 
               // Only apply nested styling in Metrocast view
-              const isCity = viewType === 'metrocast_projs' && state.location_name.includes(',');
+              const isCity = viewType === 'metrocast_forecasts' && state.location_name.includes(',');
 
               let variant = 'subtle';
               let color = 'blue';

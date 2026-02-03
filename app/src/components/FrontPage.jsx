@@ -1,19 +1,46 @@
-import { SimpleGrid, Stack, Title, Paper } from '@mantine/core';
+import { SimpleGrid, Stack, Title, Paper, Anchor } from '@mantine/core';
 import PathogenOverviewGraph from './PathogenOverviewGraph';
 import NHSNOverviewGraph from './NHSNOverviewGraph'
 import Announcement from './Announcement'
 import { useView } from '../hooks/useView';
 
-const PathogenFrontPage = () => {
+const MetroCastLink = () => {
+  const { setViewType } = useView();
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    setViewType('metrocast_forecasts');
+  };
+
+  return (
+    <span>
+      RespiLens now displays{' '}
+      <Anchor 
+        component="button" 
+        onClick={handleClick}
+        fw={700}
+        c="blue.7" 
+        style={{ fontSize: 'inherit', verticalAlign: 'baseline' }}
+      >
+        flu MetroCast forecasts;
+      </Anchor>
+      {' '}metro area-level flu forecasts.
+    </span>
+  );
+};
+
+const FrontPage = () => {
   const { selectedLocation } = useView();
 
   return (
     <Stack>
-      <Announcement id={"new-metrocast"} startDate={'2026-02-01'} endDate={'2026-03-15'} text={
-        <span>
-          RespiLens now displays <a href="https://www.respilens.com/?view=metrocast_projs" style={{ color: 'inherit', fontWeight: 700 }}>Flu MetroCast forecasts</a>!
-        </span>
-      } announcementType={"update"} />
+      <Announcement 
+        id="new-metrocast-2026" 
+        startDate="2026-02-01" 
+        endDate="2026-03-01" 
+        announcementType="update"
+        text={<MetroCastLink />} 
+      />
       <Announcement id={"new-flu-peak"} startDate={'2026-02-01'} endDate={'2026-03-01'} text={
         "RespiLens now displays flu peak projections!"
       } announcementType={"update"} />
@@ -43,4 +70,4 @@ const PathogenFrontPage = () => {
   );
 };
 
-export default PathogenFrontPage;
+export default FrontPage;
