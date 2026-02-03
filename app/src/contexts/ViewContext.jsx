@@ -176,7 +176,7 @@ export const ViewProvider = ({ children }) => {
     const newSearchParams = new URLSearchParams(searchParams);
 
 
-    const isMovingToMetrocast = newView === 'metrocast_projs';
+    const isMovingToMetrocast = newView === 'metrocast_forecasts';
     
     if (isMovingToMetrocast) {
       const needsCityDefault = selectedLocation === APP_CONFIG.defaultLocation || selectedLocation.length === 2;
