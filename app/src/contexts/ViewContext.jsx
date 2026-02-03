@@ -12,7 +12,7 @@ export const ViewProvider = ({ children }) => {
 
   const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
 
-  const [viewType, setViewType] = useState(() => urlManager.getView());
+  const [viewType, setViewTypeState] = useState(() => urlManager.getView());
   const [selectedLocation, setSelectedLocation] = useState(() => {
     const urlLoc = urlManager.getLocation(); 
     const currentView = urlManager.getView();
@@ -224,9 +224,17 @@ export const ViewProvider = ({ children }) => {
       setSelectedTarget(null);
     }
 
-    setViewType(newView);
-    setSearchParams(newSearchParams, { replace: true });
+    setViewTypeState(newView);
+    // Push history for view changes so browser back works between forecast views.
+    setSearchParams(newSearchParams, { replace: false });
   }, [viewType, searchParams, setSearchParams, urlManager, selectedLocation]);
+
+  useEffect(() => {
+    const viewFromUrl = urlManager.getView();
+    if (viewFromUrl !== viewType) {
+      setViewTypeState(viewFromUrl);
+    }
+  }, [searchParams, urlManager, viewType]);
 
   const contextValue = {
     selectedLocation, handleLocationSelect,
