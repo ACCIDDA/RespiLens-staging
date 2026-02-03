@@ -16,7 +16,7 @@ export const useForecastData = (location, viewType) => {
   const peaks = data?.peaks || null;
 
   useEffect(() => {
-    const isMetrocastView = viewType === 'metrocast_projs';
+    const isMetrocastView = viewType === 'metrocast_forecasts';
       const isDefaultUS = location === 'US';
       if ((isMetrocastView && isDefaultUS) || (!isMetrocastView && location === 'colorado')) {
         setLoading(false);
@@ -44,12 +44,12 @@ export const useForecastData = (location, viewType) => {
       try {
         const datasetMap = {
           'fludetailed': { directory: 'flusight', suffix: 'flu' },
-          'flu_projs': { directory: 'flusight', suffix: 'flu' },
+          'flu_forecasts': { directory: 'flusight', suffix: 'flu' },
           'flu_peak': { directory: 'flusight', suffix: 'flu' },
-          'covid_projs': { directory: 'covid19forecasthub', suffix: 'covid19' },
-          'rsv_projs': { directory: 'rsvforecasthub', suffix: 'rsv' },
+          'covid_forecasts': { directory: 'covid19forecasthub', suffix: 'covid19' },
+          'rsv_forecasts': { directory: 'rsvforecasthub', suffix: 'rsv' },
           'nhsnall': { directory: 'nhsn', suffix: 'nhsn' },
-          'metrocast_projs': {directory: 'flumetrocast', suffix: 'flu_metrocast'}
+          'metrocast_forecasts': {directory: 'flumetrocast', suffix: 'flu_metrocast'}
         };
 
         const datasetConfig = datasetMap[viewType];
