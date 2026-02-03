@@ -9,10 +9,13 @@ const PathogenFrontPage = () => {
 
   return (
     <Stack>
-      <Announcement id={"new-metrocast"} startDate={'2026-02-01'} endDate={'2026-02-28'} text={
+      <Announcement id={"new-metrocast"} startDate={'2026-02-01'} endDate={'2026-03-15'} text={
         <span>
           RespiLens now displays <a href="https://www.respilens.com/?view=metrocast_projs" style={{ color: 'inherit', fontWeight: 700 }}>Flu MetroCast forecasts</a>!
         </span>
+      } announcementType={"update"} />
+      <Announcement id={"new-flu-peak"} startDate={'2026-02-01'} endDate={'2026-03-01'} text={
+        "RespiLens now displays flu peak projections!"
       } announcementType={"update"} />
       <Announcement id={"hub-seasonal-warning"} startDate={'2026-05-31'} endDate={'2026-11-10'} announcementType={'alert'} text={
         "Forecast hubs are out of season. Forecasting will begin again in Novembor."
