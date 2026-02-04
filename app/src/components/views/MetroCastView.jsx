@@ -9,6 +9,8 @@ import { CHART_CONSTANTS } from '../../constants/chart';
 import { targetDisplayNameMap, targetYAxisLabelMap } from '../../utils/mapUtils';
 import { getDataPath } from '../../utils/paths';
 import useQuantileForecastTraces from '../../hooks/useQuantileForecastTraces';
+import ForecastControlsPanel from '../controls/ForecastControlsPanel';
+import { buildSqrtTicks } from '../../utils/scaleUtils';
 
 const METRO_STATE_MAP = {
   'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME',
@@ -27,7 +29,9 @@ const MetroPlotCard = ({
   selectedDates,
   getDefaultRange,
   xAxisRange,
-  setXAxisRange
+  setXAxisRange,
+  chartScale,
+  intervalVisibility
 }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const groundTruth = locationData?.ground_truth;
@@ -54,7 +58,16 @@ const MetroPlotCard = ({
     return [Math.max(0, minY - pad), maxY + pad];
   }, [selectedTarget]);
 
-  const projectionsData = useQuantileForecastTraces({
+  const showMedian = intervalVisibility?.median ?? true;
+  const show50 = intervalVisibility?.ci50 ?? true;
+  const show95 = intervalVisibility?.ci95 ?? true;
+
+  const sqrtTransform = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return (value) => Math.sqrt(Math.max(0, value));
+  }, [chartScale]);
+
+  const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
     groundTruth,
     forecasts,
     selectedDates,
@@ -69,10 +82,23 @@ const MetroPlotCard = ({
     groundTruthLineWidth: isSmall ? 1 : 2,
     groundTruthMarkerSize: isSmall ? 2 : 4,
     showLegendForFirstDate: !isSmall,
-    fillMissingQuantiles: true
+    fillMissingQuantiles: true,
+    showMedian,
+    show50,
+    show95,
+    transformY: sqrtTransform,
+    groundTruthHoverFormatter: sqrtTransform ? (value) => Number(value).toFixed(2) : null
   });
 
+
   const defRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+  const sqrtTicks = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return buildSqrtTicks({
+      rawRange: rawYRange,
+      formatValue: (value) => `${value.toFixed(2)}%`
+    });
+  }, [chartScale, rawYRange]);
 
   useEffect(() => {
     const range = xAxisRange || defRange;
@@ -114,19 +140,26 @@ const MetroPlotCard = ({
             showline: true, linewidth: 1,
             linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
           },
-          yaxis: {
+          yaxis: { 
             title: !isSmall ? {
               text: (() => {
                 const longName = targetDisplayNameMap[selectedTarget];
-                return targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+                const baseTitle = targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+                if (chartScale === 'log') return `${baseTitle} (log)`;
+                if (chartScale === 'sqrt') return `${baseTitle} (sqrt)`;
+                return baseTitle;
               })(),
               font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000', size: 12 }
             } : undefined,
-            range: yAxisRange,
-            autorange: yAxisRange === null,
+            range: chartScale === 'log' ? undefined : yAxisRange, 
+            autorange: chartScale === 'log' ? true : yAxisRange === null, 
+            type: chartScale === 'log' ? 'log' : 'linear',
             tickfont: { size: 9, color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
-            tickformat: '.2f',
-            ticksuffix: '%'
+            tickformat: chartScale === 'sqrt' ? undefined : '.2f',
+            ticksuffix: chartScale === 'sqrt' ? undefined : '%',
+            tickmode: chartScale === 'sqrt' && sqrtTicks ? 'array' : undefined,
+            tickvals: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.tickvals : undefined,
+            ticktext: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.ticktext : undefined
           },
           hovermode: isSmall ? false : 'closest',
           hoverlabel: {
@@ -187,7 +220,7 @@ const MetroPlotCard = ({
 
 const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const { colorScheme } = useMantineColorScheme();
-  const { handleLocationSelect } = useView();
+  const { handleLocationSelect, chartScale, setChartScale, intervalVisibility, setIntervalVisibility } = useView();
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [xAxisRange, setXAxisRange] = useState(null);
@@ -238,9 +271,9 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
   return (
     <Stack gap="xl">
       <LastFetched timestamp={metadata?.last_updated} />
-
-      <MetroPlotCard
-        locationData={data}
+      
+      <MetroPlotCard 
+        locationData={data} 
         title={`${stateName}`}
         colorScheme={colorScheme}
         windowSize={windowSize}
@@ -251,6 +284,14 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         xAxisRange={xAxisRange}
         setXAxisRange={setXAxisRange}
         isSmall={false}
+        chartScale={chartScale}
+        intervalVisibility={intervalVisibility}
+      />
+      <ForecastControlsPanel
+        chartScale={chartScale}
+        setChartScale={setChartScale}
+        intervalVisibility={intervalVisibility}
+        setIntervalVisibility={setIntervalVisibility}
       />
 
       {stateCode && (
@@ -266,7 +307,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
                     onClick={() => handleLocationSelect(abbr)}
                     style={{ width: '100%' }}
                   >
-                    <MetroPlotCard
+                    <MetroPlotCard 
                       locationData={cityData}
                       title={cityData.metadata?.location_name}
                       isSmall={true}
@@ -278,6 +319,8 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
                       getDefaultRange={getDefaultRange}
                       xAxisRange={xAxisRange}
                       setXAxisRange={setXAxisRange}
+                      chartScale={chartScale}
+                      intervalVisibility={intervalVisibility}
                     />
                   </UnstyledButton>
                 ))}

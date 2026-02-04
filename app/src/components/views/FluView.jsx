@@ -4,6 +4,7 @@ import FluPeak from '../FluPeak';
 import LastFetched from '../LastFetched';
 import { MODEL_COLORS } from '../../config/datasets';
 import { RATE_CHANGE_CATEGORIES } from '../../constants/chart';
+import { useView } from '../../hooks/useView';
 
 const FluView = ({
   data,
@@ -21,6 +22,7 @@ const FluView = ({
   availablePeakModels,
   peakLocation
 }) => {
+  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility } = useView();
   const forecasts = data?.forecasts;
 
   const lastSelectedDate = useMemo(() => {
@@ -180,6 +182,10 @@ const FluView = ({
           selectedDates={selectedDates}
           windowSize={windowSize}
           peakLocation={peakLocation}
+          chartScale={chartScale}
+          intervalVisibility={intervalVisibility}
+          setChartScale={setChartScale}
+          setIntervalVisibility={setIntervalVisibility}
         />
       </>
     );

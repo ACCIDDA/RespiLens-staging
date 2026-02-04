@@ -8,6 +8,9 @@ import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 import useQuantileForecastTraces from '../hooks/useQuantileForecastTraces';
+import { buildSqrtTicks } from '../utils/scaleUtils';
+import { useView } from '../hooks/useView';
+import ForecastControlsPanel from './controls/ForecastControlsPanel';
 
 const ForecastPlotView = ({
   data,
@@ -38,11 +41,20 @@ const ForecastPlotView = ({
   const projectionsDataRef = useRef([]);
 
   const { colorScheme } = useMantineColorScheme();
+  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility } = useView();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
   const resolvedForecastTarget = forecastTarget || selectedTarget;
   const resolvedDisplayTarget = displayTarget || selectedTarget || resolvedForecastTarget;
+  const showMedian = intervalVisibility?.median ?? true;
+  const show50 = intervalVisibility?.ci50 ?? true;
+  const show95 = intervalVisibility?.ci95 ?? true;
+
+  const sqrtTransform = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return (value) => Math.sqrt(Math.max(0, value));
+  }, [chartScale]);
 
   const calculateYRange = useCallback((chartData, xRange) => {
     if (!chartData || !xRange || !Array.isArray(chartData) || chartData.length === 0 || !resolvedForecastTarget) return null;
@@ -74,7 +86,7 @@ const ForecastPlotView = ({
     return null;
   }, [resolvedForecastTarget]);
 
-  const projectionsData = useQuantileForecastTraces({
+  const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
     groundTruth,
     forecasts,
     selectedDates,
@@ -88,8 +100,20 @@ const ForecastPlotView = ({
     groundTruthLineWidth: 2,
     groundTruthMarkerSize: 4,
     showLegendForFirstDate: true,
-    fillMissingQuantiles: false
+    fillMissingQuantiles: false,
+    showMedian,
+    show50,
+    show95,
+    transformY: sqrtTransform,
+    groundTruthHoverFormatter: sqrtTransform
+      ? (value) => (
+        groundTruthValueFormat.includes(':.2f')
+          ? Number(value).toFixed(2)
+          : Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })
+      )
+      : null
   });
+
 
   const appendedTraces = useMemo(() => {
     if (!extraTraces) return [];
@@ -162,6 +186,11 @@ const ForecastPlotView = ({
     }
   }, [xAxisRange]);
 
+  const sqrtTicks = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return buildSqrtTicks({ rawRange: rawYRange });
+  }, [chartScale, rawYRange]);
+
   const layout = useMemo(() => {
     const baseLayout = {
       width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
@@ -209,10 +238,17 @@ const ForecastPlotView = ({
       yaxis: {
         title: (() => {
           const longName = targetDisplayNameMap[resolvedDisplayTarget];
-          return targetYAxisLabelMap[longName] || longName || resolvedDisplayTarget || 'Value';
+          const baseTitle = targetYAxisLabelMap[longName] || longName || resolvedDisplayTarget || 'Value';
+          if (chartScale === 'log') return `${baseTitle} (log)`;
+          if (chartScale === 'sqrt') return `${baseTitle} (sqrt)`;
+          return baseTitle;
         })(),
-        range: yAxisRange,
-        autorange: yAxisRange === null,
+        range: chartScale === 'log' ? undefined : yAxisRange,
+        autorange: chartScale === 'log' ? true : yAxisRange === null,
+        type: chartScale === 'log' ? 'log' : 'linear',
+        tickmode: chartScale === 'sqrt' && sqrtTicks ? 'array' : undefined,
+        tickvals: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.tickvals : undefined,
+        ticktext: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.ticktext : undefined
       },
       shapes: selectedDates.map(date => {
         return {
@@ -236,7 +272,7 @@ const ForecastPlotView = ({
     }
 
     return baseLayout;
-  }, [colorScheme, windowSize, defaultRange, resolvedDisplayTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, layoutOverrides]);
+  }, [colorScheme, windowSize, defaultRange, resolvedDisplayTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, layoutOverrides, chartScale, sqrtTicks]);
 
   const config = useMemo(() => {
     const baseConfig = {
@@ -306,6 +342,12 @@ const ForecastPlotView = ({
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
+      <ForecastControlsPanel
+        chartScale={chartScale}
+        setChartScale={setChartScale}
+        intervalVisibility={intervalVisibility}
+        setIntervalVisibility={setIntervalVisibility}
+      />
       <Text fw={700} size="sm" mb={5} ta="center">
         {stateName}
       </Text>

@@ -10,16 +10,31 @@ const buildDefaultModelHoverText = ({
   formatted50,
   formatted95,
   issuedDate,
-  valueSuffix
-}) => (
-  `<b>${model}</b><br>` +
-  `Date: ${pointDate}<br>` +
-  `Median: <b>${formattedMedian}${valueSuffix}</b><br>` +
-  `50% CI: [${formatted50}${valueSuffix}]<br>` +
-  `95% CI: [${formatted95}${valueSuffix}]<br>` +
-  `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${issuedDate}</span>` +
-  `<extra></extra>`
-);
+  valueSuffix,
+  show50,
+  show95
+}) => {
+  const rows = [
+    `<b>${model}</b><br>` +
+    `Date: ${pointDate}<br>` +
+    `Median: <b>${formattedMedian}${valueSuffix}</b><br>`
+  ];
+
+  if (show50) {
+    rows.push(`50% CI: [${formatted50}${valueSuffix}]<br>`);
+  }
+
+  if (show95) {
+    rows.push(`95% CI: [${formatted95}${valueSuffix}]<br>`);
+  }
+
+  rows.push(
+    `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${issuedDate}</span>` +
+    `<extra></extra>`
+  );
+
+  return rows.join('');
+};
 
 const resolveModelColor = (selectedModels, model) => {
   const index = selectedModels.indexOf(model);
@@ -43,28 +58,55 @@ const useQuantileForecastTraces = ({
   groundTruthLineWidth = 2,
   groundTruthMarkerSize = 4,
   showLegendForFirstDate = true,
-  fillMissingQuantiles = false
+  fillMissingQuantiles = false,
+  showMedian = true,
+  show50 = true,
+  show95 = true,
+  transformY = null,
+  groundTruthHoverFormatter = null
 }) => useMemo(() => {
   if (!groundTruth || !forecasts || selectedDates.length === 0 || !target) {
-    return [];
+    return { traces: [], rawYRange: null };
   }
 
   const groundTruthValues = groundTruth[target];
   if (!groundTruthValues) {
     console.warn(`Ground truth data not found for target: ${target}`);
-    return [];
+    return { traces: [], rawYRange: null };
   }
+
+  let rawMin = Infinity;
+  let rawMax = -Infinity;
+  const updateRange = (value) => {
+    if (value === null || value === undefined) return;
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return;
+    rawMin = Math.min(rawMin, numeric);
+    rawMax = Math.max(rawMax, numeric);
+  };
+
+  groundTruthValues.forEach((value) => updateRange(value));
+
+  const groundTruthY = transformY
+    ? groundTruthValues.map((value) => transformY(value))
+    : groundTruthValues;
 
   const groundTruthTrace = {
     x: groundTruth.dates || [],
-    y: groundTruthValues,
+    y: groundTruthY,
     name: groundTruthLabel,
     type: 'scatter',
-    mode: 'lines+markers',
+    mode: showMedian ? 'lines+markers' : 'lines',
     line: { color: 'black', width: groundTruthLineWidth, dash: 'dash' },
-    marker: { size: groundTruthMarkerSize, color: 'black' },
-    hovertemplate: `<b>${groundTruthLabel}</b><br>Date: %{x}<br>Value: <b>${groundTruthValueFormat}${valueSuffix}</b><extra></extra>`
+    marker: { size: groundTruthMarkerSize, color: 'black' }
   };
+
+  if (groundTruthHoverFormatter) {
+    groundTruthTrace.text = groundTruthValues.map((value) => groundTruthHoverFormatter(value));
+    groundTruthTrace.hovertemplate = `<b>${groundTruthLabel}</b><br>Date: %{x}<br>Value: <b>%{text}${valueSuffix}</b><extra></extra>`;
+  } else {
+    groundTruthTrace.hovertemplate = `<b>${groundTruthLabel}</b><br>Date: %{x}<br>Value: <b>${groundTruthValueFormat}${valueSuffix}</b><extra></extra>`;
+  }
 
   const modelTraces = selectedModels.flatMap(model =>
     selectedDates.flatMap((date, dateIndex) => {
@@ -111,11 +153,23 @@ const useQuantileForecastTraces = ({
         }
 
         forecastDates.push(pointDate);
-        ci95Lower.push(resolved025);
-        ci50Lower.push(resolved25);
-        medianValues.push(val_50);
-        ci50Upper.push(resolved75);
-        ci95Upper.push(resolved975);
+
+        if (showMedian) {
+          medianValues.push(transformY ? transformY(val_50) : val_50);
+          updateRange(val_50);
+        }
+        if (show50) {
+          ci50Lower.push(transformY ? transformY(resolved25) : resolved25);
+          ci50Upper.push(transformY ? transformY(resolved75) : resolved75);
+          updateRange(resolved25);
+          updateRange(resolved75);
+        }
+        if (show95) {
+          ci95Lower.push(transformY ? transformY(resolved025) : resolved025);
+          ci95Upper.push(transformY ? transformY(resolved975) : resolved975);
+          updateRange(resolved025);
+          updateRange(resolved975);
+        }
 
         const formattedMedian = formatValue(val_50);
         const formatted50 = `${formatValue(resolved25)} - ${formatValue(resolved75)}`;
@@ -138,7 +192,9 @@ const useQuantileForecastTraces = ({
             formatted50,
             formatted95,
             issuedDate: date,
-            valueSuffix
+            valueSuffix,
+            show50,
+            show95
           });
 
         hoverTexts.push(hoverText);
@@ -151,10 +207,40 @@ const useQuantileForecastTraces = ({
         : resolveModelColor(selectedModels, model);
       const isFirstDate = dateIndex === 0;
 
-      return [
-        { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci95Upper, ...ci95Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 95% CI`, hoverinfo: 'none', legendgroup: model },
-        { x: [...forecastDates, ...forecastDates.slice().reverse()], y: [...ci50Upper, ...ci50Lower.slice().reverse()], fill: 'toself', fillcolor: `${modelColor}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', name: `${model} 50% CI`, hoverinfo: 'none', legendgroup: model },
-        {
+      const traces = [];
+
+      if (show95) {
+        traces.push({
+          x: [...forecastDates, ...forecastDates.slice().reverse()],
+          y: [...ci95Upper, ...ci95Lower.slice().reverse()],
+          fill: 'toself',
+          fillcolor: `${modelColor}10`,
+          line: { color: 'transparent' },
+          showlegend: false,
+          type: 'scatter',
+          name: `${model} 95% CI`,
+          hoverinfo: 'none',
+          legendgroup: model
+        });
+      }
+
+      if (show50) {
+        traces.push({
+          x: [...forecastDates, ...forecastDates.slice().reverse()],
+          y: [...ci50Upper, ...ci50Lower.slice().reverse()],
+          fill: 'toself',
+          fillcolor: `${modelColor}30`,
+          line: { color: 'transparent' },
+          showlegend: false,
+          type: 'scatter',
+          name: `${model} 50% CI`,
+          hoverinfo: 'none',
+          legendgroup: model
+        });
+      }
+
+      if (showMedian) {
+        traces.push({
           x: forecastDates,
           y: medianValues,
           name: model,
@@ -171,12 +257,16 @@ const useQuantileForecastTraces = ({
             font: { color: '#ffffff' },
             bordercolor: '#ffffff'
           }
-        }
-      ];
+        });
+      }
+
+      return traces;
     })
   );
 
-  return [groundTruthTrace, ...modelTraces];
+  const rawYRange = rawMin === Infinity || rawMax === -Infinity ? null : [rawMin, rawMax];
+
+  return { traces: [groundTruthTrace, ...modelTraces], rawYRange };
 }, [
   groundTruth,
   forecasts,
@@ -194,7 +284,12 @@ const useQuantileForecastTraces = ({
   groundTruthLineWidth,
   groundTruthMarkerSize,
   showLegendForFirstDate,
-  fillMissingQuantiles
+  fillMissingQuantiles,
+  showMedian,
+  show50,
+  show95,
+  transformY,
+  groundTruthHoverFormatter
 ]);
 
 export default useQuantileForecastTraces;

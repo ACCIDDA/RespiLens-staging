@@ -36,3 +36,13 @@ used across forecast views:
 - Ground truth + median + 50%/95% interval bands.
 - Formatting and styling controls (line widths, marker sizes, value suffixes).
 - Handles missing quantiles when requested (e.g., MetroCast cards).
+
+### Forecast Chart Controls
+
+Forecast views share a single control panel (`ForecastChartControls`) that manages:
+
+- Y-axis scale: `linear`, `log`, `sqrt`.
+- Visible intervals: `median`, `50%`, `95%`.
+
+State is stored in `ViewContext` so the settings stay in sync across views
+(including MetroCast cards and Flu Peak).
