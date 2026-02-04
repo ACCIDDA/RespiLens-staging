@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import Plot from 'react-plotly.js';
 import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config';
 import { useView } from '../hooks/useView';
+import OverviewGraphCard from './OverviewGraphCard';
 
 const DEFAULT_TARGETS = {
   covid_forecasts: 'wk inc covid hosp',
@@ -235,47 +235,21 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
   const locationLabel = resolvedLocation === 'US' ? 'US national view' : resolvedLocation;
 
   return (
-    <Card withBorder radius="md" padding="lg" shadow="xs">
-      <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={5}>{title}</Title>
-          {selectedDate && (
-            <Text size="xs" c="dimmed">{selectedDate}</Text>
-          )}
-        </Group>
-        {loading && (
-          <Stack align="center" gap="xs" py="lg">
-            <Loader size="sm" />
-            <Text size="sm" c="dimmed">Loading data...</Text>
-          </Stack>
-        )}
-        {!loading && error && (
-          <Text size="sm" c="red">{error}</Text>
-        )}
-        {!loading && !error && traces.length > 0 && (
-          <Plot
-            style={{ width: '100%', height: '100%' }}
-            data={traces}
-            layout={layout}
-            config={{ displayModeBar: false, responsive: true }}
-          />
-        )}
-        {!loading && !error && traces.length === 0 && (
-          <Text size="sm" c="dimmed">No data available.</Text>
-        )}
-        <Group justify="space-between" align="center">
-          <Button
-            size="xs"
-            variant={isActive ? 'light' : 'filled'}
-            onClick={() => setViewType(datasetConfig?.defaultView || viewType)}
-            rightSection={<IconChevronRight size={14} />}
-          >
-            {isActive ? 'Viewing' : 'View forecasts'}
-          </Button>
-          <Text size="xs" c="dimmed">{locationLabel}</Text>
-        </Group>
-      </Stack>
-    </Card>
+    <OverviewGraphCard
+      title={title}
+      meta={selectedDate ? <Text size="xs" c="dimmed">{selectedDate}</Text> : null}
+      loading={loading}
+      loadingLabel="Loading data..."
+      error={error}
+      traces={traces}
+      layout={layout}
+      emptyLabel="No data available."
+      actionLabel={isActive ? 'Viewing' : 'View forecasts'}
+      actionActive={isActive}
+      onAction={() => setViewType(datasetConfig?.defaultView || viewType)}
+      actionIcon={<IconChevronRight size={14} />}
+      locationLabel={locationLabel}
+    />
   );
 };
 

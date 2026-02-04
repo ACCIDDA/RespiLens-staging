@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Card, Stack, Group, Title, Text, Loader, Button } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import Plot from 'react-plotly.js';
 import { getDataPath } from '../utils/paths';
 import { useView } from '../hooks/useView';
+import OverviewGraphCard from './OverviewGraphCard';
 
 const DEFAULT_COLS = ['Total COVID-19 Admissions', 'Total Influenza Admissions', 'Total RSV Admissions'];
 
@@ -138,47 +137,21 @@ const NHSNOverviewGraph = ( {location} ) => {
   const locationLabel = resolvedLocation === 'US' ? 'US national view' : resolvedLocation;
 
   return (
-    <Card withBorder radius="md" padding="lg" shadow="xs">
-      <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={5}>NHSN data</Title>
-        </Group>
-
-        {loading && (
-          <Stack align="center" py="lg" gap="xs">
-            <Loader size="sm" />
-            <Text size="xs" c="dimmed">Loading CDC data...</Text>
-          </Stack>
-        )}
-
-        {!loading && error && (
-          <Stack align="center" py="lg" h={280} justify="center">
-            <Text size="sm" c="red">No NHSN data for {resolvedLocation}</Text>
-          </Stack>
-        )}
-
-        {!loading && !error && traces.length > 0 && (
-          <Plot
-            style={{ width: '100%', height: '100%' }}
-            data={traces}
-            layout={layout}
-            config={{ displayModeBar: false, responsive: true }}
-          />
-        )}
-
-        <Group justify="space-between" align="center" mt="auto">
-          <Button
-            size="xs"
-            variant={isActive ? 'light' : 'filled'}
-            onClick={() => setViewType('nhsn')}
-            rightSection={<IconChevronRight size={14} />}
-          >
-            {isActive ? 'Viewing' : 'View NHSN data'}
-          </Button>
-          <Text size="xs" c="dimmed">{locationLabel}</Text>
-        </Group>
-      </Stack>
-    </Card>
+    <OverviewGraphCard
+      title="NHSN data"
+      loading={loading}
+      loadingLabel="Loading CDC data..."
+      error={error}
+      errorLabel={`No NHSN data for ${resolvedLocation}`}
+      traces={traces}
+      layout={layout}
+      emptyLabel={null}
+      actionLabel={isActive ? 'Viewing' : 'View NHSN data'}
+      actionActive={isActive}
+      onAction={() => setViewType('nhsn')}
+      actionIcon={<IconChevronRight size={14} />}
+      locationLabel={locationLabel}
+    />
   );
 };
 
