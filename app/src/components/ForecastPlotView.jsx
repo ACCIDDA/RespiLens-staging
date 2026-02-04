@@ -19,7 +19,6 @@ const ForecastPlotView = ({
   selectedModels,
   models,
   setSelectedModels,
-  windowSize,
   getDefaultRange,
   selectedTarget,
   forecastTarget = null,
@@ -193,8 +192,6 @@ const ForecastPlotView = ({
 
   const layout = useMemo(() => {
     const baseLayout = {
-      width: Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO),
-      height: Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * CHART_CONSTANTS.HEIGHT_RATIO),
       autosize: true,
       template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
       paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
@@ -272,7 +269,7 @@ const ForecastPlotView = ({
     }
 
     return baseLayout;
-  }, [colorScheme, windowSize, defaultRange, resolvedDisplayTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, layoutOverrides, chartScale, sqrtTicks]);
+  }, [colorScheme, defaultRange, resolvedDisplayTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, layoutOverrides, chartScale, sqrtTicks]);
 
   const config = useMemo(() => {
     const baseConfig = {
@@ -335,9 +332,10 @@ const ForecastPlotView = ({
       <Text fw={700} size="sm" mb={5} ta="center">
         {stateName}
       </Text>
-      <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
+      <div style={{ width: '100%', height: 'min(800px, 60vh)', minHeight: 320 }}>
         <Plot
           ref={plotRef}
+          useResizeHandler
           style={{ width: '100%', height: '100%' }}
           data={finalTraces}
           layout={layout}

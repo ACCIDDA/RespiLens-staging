@@ -72,7 +72,7 @@ const useOverviewPlot = ({
 
   const layout = useMemo(() => {
     const baseLayout = {
-      height: 280,
+      autosize: true,
       margin: DEFAULT_MARGIN,
       title: { text: '', font: { size: 13 } },
       xaxis: {

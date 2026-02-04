@@ -37,12 +37,15 @@ const OverviewGraphCard = ({
           <Text size="sm" c="red">{errorLabel || error}</Text>
         )}
         {!loading && !error && hasTraces && (
-          <Plot
-            style={{ width: '100%', height: '100%' }}
-            data={traces}
-            layout={layout}
-            config={{ displayModeBar: false, responsive: true }}
-          />
+          <div style={{ width: '100%', height: 240, minHeight: 200 }}>
+            <Plot
+              useResizeHandler
+              style={{ width: '100%', height: '100%' }}
+              data={traces}
+              layout={layout}
+              config={{ displayModeBar: false, responsive: true }}
+            />
+          </div>
         )}
         {showEmpty && (
           <Text size="sm" c="dimmed">{emptyLabel}</Text>
