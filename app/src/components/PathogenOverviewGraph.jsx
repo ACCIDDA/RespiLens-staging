@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useForecastData } from '../hooks/useForecastData';
 import { DATASETS } from '../config';
 import { useView } from '../hooks/useView';
 import OverviewGraphCard from './OverviewGraphCard';
+import useOverviewPlot from '../hooks/useOverviewPlot';
 
 const DEFAULT_TARGETS = {
   covid_forecasts: 'wk inc covid hosp',
@@ -145,12 +146,9 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
   const chartRange = useMemo(() => getRangeAroundDate(selectedDate), [selectedDate]);
   const isActive = datasetConfig?.views?.some((view) => view.value === activeViewType) ?? false;
 
-  const { traces, yRange } = useMemo(() => {
-    if (!data || !selectedTarget) {
-      return { traces: [], yRange: undefined };
-    }
-
-    const groundTruth = data.ground_truth;
+  const buildTraces = useCallback((forecastData) => {
+    if (!forecastData || !selectedTarget) return [];
+    const groundTruth = forecastData.ground_truth;
     const groundTruthValues = groundTruth?.[selectedTarget];
     const groundTruthTrace = groundTruthValues
       ? {
@@ -165,72 +163,25 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
       : null;
 
     const forecast = selectedDate && selectedTarget && selectedModel
-      ? data.forecasts?.[selectedDate]?.[selectedTarget]?.[selectedModel]
+      ? forecastData.forecasts?.[selectedDate]?.[selectedTarget]?.[selectedModel]
       : null;
 
     const intervalTraces = buildIntervalTraces(forecast, selectedModel);
 
-    const combinedTraces = [
+    return [
       groundTruthTrace,
       ...(intervalTraces || [])
     ].filter(Boolean);
+  }, [selectedDate, selectedTarget, selectedModel]);
 
-    if (!chartRange) {
-      return { traces: combinedTraces, yRange: undefined };
-    }
-
-    const [rangeStart, rangeEnd] = chartRange;
-    const startDate = new Date(rangeStart);
-    const endDate = new Date(rangeEnd);
-    let minY = Infinity;
-    let maxY = -Infinity;
-
-    combinedTraces.forEach((trace) => {
-      if (!trace?.x || !trace?.y) return;
-      trace.x.forEach((xValue, index) => {
-        const pointDate = new Date(xValue);
-        if (pointDate < startDate || pointDate > endDate) return;
-        const value = Number(trace.y[index]);
-        if (Number.isNaN(value)) return;
-        minY = Math.min(minY, value);
-        maxY = Math.max(maxY, value);
-      });
-    });
-
-    if (minY === Infinity || maxY === -Infinity) {
-      return { traces: combinedTraces, yRange: undefined };
-    }
-
-    const padding = (maxY - minY) * 0.1;
-    const paddedMin = Math.max(0, minY - padding);
-    const paddedMax = maxY + padding;
-
-    return {
-      traces: combinedTraces,
-      yRange: [paddedMin, paddedMax]
-    };
-  }, [data, selectedDate, selectedTarget, selectedModel, chartRange]);
-
-  const layout = useMemo(() => ({
-    height: 280,
-    margin: { l: 40, r: 20, t: 40, b: 40 },
-    title: {
-      text: '',
-      font: { size: 13 }
-    },
-    xaxis: {
-      range: chartRange,
-      showgrid: false,
-      tickfont: { size: 10 }
-    },
-    yaxis: {
-      automargin: true,
-      tickfont: { size: 10 },
-      range: yRange
-    },
-    showlegend: false,
-    hovermode: 'x unified'
-  }), [chartRange, yRange]);
+  const { traces, layout } = useOverviewPlot({
+    data,
+    buildTraces,
+    xRange: chartRange,
+    yPaddingTopRatio: 0.1,
+    yPaddingBottomRatio: 0.1,
+    yMinFloor: 0
+  });
 
   const locationLabel = resolvedLocation === 'US' ? 'US national view' : resolvedLocation;
 

@@ -1,4 +1,4 @@
-import ForecastPlotView from './ForecastPlotView';
+import ForecastPlotView from '../ForecastPlotView';
 
 const RSVView = (props) => (
   <ForecastPlotView

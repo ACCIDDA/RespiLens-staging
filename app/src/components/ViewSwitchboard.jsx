@@ -1,10 +1,10 @@
 import { Center, Stack, Loader, Text, Alert, Button } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
-import FluView from './FluView';
-import MetroCastView from './MetroCastView';
-import RSVView from './RSVView';
-import COVID19View from './COVID19View';
-import NHSNView from './NHSNView';
+import FluView from './views/FluView';
+import MetroCastView from './views/MetroCastView';
+import RSVView from './views/RSVView';
+import COVID19View from './views/COVID19View';
+import NHSNView from './views/NHSNView';
 import { CHART_CONSTANTS } from '../constants/chart';
 
 /**

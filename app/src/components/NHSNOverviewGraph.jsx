@@ -1,19 +1,20 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { IconChevronRight } from '@tabler/icons-react';
 import { getDataPath } from '../utils/paths';
 import { useView } from '../hooks/useView';
 import OverviewGraphCard from './OverviewGraphCard';
+import useOverviewPlot from '../hooks/useOverviewPlot';
 
 const DEFAULT_COLS = ['Total COVID-19 Admissions', 'Total Influenza Admissions', 'Total RSV Admissions'];
 
 const PATHOGEN_COLORS = {
-  'Total COVID-19 Admissions': '#e377c2',  
-  'Total Influenza Admissions': '#1f77b4', 
-  'Total RSV Admissions': '#7f7f7f'       
+  'Total COVID-19 Admissions': '#e377c2',
+  'Total Influenza Admissions': '#1f77b4',
+  'Total RSV Admissions': '#7f7f7f'
 };
 
-const NHSNOverviewGraph = ( {location} ) => {
-  const { setViewType, viewType: activeViewType } = useView(); 
+const NHSNOverviewGraph = ({ location }) => {
+  const { setViewType, viewType: activeViewType } = useView();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,9 +28,9 @@ const NHSNOverviewGraph = ( {location} ) => {
         setLoading(true);
         setError(null);
         const response = await fetch(getDataPath(`nhsn/${resolvedLocation}_nhsn.json`));
-        
+
         if (!response.ok) {
-           throw new Error('Data not available');
+          throw new Error('Data not available');
         }
 
         const json = await response.json();
@@ -46,93 +47,67 @@ const NHSNOverviewGraph = ( {location} ) => {
     fetchData();
   }, [resolvedLocation]);
 
-  const { traces, layout } = useMemo(() => {
-    if (!data || !data.series || !data.series.dates) return { traces: [], layout: {} };
+  const { buildTraces, xRange } = useMemo(() => {
+    if (!data?.series?.dates) {
+      return { buildTraces: () => [], xRange: null };
+    }
 
     const dates = data.series.dates;
     const lastDateStr = dates[dates.length - 1];
     const lastDate = new Date(lastDateStr);
     const twoMonthsAgo = new Date(lastDate);
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-    
-    const xRange = [twoMonthsAgo.toISOString().split('T')[0], lastDateStr];
 
-    const activeTraces = DEFAULT_COLS.map((col) => {
-      const yData = data.series[col];
+    const range = [twoMonthsAgo.toISOString().split('T')[0], lastDateStr];
+
+    const tracesBuilder = (snapshot) => DEFAULT_COLS.map((col) => {
+      const yData = snapshot.series?.[col];
       if (!yData) return null;
 
       return {
-        x: dates,
+        x: snapshot.series.dates,
         y: yData,
         name: col.replace('Total ', '').replace(' Admissions', ''),
         type: 'scatter',
         mode: 'lines',
-        line: { 
-          color: PATHOGEN_COLORS[col], 
-          width: 2 
+        line: {
+          color: PATHOGEN_COLORS[col],
+          width: 2
         },
         hovertemplate: '%{y}<extra></extra>'
       };
     }).filter(Boolean);
 
-    let minY = Infinity;
-    let maxY = -Infinity;
-
-    activeTraces.forEach((trace) => {
-      trace.x.forEach((dateVal, i) => {
-        const currentPointDate = new Date(dateVal);
-        if (currentPointDate >= twoMonthsAgo && currentPointDate <= lastDate) {
-          const val = trace.y[i];
-          if (val !== null && val !== undefined && !Number.isNaN(val)) {
-            minY = Math.min(minY, val);
-            maxY = Math.max(maxY, val);
-          }
-        }
-      });
-    });
-
-    if (minY === Infinity || maxY === -Infinity) {
-      minY = 0;
-      maxY = 100;
-    }
-
-
-    const diff = maxY - minY;
-    const paddingTop = diff * 0.15; // 15% headroom
-    const paddingBottom = diff * 0.05;
-
-    const dynamicYRange = [
-      Math.max(0, minY - paddingBottom), // Maintain 0 as a hard floor for admissions
-      maxY + paddingTop
-    ];
-
-    const layoutConfig = {
-      height: 280,
-      margin: { l: 45, r: 20, t: 10, b: 40 },
-      xaxis: {
-        range: xRange,
-        showgrid: false,
-        tickfont: { size: 10 }
-      },
-      yaxis: { 
-        range: dynamicYRange,
-        automargin: true, 
-        tickfont: { size: 10 },
-        fixedrange: true,
-      },
-      showlegend: true,
-      legend: { 
-        orientation: 'h', 
-        y: -0.2, 
-        x: 0.5, 
-        xanchor: 'center', 
-        font: { size: 9 } 
-      },
-      hovermode: 'x unified'
-    };
-
-    return { traces: activeTraces, layout: layoutConfig };
+    return { buildTraces: tracesBuilder, xRange: range };
   }, [data]);
+
+  const { traces, layout } = useOverviewPlot({
+    data,
+    buildTraces,
+    xRange,
+    yPaddingTopRatio: 0.15,
+    yPaddingBottomRatio: 0.05,
+    yMinFloor: 0,
+    layoutDefaults: {
+      margin: { l: 45, r: 20, t: 10, b: 40 },
+      showlegend: true,
+      legend: {
+        orientation: 'h',
+        y: -0.2,
+        x: 0.5,
+        xanchor: 'center',
+        font: { size: 9 }
+      }
+    }
+  });
+
+  const layoutWithFloor = useMemo(() => ({
+    ...layout,
+    yaxis: {
+      ...layout.yaxis,
+      fixedrange: true
+    }
+  }), [layout]);
 
   const locationLabel = resolvedLocation === 'US' ? 'US national view' : resolvedLocation;
 
@@ -144,7 +119,7 @@ const NHSNOverviewGraph = ( {location} ) => {
       error={error}
       errorLabel={`No NHSN data for ${resolvedLocation}`}
       traces={traces}
-      layout={layout}
+      layout={layoutWithFloor}
       emptyLabel={null}
       actionLabel={isActive ? 'Viewing' : 'View NHSN data'}
       actionActive={isActive}
