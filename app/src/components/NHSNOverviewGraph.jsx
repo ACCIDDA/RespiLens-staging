@@ -170,7 +170,7 @@ const NHSNOverviewGraph = ( {location} ) => {
           <Button
             size="xs"
             variant={isActive ? 'light' : 'filled'}
-            onClick={() => setViewType('nhsn')}
+            onClick={() => setViewType('nhsnall')}
             rightSection={<IconChevronRight size={14} />}
           >
             {isActive ? 'Viewing' : 'View NHSN data'}
