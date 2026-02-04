@@ -332,6 +332,9 @@ const ForecastPlotView = ({
   return (
     <Stack>
       <LastFetched timestamp={metadata?.last_updated} />
+      <Text fw={700} size="sm" mb={5} ta="center">
+        {stateName}
+      </Text>
       <div style={{ width: '100%', height: Math.min(800, windowSize.height * 0.6) }}>
         <Plot
           ref={plotRef}
@@ -350,9 +353,6 @@ const ForecastPlotView = ({
         showLegend={showLegend}
         setShowLegend={setShowLegend}
       />
-      <Text fw={700} size="sm" mb={5} ta="center">
-        {stateName}
-      </Text>
       <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
         <p style={{
           fontStyle: 'italic',

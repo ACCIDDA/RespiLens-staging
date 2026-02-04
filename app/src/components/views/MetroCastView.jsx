@@ -31,7 +31,8 @@ const MetroPlotCard = ({
   xAxisRange,
   setXAxisRange,
   chartScale,
-  intervalVisibility
+  intervalVisibility,
+  showLegend = true
 }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const groundTruth = locationData?.ground_truth;
@@ -286,6 +287,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         isSmall={false}
         chartScale={chartScale}
         intervalVisibility={intervalVisibility}
+        showLegend={showLegend}
       />
       <ForecastControlsPanel
         chartScale={chartScale}
@@ -323,6 +325,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
                       setXAxisRange={setXAxisRange}
                       chartScale={chartScale}
                       intervalVisibility={intervalVisibility}
+                      showLegend={showLegend}
                     />
                   </UnstyledButton>
                 ))}
