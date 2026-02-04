@@ -20,7 +20,7 @@ const NHSNOverviewGraph = ( {location} ) => {
   const [error, setError] = useState(null);
 
   const resolvedLocation = location || 'US';
-  const isActive = activeViewType === 'nhsn ';
+  const isActive = activeViewType === 'nhsn';
 
   useEffect(() => {
     const fetchData = async () => {
