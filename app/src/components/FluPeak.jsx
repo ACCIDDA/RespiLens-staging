@@ -35,7 +35,9 @@ const FluPeak = ({
     chartScale = 'linear',
     intervalVisibility = { median: true, ci50: true, ci95: true },
     setChartScale,
-    setIntervalVisibility
+    setIntervalVisibility,
+    showLegend = true,
+    setShowLegend
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const groundTruth = data?.ground_truth;
@@ -464,6 +466,7 @@ const FluPeak = ({
         plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
         font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
         margin: { l: 60, r: 30, t: 30, b: 50 },
+        showlegend: showLegend,
         legend: {
             x: 0, y: 1, xanchor: 'left', yanchor: 'top',
             bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
@@ -522,7 +525,7 @@ const FluPeak = ({
                 }
             ];
         }),
-    }), [colorScheme, windowSize, selectedDates, chartScale, sqrtTicks]);
+    }), [colorScheme, windowSize, selectedDates, chartScale, sqrtTicks, showLegend]);
 
     const config = useMemo(() => ({
         responsive: true,
@@ -557,6 +560,8 @@ const FluPeak = ({
                     setChartScale={setChartScale}
                     intervalVisibility={intervalVisibility}
                     setIntervalVisibility={setIntervalVisibility}
+                    showLegend={showLegend}
+                    setShowLegend={setShowLegend}
                 />
             )}
             <Text fw={700} size="sm" mb={5} ta="center">

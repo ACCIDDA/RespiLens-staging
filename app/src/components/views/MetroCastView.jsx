@@ -81,7 +81,7 @@ const MetroPlotCard = ({
     modelMarkerSize: isSmall ? 3 : 6,
     groundTruthLineWidth: isSmall ? 1 : 2,
     groundTruthMarkerSize: isSmall ? 2 : 4,
-    showLegendForFirstDate: !isSmall,
+    showLegendForFirstDate: showLegend && !isSmall,
     fillMissingQuantiles: true,
     showMedian,
     show50,
@@ -127,7 +127,7 @@ const MetroPlotCard = ({
           plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
           font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
           margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
-          showlegend: !isSmall,
+          showlegend: showLegend && !isSmall,
           legend: {
             x: 0, y: 1, xanchor: 'left', yanchor: 'top',
             bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
@@ -220,7 +220,7 @@ const MetroPlotCard = ({
 
 const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const { colorScheme } = useMantineColorScheme();
-  const { handleLocationSelect, chartScale, setChartScale, intervalVisibility, setIntervalVisibility } = useView();
+  const { handleLocationSelect, chartScale, setChartScale, intervalVisibility, setIntervalVisibility, showLegend, setShowLegend } = useView();
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [xAxisRange, setXAxisRange] = useState(null);
@@ -292,6 +292,8 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         setChartScale={setChartScale}
         intervalVisibility={intervalVisibility}
         setIntervalVisibility={setIntervalVisibility}
+        showLegend={showLegend}
+        setShowLegend={setShowLegend}
       />
 
       {stateCode && (

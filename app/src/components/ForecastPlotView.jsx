@@ -41,7 +41,7 @@ const ForecastPlotView = ({
   const projectionsDataRef = useRef([]);
 
   const { colorScheme } = useMantineColorScheme();
-  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility } = useView();
+  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility, showLegend, setShowLegend } = useView();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
@@ -99,7 +99,7 @@ const ForecastPlotView = ({
     modelMarkerSize: 6,
     groundTruthLineWidth: 2,
     groundTruthMarkerSize: 4,
-    showLegendForFirstDate: true,
+    showLegendForFirstDate: showLegend,
     fillMissingQuantiles: false,
     showMedian,
     show50,
@@ -202,7 +202,7 @@ const ForecastPlotView = ({
       font: {
         color: colorScheme === 'dark' ? '#c1c2c5' : '#000000'
       },
-      showlegend: selectedModels.length < 15,
+      showlegend: showLegend,
       legend: {
         x: 0,
         y: 1,
@@ -347,6 +347,8 @@ const ForecastPlotView = ({
         setChartScale={setChartScale}
         intervalVisibility={intervalVisibility}
         setIntervalVisibility={setIntervalVisibility}
+        showLegend={showLegend}
+        setShowLegend={setShowLegend}
       />
       <Text fw={700} size="sm" mb={5} ta="center">
         {stateName}

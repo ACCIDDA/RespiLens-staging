@@ -8,6 +8,8 @@ const ForecastControlsPanel = ({
   setChartScale,
   intervalVisibility,
   setIntervalVisibility,
+  showLegend,
+  setShowLegend,
   defaultOpen = false,
   label = 'Advanced controls'
 }) => {
@@ -38,6 +40,8 @@ const ForecastControlsPanel = ({
             setChartScale={setChartScale}
             intervalVisibility={intervalVisibility}
             setIntervalVisibility={setIntervalVisibility}
+            showLegend={showLegend}
+            setShowLegend={setShowLegend}
           />
         </Stack>
       </Drawer>

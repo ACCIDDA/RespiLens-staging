@@ -22,7 +22,7 @@ const FluView = ({
   availablePeakModels,
   peakLocation
 }) => {
-  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility } = useView();
+  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility, showLegend, setShowLegend } = useView();
   const forecasts = data?.forecasts;
 
   const lastSelectedDate = useMemo(() => {
@@ -186,6 +186,8 @@ const FluView = ({
           intervalVisibility={intervalVisibility}
           setChartScale={setChartScale}
           setIntervalVisibility={setIntervalVisibility}
+          showLegend={showLegend}
+          setShowLegend={setShowLegend}
         />
       </>
     );

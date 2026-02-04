@@ -33,6 +33,7 @@ export const ViewProvider = ({ children }) => {
     ci50: true,
     ci95: true
   });
+  const [showLegend, setShowLegend] = useState(true);
   const CURRENT_FLU_SEASON_START = '2025-11-01'; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
 
   const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
@@ -280,7 +281,9 @@ export const ViewProvider = ({ children }) => {
     chartScale,
     setChartScale,
     intervalVisibility,
-    setIntervalVisibility
+    setIntervalVisibility,
+    showLegend,
+    setShowLegend
   };
 
   return (

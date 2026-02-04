@@ -260,6 +260,20 @@ const useQuantileForecastTraces = ({
         });
       }
 
+      if (!showMedian && (show50 || show95)) {
+        traces.push({
+          x: [null],
+          y: [null],
+          name: model,
+          type: 'scatter',
+          mode: 'lines',
+          line: { color: modelColor, width: modelLineWidth },
+          showlegend: showLegendForFirstDate ? isFirstDate : false,
+          legendgroup: model,
+          hoverinfo: 'skip'
+        });
+      }
+
       return traces;
     })
   );

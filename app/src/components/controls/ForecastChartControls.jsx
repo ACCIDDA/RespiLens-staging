@@ -1,4 +1,4 @@
-import { Paper, Stack, Text, SegmentedControl, Checkbox, Group } from '@mantine/core';
+import { Paper, Stack, Text, SegmentedControl, Checkbox, Group, Switch } from '@mantine/core';
 
 const INTERVAL_OPTIONS = [
   { value: 'median', label: 'Median' },
@@ -16,7 +16,9 @@ const ForecastChartControls = ({
   chartScale,
   setChartScale,
   intervalVisibility,
-  setIntervalVisibility
+  setIntervalVisibility,
+  showLegend,
+  setShowLegend
 }) => {
   const selectedIntervals = INTERVAL_OPTIONS
     .filter((option) => intervalVisibility?.[option.value])
@@ -52,6 +54,16 @@ const ForecastChartControls = ({
               ))}
             </Group>
           </Checkbox.Group>
+        </Group>
+        <Group align="center" gap="md">
+          <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Legend</Text>
+          <Switch
+            checked={showLegend}
+            onChange={(event) => setShowLegend(event.currentTarget.checked)}
+            size="sm"
+            onLabel="On"
+            offLabel="Off"
+          />
         </Group>
       </Stack>
     </Paper>
