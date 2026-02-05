@@ -336,6 +336,7 @@ const NHSNView = ({ location }) => {
   }, [data, selectedTarget, selectedColumns, filteredAvailableColumns]);
 
   const layout = useMemo(() => ({
+    autosize: true,
     template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
     paper_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
     plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
@@ -365,7 +366,6 @@ const NHSNView = ({ location }) => {
       range: yAxisRange, 
       autorange: yAxisRange === null
     },
-    height: 600,
     showlegend: selectedColumns.length < 15,
     legend: {
       x: 0,
@@ -442,15 +442,18 @@ const NHSNView = ({ location }) => {
       <Text fw={700} size="sm" mb={5} ta="center">
         {stateName}
       </Text>
-      <Plot
-        ref={plotRef} 
-        data={traces}
-        layout={layout} 
-        config={config}
-        style={{ width: '100%', marginBottom: '-20px' }}
-        revision={dataRevision}
-        onRelayout={handleRelayout} 
-      />
+      <div style={{ width: '100%', height: 'min(700px, 65vh)', minHeight: 360 }}>
+        <Plot
+          ref={plotRef}
+          useResizeHandler
+          data={traces}
+          layout={layout}
+          config={config}
+          style={{ width: '100%', height: '100%' }}
+          revision={dataRevision}
+          onRelayout={handleRelayout}
+        />
+      </div>
 
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
