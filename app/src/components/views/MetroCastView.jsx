@@ -9,8 +9,8 @@ import { CHART_CONSTANTS } from '../../constants/chart';
 import { targetDisplayNameMap, targetYAxisLabelMap } from '../../utils/mapUtils';
 import { getDataPath } from '../../utils/paths';
 import useQuantileForecastTraces from '../../hooks/useQuantileForecastTraces';
-import ForecastControlsPanel from '../controls/ForecastControlsPanel';
 import { buildSqrtTicks } from '../../utils/scaleUtils';
+import { getDatasetNameFromView } from '../../utils/datasetUtils';
 
 const METRO_STATE_MAP = {
   'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME',
@@ -110,7 +110,11 @@ const MetroPlotCard = ({
 
   const PlotContent = (
     <>
-      <Text fw={700} size={isSmall ? "xs" : "sm"} mb={5} ta="center">{title}</Text>
+      {title && (
+        <Text fw={400} size={isSmall ? "xs" : "sm"} mb={5} ta="center">
+          {title}
+        </Text>
+      )}
 
       {!hasForecasts && (
         <Box style={{ position: 'absolute', top: 40, left: 0, right: 0, zIndex: 1, pointerEvents: 'none' }}>
@@ -221,12 +225,13 @@ const MetroPlotCard = ({
 
 const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const { colorScheme } = useMantineColorScheme();
-  const { handleLocationSelect, chartScale, setChartScale, intervalVisibility, setIntervalVisibility, showLegend, setShowLegend } = useView();
+  const { handleLocationSelect, chartScale, intervalVisibility, showLegend, viewType } = useView();
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [xAxisRange, setXAxisRange] = useState(null);
 
   const stateName = data?.metadata?.location_name;
+  const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
   const stateCode = METRO_STATE_MAP[stateName];
   const forecasts = data?.forecasts;
 
@@ -271,11 +276,18 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
 
   return (
     <Stack gap="xl">
-      <LastFetched timestamp={metadata?.last_updated} />
+      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
+          {hubName ? `${stateName} — ${hubName}` : stateName}
+        </Text>
+        <Box style={{ position: 'absolute', right: 0 }}>
+          <LastFetched timestamp={metadata?.last_updated} />
+        </Box>
+      </Box>
       
       <MetroPlotCard 
         locationData={data} 
-        title={`${stateName}`}
+        title={null}
         colorScheme={colorScheme}
         windowSize={windowSize}
         selectedTarget={selectedTarget}
@@ -289,15 +301,6 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         intervalVisibility={intervalVisibility}
         showLegend={showLegend}
       />
-      <ForecastControlsPanel
-        chartScale={chartScale}
-        setChartScale={setChartScale}
-        intervalVisibility={intervalVisibility}
-        setIntervalVisibility={setIntervalVisibility}
-        showLegend={showLegend}
-        setShowLegend={setShowLegend}
-      />
-
       {stateCode && (
         <Stack gap="md">
           {loadingChildren ? (
@@ -334,7 +337,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
           )}
         </Stack>
       )}
-      <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
+      <Stack gap={2}>
         <p style={{
           fontStyle: 'italic',
           fontSize: '12px',
@@ -344,14 +347,14 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         }}>
           Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
         </p>
-      </div>
-      <ModelSelector
-        models={models}
-        selectedModels={selectedModels}
-        setSelectedModels={setSelectedModels}
-        activeModels={activeModels}
-        getModelColor={(m, sel) => MODEL_COLORS[sel.indexOf(m) % MODEL_COLORS.length]}
-      />
+        <ModelSelector
+          models={models}
+          selectedModels={selectedModels}
+          setSelectedModels={setSelectedModels}
+          activeModels={activeModels}
+          getModelColor={(m, sel) => MODEL_COLORS[sel.indexOf(m) % MODEL_COLORS.length]}
+        />
+      </Stack>
     </Stack>
   );
 };

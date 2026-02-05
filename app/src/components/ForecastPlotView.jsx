@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useMantineColorScheme, Stack, Text } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text, Box } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
@@ -10,7 +10,7 @@ import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 import useQuantileForecastTraces from '../hooks/useQuantileForecastTraces';
 import { buildSqrtTicks } from '../utils/scaleUtils';
 import { useView } from '../hooks/useView';
-import ForecastControlsPanel from './controls/ForecastControlsPanel';
+import { getDatasetNameFromView } from '../utils/datasetUtils';
 
 const ForecastPlotView = ({
   data,
@@ -34,13 +34,13 @@ const ForecastPlotView = ({
   const [xAxisRange, setXAxisRange] = useState(null);
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
+  const { colorScheme } = useMantineColorScheme();
+  const { chartScale, intervalVisibility, showLegend, viewType } = useView();
   const stateName = data?.metadata?.location_name;
+  const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
 
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
-
-  const { colorScheme } = useMantineColorScheme();
-  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility, showLegend, setShowLegend } = useView();
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
@@ -328,10 +328,14 @@ const ForecastPlotView = ({
 
   return (
     <Stack>
-      <LastFetched timestamp={metadata?.last_updated} />
-      <Text fw={700} size="sm" mb={5} ta="center">
-        {stateName}
-      </Text>
+      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
+          {hubName ? `${stateName} — ${hubName}` : stateName}
+        </Text>
+        <Box style={{ position: 'absolute', right: 0 }}>
+          <LastFetched timestamp={metadata?.last_updated} />
+        </Box>
+      </Box>
       <div style={{ width: '100%', height: 'min(800px, 60vh)', minHeight: 320 }}>
         <Plot
           ref={plotRef}
@@ -343,15 +347,7 @@ const ForecastPlotView = ({
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
-      <ForecastControlsPanel
-        chartScale={chartScale}
-        setChartScale={setChartScale}
-        intervalVisibility={intervalVisibility}
-        setIntervalVisibility={setIntervalVisibility}
-        showLegend={showLegend}
-        setShowLegend={setShowLegend}
-      />
-      <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
+      <Stack gap={2}>
         <p style={{
           fontStyle: 'italic',
           fontSize: '12px',
@@ -361,17 +357,17 @@ const ForecastPlotView = ({
         }}>
           Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
         </p>
-      </div>
-      <ModelSelector
-        models={models}
-        selectedModels={selectedModels}
-        setSelectedModels={setSelectedModels}
-        activeModels={activeModels}
-        getModelColor={(model, currentSelected) => {
-          const index = currentSelected.indexOf(model);
-          return MODEL_COLORS[index % MODEL_COLORS.length];
-        }}
-      />
+        <ModelSelector
+          models={models}
+          selectedModels={selectedModels}
+          setSelectedModels={setSelectedModels}
+          activeModels={activeModels}
+          getModelColor={(model, currentSelected) => {
+            const index = currentSelected.indexOf(model);
+            return MODEL_COLORS[index % MODEL_COLORS.length];
+          }}
+        />
+      </Stack>
     </Stack>
   );
 };

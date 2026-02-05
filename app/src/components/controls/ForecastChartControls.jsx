@@ -1,4 +1,4 @@
-import { Paper, Stack, Text, SegmentedControl, Checkbox, Group, Switch } from '@mantine/core';
+import { Stack, Text, SegmentedControl, Checkbox, Group, Switch } from '@mantine/core';
 
 const INTERVAL_OPTIONS = [
   { value: 'median', label: 'Median' },
@@ -33,40 +33,37 @@ const ForecastChartControls = ({
   };
 
   return (
-    <Paper withBorder radius="md" p="sm">
-      <Stack gap="xs">
-        <Text size="sm" fw={600}>Graph controls</Text>
-        <Group align="center" gap="md">
-          <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Y-scale</Text>
-          <SegmentedControl
-            data={SCALE_OPTIONS}
-            value={chartScale}
-            onChange={setChartScale}
-            size="xs"
-          />
-        </Group>
-        <Group align="center" gap="md">
-          <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Intervals</Text>
-          <Checkbox.Group value={selectedIntervals} onChange={handleIntervalChange}>
-            <Group gap="sm">
-              {INTERVAL_OPTIONS.map((option) => (
-                <Checkbox key={option.value} value={option.value} label={option.label} size="xs" />
-              ))}
-            </Group>
-          </Checkbox.Group>
-        </Group>
-        <Group align="center" gap="md">
-          <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Legend</Text>
-          <Switch
-            checked={showLegend}
-            onChange={(event) => setShowLegend(event.currentTarget.checked)}
-            size="sm"
-            onLabel="On"
-            offLabel="Off"
-          />
-        </Group>
-      </Stack>
-    </Paper>
+    <Stack gap="xs">
+      <Group align="center" gap="md">
+        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Y-scale</Text>
+        <SegmentedControl
+          data={SCALE_OPTIONS}
+          value={chartScale}
+          onChange={setChartScale}
+          size="xs"
+        />
+      </Group>
+      <Group align="center" gap="md">
+        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Intervals</Text>
+        <Checkbox.Group value={selectedIntervals} onChange={handleIntervalChange}>
+          <Group gap="sm">
+            {INTERVAL_OPTIONS.map((option) => (
+              <Checkbox key={option.value} value={option.value} label={option.label} size="xs" />
+            ))}
+          </Group>
+        </Checkbox.Group>
+      </Group>
+      <Group align="center" gap="md">
+        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Legend</Text>
+        <Switch
+          checked={showLegend}
+          onChange={(event) => setShowLegend(event.currentTarget.checked)}
+          size="sm"
+          onLabel="On"
+          offLabel="Off"
+        />
+      </Group>
+    </Stack>
   );
 };
 

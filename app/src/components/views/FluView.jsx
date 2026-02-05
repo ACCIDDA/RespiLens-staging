@@ -2,9 +2,11 @@ import { useMemo, useCallback } from 'react';
 import ForecastPlotView from '../ForecastPlotView';
 import FluPeak from '../FluPeak';
 import LastFetched from '../LastFetched';
+import { Text, Box } from '@mantine/core';
 import { MODEL_COLORS } from '../../config/datasets';
 import { RATE_CHANGE_CATEGORIES } from '../../constants/chart';
 import { useView } from '../../hooks/useView';
+import { getDatasetNameFromView } from '../../utils/datasetUtils';
 
 const FluView = ({
   data,
@@ -22,7 +24,7 @@ const FluView = ({
   availablePeakModels,
   peakLocation
 }) => {
-  const { chartScale, setChartScale, intervalVisibility, setIntervalVisibility, showLegend, setShowLegend } = useView();
+  const { chartScale, intervalVisibility, showLegend } = useView();
   const forecasts = data?.forecasts;
 
   const lastSelectedDate = useMemo(() => {
@@ -169,9 +171,18 @@ const FluView = ({
   }), []);
 
   if (viewType === 'flu_peak') {
+    const stateName = data?.metadata?.location_name;
+    const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
     return (
       <>
-        <LastFetched timestamp={metadata?.last_updated} />
+        <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
+            {hubName ? `${stateName} — ${hubName}` : stateName}
+          </Text>
+          <Box style={{ position: 'absolute', right: 0 }}>
+            <LastFetched timestamp={metadata?.last_updated} />
+          </Box>
+        </Box>
         <FluPeak
           data={data}
           peaks={peaks}
@@ -184,10 +195,7 @@ const FluView = ({
           peakLocation={peakLocation}
           chartScale={chartScale}
           intervalVisibility={intervalVisibility}
-          setChartScale={setChartScale}
-          setIntervalVisibility={setIntervalVisibility}
           showLegend={showLegend}
-          setShowLegend={setShowLegend}
         />
       </>
     );

@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Stack, useMantineColorScheme, Text } from '@mantine/core';
+import { Stack, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector'; 
 import { MODEL_COLORS } from '../config/datasets'; 
 import { CHART_CONSTANTS } from '../constants/chart'; 
 import { getDataPath } from '../utils/paths';
-import ForecastControlsPanel from './controls/ForecastControlsPanel';
 import { buildSqrtTicks, getYRangeFromTraces } from '../utils/scaleUtils';
 
 // helper to convert Hex to RGBA for opacity control
@@ -34,15 +33,11 @@ const FluPeak = ({
     selectedDates,
     chartScale = 'linear',
     intervalVisibility = { median: true, ci50: true, ci95: true },
-    setChartScale,
-    setIntervalVisibility,
-    showLegend = true,
-    setShowLegend
+    showLegend = true
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
-    const stateName = data?.metadata?.location_name;
     const showMedian = intervalVisibility?.median ?? true;
     const show50 = intervalVisibility?.ci50 ?? true;
     const show95 = intervalVisibility?.ci95 ?? true;
@@ -554,40 +549,27 @@ const FluPeak = ({
                     useResizeHandler={true}
                 />
             </div>
-            {setChartScale && setIntervalVisibility && (
-                <ForecastControlsPanel
-                    chartScale={chartScale}
-                    setChartScale={setChartScale}
-                    intervalVisibility={intervalVisibility}
-                    setIntervalVisibility={setIntervalVisibility}
-                    showLegend={showLegend}
-                    setShowLegend={setShowLegend}
+            <Stack gap={2}>
+                <p style={{ 
+                  fontStyle: 'italic', 
+                  fontSize: '12px', 
+                  color: '#868e96', 
+                  textAlign: 'right',
+                  margin: 0 
+                }}>
+                  Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+                </p>
+                <ModelSelector 
+                    models={peakModels} 
+                    selectedModels={selectedModels}
+                    setSelectedModels={setSelectedModels}
+                    activeModels={activePeakModels} 
+                    getModelColor={(model, currentSelected) => {
+                        const index = currentSelected.indexOf(model);
+                        return MODEL_COLORS[index % MODEL_COLORS.length];
+                    }}
                 />
-            )}
-            <Text fw={700} size="sm" mb={5} ta="center">
-                {stateName}
-            </Text>
-            <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
-              <p style={{ 
-                fontStyle: 'italic', 
-                fontSize: '12px', 
-                color: '#868e96', 
-                textAlign: 'right',
-                margin: 0 
-              }}>
-                Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
-              </p>
-            </div>
-            <ModelSelector 
-                models={peakModels} 
-                selectedModels={selectedModels}
-                setSelectedModels={setSelectedModels}
-                activeModels={activePeakModels} 
-                getModelColor={(model, currentSelected) => {
-                    const index = currentSelected.indexOf(model);
-                    return MODEL_COLORS[index % MODEL_COLORS.length];
-                }}
-            />
+            </Stack>
         </Stack>
     );
 };
