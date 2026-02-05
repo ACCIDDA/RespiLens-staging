@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { IconChevronRight } from '@tabler/icons-react';
 import { getDataPath } from '../utils/paths';
 import { useView } from '../hooks/useView';
@@ -36,7 +36,7 @@ const NHSNOverviewGraph = ({ location }) => {
         const json = await response.json();
         setData(json);
       } catch (err) {
-        console.error("Failed to fetch NHSN snapshot", err);
+        console.error('Failed to fetch NHSN snapshot', err);
         setError(err.message);
         setData(null);
       } finally {
