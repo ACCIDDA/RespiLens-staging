@@ -1,5 +1,13 @@
 import { DATASETS, APP_CONFIG } from '../config';
 
+const DEFAULT_CHART_SCALE = 'linear';
+const DEFAULT_INTERVAL_VISIBILITY = {
+  median: true,
+  ci50: true,
+  ci95: true
+};
+const DEFAULT_SHOW_LEGEND = true;
+
 export class URLParameterManager {
   constructor(searchParams, setSearchParams) {
     this.searchParams = searchParams;
@@ -50,6 +58,39 @@ export class URLParameterManager {
     return params;
   }
 
+  getAdvancedParams() {
+    const scaleParam = this.searchParams.get('scale');
+    const intervalsParam = this.searchParams.get('intervals');
+    const legendParam = this.searchParams.get('legend');
+
+    const chartScale = scaleParam || DEFAULT_CHART_SCALE;
+    let intervalVisibility = { ...DEFAULT_INTERVAL_VISIBILITY };
+
+    if (intervalsParam === 'none') {
+      intervalVisibility = {
+        median: false,
+        ci50: false,
+        ci95: false
+      };
+    } else if (intervalsParam) {
+      const enabled = new Set(intervalsParam.split(',').filter(Boolean));
+      intervalVisibility = {
+        median: enabled.has('median'),
+        ci50: enabled.has('ci50'),
+        ci95: enabled.has('ci95')
+      };
+    }
+
+    let showLegend = DEFAULT_SHOW_LEGEND;
+    if (legendParam === '0' || legendParam === 'false') {
+      showLegend = false;
+    } else if (legendParam === '1' || legendParam === 'true') {
+      showLegend = true;
+    }
+
+    return { chartScale, intervalVisibility, showLegend };
+  }
+
   // Clear parameters for a specific dataset
   clearDatasetParams(dataset) {
     if (!dataset) {
@@ -72,6 +113,41 @@ export class URLParameterManager {
     }
 
     this.setSearchParams(newParams, { replace: true });
+  }
+
+  updateAdvancedParams({ chartScale, intervalVisibility, showLegend }) {
+    const updatedParams = new URLSearchParams(this.searchParams);
+
+    if (chartScale) {
+      if (chartScale !== DEFAULT_CHART_SCALE) {
+        updatedParams.set('scale', chartScale);
+      } else {
+        updatedParams.delete('scale');
+      }
+    }
+
+    if (intervalVisibility) {
+      const enabled = ['median', 'ci50', 'ci95'].filter(key => intervalVisibility[key]);
+      if (enabled.length === 0) {
+        updatedParams.set('intervals', 'none');
+      } else if (enabled.length === 3) {
+        updatedParams.delete('intervals');
+      } else {
+        updatedParams.set('intervals', enabled.join(','));
+      }
+    }
+
+    if (typeof showLegend === 'boolean') {
+      if (showLegend !== DEFAULT_SHOW_LEGEND) {
+        updatedParams.set('legend', showLegend ? '1' : '0');
+      } else {
+        updatedParams.delete('legend');
+      }
+    }
+
+    if (updatedParams.toString() !== this.searchParams.toString()) {
+      this.setSearchParams(updatedParams, { replace: true });
+    }
   }
 
   updateDatasetParams(dataset, newParams) {

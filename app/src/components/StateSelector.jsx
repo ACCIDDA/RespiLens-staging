@@ -160,8 +160,6 @@ const StateSelector = () => {
     return <Alert color="red" title="Error" icon={<IconAlertTriangle />}>{error}</Alert>;
   }
 
-  const maxLocationScrollHeight = 360;
-
   return (
     <Stack gap="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack gap="xs" style={{ flexShrink: 0 }}>
@@ -214,7 +212,7 @@ const StateSelector = () => {
           autoFocus 
           aria-label="Search locations"
         />
-        <ScrollArea style={{ flex: 1, maxHeight: maxLocationScrollHeight }} type="auto">
+        <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto">
           <Stack gap="xs">
             {filteredStates.map((state, index) => {
               const isSelected = selectedLocation === state.abbreviation;

@@ -1,4 +1,4 @@
-import { Box, Text } from '@mantine/core';
+import { Box, Title } from '@mantine/core';
 import LastFetched from './LastFetched';
 
 const TitleRow = ({ title, timestamp }) => {
@@ -7,9 +7,9 @@ const TitleRow = ({ title, timestamp }) => {
   return (
     <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       {title && (
-        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
+        <Title order={5} style={{ textAlign: 'center' }}>
           {title}
-        </Text>
+        </Title>
       )}
       {timestamp && (
         <Box style={{ position: 'absolute', right: 0 }}>

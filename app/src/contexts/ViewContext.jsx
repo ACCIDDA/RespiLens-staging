@@ -27,13 +27,9 @@ export const ViewProvider = ({ children }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
-  const [chartScale, setChartScale] = useState('linear');
-  const [intervalVisibility, setIntervalVisibility] = useState({
-    median: true,
-    ci50: true,
-    ci95: true
-  });
-  const [showLegend, setShowLegend] = useState(true);
+  const [chartScale, setChartScale] = useState(() => urlManager.getAdvancedParams().chartScale);
+  const [intervalVisibility, setIntervalVisibility] = useState(() => urlManager.getAdvancedParams().intervalVisibility);
+  const [showLegend, setShowLegend] = useState(() => urlManager.getAdvancedParams().showLegend);
   const CURRENT_FLU_SEASON_START = '2025-11-01'; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
 
   const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
@@ -243,6 +239,46 @@ export const ViewProvider = ({ children }) => {
     }
   }, [searchParams, urlManager, viewType]);
 
+  useEffect(() => {
+    if (!isForecastPage) {
+      return;
+    }
+    const { chartScale: urlScale, intervalVisibility: urlIntervals, showLegend: urlLegend } = urlManager.getAdvancedParams();
+    if (urlScale !== chartScale) {
+      setChartScale(urlScale);
+    }
+    if (JSON.stringify(urlIntervals) !== JSON.stringify(intervalVisibility)) {
+      setIntervalVisibility(urlIntervals);
+    }
+    if (urlLegend !== showLegend) {
+      setShowLegend(urlLegend);
+    }
+  }, [searchParams, urlManager, isForecastPage, chartScale, intervalVisibility, showLegend]);
+
+  const setChartScaleWithUrl = useCallback((nextScale) => {
+    setChartScale(nextScale);
+    if (isForecastPage) {
+      urlManager.updateAdvancedParams({ chartScale: nextScale });
+    }
+  }, [urlManager, isForecastPage]);
+
+  const setIntervalVisibilityWithUrl = useCallback((updater) => {
+    setIntervalVisibility(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (isForecastPage) {
+        urlManager.updateAdvancedParams({ intervalVisibility: next });
+      }
+      return next;
+    });
+  }, [urlManager, isForecastPage]);
+
+  const setShowLegendWithUrl = useCallback((nextShowLegend) => {
+    setShowLegend(nextShowLegend);
+    if (isForecastPage) {
+      urlManager.updateAdvancedParams({ showLegend: nextShowLegend });
+    }
+  }, [urlManager, isForecastPage]);
+
   const contextValue = {
     selectedLocation, handleLocationSelect,
     data, metadata, loading, error, 
@@ -279,11 +315,11 @@ export const ViewProvider = ({ children }) => {
     availablePeakDates: (availablePeakDates || []).filter(date => date >= CURRENT_FLU_SEASON_START),
     availablePeakModels,
     chartScale,
-    setChartScale,
+    setChartScale: setChartScaleWithUrl,
     intervalVisibility,
-    setIntervalVisibility,
+    setIntervalVisibility: setIntervalVisibilityWithUrl,
     showLegend,
-    setShowLegend
+    setShowLegend: setShowLegendWithUrl
   };
 
   return (
