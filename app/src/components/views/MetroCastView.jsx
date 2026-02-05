@@ -1,32 +1,38 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useMantineColorScheme, Stack, Text, Center, SimpleGrid, Paper, Loader, Box, UnstyledButton } from '@mantine/core';
 import Plot from 'react-plotly.js';
-import ModelSelector from './ModelSelector';
-import LastFetched from './LastFetched';
-import { useView } from '../hooks/useView'; // need this so the metro area cards can link to other pages
-import { MODEL_COLORS } from '../config/datasets';
-import { CHART_CONSTANTS } from '../constants/chart';
-import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
-import { getDataPath } from '../utils/paths';
+import ModelSelector from '../ModelSelector';
+import LastFetched from '../LastFetched';
+import { useView } from '../../hooks/useView';
+import { MODEL_COLORS } from '../../config/datasets';
+import { CHART_CONSTANTS } from '../../constants/chart';
+import { targetDisplayNameMap, targetYAxisLabelMap } from '../../utils/mapUtils';
+import { getDataPath } from '../../utils/paths';
+import useQuantileForecastTraces from '../../hooks/useQuantileForecastTraces';
+import { buildSqrtTicks } from '../../utils/scaleUtils';
+import { getDatasetNameFromView } from '../../utils/datasetUtils';
 
 const METRO_STATE_MAP = {
-  'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME', 
-  'Maryland': 'MD', 'Massachusetts': 'MA', 'Minnesota': 'MN', 
-  'South Carolina': 'SC', 'Texas': 'TX', 'Utah': 'UT', 
+  'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME',
+  'Maryland': 'MD', 'Massachusetts': 'MA', 'Minnesota': 'MN',
+  'South Carolina': 'SC', 'Texas': 'TX', 'Utah': 'UT',
   'Virginia': 'VA', 'North Carolina': 'NC', 'Oregon': 'OR'
 };
 
-const MetroPlotCard = ({ 
-  locationData, 
-  title, 
-  isSmall = false, 
-  colorScheme, 
-  selectedTarget, 
-  selectedModels, 
+const MetroPlotCard = ({
+  locationData,
+  title,
+  isSmall = false,
+  colorScheme,
+  selectedTarget,
+  selectedModels,
   selectedDates,
   getDefaultRange,
   xAxisRange,
-  setXAxisRange
+  setXAxisRange,
+  chartScale,
+  intervalVisibility,
+  showLegend = true
 }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
   const groundTruth = locationData?.ground_truth;
@@ -53,96 +59,47 @@ const MetroPlotCard = ({
     return [Math.max(0, minY - pad), maxY + pad];
   }, [selectedTarget]);
 
-  const projectionsData = useMemo(() => {
-    if (!groundTruth || !forecasts || !selectedTarget) return [];
-    const gtValues = groundTruth[selectedTarget];
-    if (!gtValues) return [];
+  const showMedian = intervalVisibility?.median ?? true;
+  const show50 = intervalVisibility?.ci50 ?? true;
+  const show95 = intervalVisibility?.ci95 ?? true;
 
-    const traces = [{
-      x: groundTruth.dates || [], y: gtValues, name: 'Observed', type: 'scatter',
-      mode: 'lines+markers', line: { color: 'black', width: isSmall ? 1 : 2, dash: 'dash' },
-      marker: { size: isSmall ? 2 : 4, color: 'black' },
-      hovertemplate: '<b>Ground Truth Data</b><br>Date: %{x}<br>Value: <b>%{y:.2f}%</b><extra></extra>'
-    }];
+  const sqrtTransform = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return (value) => Math.sqrt(Math.max(0, value));
+  }, [chartScale]);
 
-    selectedModels.forEach(model => {
-      selectedDates.forEach((date, dateIdx) => {
-        const forecast = forecasts[date]?.[selectedTarget]?.[model];
-        if (forecast?.type !== 'quantile') return;
+  const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
+    groundTruth,
+    forecasts,
+    selectedDates,
+    selectedModels,
+    target: selectedTarget,
+    groundTruthLabel: 'Ground Truth Data',
+    groundTruthValueFormat: '%{y:.2f}',
+    valueSuffix: '%',
+    formatValue: (value) => value.toFixed(2),
+    modelLineWidth: isSmall ? 1 : 2,
+    modelMarkerSize: isSmall ? 3 : 6,
+    groundTruthLineWidth: isSmall ? 1 : 2,
+    groundTruthMarkerSize: isSmall ? 2 : 4,
+    showLegendForFirstDate: showLegend && !isSmall,
+    fillMissingQuantiles: true,
+    showMedian,
+    show50,
+    show95,
+    transformY: sqrtTransform,
+    groundTruthHoverFormatter: sqrtTransform ? (value) => Number(value).toFixed(2) : null
+  });
 
-        const fDates = [], median = [], q95U = [], q95L = [], q50U = [], q50L = [];
-        const hoverTexts = [];
-
-        const sorted = Object.keys(forecast.predictions || {}).sort((a, b) => Number(a) - Number(b));
-
-        sorted.forEach(h => {
-          const p = forecast.predictions[h];
-          const pointDate = p.date;
-          fDates.push(pointDate);
-
-          const findQ = (q) => { 
-            const i = p.quantiles.indexOf(q); 
-            return i !== -1 ? p.values[i] : null; 
-          };
-
-          const v50 = findQ(0.5);
-          if (v50 !== null) {
-            median.push(v50);
-            const v025 = findQ(0.025) ?? v50;
-            const v25 = findQ(0.25) ?? v50;
-            const v75 = findQ(0.75) ?? v50;
-            const v975 = findQ(0.975) ?? v50;
-
-            q95L.push(v025);
-            q50L.push(v25);
-            q50U.push(v75);
-            q95U.push(v975);
-
-            const formattedMedian = v50.toFixed(2);
-            const formatted50 = `${v25.toFixed(2)} - ${v75.toFixed(2)}`;
-            const formatted95 = `${v025.toFixed(2)} - ${v975.toFixed(2)}`;
-
-            hoverTexts.push(
-              `<b>${model}</b><br>` +
-              `Date: ${pointDate}<br>` +
-              `Median: <b>${formattedMedian}%</b><br>` +
-              `50% CI: [${formatted50}%]<br>` +
-              `95% CI: [${formatted95}%]<br>` +
-              `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${date}</span>` +
-              `<extra></extra>`
-            );
-          }
-        });
-
-        const color = MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
-        traces.push(
-          { x: [...fDates, ...fDates.slice().reverse()], y: [...q95U, ...q95L.slice().reverse()], fill: 'toself', fillcolor: `${color}10`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', legendgroup: model, hoverinfo: 'skip' },
-          { x: [...fDates, ...fDates.slice().reverse()], y: [...q50U, ...q50L.slice().reverse()], fill: 'toself', fillcolor: `${color}30`, line: { color: 'transparent' }, showlegend: false, type: 'scatter', legendgroup: model, hoverinfo: 'skip' },
-          { 
-            x: fDates, 
-            y: median, 
-            name: model, 
-            type: 'scatter', 
-            mode: 'lines+markers', 
-            line: { color, width: isSmall ? 1 : 2 }, 
-            marker: { size: isSmall ? 3 : 6, color }, 
-            showlegend: dateIdx === 0 && !isSmall, 
-            legendgroup: model,
-            text: hoverTexts, 
-            hovertemplate: '%{text}',
-            hoverlabel: {
-              bgcolor: color,
-              font: { color: '#ffffff' },
-              bordercolor: '#ffffff'
-            }
-          }
-        );
-      });
-    });
-    return traces;
-  }, [groundTruth, forecasts, selectedDates, selectedModels, selectedTarget, isSmall]);
 
   const defRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+  const sqrtTicks = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return buildSqrtTicks({
+      rawRange: rawYRange,
+      formatValue: (value) => `${value.toFixed(2)}%`
+    });
+  }, [chartScale, rawYRange]);
 
   useEffect(() => {
     const range = xAxisRange || defRange;
@@ -153,11 +110,15 @@ const MetroPlotCard = ({
 
   const PlotContent = (
     <>
-      <Text fw={700} size={isSmall ? "xs" : "sm"} mb={5} ta="center">{title}</Text>
-      
+      {title && (
+        <Text fw={400} size={isSmall ? "xs" : "sm"} mb={5} ta="center">
+          {title}
+        </Text>
+      )}
+
       {!hasForecasts && (
         <Box style={{ position: 'absolute', top: 40, left: 0, right: 0, zIndex: 1, pointerEvents: 'none' }}>
-           <Center><Text size="xs" c="dimmed" fs="italic">No forecast data for selection</Text></Center>
+          <Center><Text size="xs" c="dimmed" fs="italic">No forecast data for selection</Text></Center>
         </Box>
       )}
 
@@ -171,15 +132,15 @@ const MetroPlotCard = ({
           plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
           font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
           margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
-          showlegend: !isSmall,
+          showlegend: showLegend && !isSmall,
           legend: {
             x: 0, y: 1, xanchor: 'left', yanchor: 'top',
             bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
             bordercolor: colorScheme === 'dark' ? '#444' : '#ccc', borderwidth: 1, font: { size: 10 }
           },
-          xaxis: { 
-            range: xAxisRange || defRange, 
-            showticklabels: !isSmall, 
+          xaxis: {
+            range: xAxisRange || defRange,
+            showticklabels: !isSmall,
             rangeslider: { visible: !isSmall, range: getDefaultRange(true) },
             showline: true, linewidth: 1,
             linecolor: colorScheme === 'dark' ? '#aaa' : '#444'
@@ -188,25 +149,32 @@ const MetroPlotCard = ({
             title: !isSmall ? {
               text: (() => {
                 const longName = targetDisplayNameMap[selectedTarget];
-                return targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+                const baseTitle = targetYAxisLabelMap[longName] || longName || selectedTarget || 'Value';
+                if (chartScale === 'log') return `${baseTitle} (log)`;
+                if (chartScale === 'sqrt') return `${baseTitle} (sqrt)`;
+                return baseTitle;
               })(),
               font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000', size: 12 }
             } : undefined,
-            range: yAxisRange, 
-            autorange: yAxisRange === null, 
+            range: chartScale === 'log' ? undefined : yAxisRange, 
+            autorange: chartScale === 'log' ? true : yAxisRange === null, 
+            type: chartScale === 'log' ? 'log' : 'linear',
             tickfont: { size: 9, color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
-            tickformat: '.2f',
-            ticksuffix: '%'
+            tickformat: chartScale === 'sqrt' ? undefined : '.2f',
+            ticksuffix: chartScale === 'sqrt' ? undefined : '%',
+            tickmode: chartScale === 'sqrt' && sqrtTicks ? 'array' : undefined,
+            tickvals: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.tickvals : undefined,
+            ticktext: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.ticktext : undefined
           },
-          hovermode: isSmall ? false : 'closest', 
-          hoverlabel: { 
+          hovermode: isSmall ? false : 'closest',
+          hoverlabel: {
             namelength: -1
           },
           shapes: selectedDates.map(d => ({ type: 'line', x0: d, x1: d, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 1, dash: 'dash' } }))
         }}
         config={{ displayModeBar: !isSmall, responsive: true, displaylogo: false, staticPlot: isSmall }}
         onRelayout={(e) => {
-          if (e['xaxis.range']) { setXAxisRange(e['xaxis.range']); } 
+          if (e['xaxis.range']) { setXAxisRange(e['xaxis.range']); }
           else if (e['xaxis.autorange']) { setXAxisRange(null); }
         }}
       />
@@ -214,19 +182,19 @@ const MetroPlotCard = ({
   );
 
   return isSmall ? (
-    <Paper 
-      withBorder 
-      p="xs" 
-      radius="md" 
-      shadow="xs" 
-      style={{ 
+    <Paper
+      withBorder
+      p="xs"
+      radius="md"
+      shadow="xs"
+      style={{
         position: 'relative',
         cursor: 'pointer',
         border: '1px solid #dee2e6'
       }}
     >
       {PlotContent}
-      <Box 
+      <Box
         style={{
           position: 'absolute',
           top: 0,
@@ -257,12 +225,13 @@ const MetroPlotCard = ({
 
 const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, setSelectedModels, windowSize, getDefaultRange, selectedTarget }) => {
   const { colorScheme } = useMantineColorScheme();
-  const { handleLocationSelect } = useView(); 
+  const { handleLocationSelect, chartScale, intervalVisibility, showLegend, viewType } = useView();
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
-  const [xAxisRange, setXAxisRange] = useState(null); 
+  const [xAxisRange, setXAxisRange] = useState(null);
 
   const stateName = data?.metadata?.location_name;
+  const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
   const stateCode = METRO_STATE_MAP[stateName];
   const forecasts = data?.forecasts;
 
@@ -307,11 +276,18 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
 
   return (
     <Stack gap="xl">
-      <LastFetched timestamp={metadata?.last_updated} />
+      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
+          {hubName ? `${stateName} — ${hubName}` : stateName}
+        </Text>
+        <Box style={{ position: 'absolute', right: 0 }}>
+          <LastFetched timestamp={metadata?.last_updated} />
+        </Box>
+      </Box>
       
       <MetroPlotCard 
         locationData={data} 
-        title={`${stateName}`}
+        title={null}
         colorScheme={colorScheme}
         windowSize={windowSize}
         selectedTarget={selectedTarget}
@@ -321,8 +297,10 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
         xAxisRange={xAxisRange}
         setXAxisRange={setXAxisRange}
         isSmall={false}
+        chartScale={chartScale}
+        intervalVisibility={intervalVisibility}
+        showLegend={showLegend}
       />
-
       {stateCode && (
         <Stack gap="md">
           {loadingChildren ? (
@@ -331,9 +309,9 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
             <>
               <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
                 {Object.entries(childData).map(([abbr, cityData]) => (
-                  <UnstyledButton 
-                    key={abbr} 
-                    onClick={() => handleLocationSelect(abbr)} 
+                  <UnstyledButton
+                    key={abbr}
+                    onClick={() => handleLocationSelect(abbr)}
                     style={{ width: '100%' }}
                   >
                     <MetroPlotCard 
@@ -348,6 +326,9 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
                       getDefaultRange={getDefaultRange}
                       xAxisRange={xAxisRange}
                       setXAxisRange={setXAxisRange}
+                      chartScale={chartScale}
+                      intervalVisibility={intervalVisibility}
+                      showLegend={showLegend}
                     />
                   </UnstyledButton>
                 ))}
@@ -356,24 +337,24 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
           )}
         </Stack>
       )}
-      <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
-        <p style={{ 
-          fontStyle: 'italic', 
-          fontSize: '12px', 
-          color: '#868e96', 
+      <Stack gap={2}>
+        <p style={{
+          fontStyle: 'italic',
+          fontSize: '12px',
+          color: '#868e96',
           textAlign: 'right',
-          margin: 0 
+          margin: 0
         }}>
           Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
         </p>
-      </div>
-      <ModelSelector
-        models={models}
-        selectedModels={selectedModels}
-        setSelectedModels={setSelectedModels}
-        activeModels={activeModels} 
-        getModelColor={(m, sel) => MODEL_COLORS[sel.indexOf(m) % MODEL_COLORS.length]}
-      />
+        <ModelSelector
+          models={models}
+          selectedModels={selectedModels}
+          setSelectedModels={setSelectedModels}
+          activeModels={activeModels}
+          getModelColor={(m, sel) => MODEL_COLORS[sel.indexOf(m) % MODEL_COLORS.length]}
+        />
+      </Stack>
     </Stack>
   );
 };

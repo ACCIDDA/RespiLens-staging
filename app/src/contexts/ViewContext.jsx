@@ -27,6 +27,13 @@ export const ViewProvider = ({ children }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
+  const [chartScale, setChartScale] = useState('linear');
+  const [intervalVisibility, setIntervalVisibility] = useState({
+    median: true,
+    ci50: true,
+    ci95: true
+  });
+  const [showLegend, setShowLegend] = useState(true);
   const CURRENT_FLU_SEASON_START = '2025-11-01'; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
 
   const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
@@ -270,7 +277,13 @@ export const ViewProvider = ({ children }) => {
     handleTargetSelect,
     peaks,
     availablePeakDates: (availablePeakDates || []).filter(date => date >= CURRENT_FLU_SEASON_START),
-    availablePeakModels 
+    availablePeakModels,
+    chartScale,
+    setChartScale,
+    intervalVisibility,
+    setIntervalVisibility,
+    showLegend,
+    setShowLegend
   };
 
   return (

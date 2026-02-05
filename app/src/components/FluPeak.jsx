@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Stack, useMantineColorScheme, Switch, Group, Text } from '@mantine/core';
+import { Stack, useMantineColorScheme } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from './ModelSelector'; 
 import { MODEL_COLORS } from '../config/datasets'; 
 import { CHART_CONSTANTS } from '../constants/chart'; 
 import { getDataPath } from '../utils/paths';
+import { buildSqrtTicks, getYRangeFromTraces } from '../utils/scaleUtils';
 
 // helper to convert Hex to RGBA for opacity control
 const hexToRgba = (hex, alpha) => {
@@ -29,13 +30,17 @@ const FluPeak = ({
     windowSize,
     selectedModels,    
     setSelectedModels,  
-    selectedDates        
+    selectedDates,
+    chartScale = 'linear',
+    intervalVisibility = { median: true, ci50: true, ci95: true },
+    showLegend = true
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const groundTruth = data?.ground_truth;
     const [nhsnData, setNhsnData] = useState(null);
-    const [showUncertainty, setShowUncertainty] = useState(true);
-    const stateName = data?.metadata?.location_name;
+    const showMedian = intervalVisibility?.median ?? true;
+    const show50 = intervalVisibility?.ci50 ?? true;
+    const show95 = intervalVisibility?.ci95 ?? true;
 
     const getNormalizedDate = (dateStr) => {
         const d = new Date(dateStr);
@@ -87,7 +92,7 @@ const FluPeak = ({
         return activeModelSet;
     }, [peaks, selectedDates, peakDates]);
 
-    const plotData = useMemo(() => {
+    const { plotData, rawYRange } = useMemo(() => {
         const traces = [];
 
         // Historic data (NHSN)
@@ -253,9 +258,9 @@ const FluPeak = ({
                     
                     const dynamicColor = hexToRgba(baseColorHex, alpha);
                     
-                    if (showUncertainty) {
+                    if (show50 || show95) {
                         // 95% vertical whisker (hosp)
-                        if (low95 !== null && high95 !== null) {
+                        if (show95 && low95 !== null && high95 !== null) {
                             traces.push({
                                 x: [normalizedDate, normalizedDate],
                                 y: [low95, high95],
@@ -281,7 +286,7 @@ const FluPeak = ({
                         }
 
                         // 50% vertical whisker (hosp)
-                        if (low50 !== null && high50 !== null) {
+                        if (show50 && low50 !== null && high50 !== null) {
                             traces.push({
                                 x: [normalizedDate, normalizedDate],
                                 y: [low50, high50],
@@ -298,7 +303,7 @@ const FluPeak = ({
                         }
 
                         // 95% horizontal whisker (dates)
-                        if (lowDate95 && highDate95) {
+                        if (show95 && lowDate95 && highDate95) {
                             traces.push({
                                 x: [getNormalizedDate(lowDate95), getNormalizedDate(highDate95)],
                                 y: [medianVal, medianVal],
@@ -321,7 +326,7 @@ const FluPeak = ({
                         }
 
                         // 50% horizontal whisker (dates)
-                        if (lowDate50 && highDate50) {
+                        if (show50 && lowDate50 && highDate50) {
                             traces.push({
                                 x: [getNormalizedDate(lowDate50), getNormalizedDate(highDate50)],
                                 y: [medianVal, medianVal],
@@ -337,9 +342,11 @@ const FluPeak = ({
                             });
                         }
                     }
-                    xValues.push(getNormalizedDate(bestDateStr));
-                    yValues.push(medianVal);
-                    pointColors.push(dynamicColor); 
+                    if (showMedian) {
+                        xValues.push(getNormalizedDate(bestDateStr));
+                        yValues.push(medianVal);
+                        pointColors.push(dynamicColor);
+                    }
 
                     const timing50 = `${lowDate50} - ${highDate50}`;
                     const timing95 = `${lowDate95} - ${highDate95}`;
@@ -347,10 +354,10 @@ const FluPeak = ({
                     const formatted50 = `${Math.round(low50).toLocaleString()} - ${Math.round(high50).toLocaleString()}`;
                     const formatted95 = `${Math.round(low95).toLocaleString()} - ${Math.round(high95).toLocaleString()}`;
 
-                    const timing50Row = showUncertainty ? `50% CI: [${timing50}]<br>` : '';
-                    const timing95Row = showUncertainty ? `95% CI: [${timing95}]<br>` : '';
-                    const burden50Row = showUncertainty ? `50% CI: [${formatted50}]<br>` : '';
-                    const burden95Row = showUncertainty ? `95% CI: [${formatted95}]<br>` : '';
+                    const timing50Row = show50 ? `50% CI: [${timing50}]<br>` : '';
+                    const timing95Row = show95 ? `95% CI: [${timing95}]<br>` : '';
+                    const burden50Row = show50 ? `50% CI: [${formatted50}]<br>` : '';
+                    const burden95Row = show95 ? `95% CI: [${formatted95}]<br>` : '';
 
                     hoverTexts.push(
                         `${model}<br>` +
@@ -368,7 +375,7 @@ const FluPeak = ({
                 });
 
                 // actual trace
-                if (xValues.length > 0) {
+                if (showMedian && xValues.length > 0) {
                     traces.push({
                         x: xValues,
                         y: yValues,
@@ -411,8 +418,39 @@ const FluPeak = ({
             });
         }
 
-        return traces; 
-    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates, showUncertainty]);
+        const rawRange = getYRangeFromTraces(traces);
+
+        if (chartScale !== 'sqrt') {
+            return { plotData: traces, rawYRange: rawRange };
+        }
+
+        const scaledTraces = traces.map((trace) => {
+            if (!Array.isArray(trace.y)) return trace;
+            const originalY = trace.y;
+            const scaledY = originalY.map((value) => Math.sqrt(Math.max(0, value)));
+            const nextTrace = { ...trace, y: scaledY };
+
+            if (trace.hovertemplate && trace.hovertemplate.includes('%{y}')) {
+                nextTrace.text = originalY.map((value) => Number(value).toLocaleString());
+                nextTrace.hovertemplate = trace.hovertemplate.replace('%{y}', '%{text}');
+            } else if (trace.hoverinfo && trace.hoverinfo.includes('y')) {
+                nextTrace.text = originalY.map((value) => `${trace.name}: ${Number(value).toLocaleString()}`);
+                nextTrace.hoverinfo = 'text';
+            }
+
+            return nextTrace;
+        });
+
+        return { plotData: scaledTraces, rawYRange: rawRange };
+    }, [groundTruth, nhsnData, peaks, selectedModels, selectedDates, peakDates, showMedian, show50, show95, chartScale]);
+
+    const sqrtTicks = useMemo(() => {
+        if (chartScale !== 'sqrt') return null;
+        return buildSqrtTicks({
+            rawRange: rawYRange,
+            formatValue: (value) => Number(value).toLocaleString()
+        });
+    }, [chartScale, rawYRange]);
 
     const layout = useMemo(() => ({
         width: windowSize ? Math.min(CHART_CONSTANTS.MAX_WIDTH, windowSize.width * CHART_CONSTANTS.WIDTH_RATIO) : undefined,
@@ -423,6 +461,7 @@ const FluPeak = ({
         plot_bgcolor: colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
         font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
         margin: { l: 60, r: 30, t: 30, b: 50 },
+        showlegend: showLegend,
         legend: {
             x: 0, y: 1, xanchor: 'left', yanchor: 'top',
             bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
@@ -436,7 +475,19 @@ const FluPeak = ({
         xaxis: { 
             tickformat: '%b' 
         },
-        yaxis: { title: 'Flu Hospitalizations', rangemode: 'tozero' },
+        yaxis: { 
+            title: (() => {
+                const baseTitle = 'Flu Hospitalizations';
+                if (chartScale === 'log') return `${baseTitle} (log)`;
+                if (chartScale === 'sqrt') return `${baseTitle} (sqrt)`;
+                return baseTitle;
+            })(),
+            rangemode: 'tozero',
+            type: chartScale === 'log' ? 'log' : 'linear',
+            tickmode: chartScale === 'sqrt' && sqrtTicks ? 'array' : undefined,
+            tickvals: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.tickvals : undefined,
+            ticktext: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.ticktext : undefined
+        },
 
         // dynamic gray shading section
         shapes: selectedDates.flatMap(dateStr => {
@@ -469,7 +520,7 @@ const FluPeak = ({
                 }
             ];
         }),
-    }), [colorScheme, windowSize, selectedDates]);
+    }), [colorScheme, windowSize, selectedDates, chartScale, sqrtTicks, showLegend]);
 
     const config = useMemo(() => ({
         responsive: true,
@@ -498,39 +549,27 @@ const FluPeak = ({
                     useResizeHandler={true}
                 />
             </div>
-            <Text fw={700} size="sm" mb={5} ta="center">
-                {stateName}
-            </Text>
-            <div style={{ borderTop: '1px solid #FFF', paddingTop: '1px', marginTop: 'auto' }}>
-              <p style={{ 
-                fontStyle: 'italic', 
-                fontSize: '12px', 
-                color: '#868e96', 
-                textAlign: 'right',
-                margin: 0 
-              }}>
-                Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
-              </p>
-            </div>
-            
-            <Group>
-                <Switch
-                    label="Show uncertainty intervals"
-                    checked={showUncertainty}
-                    onChange={(event) => setShowUncertainty(event.currentTarget.checked)}
-                    size="sm"
+            <Stack gap={2}>
+                <p style={{ 
+                  fontStyle: 'italic', 
+                  fontSize: '12px', 
+                  color: '#868e96', 
+                  textAlign: 'right',
+                  margin: 0 
+                }}>
+                  Note that forecasts should be interpreted with great caution and may not reliably predict rapid changes in disease trends.
+                </p>
+                <ModelSelector 
+                    models={peakModels} 
+                    selectedModels={selectedModels}
+                    setSelectedModels={setSelectedModels}
+                    activeModels={activePeakModels} 
+                    getModelColor={(model, currentSelected) => {
+                        const index = currentSelected.indexOf(model);
+                        return MODEL_COLORS[index % MODEL_COLORS.length];
+                    }}
                 />
-            </Group>
-            <ModelSelector 
-                models={peakModels} 
-                selectedModels={selectedModels}
-                setSelectedModels={setSelectedModels}
-                activeModels={activePeakModels} 
-                getModelColor={(model, currentSelected) => {
-                    const index = currentSelected.indexOf(model);
-                    return MODEL_COLORS[index % MODEL_COLORS.length];
-                }}
-            />
+            </Stack>
         </Stack>
     );
 };

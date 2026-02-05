@@ -31,7 +31,7 @@ export const DATASETS = {
   },
   covid: {
     shortName: 'covid',
-    fullName: 'COVID-19 Forecasts',
+    fullName: 'covid19 forecast hub',
     views: [
       { key: 'forecasts', label: 'Forecasts', value: 'covid_forecasts' }
     ],

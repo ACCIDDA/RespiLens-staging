@@ -3,16 +3,16 @@ import { useSearchParams } from 'react-router-dom';
 import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly'; 
-import { getDataPath } from '../utils/paths';
-import NHSNColumnSelector from './NHSNColumnSelector';
-import LastFetched from './LastFetched';
-import { MODEL_COLORS } from '../config/datasets';
+import { getDataPath } from '../../utils/paths';
+import NHSNColumnSelector from '../NHSNColumnSelector';
+import LastFetched from '../LastFetched';
+import { MODEL_COLORS } from '../../config/datasets';
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
   nhsnSlugToNameMap,   // { shortform: longform } map
   nhsnNameToPrettyNameMap // { longform: presentable name } map
-} from '../utils/mapUtils';
+} from '../../utils/mapUtils';
 
 
 const nhsnYAxisLabelMap = {
