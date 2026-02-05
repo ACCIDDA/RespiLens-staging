@@ -18,7 +18,8 @@ const ForecastChartControls = ({
   intervalVisibility,
   setIntervalVisibility,
   showLegend,
-  setShowLegend
+  setShowLegend,
+  showIntervals = true
 }) => {
   const selectedIntervals = INTERVAL_OPTIONS
     .filter((option) => intervalVisibility?.[option.value])
@@ -43,16 +44,18 @@ const ForecastChartControls = ({
           size="xs"
         />
       </Group>
-      <Group align="center" gap="md">
-        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Intervals</Text>
-        <Checkbox.Group value={selectedIntervals} onChange={handleIntervalChange}>
-          <Group gap="sm">
-            {INTERVAL_OPTIONS.map((option) => (
-              <Checkbox key={option.value} value={option.value} label={option.label} size="xs" />
-            ))}
-          </Group>
-        </Checkbox.Group>
-      </Group>
+      {showIntervals && (
+        <Group align="center" gap="md">
+          <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Intervals</Text>
+          <Checkbox.Group value={selectedIntervals} onChange={handleIntervalChange}>
+            <Group gap="sm">
+              {INTERVAL_OPTIONS.map((option) => (
+                <Checkbox key={option.value} value={option.value} label={option.label} size="xs" />
+              ))}
+            </Group>
+          </Checkbox.Group>
+        </Group>
+      )}
       <Group align="center" gap="md">
         <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>Legend</Text>
         <Switch

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Box } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly'; 
 import { getDataPath } from '../../utils/paths';
 import NHSNColumnSelector from '../NHSNColumnSelector';
-import LastFetched from '../LastFetched';
+import TitleRow from '../TitleRow';
 import { MODEL_COLORS } from '../../config/datasets';
+import { buildSqrtTicks, getYRangeFromTraces } from '../../utils/scaleUtils';
 import { useView } from '../../hooks/useView';
 import { getDatasetTitleFromView } from '../../utils/datasetUtils';
 import {
@@ -43,7 +44,7 @@ const NHSNView = ({ location }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  const { viewType } = useView();
+  const { viewType, chartScale, showLegend } = useView();
   const stateName = data?.metadata?.location_name;
   const hubName = getDatasetTitleFromView(viewType) || metadata?.dataset;
 
@@ -297,9 +298,16 @@ const NHSNView = ({ location }) => {
     }
 
     const newYRange = calculateYRange(traces, currentXRange);
-    setYAxisRange(newYRange); 
+    if (chartScale === 'sqrt' && newYRange) {
+      const [minY, maxY] = newYRange;
+      const sqrtMin = Math.sqrt(Math.max(0, minY));
+      const sqrtMax = Math.sqrt(Math.max(0, maxY));
+      setYAxisRange([sqrtMin, sqrtMax]);
+    } else {
+      setYAxisRange(newYRange); 
+    }
 
-  }, [data, selectedColumns, xAxisRange, selectedTarget, defaultRange, calculateYRange]);
+  }, [data, selectedColumns, xAxisRange, selectedTarget, defaultRange, calculateYRange, chartScale]);
 
   const handleRelayout = useCallback((figure) => {
     if (isResettingRef.current) {
@@ -315,19 +323,41 @@ const NHSNView = ({ location }) => {
   }, [xAxisRange]);
 
 
-  const traces = useMemo(() => {
+  const rawTraces = useMemo(() => {
     if (!data) return []; 
-
     const isPercentage = selectedTarget && selectedTarget.includes('%');
     return selectedColumns.map((column) => {
-      const columnIndex = filteredAvailableColumns.indexOf(column);
       const yValues = data.series[column];
       const processedYValues = isPercentage ? yValues.map(val => val !== null && val !== undefined ? val * 100 : val) : yValues;
-
       return {
         x: data.series.dates,
         y: processedYValues,
-        name: column,
+        name: column
+      };
+    });
+  }, [data, selectedTarget, selectedColumns]);
+
+  const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
+
+  const sqrtTicks = useMemo(() => {
+    if (chartScale !== 'sqrt') return null;
+    return buildSqrtTicks({ rawRange: rawYRange });
+  }, [chartScale, rawYRange]);
+
+  const traces = useMemo(() => {
+    if (!data) return []; 
+    const applySqrt = chartScale === 'sqrt';
+
+    return rawTraces.map((trace) => {
+      const columnIndex = filteredAvailableColumns.indexOf(trace.name);
+      const transformedY = applySqrt
+        ? trace.y.map(val => (val === null || val === undefined ? val : Math.sqrt(Math.max(0, val))))
+        : trace.y;
+
+      return {
+        x: trace.x,
+        y: transformedY,
+        name: trace.name,
         type: 'scatter',
         mode: 'lines+markers',
         line: {
@@ -337,7 +367,7 @@ const NHSNView = ({ location }) => {
         marker: { size: 6 }
       };
     });
-  }, [data, selectedTarget, selectedColumns, filteredAvailableColumns]);
+  }, [data, rawTraces, filteredAvailableColumns, chartScale]);
 
   const layout = useMemo(() => ({
     autosize: true,
@@ -367,10 +397,14 @@ const NHSNView = ({ location }) => {
     },
     yaxis: {
       title: nhsnYAxisLabelMap[selectedTarget] || 'Value',
-      range: yAxisRange, 
-      autorange: yAxisRange === null
+      range: chartScale === 'log' ? undefined : yAxisRange, 
+      autorange: chartScale === 'log' ? true : yAxisRange === null,
+      type: chartScale === 'log' ? 'log' : 'linear',
+      tickmode: chartScale === 'sqrt' && sqrtTicks ? 'array' : undefined,
+      tickvals: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.tickvals : undefined,
+      ticktext: chartScale === 'sqrt' && sqrtTicks ? sqrtTicks.ticktext : undefined
     },
-    showlegend: selectedColumns.length < 15,
+    showlegend: showLegend ?? selectedColumns.length < 15,
     legend: {
       x: 0,
       y: 1,
@@ -389,9 +423,12 @@ const NHSNView = ({ location }) => {
     defaultRange, 
     xAxisRange, 
     yAxisRange, 
+    chartScale,
+    showLegend,
     selectedTarget, 
     selectedColumns.length, 
-    plotRevision
+    plotRevision,
+    sqrtTicks
   ]);
 
   const config = useMemo(() => ({
@@ -442,14 +479,10 @@ const NHSNView = ({ location }) => {
 
   return (
     <Stack gap="md" w="100%">
-      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
-          {hubName ? `${stateName} — ${hubName}` : stateName}
-        </Text>
-        <Box style={{ position: 'absolute', right: 0 }}>
-          <LastFetched timestamp={metadata?.last_updated} />
-        </Box>
-      </Box>
+      <TitleRow
+        title={hubName ? `${stateName} — ${hubName}` : stateName}
+        timestamp={metadata?.last_updated}
+      />
       <div style={{ width: '100%', height: 'min(700px, 65vh)', minHeight: 360 }}>
         <Plot
           ref={plotRef}

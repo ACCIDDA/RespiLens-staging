@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useMantineColorScheme, Stack, Text, Center, SimpleGrid, Paper, Loader, Box, UnstyledButton } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import ModelSelector from '../ModelSelector';
-import LastFetched from '../LastFetched';
+import TitleRow from '../TitleRow';
 import { useView } from '../../hooks/useView';
 import { MODEL_COLORS } from '../../config/datasets';
 import { CHART_CONSTANTS } from '../../constants/chart';
@@ -276,14 +276,10 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
 
   return (
     <Stack gap="xl">
-      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
-          {hubName ? `${stateName} — ${hubName}` : stateName}
-        </Text>
-        <Box style={{ position: 'absolute', right: 0 }}>
-          <LastFetched timestamp={metadata?.last_updated} />
-        </Box>
-      </Box>
+      <TitleRow
+        title={hubName ? `${stateName} — ${hubName}` : stateName}
+        timestamp={metadata?.last_updated}
+      />
       
       <MetroPlotCard 
         locationData={data} 

@@ -174,31 +174,34 @@ const StateSelector = () => {
         <TargetSelector />
       </Stack>
 
-      <Accordion
-        variant="separated"
-        radius="md"
-        styles={{
-          control: { padding: '6px 8px' },
-          label: { fontSize: '0.875rem', fontWeight: 500 },
-          panel: { padding: '6px 8px 8px' }
-        }}
-      >
-        <Accordion.Item value="advanced-controls">
-          <Accordion.Control icon={<IconAdjustmentsHorizontal size={14} />}>
-            Advanced controls
-          </Accordion.Control>
-          <Accordion.Panel>
-            <ForecastChartControls
-              chartScale={chartScale}
-              setChartScale={setChartScale}
-              intervalVisibility={intervalVisibility}
-              setIntervalVisibility={setIntervalVisibility}
-              showLegend={showLegend}
-              setShowLegend={setShowLegend}
-            />
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+      {viewType !== 'frontpage' && (
+        <Accordion
+          variant="separated"
+          radius="md"
+          styles={{
+            control: { padding: '6px 8px' },
+            label: { fontSize: '0.875rem', fontWeight: 500 },
+            panel: { padding: '6px 8px 8px' }
+          }}
+        >
+          <Accordion.Item value="advanced-controls">
+            <Accordion.Control icon={<IconAdjustmentsHorizontal size={14} />}>
+              Advanced controls
+            </Accordion.Control>
+            <Accordion.Panel>
+              <ForecastChartControls
+                chartScale={chartScale}
+                setChartScale={setChartScale}
+                intervalVisibility={intervalVisibility}
+                setIntervalVisibility={setIntervalVisibility}
+                showLegend={showLegend}
+                setShowLegend={setShowLegend}
+                showIntervals={viewType !== 'nhsnall'}
+              />
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
+      )}
 
       <Stack gap="xs" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <TextInput

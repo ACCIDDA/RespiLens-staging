@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useMantineColorScheme, Stack, Text, Box } from '@mantine/core';
+import { useMantineColorScheme, Stack, Text } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from './ModelSelector';
-import LastFetched from './LastFetched';
+import TitleRow from './TitleRow';
 import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart';
 import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
@@ -328,14 +328,10 @@ const ForecastPlotView = ({
 
   return (
     <Stack>
-      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
-          {hubName ? `${stateName} — ${hubName}` : stateName}
-        </Text>
-        <Box style={{ position: 'absolute', right: 0 }}>
-          <LastFetched timestamp={metadata?.last_updated} />
-        </Box>
-      </Box>
+      <TitleRow
+        title={hubName ? `${stateName} — ${hubName}` : stateName}
+        timestamp={metadata?.last_updated}
+      />
       <div style={{ width: '100%', height: 'min(800px, 60vh)', minHeight: 320 }}>
         <Plot
           ref={plotRef}

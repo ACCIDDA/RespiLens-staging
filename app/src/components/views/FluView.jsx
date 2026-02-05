@@ -1,8 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import ForecastPlotView from '../ForecastPlotView';
 import FluPeak from '../FluPeak';
-import LastFetched from '../LastFetched';
-import { Text, Box } from '@mantine/core';
+import TitleRow from '../TitleRow';
 import { MODEL_COLORS } from '../../config/datasets';
 import { RATE_CHANGE_CATEGORIES } from '../../constants/chart';
 import { useView } from '../../hooks/useView';
@@ -175,14 +174,10 @@ const FluView = ({
     const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
     return (
       <>
-        <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
-            {hubName ? `${stateName} — ${hubName}` : stateName}
-          </Text>
-          <Box style={{ position: 'absolute', right: 0 }}>
-            <LastFetched timestamp={metadata?.last_updated} />
-          </Box>
-        </Box>
+        <TitleRow
+          title={hubName ? `${stateName} — ${hubName}` : stateName}
+          timestamp={metadata?.last_updated}
+        />
         <FluPeak
           data={data}
           peaks={peaks}
