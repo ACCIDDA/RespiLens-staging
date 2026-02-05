@@ -10,7 +10,7 @@ import { targetDisplayNameMap, targetYAxisLabelMap } from '../../utils/mapUtils'
 import { getDataPath } from '../../utils/paths';
 import useQuantileForecastTraces from '../../hooks/useQuantileForecastTraces';
 import { buildSqrtTicks } from '../../utils/scaleUtils';
-import { getDatasetNameFromView } from '../../utils/datasetUtils';
+import { getDatasetTitleFromView } from '../../utils/datasetUtils';
 
 const METRO_STATE_MAP = {
   'Colorado': 'CO', 'Georgia': 'GA', 'Indiana': 'IN', 'Maine': 'ME',
@@ -231,7 +231,7 @@ const MetroCastView = ({ data, metadata, selectedDates, selectedModels, models, 
   const [xAxisRange, setXAxisRange] = useState(null);
 
   const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
+  const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
   const stateCode = METRO_STATE_MAP[stateName];
   const forecasts = data?.forecasts;
 

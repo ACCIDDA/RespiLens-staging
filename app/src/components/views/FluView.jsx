@@ -6,7 +6,7 @@ import { Text, Box } from '@mantine/core';
 import { MODEL_COLORS } from '../../config/datasets';
 import { RATE_CHANGE_CATEGORIES } from '../../constants/chart';
 import { useView } from '../../hooks/useView';
-import { getDatasetNameFromView } from '../../utils/datasetUtils';
+import { getDatasetTitleFromView } from '../../utils/datasetUtils';
 
 const FluView = ({
   data,
@@ -172,7 +172,7 @@ const FluView = ({
 
   if (viewType === 'flu_peak') {
     const stateName = data?.metadata?.location_name;
-    const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
+    const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
     return (
       <>
         <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

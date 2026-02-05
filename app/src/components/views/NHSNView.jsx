@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Stack, Alert, Text, Center, useMantineColorScheme, Loader } from '@mantine/core';
+import { Stack, Alert, Text, Center, useMantineColorScheme, Loader, Box } from '@mantine/core';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js/dist/plotly'; 
 import { getDataPath } from '../../utils/paths';
 import NHSNColumnSelector from '../NHSNColumnSelector';
 import LastFetched from '../LastFetched';
 import { MODEL_COLORS } from '../../config/datasets';
+import { useView } from '../../hooks/useView';
+import { getDatasetTitleFromView } from '../../utils/datasetUtils';
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -41,7 +43,9 @@ const NHSNView = ({ location }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
+  const { viewType } = useView();
   const stateName = data?.metadata?.location_name;
+  const hubName = getDatasetTitleFromView(viewType) || metadata?.dataset;
 
   const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
@@ -438,10 +442,14 @@ const NHSNView = ({ location }) => {
 
   return (
     <Stack gap="md" w="100%">
-      <LastFetched timestamp={metadata?.last_updated} />
-      <Text fw={700} size="sm" mb={5} ta="center">
-        {stateName}
-      </Text>
+      <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Text size="lg" c="black" style={{ fontWeight: 400, textAlign: 'center' }}>
+          {hubName ? `${stateName} — ${hubName}` : stateName}
+        </Text>
+        <Box style={{ position: 'absolute', right: 0 }}>
+          <LastFetched timestamp={metadata?.last_updated} />
+        </Box>
+      </Box>
       <div style={{ width: '100%', height: 'min(700px, 65vh)', minHeight: 360 }}>
         <Plot
           ref={plotRef}

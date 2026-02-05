@@ -10,7 +10,7 @@ import { targetDisplayNameMap, targetYAxisLabelMap } from '../utils/mapUtils';
 import useQuantileForecastTraces from '../hooks/useQuantileForecastTraces';
 import { buildSqrtTicks } from '../utils/scaleUtils';
 import { useView } from '../hooks/useView';
-import { getDatasetNameFromView } from '../utils/datasetUtils';
+import { getDatasetTitleFromView } from '../utils/datasetUtils';
 
 const ForecastPlotView = ({
   data,
@@ -37,7 +37,7 @@ const ForecastPlotView = ({
   const { colorScheme } = useMantineColorScheme();
   const { chartScale, intervalVisibility, showLegend, viewType } = useView();
   const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetNameFromView(viewType) || data?.metadata?.dataset;
+  const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
 
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
