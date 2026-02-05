@@ -269,7 +269,7 @@ const ForecastPlotView = ({
     }
 
     return baseLayout;
-  }, [colorScheme, defaultRange, resolvedDisplayTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, layoutOverrides, chartScale, sqrtTicks]);
+  }, [colorScheme, defaultRange, resolvedDisplayTarget, selectedDates, selectedModels, yAxisRange, xAxisRange, getDefaultRange, layoutOverrides, chartScale, sqrtTicks, showLegend]);
 
   const config = useMemo(() => {
     const baseConfig = {
