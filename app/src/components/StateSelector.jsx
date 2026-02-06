@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Stack, ScrollArea, Button, TextInput, Text, Divider, Loader, Center, Alert } from '@mantine/core';
-import { IconSearch, IconAlertTriangle } from '@tabler/icons-react';
+import { Stack, ScrollArea, Button, TextInput, Text, Divider, Loader, Center, Alert, Accordion } from '@mantine/core';
+import { IconSearch, IconAlertTriangle, IconAdjustmentsHorizontal } from '@tabler/icons-react';
 import { useView } from '../hooks/useView';
 import ViewSelector from './ViewSelector';
 import TargetSelector from './TargetSelector';
+import ForecastChartControls from './controls/ForecastChartControls';
 import { getDataPath } from '../utils/paths';
 
 const METRO_STATE_MAP = {
@@ -14,7 +15,17 @@ const METRO_STATE_MAP = {
 };
 
 const StateSelector = () => {
-  const { selectedLocation, handleLocationSelect, viewType} = useView();
+  const {
+    selectedLocation,
+    handleLocationSelect,
+    viewType,
+    chartScale,
+    setChartScale,
+    intervalVisibility,
+    setIntervalVisibility,
+    showLegend,
+    setShowLegend
+  } = useView();
 
   const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,19 +163,45 @@ const StateSelector = () => {
   return (
     <Stack gap="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack gap="xs" style={{ flexShrink: 0 }}>
-        <Text fw={500} size="sm" c="dimmed">View</Text>
         <ViewSelector />
       </Stack>
 
       <Divider />
 
       <Stack>
-        <Text fw={500} size="sm" c="dimmed">Target</Text>
         <TargetSelector />
       </Stack>
 
+      {viewType !== 'frontpage' && (
+        <Accordion
+          variant="separated"
+          radius="md"
+          styles={{
+            control: { padding: '6px 8px' },
+            label: { fontSize: '0.875rem', fontWeight: 500 },
+            panel: { padding: '6px 8px 8px' }
+          }}
+        >
+          <Accordion.Item value="advanced-controls">
+            <Accordion.Control icon={<IconAdjustmentsHorizontal size={14} />}>
+              Advanced controls
+            </Accordion.Control>
+            <Accordion.Panel>
+              <ForecastChartControls
+                chartScale={chartScale}
+                setChartScale={setChartScale}
+                intervalVisibility={intervalVisibility}
+                setIntervalVisibility={setIntervalVisibility}
+                showLegend={showLegend}
+                setShowLegend={setShowLegend}
+                showIntervals={viewType !== 'nhsnall'}
+              />
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
+      )}
+
       <Stack gap="xs" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Text fw={500} size="sm" c="dimmed">Location</Text>
         <TextInput
           label="Search locations"
           placeholder="Search locations..."
@@ -175,7 +212,7 @@ const StateSelector = () => {
           autoFocus 
           aria-label="Search locations"
         />
-        <ScrollArea style={{ flex: 1 }} type="auto">
+        <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto">
           <Stack gap="xs">
             {filteredStates.map((state, index) => {
               const isSelected = selectedLocation === state.abbreviation;

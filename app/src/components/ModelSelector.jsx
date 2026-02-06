@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Stack, Group, Button, Text, Tooltip, Divider, Switch, Card, SimpleGrid, PillsInput, Pill, Combobox, useCombobox } from '@mantine/core';
+import { Stack, Group, Button, Text, Tooltip, Switch, Card, SimpleGrid, PillsInput, Pill, Combobox, useCombobox, Paper } from '@mantine/core';
 import { IconCircleCheck, IconCircle, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { MODEL_COLORS } from '../config/datasets';
 
@@ -64,12 +64,51 @@ const ModelSelector = ({
   }
 
   return (
-    <Stack gap="md" mt="md">
-      <Divider />
-      
-      <Text size="sm" fw={500} c="dimmed">
-        Models ({selectedModels.length}/{models.length})
-      </Text>
+    <Paper withBorder radius="md" p="sm" mt="md">
+      <Stack gap="md">
+      <Group gap="xs" align="center" wrap="wrap">
+        <Text size="sm" fw={500}>
+          Model selection ({selectedModels.length}/{models.length})
+        </Text>
+        {allowMultiple && (
+          <>
+            <Tooltip label="Select all available models">
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={handleSelectAll}
+                disabled={disabled || selectedModels.length === models.length}
+              >
+                Select All
+              </Button>
+            </Tooltip>
+            <Tooltip label="Clear all selected models">
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={handleSelectNone}
+                disabled={disabled || selectedModels.length === 0}
+              >
+                Clear All
+              </Button>
+            </Tooltip>
+          </>
+        )}
+        <Switch
+          label="Show all models"
+          checked={showAllAvailable}
+          onChange={(event) => setShowAllAvailable(event.currentTarget.checked)}
+          size="sm"
+          disabled={disabled}
+          thumbIcon={
+            showAllAvailable ? (
+              <IconEye size={12} stroke={2.5} />
+            ) : (
+              <IconEyeOff size={12} stroke={2.5} />
+            )
+          }
+        />
+      </Group>
 
       <Combobox
         store={combobox}
@@ -162,47 +201,6 @@ const ModelSelector = ({
         </Combobox.Dropdown>
       </Combobox>
 
-      <Group gap="xs" justify="space-between" align="center" wrap="wrap">
-        {allowMultiple && (
-          <Group gap="xs" wrap="wrap">
-            <Tooltip label="Select all available models">
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={handleSelectAll}
-                disabled={disabled || selectedModels.length === models.length}
-              >
-                Select All
-              </Button>
-            </Tooltip>
-            <Tooltip label="Clear all selected models">
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={handleSelectNone}
-                disabled={disabled || selectedModels.length === 0}
-              >
-                Clear All
-              </Button>
-            </Tooltip>
-          </Group>
-        )}
-        <Switch
-          label="Show all available models"
-          checked={showAllAvailable}
-          onChange={(event) => setShowAllAvailable(event.currentTarget.checked)}
-          size="sm"
-          disabled={disabled}
-          thumbIcon={
-            showAllAvailable ? (
-              <IconEye size={12} stroke={2.5} />
-            ) : (
-              <IconEyeOff size={12} stroke={2.5} />
-            )
-          }
-        />
-      </Group>
-
       {allowMultiple && (
         <Text size="xs" c="dimmed" hiddenFrom="xs">
           {selectedModels.length > 0 && `${selectedModels.length} selected`}
@@ -278,7 +276,8 @@ const ModelSelector = ({
           })}
         </SimpleGrid>
       )}
-    </Stack>
+      </Stack>
+    </Paper>
   );
 };
 
