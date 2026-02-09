@@ -7,6 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RespiLens</title>
     <meta name="description" content="Explore the latest forecasts of respiratory disease activity across every U.S.  state. RespiLens provides intuitive and consolidated visualization of influenza, COVID-19, and RSV forecasts from CDC-led competitions." />
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '%VITE_GA_MEASUREMENT_ID%');
+    </script>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",

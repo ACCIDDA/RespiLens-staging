@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { ViewProvider } from './contexts/ViewContext';
 import { useView } from './hooks/useView';
@@ -53,9 +54,24 @@ const AppLayout = () => {
 };
 
 const App = () => {
+  const AnalyticsTracker = () => {
+    const location = useLocation();
+
+    useEffect(() => {
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('config', import.meta.env.VITE_GA_MEASUREMENT_ID, {
+          page_path: location.pathname + location.search,
+        });
+      }
+    }, [location]);
+
+    return null;
+  };
+
   return (
     <HelmetProvider>
       <Router>
+        <AnalyticsTracker />
         <ViewProvider>
           <AppLayout />
         </ViewProvider>
