@@ -24,6 +24,7 @@ import Plotly from 'plotly.js/dist/plotly';
 import ModelSelector from '../ModelSelector';
 import DateSelector from '../DateSelector';
 import { MODEL_COLORS } from '../../config/datasets';
+import { buildPlotDownloadName } from '../../utils/plotDownloadName';
 
 const formatTargetNameForTitle = (name) => {
   if (!name) return 'Value';
@@ -491,7 +492,7 @@ const MyRespiLensDashboard = () => {
     doubleClick: 'reset',
     toImageButtonOptions: {
       format: 'png',
-      filename: 'forecast_plot'
+      filename: buildPlotDownloadName('forecast-plot')
     },
     modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'],
     modeBarButtonsToAdd: [{

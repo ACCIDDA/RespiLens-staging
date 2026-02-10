@@ -6,6 +6,7 @@ import { MODEL_COLORS } from '../config/datasets';
 import { CHART_CONSTANTS } from '../constants/chart'; 
 import { getDataPath } from '../utils/paths';
 import { buildSqrtTicks, getYRangeFromTraces } from '../utils/scaleUtils';
+import { buildPlotDownloadName } from '../utils/plotDownloadName';
 
 // helper to convert Hex to RGBA for opacity control
 const hexToRgba = (hex, alpha) => {
@@ -530,7 +531,7 @@ const FluPeak = ({
         scrollZoom: false, 
         doubleClick: 'reset',
         modeBarButtonsToRemove: ['select2d', 'lasso2d'],
-        toImageButtonOptions: { format: 'png', filename: 'peak_plot' },
+        toImageButtonOptions: { format: 'png', filename: buildPlotDownloadName('peak-plot') },
     }), []);
 
     return (

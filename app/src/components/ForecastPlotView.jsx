@@ -11,6 +11,7 @@ import useQuantileForecastTraces from '../hooks/useQuantileForecastTraces';
 import { buildSqrtTicks } from '../utils/scaleUtils';
 import { useView } from '../hooks/useView';
 import { getDatasetTitleFromView } from '../utils/datasetUtils';
+import { buildPlotDownloadName } from '../utils/plotDownloadName';
 
 const ForecastPlotView = ({
   data,
@@ -282,7 +283,7 @@ const ForecastPlotView = ({
       doubleClick: 'reset',
       toImageButtonOptions: {
         format: 'png',
-        filename: 'forecast_plot'
+        filename: buildPlotDownloadName('forecast-plot')
       },
       modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'],
       modeBarButtonsToAdd: [{

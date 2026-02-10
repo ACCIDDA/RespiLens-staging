@@ -10,6 +10,7 @@ import { MODEL_COLORS } from '../../config/datasets';
 import { buildSqrtTicks, getYRangeFromTraces } from '../../utils/scaleUtils';
 import { useView } from '../../hooks/useView';
 import { getDatasetTitleFromView } from '../../utils/datasetUtils';
+import { buildPlotDownloadName } from '../../utils/plotDownloadName';
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -439,7 +440,7 @@ const NHSNView = ({ location }) => {
     plotlyServerURL: "",
     toImageButtonOptions: {
       format: 'png',
-      filename: 'nhsn_plot'
+      filename: buildPlotDownloadName('nhsn-plot')
     },
     modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'], 
     modeBarButtonsToAdd: [{
