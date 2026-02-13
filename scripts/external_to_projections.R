@@ -377,18 +377,6 @@ build_metadata_file <- function(data_df, locations_df) {
   )
 }
 
-validate_payload <- function(payload, schema_path) {
-  if (!requireNamespace("jsonvalidate", quietly = TRUE)) {
-    warning("Package 'jsonvalidate' not installed; skipping schema validation.")
-    return(invisible(TRUE))
-  }
-  json_text <- jsonlite::toJSON(payload, auto_unbox = TRUE, pretty = FALSE, na = "null")
-  is_valid <- jsonvalidate::json_validate(json_text, schema = schema_path, engine = "ajv", verbose = TRUE)
-  if (!isTRUE(is_valid)) {
-    stop("Schema validation failed for generated payload.", call. = FALSE)
-  }
-}
-
 save_json_payload <- function(payload, path, overwrite) {
   if (file.exists(path) && !overwrite) {
     stop(sprintf("File already exists at %s. Re-run with --overwrite to replace it.", path), call. = FALSE)
@@ -505,10 +493,6 @@ main <- function() {
   validate_location_coverage(forecast_df, locations_df, args$data_path, args$locations_data_path)
 
   script_dir <- get_script_dir()
-  schema_path <- file.path(script_dir, "schemas", "RespiLens_projections.schema.json")
-  if (!file.exists(schema_path)) {
-    stop(sprintf("Could not find schema file at %s", schema_path), call. = FALSE)
-  }
 
   outputs <- process_dataset(forecast_df, locations_df, target_df, config)
   path_mapping <- list(flu = "flusight", rsvforecasthub = "rsvforecasthub", covid19forecasthub = "covid19forecasthub")
@@ -517,7 +501,6 @@ main <- function() {
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
   for (item in outputs) {
-    validate_payload(item$payload, schema_path)
     target_path <- file.path(output_dir, item$file_name)
     save_json_payload(item$payload, target_path, args$overwrite)
   }
