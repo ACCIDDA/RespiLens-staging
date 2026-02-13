@@ -32,16 +32,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
         help="Pathogen to process (flu, rsvforecasthub, covid19forecasthub).",
     )
-    parser.add_argument("--data-path", required=True, help="Absolute path to Hubverse forecast data in CSV format.")
+    parser.add_argument("--data-path", required=True, help="Absolute path to Hubverse-style forecast data to be converted (.csv)")
     parser.add_argument(
         "--target-data-path",
         required=True,
-        help="Absolute path to Hubverse ground truth target data (CSV or Parquet).",
+        help="Absolute path to Hubverse-style target data that correspends to provided forecast (.csv or .parquet)",
     )
     parser.add_argument(
         "--locations-data-path",
         required=True,
-        help="Absolute path to the location metadata CSV.",
+        help="Location metadata (.csv). Should match format of locations.csv files found in Hubverse auxiliary-data directories.",
     )
     parser.add_argument(
         "--overwrite",

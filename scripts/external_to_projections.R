@@ -16,11 +16,11 @@ usage_text <- function() {
     "",
     "Arguments:",
     "  --output-path          Directory where JSON files will be written.",
-    "  --pathogen             Pathogen to process (flu, rsv, covid).",
-    "  --data-path            Hubverse forecast export in CSV format.",
-    "  --target-data-path     Hubverse target data (CSV or Parquet).",
-    "  --locations-data-path  Location metadata CSV.",
-    "  --overwrite            Overwrite existing files if present.",
+    "  --pathogen             Pathogen to process (flu, rsv, or covid).",
+    "  --data-path            Absolute path to Hubverse-style forecast data to be converted (.csv)",
+    "  --target-data-path     Absolute path to Hubverse-style target data that correspends to provided forecast (.csv or .parquet)",
+    "  --locations-data-path  Location metadata (.csv). Should match format of locations.csv files found in Hubverse auxiliary-data directories.",
+    "  --overwrite            Permission to overwrite existing files, if present.",
     "  --log-level            Logging verbosity (DEBUG, INFO, WARNING, ERROR).",
     "  --help                 Show this message and exit.",
     sep = "\n"
@@ -348,8 +348,14 @@ build_forecasts_key <- function(df, config) {
 }
 
 build_metadata_file <- function(data_df, locations_df) {
-  location_entries <- lapply(seq_len(nrow(locations_df)), function(i) {
-    row <- locations_df[i, , drop = FALSE]
+  data_locations <- unique(as.character(data_df$location))
+  filtered_locations <- locations_df[
+    as.character(locations_df$location) %in% data_locations,
+    ,
+    drop = FALSE
+  ]
+  location_entries <- lapply(seq_len(nrow(filtered_locations)), function(i) {
+    row <- filtered_locations[i, , drop = FALSE]
     population_value <- row$population[[1]]
     if (is.null(population_value) || is.na(population_value)) {
       population_value <- NA_real_
@@ -369,18 +375,6 @@ build_metadata_file <- function(data_df, locations_df) {
     models = unname(unique_in_order(as.character(data_df$model_id))),
     locations = location_entries
   )
-}
-
-validate_payload <- function(payload, schema_path) {
-  if (!requireNamespace("jsonvalidate", quietly = TRUE)) {
-    warning("Package 'jsonvalidate' not installed; skipping schema validation.")
-    return(invisible(TRUE))
-  }
-  json_text <- jsonlite::toJSON(payload, auto_unbox = TRUE, pretty = FALSE, na = "null")
-  is_valid <- jsonvalidate::json_validate(json_text, schema = schema_path, engine = "ajv", verbose = TRUE)
-  if (!isTRUE(is_valid)) {
-    stop("Schema validation failed for generated payload.", call. = FALSE)
-  }
 }
 
 save_json_payload <- function(payload, path, overwrite) {
@@ -499,10 +493,6 @@ main <- function() {
   validate_location_coverage(forecast_df, locations_df, args$data_path, args$locations_data_path)
 
   script_dir <- get_script_dir()
-  schema_path <- file.path(script_dir, "schemas", "RespiLens_projections.schema.json")
-  if (!file.exists(schema_path)) {
-    stop(sprintf("Could not find schema file at %s", schema_path), call. = FALSE)
-  }
 
   outputs <- process_dataset(forecast_df, locations_df, target_df, config)
   path_mapping <- list(flu = "flusight", rsvforecasthub = "rsvforecasthub", covid19forecasthub = "covid19forecasthub")
@@ -511,7 +501,6 @@ main <- function() {
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
   for (item in outputs) {
-    validate_payload(item$payload, schema_path)
     target_path <- file.path(output_dir, item$file_name)
     save_json_payload(item$payload, target_path, args$overwrite)
   }

@@ -231,7 +231,7 @@ const Documentation = () => {
            <List withPadding spacing="xs" size="m">
             <List.Item>Must be a <code>.csv</code> or <code>.parquet</code> file. Can be found on a hub GitHub repository in the <Code>target-data</Code> directory (<Anchor href="https://github.com/cdcepi/FluSight-forecast-hub/tree/main/target-data" target="_blank" rel="noopener noreferrer">example</Anchor>)</List.Item>
             <List.Item>Must be for flu, RSV, or COVID-19</List.Item>
-            <List.Item>If for flu, must contain columns <Code>as_of</Code>, <Code>target_end_date</Code>, <Code>location</Code>, and <Code>observation</Code></List.Item>
+            <List.Item>If for flu, must contain columns <Code>as_of</Code>, <Code>target_end_date</Code>, <Code>location</Code>, <Code>target</Code>, and <Code>observation</Code></List.Item>
             <List.Item>If for RSV or COVID-19, must contain columns <Code>as_of</Code>, <Code>date</Code>, <Code>location</Code>, <Code>target</Code>, and <Code>observation</Code></List.Item>
            </List>
            <Text><strong style={{ color: '#2563eb' }}>Location Data Requirements</strong></Text>
