@@ -16,11 +16,11 @@ usage_text <- function() {
     "",
     "Arguments:",
     "  --output-path          Directory where JSON files will be written.",
-    "  --pathogen             Pathogen to process (flu, rsv, covid).",
-    "  --data-path            Hubverse forecast export in CSV format.",
-    "  --target-data-path     Hubverse target data (CSV or Parquet).",
-    "  --locations-data-path  Location metadata CSV.",
-    "  --overwrite            Overwrite existing files if present.",
+    "  --pathogen             Pathogen to process (flu, rsv, or covid).",
+    "  --data-path            Absolute path to Hubverse-style forecast data to be converted (.csv)",
+    "  --target-data-path     Absolute path to Hubverse-style target data that correspends to provided forecast (.csv or .parquet)",
+    "  --locations-data-path  Location metadata (.csv). Should match format of locations.csv files found in Hubverse auxiliary-data directories.",
+    "  --overwrite            Permission to overwrite existing files, if present.",
     "  --log-level            Logging verbosity (DEBUG, INFO, WARNING, ERROR).",
     "  --help                 Show this message and exit.",
     sep = "\n"
@@ -348,8 +348,14 @@ build_forecasts_key <- function(df, config) {
 }
 
 build_metadata_file <- function(data_df, locations_df) {
-  location_entries <- lapply(seq_len(nrow(locations_df)), function(i) {
-    row <- locations_df[i, , drop = FALSE]
+  data_locations <- unique(as.character(data_df$location))
+  filtered_locations <- locations_df[
+    as.character(locations_df$location) %in% data_locations,
+    ,
+    drop = FALSE
+  ]
+  location_entries <- lapply(seq_len(nrow(filtered_locations)), function(i) {
+    row <- filtered_locations[i, , drop = FALSE]
     population_value <- row$population[[1]]
     if (is.null(population_value) || is.na(population_value)) {
       population_value <- NA_real_
