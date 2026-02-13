@@ -227,7 +227,13 @@ const MyRespiLensDashboard = () => {
       mode: 'lines+markers',
       name: 'Observed',
       line: { color: 'black', width: 2, dash: 'dash' },
-      marker: { size: 4, color: 'black' }
+      marker: { size: 4, color: 'black' },
+      hoverinfo: 'text',
+      hovertemplate: 
+        `<b>Observed Data</b><br>` +
+        `Value: %{y:.1f}<br>` +
+        `Date: %{x}<br>` +
+        `<extra></extra>`
     };
   }, [fileData, selectedTarget]);
 
@@ -267,17 +273,27 @@ const MyRespiLensDashboard = () => {
           const opacityBase = Math.floor(40 - (pair.spread * 30)); 
           const opacityHex = Math.max(10, opacityBase).toString();
 
+          const upperValues = getQuantile(pair.upper);
+          const lowerValues = getQuantile(pair.lower);
+
           return {
             x: [...forecastDates, ...[...forecastDates].reverse()],
-            y: [...getQuantile(pair.upper), ...[...getQuantile(pair.lower)].reverse()],
+            y: [...upperValues, ...[...lowerValues].reverse()],
+            customdata: [...lowerValues, ...[...upperValues].reverse()],
             fill: 'toself',
             fillcolor: `${modelColor}${opacityHex}`,
             line: { color: 'transparent' },
             showlegend: false,
             type: 'scatter',
             name: `${model} ${confidenceLevel}% CI`,
-            hoverinfo: 'none',
-            legendgroup: model
+            legendgroup: model,
+            hoverinfo: 'text',
+            hovertemplate: 
+              `<b>${model}</b> - ${confidenceLevel}% CI<br>` +
+              `pred. <b>${forecastDate}</b><br>` + 
+              `Upper: %{y:.1f}<br>` +
+              `Lower: %{customdata:.1f}<br>` + 
+              `<extra></extra>`
           };
         });
 
@@ -290,7 +306,13 @@ const MyRespiLensDashboard = () => {
           line: { color: modelColor, width: 2 },
           marker: { size: 6, color: modelColor },
           showlegend: isFirstDate,
-          legendgroup: model
+          legendgroup: model,
+          hoverinfo: 'text',
+          hovertemplate: 
+            `<b>${model}</b><br>` + 
+            `pred. <b>${forecastDate}</b><br>` + 
+            `Median Forecast: %{y:.1f}<br>` +
+            `<extra></extra>`
         };
 
         return [...areaTraces, medianTrace];
