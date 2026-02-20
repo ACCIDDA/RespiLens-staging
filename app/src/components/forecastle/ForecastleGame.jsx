@@ -855,7 +855,9 @@ const ForecastleGame = () => {
                                             ta="center"
                                           >
                                             ⋯ {item.skippedCount} model
-                                            {item.skippedCount !== 1 ? "s" : ""}{" "}
+                                            {item.skippedCount !== 1
+                                              ? "s"
+                                              : ""}{" "}
                                             hidden ⋯
                                           </Text>
                                         </Paper>

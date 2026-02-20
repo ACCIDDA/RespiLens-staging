@@ -8,7 +8,9 @@
     "build": "vite build",
     "build:staging": "vite build --mode staging",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check --log-level warn"
   },
   "dependencies": {
     "@mantine/carousel": "^8.1.1",
@@ -39,6 +41,7 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9.17.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
