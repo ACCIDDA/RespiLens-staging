@@ -1,8 +1,34 @@
-import { Link } from 'react-router-dom';
-import { Group, ThemeIcon, Title, ActionIcon, Menu, Avatar, Text, Stack, Button, Divider } from '@mantine/core';
-import { IconDashboard, IconActivity, IconTarget, IconBookmark, IconSettings, IconBell, IconUser, IconLogout, IconChartLine } from '@tabler/icons-react';
+import { Link } from "react-router-dom";
+import {
+  Group,
+  ThemeIcon,
+  Title,
+  ActionIcon,
+  Menu,
+  Avatar,
+  Text,
+  Stack,
+  Button,
+  Divider,
+} from "@mantine/core";
+import {
+  IconDashboard,
+  IconActivity,
+  IconTarget,
+  IconBookmark,
+  IconSettings,
+  IconBell,
+  IconUser,
+  IconLogout,
+  IconChartLine,
+} from "@tabler/icons-react";
 
-const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }) => {
+const DashboardNavigation = ({
+  activeTab,
+  setActiveTab,
+  user,
+  inHeader = false,
+}) => {
   if (inHeader) {
     return (
       <Group justify="space-between" align="center">
@@ -12,16 +38,18 @@ const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }
           </ThemeIcon>
           <Title order={3}>MyRespiLens</Title>
         </Group>
-        
+
         <Group gap="xs">
           <ActionIcon variant="subtle" size="lg" aria-label="Notifications">
             <IconBell size={20} />
           </ActionIcon>
           <Menu shadow="md" width={200}>
             <Menu.Target>
-              <Group style={{ cursor: 'pointer' }}>
+              <Group style={{ cursor: "pointer" }}>
                 <Avatar size="sm" radius="xl" />
-                <Text size="sm" fw={500}>{user?.name || 'User'}</Text>
+                <Text size="sm" fw={500}>
+                  {user?.name || "User"}
+                </Text>
               </Group>
             </Menu.Target>
             <Menu.Dropdown>
@@ -46,42 +74,42 @@ const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }
     <>
       <Stack gap="xs">
         <Button
-          variant={activeTab === 'overview' ? 'light' : 'subtle'}
+          variant={activeTab === "overview" ? "light" : "subtle"}
           leftSection={<IconDashboard size={16} />}
           justify="start"
-          onClick={() => setActiveTab('overview')}
+          onClick={() => setActiveTab("overview")}
         >
           Overview
         </Button>
         <Button
-          variant={activeTab === 'activity' ? 'light' : 'subtle'}
+          variant={activeTab === "activity" ? "light" : "subtle"}
           leftSection={<IconActivity size={16} />}
           justify="start"
-          onClick={() => setActiveTab('activity')}
+          onClick={() => setActiveTab("activity")}
         >
           Recent Activity
         </Button>
         <Button
-          variant={activeTab === 'forecastable' ? 'light' : 'subtle'}
+          variant={activeTab === "forecastable" ? "light" : "subtle"}
           leftSection={<IconTarget size={16} />}
           justify="start"
-          onClick={() => setActiveTab('forecastable')}
+          onClick={() => setActiveTab("forecastable")}
         >
           Forecastable Stats
         </Button>
         <Button
-          variant={activeTab === 'bookmarks' ? 'light' : 'subtle'}
+          variant={activeTab === "bookmarks" ? "light" : "subtle"}
           leftSection={<IconBookmark size={16} />}
           justify="start"
-          onClick={() => setActiveTab('bookmarks')}
+          onClick={() => setActiveTab("bookmarks")}
         >
           Bookmarks
         </Button>
         <Button
-          variant={activeTab === 'settings' ? 'light' : 'subtle'}
+          variant={activeTab === "settings" ? "light" : "subtle"}
           leftSection={<IconSettings size={16} />}
           justify="start"
-          onClick={() => setActiveTab('settings')}
+          onClick={() => setActiveTab("settings")}
         >
           Settings
         </Button>
@@ -91,14 +119,34 @@ const DashboardNavigation = ({ activeTab, setActiveTab, user, inHeader = false }
 
       {/* Quick Actions */}
       <Stack gap="xs">
-        <Text size="sm" fw={500} c="dimmed">Quick Actions</Text>
-        <Button variant="light" size="xs" leftSection={<IconChartLine size={14} />} component={Link} to="/">
+        <Text size="sm" fw={500} c="dimmed">
+          Quick Actions
+        </Text>
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconChartLine size={14} />}
+          component={Link}
+          to="/"
+        >
           View Forecasts
         </Button>
-        <Button variant="light" size="xs" leftSection={<IconBookmark size={14} />} component={Link} to="/narratives">
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconBookmark size={14} />}
+          component={Link}
+          to="/narratives"
+        >
           Browse Narratives
         </Button>
-        <Button variant="light" size="xs" leftSection={<IconTarget size={14} />} component={Link} to="/forecastle">
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconTarget size={14} />}
+          component={Link}
+          to="/forecastle"
+        >
           Play Forecastle
         </Button>
       </Stack>

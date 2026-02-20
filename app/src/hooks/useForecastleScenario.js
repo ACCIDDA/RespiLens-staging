@@ -1,28 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FORECASTLE_CONFIG } from '../config';
+import { useEffect, useMemo, useState } from "react";
+import { FORECASTLE_CONFIG } from "../config";
 
 const DATASET_DEFINITIONS = [
   {
-    key: 'flusight',
-    label: 'Influenza Hospitalizations (FluSight)',
-    dataPath: 'flusight',
-    fileSuffix: 'flu.json',
+    key: "flusight",
+    label: "Influenza Hospitalizations (FluSight)",
+    dataPath: "flusight",
+    fileSuffix: "flu.json",
     targetKey: FORECASTLE_CONFIG.targetKeys.flusight,
     defaultHorizons: FORECASTLE_CONFIG.horizons.flusight,
   },
   {
-    key: 'rsv',
-    label: 'RSV Hospitalizations (RSV Forecast Hub)',
-    dataPath: 'rsvforecasthub',
-    fileSuffix: 'rsv.json',
+    key: "rsv",
+    label: "RSV Hospitalizations (RSV Forecast Hub)",
+    dataPath: "rsvforecasthub",
+    fileSuffix: "rsv.json",
     targetKey: FORECASTLE_CONFIG.targetKeys.rsv,
     defaultHorizons: FORECASTLE_CONFIG.horizons.rsv,
   },
   {
-    key: 'covid19',
-    label: 'COVID-19 Hospitalizations (COVID-19 Forecast Hub)',
-    dataPath: 'covid19forecasthub',
-    fileSuffix: 'covid19.json',
+    key: "covid19",
+    label: "COVID-19 Hospitalizations (COVID-19 Forecast Hub)",
+    dataPath: "covid19forecasthub",
+    fileSuffix: "covid19.json",
     targetKey: FORECASTLE_CONFIG.targetKeys.covid19,
     defaultHorizons: FORECASTLE_CONFIG.horizons.covid19,
   },
@@ -53,17 +53,19 @@ const pickDeterministic = (items, rng) => {
 const fetchJson = async (path) => {
   const response = await fetch(path);
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${path}: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch ${path}: ${response.status} ${response.statusText}`,
+    );
   }
   return response.json();
 };
 
 const getEasternDateKey = () => {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
   return formatter.format(new Date());
 };
@@ -110,12 +112,16 @@ const countModelsForTarget = (targetForecasts) => {
 // We only consider forecast dates/locations that contain the required
 // target and horizons so the user always receives a fully-specified task.
 const ensureValidScenario = async (rng, datasetMeta) => {
-  const locationOptions = datasetMeta.metadata?.locations?.filter((loc) => loc?.abbreviation) || [];
+  const locationOptions =
+    datasetMeta.metadata?.locations?.filter((loc) => loc?.abbreviation) || [];
   if (locationOptions.length === 0) {
     return null;
   }
 
-  const attemptLimit = Math.min(20, locationOptions.length * FORECASTLE_CONFIG.maxAttemptMultiplier);
+  const attemptLimit = Math.min(
+    20,
+    locationOptions.length * FORECASTLE_CONFIG.maxAttemptMultiplier,
+  );
 
   for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
     const location = pickDeterministic(locationOptions, rng);
@@ -139,7 +145,8 @@ const ensureValidScenario = async (rng, datasetMeta) => {
 
     // Prepare ground truth lookup
     const groundTruthDates = locationData.ground_truth?.dates || [];
-    const groundTruthValues = locationData.ground_truth?.[datasetMeta.definition.targetKey] || [];
+    const groundTruthValues =
+      locationData.ground_truth?.[datasetMeta.definition.targetKey] || [];
     const groundTruthMap = new Map();
     groundTruthDates.forEach((date, index) => {
       const value = groundTruthValues[index];
@@ -148,47 +155,58 @@ const ensureValidScenario = async (rng, datasetMeta) => {
       }
     });
 
-    const validForecasts = forecastsEntries.filter(([forecastDate, targets]) => {
-      const targetForecasts = targets?.[datasetMeta.definition.targetKey];
+    const validForecasts = forecastsEntries.filter(
+      ([forecastDate, targets]) => {
+        const targetForecasts = targets?.[datasetMeta.definition.targetKey];
 
-      // Check if there are at least the minimum required models
-      const modelCount = countModelsForTarget(targetForecasts);
-      if (modelCount < FORECASTLE_CONFIG.minModelsRequired) {
-        return false;
-      }
+        // Check if there are at least the minimum required models
+        const modelCount = countModelsForTarget(targetForecasts);
+        if (modelCount < FORECASTLE_CONFIG.minModelsRequired) {
+          return false;
+        }
 
-      const horizonSet = extractPositiveHorizons(targets, datasetMeta.definition.targetKey);
-      if (horizonSet.size === 0) {
-        return false;
-      }
-      const requiredHorizons = datasetMeta.requiredHorizons;
+        const horizonSet = extractPositiveHorizons(
+          targets,
+          datasetMeta.definition.targetKey,
+        );
+        if (horizonSet.size === 0) {
+          return false;
+        }
+        const requiredHorizons = datasetMeta.requiredHorizons;
 
-      // Check if all required horizons are present
-      if (!requiredHorizons.every((horizon) => horizonSet.has(horizon))) {
-        return false;
-      }
+        // Check if all required horizons are present
+        if (!requiredHorizons.every((horizon) => horizonSet.has(horizon))) {
+          return false;
+        }
 
-      // Check if ground truth is available for all required horizons
-      const allHorizonsHaveGroundTruth = requiredHorizons.every((horizon) => {
-        const horizonDate = addWeeksToDate(forecastDate, horizon);
-        if (!horizonDate) return false;
-        return groundTruthMap.has(horizonDate);
-      });
+        // Check if ground truth is available for all required horizons
+        const allHorizonsHaveGroundTruth = requiredHorizons.every((horizon) => {
+          const horizonDate = addWeeksToDate(forecastDate, horizon);
+          if (!horizonDate) return false;
+          return groundTruthMap.has(horizonDate);
+        });
 
-      return allHorizonsHaveGroundTruth;
-    });
+        return allHorizonsHaveGroundTruth;
+      },
+    );
 
     if (validForecasts.length === 0) {
       continue;
     }
 
-    const [forecastDate, forecastTargets] = pickDeterministic(validForecasts, rng) || [];
+    const [forecastDate, forecastTargets] =
+      pickDeterministic(validForecasts, rng) || [];
     if (!forecastDate || !forecastTargets) {
       continue;
     }
 
-    const horizonSet = extractPositiveHorizons(forecastTargets, datasetMeta.definition.targetKey);
-    const availableHorizons = Array.from(horizonSet.values()).sort((a, b) => a - b);
+    const horizonSet = extractPositiveHorizons(
+      forecastTargets,
+      datasetMeta.definition.targetKey,
+    );
+    const availableHorizons = Array.from(horizonSet.values()).sort(
+      (a, b) => a - b,
+    );
 
     // Reuse groundTruthDates and groundTruthValues from earlier in the function
     const groundTruthSeries = groundTruthDates.map((date, index) => ({
@@ -196,7 +214,9 @@ const ensureValidScenario = async (rng, datasetMeta) => {
       value: groundTruthValues[index] ?? null,
     }));
 
-    const filteredSeries = groundTruthSeries.filter((entry) => entry.value !== null);
+    const filteredSeries = groundTruthSeries.filter(
+      (entry) => entry.value !== null,
+    );
 
     // Keep the full series for scoring (including future ground truth)
     const fullGroundTruthSeries = filteredSeries;
@@ -211,9 +231,11 @@ const ensureValidScenario = async (rng, datasetMeta) => {
 
     // Determine how much history to show based on dataset type
     let recentSeries;
-    const historyConfig = FORECASTLE_CONFIG.historyDisplay[datasetMeta.definition.key] || FORECASTLE_CONFIG.historyDisplay.default;
+    const historyConfig =
+      FORECASTLE_CONFIG.historyDisplay[datasetMeta.definition.key] ||
+      FORECASTLE_CONFIG.historyDisplay.default;
 
-    if (historyConfig === 'seasonStart') {
+    if (historyConfig === "seasonStart") {
       // Show since start of season (approximately July 1st)
       const forecastDateObj = new Date(forecastDate);
       const year = forecastDateObj.getFullYear();
@@ -256,7 +278,10 @@ export const useForecastleScenario = (playDate = null) => {
   const [error, setError] = useState(null);
 
   // Use playDate if provided, otherwise use today's date
-  const challengeDateKey = useMemo(() => playDate || getEasternDateKey(), [playDate]);
+  const challengeDateKey = useMemo(
+    () => playDate || getEasternDateKey(),
+    [playDate],
+  );
 
   useEffect(() => {
     let isCancelled = false;
@@ -270,13 +295,22 @@ export const useForecastleScenario = (playDate = null) => {
       try {
         const datasetMetas = await Promise.all(
           DATASET_DEFINITIONS.map(async (definition) => {
-            const metadata = await fetchJson(`/processed_data/${definition.dataPath}/metadata.json`);
-            const horizonSet = toNumberSet(metadata?.hubverse_keys?.horizons || []);
-            const requiredHorizons = definition.defaultHorizons.filter((horizon) => horizonSet.has(horizon));
+            const metadata = await fetchJson(
+              `/processed_data/${definition.dataPath}/metadata.json`,
+            );
+            const horizonSet = toNumberSet(
+              metadata?.hubverse_keys?.horizons || [],
+            );
+            const requiredHorizons = definition.defaultHorizons.filter(
+              (horizon) => horizonSet.has(horizon),
+            );
             return {
               definition,
               metadata,
-              requiredHorizons: requiredHorizons.length > 0 ? requiredHorizons : definition.defaultHorizons,
+              requiredHorizons:
+                requiredHorizons.length > 0
+                  ? requiredHorizons
+                  : definition.defaultHorizons,
             };
           }),
         );
@@ -285,8 +319,14 @@ export const useForecastleScenario = (playDate = null) => {
         const resolvedScenarios = [];
         const maxScenarios = FORECASTLE_CONFIG.maxScenariosPerDay;
 
-        for (let scenarioIndex = 0; scenarioIndex < maxScenarios; scenarioIndex += 1) {
-          const seed = hashString(`forecastle-${challengeDateKey}-${scenarioIndex}`);
+        for (
+          let scenarioIndex = 0;
+          scenarioIndex < maxScenarios;
+          scenarioIndex += 1
+        ) {
+          const seed = hashString(
+            `forecastle-${challengeDateKey}-${scenarioIndex}`,
+          );
           const rng = createRng(seed);
 
           const attemptOrder = [...datasetMetas].sort(() => rng() - 0.5);
@@ -322,7 +362,9 @@ export const useForecastleScenario = (playDate = null) => {
         }
 
         if (resolvedScenarios.length === 0) {
-          throw new Error('Unable to generate any Forecastle scenarios for today.');
+          throw new Error(
+            "Unable to generate any Forecastle scenarios for today.",
+          );
         }
 
         if (!isCancelled) {
@@ -331,8 +373,12 @@ export const useForecastleScenario = (playDate = null) => {
         }
       } catch (err) {
         if (!isCancelled) {
-          console.error('Forecastle scenario error', err);
-          setError(err instanceof Error ? err : new Error('Unknown error generating scenario'));
+          console.error("Forecastle scenario error", err);
+          setError(
+            err instanceof Error
+              ? err
+              : new Error("Unknown error generating scenario"),
+          );
           setLoading(false);
         }
       }

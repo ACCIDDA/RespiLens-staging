@@ -1,26 +1,47 @@
-import { useState } from 'react';
-import { Stack, Group, Button, Text, Tooltip, Switch, Card, SimpleGrid, PillsInput, Pill, Combobox, useCombobox, Paper } from '@mantine/core';
-import { IconCircleCheck, IconCircle, IconEye, IconEyeOff } from '@tabler/icons-react';
-import { MODEL_COLORS } from '../config/datasets';
+import { useState } from "react";
+import {
+  Stack,
+  Group,
+  Button,
+  Text,
+  Tooltip,
+  Switch,
+  Card,
+  SimpleGrid,
+  PillsInput,
+  Pill,
+  Combobox,
+  useCombobox,
+  Paper,
+} from "@mantine/core";
+import {
+  IconCircleCheck,
+  IconCircle,
+  IconEye,
+  IconEyeOff,
+} from "@tabler/icons-react";
+import { MODEL_COLORS } from "../config/datasets";
 
-const ModelSelector = ({ 
+const ModelSelector = ({
   models = [],
-  selectedModels = [], 
+  selectedModels = [],
   setSelectedModels,
-  activeModels = null, 
+  activeModels = null,
   allowMultiple = true,
-  disabled = false 
+  disabled = false,
 }) => {
   const [showAllAvailable, setShowAllAvailable] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
-    onDropdownOpen: () => combobox.updateSelectedOptionIndex('active', 0),
+    onDropdownOpen: () => combobox.updateSelectedOptionIndex("active", 0),
   });
 
   const handleSelectAll = () => {
     // Only select models that are currently active
-    const modelsToSelect = activeModels ? models.filter(m => activeModels.has(m)) : models;
+    const modelsToSelect = activeModels
+      ? models.filter((m) => activeModels.has(m))
+      : models;
     setSelectedModels(modelsToSelect);
   };
 
@@ -37,9 +58,9 @@ const ModelSelector = ({
   const modelsToShow = showAllAvailable ? models : selectedModels;
 
   const handleValueSelect = (val) => {
-    setSearch('');
+    setSearch("");
     if (selectedModels.includes(val)) {
-      setSelectedModels(selectedModels.filter(v => v !== val));
+      setSelectedModels(selectedModels.filter((v) => v !== val));
     } else if (allowMultiple) {
       setSelectedModels([...selectedModels, val]);
     } else {
@@ -48,11 +69,11 @@ const ModelSelector = ({
   };
 
   const handleValueRemove = (val) => {
-    setSelectedModels(selectedModels.filter(v => v !== val));
+    setSelectedModels(selectedModels.filter((v) => v !== val));
   };
 
-  const filteredModels = models.filter(model =>
-    model.toLowerCase().includes(search.toLowerCase().trim())
+  const filteredModels = models.filter((model) =>
+    model.toLowerCase().includes(search.toLowerCase().trim()),
   );
 
   if (!models.length) {
@@ -66,216 +87,238 @@ const ModelSelector = ({
   return (
     <Paper withBorder radius="md" p="sm" mt="md">
       <Stack gap="md">
-      <Group gap="xs" align="center" wrap="wrap">
-        <Text size="sm" fw={500}>
-          Model selection ({selectedModels.length}/{models.length})
-        </Text>
-        {allowMultiple && (
-          <>
-            <Tooltip label="Select all available models">
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={handleSelectAll}
-                disabled={disabled || selectedModels.length === models.length}
-              >
-                Select All
-              </Button>
-            </Tooltip>
-            <Tooltip label="Clear all selected models">
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={handleSelectNone}
-                disabled={disabled || selectedModels.length === 0}
-              >
-                Clear All
-              </Button>
-            </Tooltip>
-          </>
-        )}
-        <Switch
-          label="Show all models"
-          checked={showAllAvailable}
-          onChange={(event) => setShowAllAvailable(event.currentTarget.checked)}
-          size="sm"
-          disabled={disabled}
-          thumbIcon={
-            showAllAvailable ? (
-              <IconEye size={12} stroke={2.5} />
-            ) : (
-              <IconEyeOff size={12} stroke={2.5} />
-            )
-          }
-        />
-      </Group>
-
-      <Combobox
-        store={combobox}
-        onOptionSubmit={handleValueSelect}
-        withinPortal
-      >
-        <Combobox.DropdownTarget>
-          <PillsInput onClick={() => combobox.openDropdown()} size="sm" label="Search and select models">
-            <Pill.Group>
-              {selectedModels.map((model) => {
-                const modelColor = getModelColorByIndex(model);
-                const isActive = !activeModels || activeModels.has(model);
-                return (
-                  <Pill
-                    key={model}
-                    withRemoveButton
-                    onRemove={() => handleValueRemove(model)}
-                    style={{
-                      backgroundColor: isActive ? modelColor : 'var(--mantine-color-gray-6)',
-                      color: 'white',
-                      padding: '2px 6px',
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    {model}
-                  </Pill>
-                );
-              })}
-
-              <Combobox.EventsTarget>
-                <PillsInput.Field
-                  onFocus={() => combobox.openDropdown()}
-                  onBlur={() => combobox.closeDropdown()}
-                  value={search}
-                  placeholder="Quick search and select models..."
-                  aria-label="Search and select forecasting models"
-                  onChange={(event) => {
-                    combobox.updateSelectedOptionIndex();
-                    setSearch(event.currentTarget.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Backspace' && search.length === 0) {
-                      event.preventDefault();
-                      handleValueRemove(selectedModels[selectedModels.length - 1]);
-                    }
-                  }}
-                />
-              </Combobox.EventsTarget>
-            </Pill.Group>
-          </PillsInput>
-        </Combobox.DropdownTarget>
-
-        <Combobox.Dropdown>
-          <Combobox.Options>
-            {filteredModels.map((model) => {
-              const modelColor = getModelColorByIndex(model);
-              const isSelected = selectedModels.includes(model);
-              const isActive = !activeModels || activeModels.has(model);
-              
-              return (
-                <Combobox.Option
-                  value={model}
-                  key={model}
-                  style={{
-                    padding: '4px 8px',
-                  }}
-                  disabled={!isActive} // Disable selection if not active
+        <Group gap="xs" align="center" wrap="wrap">
+          <Text size="sm" fw={500}>
+            Model selection ({selectedModels.length}/{models.length})
+          </Text>
+          {allowMultiple && (
+            <>
+              <Tooltip label="Select all available models">
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  onClick={handleSelectAll}
+                  disabled={disabled || selectedModels.length === models.length}
                 >
-                  <Group gap="xs" justify="space-between">
-                    <Group gap="xs" align="center">
-                      {isSelected ? (
-                        <IconCircleCheck size={16} style={{ color: modelColor }} />
-                      ) : (
-                        <IconCircle size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
-                      )}
-                      <span
-                        style={{
-                          color: isSelected ? modelColor : (isActive ? 'inherit' : 'var(--mantine-color-gray-5)'),
-                          fontWeight: isSelected ? 600 : 400
-                        }}
-                      >
-                        {model}
-                      </span>
-                    </Group>
-                  </Group>
-                </Combobox.Option>
-              );
-            })}
-          </Combobox.Options>
-        </Combobox.Dropdown>
-      </Combobox>
+                  Select All
+                </Button>
+              </Tooltip>
+              <Tooltip label="Clear all selected models">
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  onClick={handleSelectNone}
+                  disabled={disabled || selectedModels.length === 0}
+                >
+                  Clear All
+                </Button>
+              </Tooltip>
+            </>
+          )}
+          <Switch
+            label="Show all models"
+            checked={showAllAvailable}
+            onChange={(event) =>
+              setShowAllAvailable(event.currentTarget.checked)
+            }
+            size="sm"
+            disabled={disabled}
+            thumbIcon={
+              showAllAvailable ? (
+                <IconEye size={12} stroke={2.5} />
+              ) : (
+                <IconEyeOff size={12} stroke={2.5} />
+              )
+            }
+          />
+        </Group>
 
-      {allowMultiple && (
-        <Text size="xs" c="dimmed" hiddenFrom="xs">
-          {selectedModels.length > 0 && `${selectedModels.length} selected`}
-        </Text>
-      )}
-
-      {modelsToShow.length > 0 && (
-        <SimpleGrid 
-          cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 5 }}
-          spacing="xs"
-          verticalSpacing="xs"
+        <Combobox
+          store={combobox}
+          onOptionSubmit={handleValueSelect}
+          withinPortal
         >
-          {modelsToShow.map((model) => {
-            const isSelected = selectedModels.includes(model);
-            const modelColor = getModelColorByIndex(model);
-            const inactiveColor = 'var(--mantine-color-gray-5)';
-            const isActive = !activeModels || activeModels.has(model);
-            const isDisabled = disabled || !isActive; // Combine overall disabled with specific model active state
-            
-            return (
-              <Card
-                key={model}
-                p="xs"
-                radius="md"
-                withBorder={!isSelected}
-                variant={isSelected ? 'filled' : 'default'}
-                style={{
-                  cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  backgroundColor: isSelected ? modelColor : undefined,
-                  borderColor: isSelected ? modelColor : undefined,
-                  minWidth: 0
-                }}
-                opacity={isDisabled ? 0.5 : 1}
-                onClick={() => {
-                  if (isDisabled) return; // Use combined disabled state
-                  
-                  if (isSelected) {
-                    setSelectedModels(selectedModels.filter(m => m !== model));
-                  } else {
-                    if (allowMultiple) {
-                      setSelectedModels([...selectedModels, model]);
-                    } else {
-                      setSelectedModels([model]);
-                    }
-                  }
-                }}
-              >
-                <Group gap="xs" justify="space-between" align="center">
-                  <Group gap="xs" align="center" flex={1}>
-                    {isSelected ? (
-                      <IconCircleCheck size={16} color="white" />
-                    ) : (
-                      <IconCircle size={16} color={inactiveColor} />
-                    )}
-                    <Text 
-                      size="xs" 
-                      fw={isSelected ? 600 : 400}
-                      c={isSelected ? 'white' : 'inherit'}
-                      style={{ 
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1
+          <Combobox.DropdownTarget>
+            <PillsInput
+              onClick={() => combobox.openDropdown()}
+              size="sm"
+              label="Search and select models"
+            >
+              <Pill.Group>
+                {selectedModels.map((model) => {
+                  const modelColor = getModelColorByIndex(model);
+                  const isActive = !activeModels || activeModels.has(model);
+                  return (
+                    <Pill
+                      key={model}
+                      withRemoveButton
+                      onRemove={() => handleValueRemove(model)}
+                      style={{
+                        backgroundColor: isActive
+                          ? modelColor
+                          : "var(--mantine-color-gray-6)",
+                        color: "white",
+                        padding: "2px 6px",
+                        fontSize: "0.75rem",
                       }}
-                      title={model}
                     >
                       {model}
-                    </Text>
+                    </Pill>
+                  );
+                })}
+
+                <Combobox.EventsTarget>
+                  <PillsInput.Field
+                    onFocus={() => combobox.openDropdown()}
+                    onBlur={() => combobox.closeDropdown()}
+                    value={search}
+                    placeholder="Quick search and select models..."
+                    aria-label="Search and select forecasting models"
+                    onChange={(event) => {
+                      combobox.updateSelectedOptionIndex();
+                      setSearch(event.currentTarget.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Backspace" && search.length === 0) {
+                        event.preventDefault();
+                        handleValueRemove(
+                          selectedModels[selectedModels.length - 1],
+                        );
+                      }
+                    }}
+                  />
+                </Combobox.EventsTarget>
+              </Pill.Group>
+            </PillsInput>
+          </Combobox.DropdownTarget>
+
+          <Combobox.Dropdown>
+            <Combobox.Options>
+              {filteredModels.map((model) => {
+                const modelColor = getModelColorByIndex(model);
+                const isSelected = selectedModels.includes(model);
+                const isActive = !activeModels || activeModels.has(model);
+
+                return (
+                  <Combobox.Option
+                    value={model}
+                    key={model}
+                    style={{
+                      padding: "4px 8px",
+                    }}
+                    disabled={!isActive} // Disable selection if not active
+                  >
+                    <Group gap="xs" justify="space-between">
+                      <Group gap="xs" align="center">
+                        {isSelected ? (
+                          <IconCircleCheck
+                            size={16}
+                            style={{ color: modelColor }}
+                          />
+                        ) : (
+                          <IconCircle
+                            size={16}
+                            style={{ color: "var(--mantine-color-gray-5)" }}
+                          />
+                        )}
+                        <span
+                          style={{
+                            color: isSelected
+                              ? modelColor
+                              : isActive
+                                ? "inherit"
+                                : "var(--mantine-color-gray-5)",
+                            fontWeight: isSelected ? 600 : 400,
+                          }}
+                        >
+                          {model}
+                        </span>
+                      </Group>
+                    </Group>
+                  </Combobox.Option>
+                );
+              })}
+            </Combobox.Options>
+          </Combobox.Dropdown>
+        </Combobox>
+
+        {allowMultiple && (
+          <Text size="xs" c="dimmed" hiddenFrom="xs">
+            {selectedModels.length > 0 && `${selectedModels.length} selected`}
+          </Text>
+        )}
+
+        {modelsToShow.length > 0 && (
+          <SimpleGrid
+            cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 5 }}
+            spacing="xs"
+            verticalSpacing="xs"
+          >
+            {modelsToShow.map((model) => {
+              const isSelected = selectedModels.includes(model);
+              const modelColor = getModelColorByIndex(model);
+              const inactiveColor = "var(--mantine-color-gray-5)";
+              const isActive = !activeModels || activeModels.has(model);
+              const isDisabled = disabled || !isActive; // Combine overall disabled with specific model active state
+
+              return (
+                <Card
+                  key={model}
+                  p="xs"
+                  radius="md"
+                  withBorder={!isSelected}
+                  variant={isSelected ? "filled" : "default"}
+                  style={{
+                    cursor: isDisabled ? "not-allowed" : "pointer",
+                    backgroundColor: isSelected ? modelColor : undefined,
+                    borderColor: isSelected ? modelColor : undefined,
+                    minWidth: 0,
+                  }}
+                  opacity={isDisabled ? 0.5 : 1}
+                  onClick={() => {
+                    if (isDisabled) return; // Use combined disabled state
+
+                    if (isSelected) {
+                      setSelectedModels(
+                        selectedModels.filter((m) => m !== model),
+                      );
+                    } else {
+                      if (allowMultiple) {
+                        setSelectedModels([...selectedModels, model]);
+                      } else {
+                        setSelectedModels([model]);
+                      }
+                    }
+                  }}
+                >
+                  <Group gap="xs" justify="space-between" align="center">
+                    <Group gap="xs" align="center" flex={1}>
+                      {isSelected ? (
+                        <IconCircleCheck size={16} color="white" />
+                      ) : (
+                        <IconCircle size={16} color={inactiveColor} />
+                      )}
+                      <Text
+                        size="xs"
+                        fw={isSelected ? 600 : 400}
+                        c={isSelected ? "white" : "inherit"}
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                        }}
+                        title={model}
+                      >
+                        {model}
+                      </Text>
+                    </Group>
                   </Group>
-                </Group>
-              </Card>
-            );
-          })}
-        </SimpleGrid>
-      )}
+                </Card>
+              );
+            })}
+          </SimpleGrid>
+        )}
       </Stack>
     </Paper>
   );

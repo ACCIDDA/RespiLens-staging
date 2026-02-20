@@ -5,7 +5,12 @@
  * @returns {number} RMSE value
  */
 export const calculateRMSE = (predictions, observations) => {
-  if (!predictions || !observations || predictions.length === 0 || observations.length === 0) {
+  if (
+    !predictions ||
+    !observations ||
+    predictions.length === 0 ||
+    observations.length === 0
+  ) {
     return null;
   }
 
@@ -43,13 +48,19 @@ export const calculateRMSE = (predictions, observations) => {
  * @returns {Object} Interval score with components {score, dispersion, underprediction, overprediction}
  */
 const calculateIntervalScore = (observed, lower, upper, alpha) => {
-  if (!Number.isFinite(observed) || !Number.isFinite(lower) || !Number.isFinite(upper)) {
+  if (
+    !Number.isFinite(observed) ||
+    !Number.isFinite(lower) ||
+    !Number.isFinite(upper)
+  ) {
     return null;
   }
 
   const dispersion = upper - lower;
-  const underprediction = observed < lower ? (2 / alpha) * (lower - observed) : 0;
-  const overprediction = observed > upper ? (2 / alpha) * (observed - upper) : 0;
+  const underprediction =
+    observed < lower ? (2 / alpha) * (lower - observed) : 0;
+  const overprediction =
+    observed > upper ? (2 / alpha) * (observed - upper) : 0;
   const score = dispersion + underprediction + overprediction;
 
   return {
@@ -70,7 +81,14 @@ const calculateIntervalScore = (observed, lower, upper, alpha) => {
  * @param {number} upper95 - Upper bound of 95% interval (0.975 quantile)
  * @returns {Object} WIS with components {wis, dispersion, underprediction, overprediction}
  */
-export const calculateWIS = (observed, median, lower50, upper50, lower95, upper95) => {
+export const calculateWIS = (
+  observed,
+  median,
+  lower50,
+  upper50,
+  lower95,
+  upper95,
+) => {
   if (!Number.isFinite(observed)) {
     return null;
   }
@@ -94,16 +112,24 @@ export const calculateWIS = (observed, median, lower50, upper50, lower95, upper9
 
   // Weighted sum
   const totalWeight = weight50 + weight95 + weightMedian;
-  const wis = (
-    weight50 * interval50.score +
-    weight95 * interval95.score +
-    weightMedian * medianAE
-  ) / totalWeight;
+  const wis =
+    (weight50 * interval50.score +
+      weight95 * interval95.score +
+      weightMedian * medianAE) /
+    totalWeight;
 
   // Aggregate components
-  const dispersion = (weight50 * interval50.dispersion + weight95 * interval95.dispersion) / totalWeight;
-  const underprediction = (weight50 * interval50.underprediction + weight95 * interval95.underprediction) / totalWeight;
-  const overprediction = (weight50 * interval50.overprediction + weight95 * interval95.overprediction) / totalWeight;
+  const dispersion =
+    (weight50 * interval50.dispersion + weight95 * interval95.dispersion) /
+    totalWeight;
+  const underprediction =
+    (weight50 * interval50.underprediction +
+      weight95 * interval95.underprediction) /
+    totalWeight;
+  const overprediction =
+    (weight50 * interval50.overprediction +
+      weight95 * interval95.overprediction) /
+    totalWeight;
 
   return {
     wis,
@@ -119,9 +145,14 @@ export const calculateWIS = (observed, median, lower50, upper50, lower95, upper9
  * @param {Array} horizonDates - Array of dates to extract ground truth for
  * @returns {Array} Array of ground truth values matching horizonDates
  */
-export const extractGroundTruthForHorizons = (groundTruthSeries, horizonDates) => {
-  const truthMap = new Map(groundTruthSeries.map(entry => [entry.date, entry.value]));
-  return horizonDates.map(date => truthMap.get(date) ?? null);
+export const extractGroundTruthForHorizons = (
+  groundTruthSeries,
+  horizonDates,
+) => {
+  const truthMap = new Map(
+    groundTruthSeries.map((entry) => [entry.date, entry.value]),
+  );
+  return horizonDates.map((date) => truthMap.get(date) ?? null);
 };
 
 /**
@@ -162,7 +193,7 @@ export const scoreUserForecast = (userForecasts, groundTruthValues) => {
       forecast.lower50,
       forecast.upper50,
       forecast.lower95,
-      forecast.upper95
+      forecast.upper95,
     );
 
     if (wisResult) {
@@ -203,16 +234,16 @@ export const scoreUserForecast = (userForecasts, groundTruthValues) => {
 export const getOfficialModels = (datasetKey) => {
   const modelMap = {
     flusight: {
-      ensemble: 'FluSight-ensemble',
-      baseline: 'FluSight-baseline',
+      ensemble: "FluSight-ensemble",
+      baseline: "FluSight-baseline",
     },
     rsv: {
-      ensemble: 'RSVHub-ensemble',
-      baseline: 'RSVHub-baseline',
+      ensemble: "RSVHub-ensemble",
+      baseline: "RSVHub-baseline",
     },
     covid19: {
-      ensemble: 'CovidHub-ensemble',
-      baseline: 'CovidHub-baseline',
+      ensemble: "CovidHub-ensemble",
+      baseline: "CovidHub-baseline",
     },
   };
 
@@ -235,7 +266,7 @@ export const scoreModels = (modelForecasts, horizons, groundTruthValues) => {
       return;
     }
 
-    const modelForecastsRaw = horizons.map(horizon => {
+    const modelForecastsRaw = horizons.map((horizon) => {
       const horizonPrediction = predictions[String(horizon)];
       if (!horizonPrediction) {
         return null;
@@ -252,8 +283,12 @@ export const scoreModels = (modelForecasts, horizons, groundTruthValues) => {
 
       // Extract the required quantiles
       const getQuantileValue = (targetQuantile) => {
-        const index = quantiles.findIndex(q => Math.abs(q - targetQuantile) < 0.001);
-        return index !== -1 && Number.isFinite(values[index]) ? values[index] : null;
+        const index = quantiles.findIndex(
+          (q) => Math.abs(q - targetQuantile) < 0.001,
+        );
+        return index !== -1 && Number.isFinite(values[index])
+          ? values[index]
+          : null;
       };
 
       const median = getQuantileValue(0.5);
@@ -262,7 +297,13 @@ export const scoreModels = (modelForecasts, horizons, groundTruthValues) => {
       const lower95 = getQuantileValue(0.025);
       const upper95 = getQuantileValue(0.975);
 
-      if (median === null || lower50 === null || upper50 === null || lower95 === null || upper95 === null) {
+      if (
+        median === null ||
+        lower50 === null ||
+        upper50 === null ||
+        lower95 === null ||
+        upper95 === null
+      ) {
         return null;
       }
 
