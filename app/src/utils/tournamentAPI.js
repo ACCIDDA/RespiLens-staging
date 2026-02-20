@@ -3,7 +3,7 @@
  * Handles communication with Google Sheets backend via Apps Script
  */
 
-import { TOURNAMENT_CONFIG } from '../config';
+import { TOURNAMENT_CONFIG } from "../config";
 
 /**
  * Make a GET request to the tournament API
@@ -15,11 +15,13 @@ const apiGet = async (action, params = {}) => {
   const apiUrl = TOURNAMENT_CONFIG.apiUrl;
 
   if (!apiUrl) {
-    throw new Error('Tournament API URL not configured. Please set VITE_TOURNAMENT_API_URL in .env');
+    throw new Error(
+      "Tournament API URL not configured. Please set VITE_TOURNAMENT_API_URL in .env",
+    );
   }
 
   const url = new URL(apiUrl);
-  url.searchParams.append('action', action);
+  url.searchParams.append("action", action);
 
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.append(key, value);
@@ -28,7 +30,7 @@ const apiGet = async (action, params = {}) => {
   try {
     // No headers needed for GET - avoids CORS preflight
     const response = await fetch(url.toString(), {
-      method: 'GET',
+      method: "GET",
     });
 
     if (!response.ok) {
@@ -38,12 +40,12 @@ const apiGet = async (action, params = {}) => {
     const data = await response.json();
 
     if (!data.success) {
-      throw new Error(data.error || 'Unknown API error');
+      throw new Error(data.error || "Unknown API error");
     }
 
     return data;
   } catch (error) {
-    console.error('Tournament API GET error:', error);
+    console.error("Tournament API GET error:", error);
     throw error;
   }
 };
@@ -57,15 +59,17 @@ const apiPost = async (payload) => {
   const apiUrl = TOURNAMENT_CONFIG.apiUrl;
 
   if (!apiUrl) {
-    throw new Error('Tournament API URL not configured. Please set VITE_TOURNAMENT_API_URL in .env');
+    throw new Error(
+      "Tournament API URL not configured. Please set VITE_TOURNAMENT_API_URL in .env",
+    );
   }
 
   try {
     // Use text/plain to avoid CORS preflight
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'text/plain',
+        "Content-Type": "text/plain",
       },
       body: JSON.stringify(payload),
     });
@@ -77,12 +81,12 @@ const apiPost = async (payload) => {
     const data = await response.json();
 
     if (!data.success) {
-      throw new Error(data.error || 'Unknown API error');
+      throw new Error(data.error || "Unknown API error");
     }
 
     return data;
   } catch (error) {
-    console.error('Tournament API POST error:', error);
+    console.error("Tournament API POST error:", error);
     throw error;
   }
 };
@@ -94,17 +98,23 @@ const apiPost = async (payload) => {
  */
 export const registerParticipant = async (name) => {
   if (!name) {
-    throw new Error('Name is required');
+    throw new Error("Name is required");
   }
 
   const data = await apiPost({
-    action: 'register',
+    action: "register",
     name: name.trim(),
   });
 
   // Store in localStorage
-  localStorage.setItem(TOURNAMENT_CONFIG.storageKeys.participantId, data.participantId);
-  localStorage.setItem(TOURNAMENT_CONFIG.storageKeys.participantName, name.trim());
+  localStorage.setItem(
+    TOURNAMENT_CONFIG.storageKeys.participantId,
+    data.participantId,
+  );
+  localStorage.setItem(
+    TOURNAMENT_CONFIG.storageKeys.participantName,
+    name.trim(),
+  );
 
   return data;
 };
@@ -116,17 +126,27 @@ export const registerParticipant = async (name) => {
  * @param {Array|Object} forecasts - Array of forecast entries (one per horizon) or single forecast object for backward compatibility
  * @returns {Promise<Object>} Submission data {submissionId, message}
  */
-export const submitForecast = async (participantId, challengeNum, forecasts) => {
+export const submitForecast = async (
+  participantId,
+  challengeNum,
+  forecasts,
+) => {
   if (!participantId) {
-    throw new Error('Participant ID is required');
+    throw new Error("Participant ID is required");
   }
 
-  if (!challengeNum || challengeNum < 1 || challengeNum > TOURNAMENT_CONFIG.numChallenges) {
-    throw new Error(`Challenge number must be between 1 and ${TOURNAMENT_CONFIG.numChallenges}`);
+  if (
+    !challengeNum ||
+    challengeNum < 1 ||
+    challengeNum > TOURNAMENT_CONFIG.numChallenges
+  ) {
+    throw new Error(
+      `Challenge number must be between 1 and ${TOURNAMENT_CONFIG.numChallenges}`,
+    );
   }
 
   if (!forecasts) {
-    throw new Error('Forecast data is required');
+    throw new Error("Forecast data is required");
   }
 
   // Convert to array if single forecast object (backward compatibility)
@@ -134,13 +154,17 @@ export const submitForecast = async (participantId, challengeNum, forecasts) => 
 
   // Validate that all forecasts have required fields
   for (const forecast of forecastArray) {
-    if (!forecast || forecast.median === null || forecast.median === undefined) {
-      throw new Error('Each forecast must have a median value');
+    if (
+      !forecast ||
+      forecast.median === null ||
+      forecast.median === undefined
+    ) {
+      throw new Error("Each forecast must have a median value");
     }
   }
 
   // Format forecasts for submission
-  const formattedForecasts = forecastArray.map(f => ({
+  const formattedForecasts = forecastArray.map((f) => ({
     horizon: f.horizon || 1,
     median: f.median,
     q25: f.q25 || f.lower50,
@@ -150,7 +174,7 @@ export const submitForecast = async (participantId, challengeNum, forecasts) => 
   }));
 
   const data = await apiPost({
-    action: 'submitForecast',
+    action: "submitForecast",
     participantId,
     challengeNum,
     forecasts: formattedForecasts,
@@ -158,7 +182,10 @@ export const submitForecast = async (participantId, challengeNum, forecasts) => 
   });
 
   // Update last sync time
-  localStorage.setItem(TOURNAMENT_CONFIG.storageKeys.lastSync, new Date().toISOString());
+  localStorage.setItem(
+    TOURNAMENT_CONFIG.storageKeys.lastSync,
+    new Date().toISOString(),
+  );
 
   return data;
 };
@@ -168,7 +195,7 @@ export const submitForecast = async (participantId, challengeNum, forecasts) => 
  * @returns {Promise<Array>} Leaderboard data
  */
 export const getLeaderboard = async () => {
-  const data = await apiGet('getLeaderboard');
+  const data = await apiGet("getLeaderboard");
   return data.leaderboard || [];
 };
 
@@ -179,10 +206,10 @@ export const getLeaderboard = async () => {
  */
 export const getParticipant = async (participantId) => {
   if (!participantId) {
-    throw new Error('Participant ID is required');
+    throw new Error("Participant ID is required");
   }
 
-  const data = await apiGet('getParticipant', { participantId });
+  const data = await apiGet("getParticipant", { participantId });
 
   return {
     participant: data.participant,

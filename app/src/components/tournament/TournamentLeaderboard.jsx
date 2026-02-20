@@ -1,10 +1,20 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Table, Text, Badge, Stack, Title, Alert, Loader, Anchor, Group } from '@mantine/core';
-import { IconTrophy, IconAlertCircle } from '@tabler/icons-react';
-import { getLeaderboard } from '../../utils/tournamentAPI';
-import { TOURNAMENT_CONFIG } from '../../config';
-import { scoreUserForecast } from '../../utils/forecastleScoring';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  Table,
+  Text,
+  Badge,
+  Stack,
+  Title,
+  Alert,
+  Loader,
+  Anchor,
+  Group,
+} from "@mantine/core";
+import { IconTrophy, IconAlertCircle } from "@tabler/icons-react";
+import { getLeaderboard } from "../../utils/tournamentAPI";
+import { TOURNAMENT_CONFIG } from "../../config";
+import { scoreUserForecast } from "../../utils/forecastleScoring";
 
 const addWeeksToDate = (dateString, weeks) => {
   const base = new Date(`${dateString}T00:00:00Z`);
@@ -34,11 +44,12 @@ const TournamentLeaderboard = ({ participantId }) => {
 
           const locationData = await response.json();
           const groundTruthDates = locationData.ground_truth?.dates || [];
-          const groundTruthValues = locationData.ground_truth?.[challenge.target] || [];
+          const groundTruthValues =
+            locationData.ground_truth?.[challenge.target] || [];
 
           // Extract ground truth for each horizon
           const horizonDates = challenge.horizons.map((horizon) =>
-            addWeeksToDate(challenge.forecastDate, horizon)
+            addWeeksToDate(challenge.forecastDate, horizon),
           );
 
           const groundTruthForHorizons = horizonDates.map((horizonDate) => {
@@ -51,7 +62,10 @@ const TournamentLeaderboard = ({ participantId }) => {
 
           gtData[challenge.number] = groundTruthForHorizons;
         } catch (error) {
-          console.error(`Failed to load ground truth for challenge ${challenge.number}:`, error);
+          console.error(
+            `Failed to load ground truth for challenge ${challenge.number}:`,
+            error,
+          );
         }
       }
 
@@ -68,7 +82,7 @@ const TournamentLeaderboard = ({ participantId }) => {
         const data = await getLeaderboard();
 
         // Calculate WIS for each participant
-        const scoredLeaderboard = data.map(participant => {
+        const scoredLeaderboard = data.map((participant) => {
           const challengeScores = {};
           let totalWIS = 0;
           let totalDispersion = 0;
@@ -77,43 +91,52 @@ const TournamentLeaderboard = ({ participantId }) => {
           let validChallenges = 0;
 
           // Score each challenge
-          Object.entries(participant.submissions || {}).forEach(([challengeNum, forecasts]) => {
-            const challengeNumber = parseInt(challengeNum);
-            const groundTruth = groundTruthData[challengeNumber];
+          Object.entries(participant.submissions || {}).forEach(
+            ([challengeNum, forecasts]) => {
+              const challengeNumber = parseInt(challengeNum);
+              const groundTruth = groundTruthData[challengeNumber];
 
-            if (!groundTruth || forecasts.length === 0) return;
+              if (!groundTruth || forecasts.length === 0) return;
 
-            // Convert forecasts to the format expected by scoreUserForecast
-            const forecastEntries = forecasts.map(f => ({
-              horizon: f.horizon,
-              median: f.median,
-              lower50: f.q25,
-              upper50: f.q75,
-              lower95: f.q025,
-              upper95: f.q975,
-            }));
+              // Convert forecasts to the format expected by scoreUserForecast
+              const forecastEntries = forecasts.map((f) => ({
+                horizon: f.horizon,
+                median: f.median,
+                lower50: f.q25,
+                upper50: f.q75,
+                lower95: f.q025,
+                upper95: f.q975,
+              }));
 
-            // Calculate WIS with components
-            const scoreResult = scoreUserForecast(forecastEntries, groundTruth);
-            if (scoreResult.wis !== null) {
-              challengeScores[challengeNumber] = {
-                wis: scoreResult.wis,
-                dispersion: scoreResult.dispersion,
-                underprediction: scoreResult.underprediction,
-                overprediction: scoreResult.overprediction,
-              };
-              totalWIS += scoreResult.wis;
-              totalDispersion += scoreResult.dispersion;
-              totalUnderprediction += scoreResult.underprediction;
-              totalOverprediction += scoreResult.overprediction;
-              validChallenges++;
-            }
-          });
+              // Calculate WIS with components
+              const scoreResult = scoreUserForecast(
+                forecastEntries,
+                groundTruth,
+              );
+              if (scoreResult.wis !== null) {
+                challengeScores[challengeNumber] = {
+                  wis: scoreResult.wis,
+                  dispersion: scoreResult.dispersion,
+                  underprediction: scoreResult.underprediction,
+                  overprediction: scoreResult.overprediction,
+                };
+                totalWIS += scoreResult.wis;
+                totalDispersion += scoreResult.dispersion;
+                totalUnderprediction += scoreResult.underprediction;
+                totalOverprediction += scoreResult.overprediction;
+                validChallenges++;
+              }
+            },
+          );
 
-          const avgWIS = validChallenges > 0 ? totalWIS / validChallenges : null;
-          const avgDispersion = validChallenges > 0 ? totalDispersion / validChallenges : null;
-          const avgUnderprediction = validChallenges > 0 ? totalUnderprediction / validChallenges : null;
-          const avgOverprediction = validChallenges > 0 ? totalOverprediction / validChallenges : null;
+          const avgWIS =
+            validChallenges > 0 ? totalWIS / validChallenges : null;
+          const avgDispersion =
+            validChallenges > 0 ? totalDispersion / validChallenges : null;
+          const avgUnderprediction =
+            validChallenges > 0 ? totalUnderprediction / validChallenges : null;
+          const avgOverprediction =
+            validChallenges > 0 ? totalOverprediction / validChallenges : null;
 
           return {
             ...participant,
@@ -150,7 +173,7 @@ const TournamentLeaderboard = ({ participantId }) => {
         setLeaderboard(scoredLeaderboard);
         setError(null);
       } catch (err) {
-        setError(err.message || 'Failed to load leaderboard');
+        setError(err.message || "Failed to load leaderboard");
       } finally {
         setLoading(false);
       }
@@ -161,13 +184,16 @@ const TournamentLeaderboard = ({ participantId }) => {
       loadAndScoreLeaderboard();
 
       // Poll for updates
-      const interval = setInterval(loadAndScoreLeaderboard, TOURNAMENT_CONFIG.leaderboard.updateFrequency);
+      const interval = setInterval(
+        loadAndScoreLeaderboard,
+        TOURNAMENT_CONFIG.leaderboard.updateFrequency,
+      );
       return () => clearInterval(interval);
     }
   }, [groundTruthData]);
 
   const getMedalEmoji = (rank) => {
-    return TOURNAMENT_CONFIG.ui.medals[rank] || '';
+    return TOURNAMENT_CONFIG.ui.medals[rank] || "";
   };
 
   if (loading) {
@@ -204,12 +230,16 @@ const TournamentLeaderboard = ({ participantId }) => {
   return (
     <Stack spacing="md">
       <Title order={3}>
-        <IconTrophy size={24} style={{ verticalAlign: 'middle', marginRight: 8 }} />
+        <IconTrophy
+          size={24}
+          style={{ verticalAlign: "middle", marginRight: 8 }}
+        />
         Leaderboard
       </Title>
 
       <Text size="sm" color="dimmed">
-        Ranked by average WIS (lower is better). Completed participants ranked first.
+        Ranked by average WIS (lower is better). Completed participants ranked
+        first.
       </Text>
 
       <Stack spacing="sm">
@@ -218,20 +248,22 @@ const TournamentLeaderboard = ({ participantId }) => {
             <tr>
               <th style={{ width: 60 }}>Rank</th>
               <th>Participant</th>
-              <th style={{ textAlign: 'right', width: 90 }}>Avg WIS</th>
-              <th style={{ textAlign: 'right', width: 90 }}>Total WIS</th>
+              <th style={{ textAlign: "right", width: 90 }}>Avg WIS</th>
+              <th style={{ textAlign: "right", width: 90 }}>Total WIS</th>
               {TOURNAMENT_CONFIG.challenges.map((ch) => (
-                <th key={ch.number} style={{ textAlign: 'center', width: 80 }}>
+                <th key={ch.number} style={{ textAlign: "center", width: 80 }}>
                   Ch {ch.number}
                 </th>
               ))}
               <th style={{ width: 200 }}>Calibration</th>
-              <th style={{ textAlign: 'center', width: 90 }}>Status</th>
+              <th style={{ textAlign: "center", width: 90 }}>Status</th>
             </tr>
           </thead>
           <tbody>
             {(() => {
-              const userIndex = leaderboard.findIndex(e => e.participantId === participantId);
+              const userIndex = leaderboard.findIndex(
+                (e) => e.participantId === participantId,
+              );
               const topN = 10;
               const bottomN = 3;
               const contextRadius = 2;
@@ -246,28 +278,45 @@ const TournamentLeaderboard = ({ participantId }) => {
 
                 // Always show: top N, around user (±contextRadius), bottom N
                 const showTop = i < topN;
-                const showAroundUser = userIndex >= 0 && Math.abs(i - userIndex) <= contextRadius;
+                const showAroundUser =
+                  userIndex >= 0 && Math.abs(i - userIndex) <= contextRadius;
                 const showBottom = i >= leaderboard.length - bottomN;
 
                 if (showTop || showAroundUser || showBottom) {
                   // Check if we need ellipsis before this entry
                   if (toDisplay.length > 0) {
-                    const lastDisplayedIndex = toDisplay[toDisplay.length - 1].index;
+                    const lastDisplayedIndex =
+                      toDisplay[toDisplay.length - 1].index;
                     if (i - lastDisplayedIndex > 1) {
-                      toDisplay.push({ type: 'ellipsis', count: i - lastDisplayedIndex - 1 });
+                      toDisplay.push({
+                        type: "ellipsis",
+                        count: i - lastDisplayedIndex - 1,
+                      });
                     }
                   }
 
-                  toDisplay.push({ type: 'entry', entry, rank, isUser, index: i });
+                  toDisplay.push({
+                    type: "entry",
+                    entry,
+                    rank,
+                    isUser,
+                    index: i,
+                  });
                 }
               }
 
               return toDisplay.map((item, idx) => {
-                if (item.type === 'ellipsis') {
+                if (item.type === "ellipsis") {
                   return (
                     <tr key={`ellipsis-${idx}`}>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: '8px' }}>
-                        <Text size="sm" c="dimmed">⋮ {item.count} participant{item.count > 1 ? 's' : ''} hidden ⋮</Text>
+                      <td
+                        colSpan={8}
+                        style={{ textAlign: "center", padding: "8px" }}
+                      >
+                        <Text size="sm" c="dimmed">
+                          ⋮ {item.count} participant{item.count > 1 ? "s" : ""}{" "}
+                          hidden ⋮
+                        </Text>
                       </td>
                     </tr>
                   );
@@ -280,13 +329,15 @@ const TournamentLeaderboard = ({ participantId }) => {
                   <tr
                     key={entry.participantId}
                     style={{
-                      backgroundColor: isUser ? '#e7f5ff' : undefined,
+                      backgroundColor: isUser ? "#e7f5ff" : undefined,
                       fontWeight: isUser ? 600 : undefined,
                     }}
                   >
                     <td>
                       <Text weight={isUser ? 700 : 500} size="sm">
-                        {medal && <span style={{ marginRight: 4 }}>{medal}</span>}
+                        {medal && (
+                          <span style={{ marginRight: 4 }}>{medal}</span>
+                        )}
                         {rank}
                       </Text>
                     </td>
@@ -300,36 +351,56 @@ const TournamentLeaderboard = ({ participantId }) => {
                         )}
                       </Text>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: "right" }}>
                       <Text size="sm" weight={isUser ? 700 : 400}>
-                        {entry.avgWIS !== null ? entry.avgWIS.toFixed(1) : '—'}
+                        {entry.avgWIS !== null ? entry.avgWIS.toFixed(1) : "—"}
                       </Text>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Text size="sm">{entry.totalWIS !== null ? entry.totalWIS.toFixed(1) : '—'}</Text>
+                    <td style={{ textAlign: "right" }}>
+                      <Text size="sm">
+                        {entry.totalWIS !== null
+                          ? entry.totalWIS.toFixed(1)
+                          : "—"}
+                      </Text>
                     </td>
                     {TOURNAMENT_CONFIG.challenges.map((ch) => (
-                      <td key={ch.number} style={{ textAlign: 'center' }}>
-                        <Text size="xs" c={entry.challengeScores[ch.number] ? undefined : 'dimmed'}>
-                          {entry.challengeScores[ch.number]?.wis?.toFixed(1) || '—'}
+                      <td key={ch.number} style={{ textAlign: "center" }}>
+                        <Text
+                          size="xs"
+                          c={
+                            entry.challengeScores[ch.number]
+                              ? undefined
+                              : "dimmed"
+                          }
+                        >
+                          {entry.challengeScores[ch.number]?.wis?.toFixed(1) ||
+                            "—"}
                         </Text>
                       </td>
                     ))}
                     <td>
                       {entry.avgWIS !== null ? (
-                        <div style={{ padding: '4px 0' }}>
-                          <div style={{
-                            display: 'flex',
-                            height: 20,
-                            borderRadius: 3,
-                            overflow: 'hidden',
-                            border: '1px solid #dee2e6'
-                          }}>
+                        <div style={{ padding: "4px 0" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              height: 20,
+                              borderRadius: 3,
+                              overflow: "hidden",
+                              border: "1px solid #dee2e6",
+                            }}
+                          >
                             {(() => {
-                              const total = entry.avgDispersion + entry.avgUnderprediction + entry.avgOverprediction;
-                              const dispPct = (entry.avgDispersion / total) * 100;
-                              const underPct = (entry.avgUnderprediction / total) * 100;
-                              const overPct = (entry.avgOverprediction / total) * 100;
+                              const total =
+                                entry.avgDispersion +
+                                entry.avgUnderprediction +
+                                entry.avgOverprediction;
+                              const dispPct =
+                                (entry.avgDispersion / total) * 100;
+                              const underPct =
+                                (entry.avgUnderprediction / total) * 100;
+                              const overPct =
+                                (entry.avgOverprediction / total) * 100;
 
                               return (
                                 <>
@@ -337,7 +408,7 @@ const TournamentLeaderboard = ({ participantId }) => {
                                     <div
                                       style={{
                                         width: `${dispPct}%`,
-                                        backgroundColor: '#228be6',
+                                        backgroundColor: "#228be6",
                                       }}
                                       title={`Dispersion: ${entry.avgDispersion.toFixed(1)} (${dispPct.toFixed(0)}%)`}
                                     />
@@ -346,7 +417,7 @@ const TournamentLeaderboard = ({ participantId }) => {
                                     <div
                                       style={{
                                         width: `${underPct}%`,
-                                        backgroundColor: '#fa5252',
+                                        backgroundColor: "#fa5252",
                                       }}
                                       title={`Underprediction: ${entry.avgUnderprediction.toFixed(1)} (${underPct.toFixed(0)}%)`}
                                     />
@@ -355,7 +426,7 @@ const TournamentLeaderboard = ({ participantId }) => {
                                     <div
                                       style={{
                                         width: `${overPct}%`,
-                                        backgroundColor: '#fd7e14',
+                                        backgroundColor: "#fd7e14",
                                       }}
                                       title={`Overprediction: ${entry.avgOverprediction.toFixed(1)} (${overPct.toFixed(0)}%)`}
                                     />
@@ -366,11 +437,20 @@ const TournamentLeaderboard = ({ participantId }) => {
                           </div>
                         </div>
                       ) : (
-                        <Text size="xs" c="dimmed">—</Text>
+                        <Text size="xs" c="dimmed">
+                          —
+                        </Text>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <Badge size="xs" color={entry.completed === TOURNAMENT_CONFIG.numChallenges ? 'green' : 'gray'}>
+                    <td style={{ textAlign: "center" }}>
+                      <Badge
+                        size="xs"
+                        color={
+                          entry.completed === TOURNAMENT_CONFIG.numChallenges
+                            ? "green"
+                            : "gray"
+                        }
+                      >
                         {entry.completed}/{TOURNAMENT_CONFIG.numChallenges}
                       </Badge>
                     </td>
@@ -382,31 +462,52 @@ const TournamentLeaderboard = ({ participantId }) => {
         </Table>
 
         {/* Legend */}
-        <Group spacing="lg" style={{ justifyContent: 'center' }}>
+        <Group spacing="lg" style={{ justifyContent: "center" }}>
           <Group spacing={6}>
-            <div style={{ width: 16, height: 16, backgroundColor: '#228be6', borderRadius: 3 }} />
+            <div
+              style={{
+                width: 16,
+                height: 16,
+                backgroundColor: "#228be6",
+                borderRadius: 3,
+              }}
+            />
             <Text size="xs">Dispersion</Text>
           </Group>
           <Group spacing={6}>
-            <div style={{ width: 16, height: 16, backgroundColor: '#fa5252', borderRadius: 3 }} />
+            <div
+              style={{
+                width: 16,
+                height: 16,
+                backgroundColor: "#fa5252",
+                borderRadius: 3,
+              }}
+            />
             <Text size="xs">Underprediction</Text>
           </Group>
           <Group spacing={6}>
-            <div style={{ width: 16, height: 16, backgroundColor: '#fd7e14', borderRadius: 3 }} />
+            <div
+              style={{
+                width: 16,
+                height: 16,
+                backgroundColor: "#fd7e14",
+                borderRadius: 3,
+              }}
+            />
             <Text size="xs">Overprediction</Text>
           </Group>
         </Group>
       </Stack>
 
-      <Text size="xs" color="dimmed" style={{ textAlign: 'center' }}>
+      <Text size="xs" color="dimmed" style={{ textAlign: "center" }}>
         Updates every 30 seconds
       </Text>
 
-      <Text size="sm" style={{ textAlign: 'center' }} mt="md">
-        If you liked this, try{' '}
+      <Text size="sm" style={{ textAlign: "center" }} mt="md">
+        If you liked this, try{" "}
         <Anchor component={Link} to="/forecastle" weight={600}>
           Forecastle
-        </Anchor>{' '}
+        </Anchor>{" "}
         😊
       </Text>
     </Stack>

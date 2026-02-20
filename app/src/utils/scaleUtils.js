@@ -20,7 +20,8 @@ const getYRangeFromTraces = (traces) => {
 const buildSqrtTicks = ({
   rawRange,
   tickCount = 5,
-  formatValue = (value) => value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  formatValue = (value) =>
+    value.toLocaleString(undefined, { maximumFractionDigits: 2 }),
 }) => {
   if (!rawRange || rawRange.length !== 2) return null;
   const [rawMin, rawMax] = rawRange;
@@ -36,7 +37,7 @@ const buildSqrtTicks = ({
     const rawTick = tickValue ** 2;
     return {
       tickvals: [tickValue],
-      ticktext: [formatValue(rawTick)]
+      ticktext: [formatValue(rawTick)],
     };
   }
 

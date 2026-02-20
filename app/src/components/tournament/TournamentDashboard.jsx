@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Container, Tabs } from '@mantine/core';
-import { IconTrophy, IconChartLine } from '@tabler/icons-react';
-import { getStoredParticipantId, getStoredParticipantName } from '../../utils/tournamentAPI';
-import TournamentRegistration from './TournamentRegistration';
-import TournamentGame from './TournamentGame';
-import TournamentLeaderboard from './TournamentLeaderboard';
+import { useState, useEffect } from "react";
+import { Container, Tabs } from "@mantine/core";
+import { IconTrophy, IconChartLine } from "@tabler/icons-react";
+import {
+  getStoredParticipantId,
+  getStoredParticipantName,
+} from "../../utils/tournamentAPI";
+import TournamentRegistration from "./TournamentRegistration";
+import TournamentGame from "./TournamentGame";
+import TournamentLeaderboard from "./TournamentLeaderboard";
 
 const TournamentDashboard = () => {
   const [participantId, setParticipantId] = useState(null);
   const [participantName, setParticipantName] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('challenges');
+  const [activeTab, setActiveTab] = useState("challenges");
 
   // Load participant data on mount
   useEffect(() => {
@@ -33,7 +36,7 @@ const TournamentDashboard = () => {
 
   // Navigate to leaderboard
   const goToLeaderboard = () => {
-    setActiveTab('leaderboard');
+    setActiveTab("leaderboard");
   };
 
   // Show registration if not registered
@@ -52,7 +55,10 @@ const TournamentDashboard = () => {
           <Tabs.Tab value="challenges" leftSection={<IconTrophy size={16} />}>
             Challenges
           </Tabs.Tab>
-          <Tabs.Tab value="leaderboard" leftSection={<IconChartLine size={16} />}>
+          <Tabs.Tab
+            value="leaderboard"
+            leftSection={<IconChartLine size={16} />}
+          >
             Leaderboard
           </Tabs.Tab>
         </Tabs.List>

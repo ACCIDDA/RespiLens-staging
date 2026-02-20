@@ -6,7 +6,7 @@
  * Statistics are computed on-the-fly from stored data.
  */
 
-const STORAGE_KEY = 'respilens_forecastle_games';
+const STORAGE_KEY = "respilens_forecastle_games";
 
 /**
  * Check if localStorage is available
@@ -14,7 +14,7 @@ const STORAGE_KEY = 'respilens_forecastle_games';
  */
 function isLocalStorageAvailable() {
   try {
-    const test = '__storage_test__';
+    const test = "__storage_test__";
     localStorage.setItem(test, test);
     localStorage.removeItem(test);
     return true;
@@ -31,11 +31,11 @@ function isLocalStorageAvailable() {
 function isValidGame(game) {
   return (
     game &&
-    typeof game === 'object' &&
-    typeof game.id === 'string' &&
-    typeof game.challengeDate === 'string' &&
-    typeof game.dataset === 'string' &&
-    typeof game.location === 'string' &&
+    typeof game === "object" &&
+    typeof game.id === "string" &&
+    typeof game.challengeDate === "string" &&
+    typeof game.dataset === "string" &&
+    typeof game.location === "string" &&
     Array.isArray(game.userForecasts) &&
     Array.isArray(game.groundTruth) &&
     Array.isArray(game.horizonDates)
@@ -62,7 +62,7 @@ function roundToDecimals(value, decimals) {
  */
 export function getForecastleGames() {
   if (!isLocalStorageAvailable()) {
-    console.warn('localStorage is not available');
+    console.warn("localStorage is not available");
     return [];
   }
 
@@ -72,14 +72,14 @@ export function getForecastleGames() {
 
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) {
-      console.error('Stored data is not an array, resetting');
+      console.error("Stored data is not an array, resetting");
       return [];
     }
 
     // Filter out invalid games
-    return parsed.filter(game => isValidGame(game));
+    return parsed.filter((game) => isValidGame(game));
   } catch (error) {
-    console.error('Error reading Forecastle games from localStorage:', error);
+    console.error("Error reading Forecastle games from localStorage:", error);
     return [];
   }
 }
@@ -99,7 +99,7 @@ export function getForecastleGames() {
  */
 export function saveForecastleGame(gameData) {
   if (!isLocalStorageAvailable()) {
-    console.error('localStorage is not available');
+    console.error("localStorage is not available");
     return false;
   }
 
@@ -110,7 +110,7 @@ export function saveForecastleGame(gameData) {
     const id = `${gameData.challengeDate}_${gameData.forecastDate}_${gameData.dataset}_${gameData.location}_${gameData.target}`;
 
     // Check if this game already exists (replay protection)
-    const existingIndex = games.findIndex(g => g.id === id);
+    const existingIndex = games.findIndex((g) => g.id === id);
 
     const gameEntry = {
       id,
@@ -120,13 +120,13 @@ export function saveForecastleGame(gameData) {
       dataset: gameData.dataset,
       location: gameData.location,
       target: gameData.target,
-      userForecasts: gameData.userForecasts.map(f => ({
+      userForecasts: gameData.userForecasts.map((f) => ({
         horizon: f.horizon,
         median: f.median,
         lower95: f.lower95,
         upper95: f.upper95,
         lower50: f.lower50,
-        upper50: f.upper50
+        upper50: f.upper50,
       })),
       groundTruth: gameData.groundTruth,
       horizonDates: gameData.horizonDates,
@@ -143,13 +143,25 @@ export function saveForecastleGame(gameData) {
       // Ensemble scores (rounded to 3 decimal places)
       ensembleWIS: roundToDecimals(gameData.ensembleWIS, 3),
       ensembleDispersion: roundToDecimals(gameData.ensembleDispersion, 3),
-      ensembleUnderprediction: roundToDecimals(gameData.ensembleUnderprediction, 3),
-      ensembleOverprediction: roundToDecimals(gameData.ensembleOverprediction, 3),
+      ensembleUnderprediction: roundToDecimals(
+        gameData.ensembleUnderprediction,
+        3,
+      ),
+      ensembleOverprediction: roundToDecimals(
+        gameData.ensembleOverprediction,
+        3,
+      ),
       // Baseline scores (rounded to 3 decimal places)
       baselineWIS: roundToDecimals(gameData.baselineWIS, 3),
       baselineDispersion: roundToDecimals(gameData.baselineDispersion, 3),
-      baselineUnderprediction: roundToDecimals(gameData.baselineUnderprediction, 3),
-      baselineOverprediction: roundToDecimals(gameData.baselineOverprediction, 3),
+      baselineUnderprediction: roundToDecimals(
+        gameData.baselineUnderprediction,
+        3,
+      ),
+      baselineOverprediction: roundToDecimals(
+        gameData.baselineOverprediction,
+        3,
+      ),
     };
 
     if (existingIndex >= 0) {
@@ -167,11 +179,15 @@ export function saveForecastleGame(gameData) {
     return true;
   } catch (error) {
     // Check for quota exceeded error
-    if (error.name === 'QuotaExceededError' || error.code === 22) {
-      console.error('localStorage quota exceeded. Consider clearing old games.');
-      throw new Error('Storage quota exceeded. Please clear some game history.');
+    if (error.name === "QuotaExceededError" || error.code === 22) {
+      console.error(
+        "localStorage quota exceeded. Consider clearing old games.",
+      );
+      throw new Error(
+        "Storage quota exceeded. Please clear some game history.",
+      );
     }
-    console.error('Error saving Forecastle game to localStorage:', error);
+    console.error("Error saving Forecastle game to localStorage:", error);
     return false;
   }
 }
@@ -183,7 +199,7 @@ export function saveForecastleGame(gameData) {
  */
 export function getForecastleGame(id) {
   const games = getForecastleGames();
-  return games.find(g => g.id === id) || null;
+  return games.find((g) => g.id === id) || null;
 }
 
 /**
@@ -193,17 +209,17 @@ export function getForecastleGame(id) {
  */
 export function deleteForecastleGame(id) {
   if (!isLocalStorageAvailable()) {
-    console.error('localStorage is not available');
+    console.error("localStorage is not available");
     return false;
   }
 
   try {
     const games = getForecastleGames();
-    const filtered = games.filter(g => g.id !== id);
+    const filtered = games.filter((g) => g.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     return true;
   } catch (error) {
-    console.error('Error deleting Forecastle game:', error);
+    console.error("Error deleting Forecastle game:", error);
     return false;
   }
 }
@@ -214,7 +230,7 @@ export function deleteForecastleGame(id) {
  */
 export function clearForecastleGames() {
   if (!isLocalStorageAvailable()) {
-    console.error('localStorage is not available');
+    console.error("localStorage is not available");
     return false;
   }
 
@@ -222,7 +238,7 @@ export function clearForecastleGames() {
     localStorage.removeItem(STORAGE_KEY);
     return true;
   } catch (error) {
-    console.error('Error clearing Forecastle games:', error);
+    console.error("Error clearing Forecastle games:", error);
     return false;
   }
 }
@@ -243,33 +259,33 @@ export function exportForecastleData() {
  */
 export function importForecastleData(jsonData) {
   if (!isLocalStorageAvailable()) {
-    console.error('localStorage is not available');
+    console.error("localStorage is not available");
     return false;
   }
 
   try {
     const imported = JSON.parse(jsonData);
     if (!Array.isArray(imported)) {
-      throw new Error('Invalid data format: expected array');
+      throw new Error("Invalid data format: expected array");
     }
 
     // Validate all games
-    const validGames = imported.filter(game => {
+    const validGames = imported.filter((game) => {
       const valid = isValidGame(game);
       if (!valid) {
-        console.warn('Skipping invalid game during import:', game);
+        console.warn("Skipping invalid game during import:", game);
       }
       return valid;
     });
 
     if (validGames.length === 0) {
-      throw new Error('No valid games found in import data');
+      throw new Error("No valid games found in import data");
     }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validGames));
     return true;
   } catch (error) {
-    console.error('Error importing Forecastle data:', error);
+    console.error("Error importing Forecastle data:", error);
     throw error; // Re-throw so caller can handle
   }
 }

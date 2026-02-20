@@ -1,8 +1,8 @@
-import { useLocation, Link } from 'react-router-dom';
-import { Group, Button, Image, Title, Anchor } from '@mantine/core';
-import { IconChartLine, IconTarget, IconDashboard } from '@tabler/icons-react';
-import InfoOverlay from '../InfoOverlay';
-import { useView } from '../../hooks/useView';
+import { useLocation, Link } from "react-router-dom";
+import { Group, Button, Image, Title, Anchor } from "@mantine/core";
+import { IconChartLine, IconTarget, IconDashboard } from "@tabler/icons-react";
+import InfoOverlay from "../InfoOverlay";
+import { useView } from "../../hooks/useView";
 
 const MainNavigation = () => {
   const location = useLocation();
@@ -11,27 +11,60 @@ const MainNavigation = () => {
   const isActive = (path) => location.pathname.startsWith(path);
 
   const navigationItems = [
-    { href: '/', label: 'Forecasts', icon: IconChartLine, active: location.pathname === '/' },
+    {
+      href: "/",
+      label: "Forecasts",
+      icon: IconChartLine,
+      active: location.pathname === "/",
+    },
     // { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },   disable narratives for now
-    { href: '/forecastle', label: 'Forecastle', icon: IconTarget, active: isActive('/forecastle') },
-    { href: '/myrespilens', label: 'MyRespiLens', icon: IconDashboard, active: isActive('/myrespilens') },
+    {
+      href: "/forecastle",
+      label: "Forecastle",
+      icon: IconTarget,
+      active: isActive("/forecastle"),
+    },
+    {
+      href: "/myrespilens",
+      label: "MyRespiLens",
+      icon: IconDashboard,
+      active: isActive("/myrespilens"),
+    },
     // { href: '/documentation', label: 'Documentation', icon: IconClipboard, active: isActive('/documentation')}
   ];
 
   return (
-    <Group justify="space-between" align="center" w="100%" wrap="nowrap" gap="sm">
+    <Group
+      justify="space-between"
+      align="center"
+      w="100%"
+      wrap="nowrap"
+      gap="sm"
+    >
       {/* Logo */}
       <Anchor
         component={Link}
         to="/"
         underline="never"
         c="inherit"
-        onClick={() => setViewType('frontpage')}
+        onClick={() => setViewType("frontpage")}
       >
         <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
-          <Image src="respilens-logo.svg" alt="RespiLens Logo" h={28} w="auto" fit="contain" />
+          <Image
+            src="respilens-logo.svg"
+            alt="RespiLens Logo"
+            h={28}
+            w="auto"
+            fit="contain"
+          />
           <Title order={3} c="blue" visibleFrom="sm">
-            RespiLens<sup style={{ color: 'var(--mantine-color-red-6)', fontSize: '0.75rem' }}></sup>
+            RespiLens
+            <sup
+              style={{
+                color: "var(--mantine-color-red-6)",
+                fontSize: "0.75rem",
+              }}
+            ></sup>
           </Title>
         </Group>
       </Anchor>
@@ -43,7 +76,7 @@ const MainNavigation = () => {
             key={item.href}
             component={Link}
             to={item.href}
-            variant={item.active ? 'filled' : 'subtle'}
+            variant={item.active ? "filled" : "subtle"}
             leftSection={<item.icon size={16} />}
             size="sm"
           >

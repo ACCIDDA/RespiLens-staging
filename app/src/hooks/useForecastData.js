@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getDataPath } from '../utils/paths';
+import { useState, useEffect } from "react";
+import { getDataPath } from "../utils/paths";
 
 export const useForecastData = (location, viewType) => {
   const [data, setData] = useState(null);
@@ -16,13 +16,16 @@ export const useForecastData = (location, viewType) => {
   const peaks = data?.peaks || null;
 
   useEffect(() => {
-    const isMetrocastView = viewType === 'metrocast_forecasts';
-      const isDefaultUS = location === 'US';
-      if ((isMetrocastView && isDefaultUS) || (!isMetrocastView && location === 'colorado')) {
-        setLoading(false);
-        return;
-      }
-    if (!location || !viewType || viewType === 'frontpage') {
+    const isMetrocastView = viewType === "metrocast_forecasts";
+    const isDefaultUS = location === "US";
+    if (
+      (isMetrocastView && isDefaultUS) ||
+      (!isMetrocastView && location === "colorado")
+    ) {
+      setLoading(false);
+      return;
+    }
+    if (!location || !viewType || viewType === "frontpage") {
       setLoading(false);
       setError(null);
       setData(null);
@@ -43,28 +46,42 @@ export const useForecastData = (location, viewType) => {
 
       try {
         const datasetMap = {
-          'fludetailed': { directory: 'flusight', suffix: 'flu' },
-          'flu_forecasts': { directory: 'flusight', suffix: 'flu' },
-          'flu_peak': { directory: 'flusight', suffix: 'flu' },
-          'covid_forecasts': { directory: 'covid19forecasthub', suffix: 'covid19' },
-          'rsv_forecasts': { directory: 'rsvforecasthub', suffix: 'rsv' },
-          'nhsnall': { directory: 'nhsn', suffix: 'nhsn' },
-          'metrocast_forecasts': {directory: 'flumetrocast', suffix: 'flu_metrocast'}
+          fludetailed: { directory: "flusight", suffix: "flu" },
+          flu_forecasts: { directory: "flusight", suffix: "flu" },
+          flu_peak: { directory: "flusight", suffix: "flu" },
+          covid_forecasts: {
+            directory: "covid19forecasthub",
+            suffix: "covid19",
+          },
+          rsv_forecasts: { directory: "rsvforecasthub", suffix: "rsv" },
+          nhsnall: { directory: "nhsn", suffix: "nhsn" },
+          metrocast_forecasts: {
+            directory: "flumetrocast",
+            suffix: "flu_metrocast",
+          },
         };
 
         const datasetConfig = datasetMap[viewType];
         if (!datasetConfig) throw new Error(`Unknown view type: ${viewType}`);
 
-        const dataPath = getDataPath(`${datasetConfig.directory}/${location}_${datasetConfig.suffix}.json`);
-        const metadataPath = getDataPath(`${datasetConfig.directory}/metadata.json`);
-        
+        const dataPath = getDataPath(
+          `${datasetConfig.directory}/${location}_${datasetConfig.suffix}.json`,
+        );
+        const metadataPath = getDataPath(
+          `${datasetConfig.directory}/metadata.json`,
+        );
+
         const [dataResponse, metadataResponse] = await Promise.all([
           fetch(dataPath),
-          fetch(metadataPath)
+          fetch(metadataPath),
         ]);
 
-        if (!dataResponse.ok) throw new Error(`Failed to fetch data: ${dataResponse.status}`);
-        if (!metadataResponse.ok) throw new Error(`Failed to fetch metadata: ${metadataResponse.status}`);
+        if (!dataResponse.ok)
+          throw new Error(`Failed to fetch data: ${dataResponse.status}`);
+        if (!metadataResponse.ok)
+          throw new Error(
+            `Failed to fetch metadata: ${metadataResponse.status}`,
+          );
 
         const jsonData = await dataResponse.json();
         const jsonMetadata = await metadataResponse.json();
@@ -75,11 +92,11 @@ export const useForecastData = (location, viewType) => {
         if (jsonData.forecasts) {
           const dates = Object.keys(jsonData.forecasts).sort();
           setAvailableDates(dates);
-          
+
           const modelSet = new Set();
-          Object.values(jsonData.forecasts).forEach(dateData => {
-            Object.values(dateData).forEach(targetData => {
-              Object.keys(targetData).forEach(model => modelSet.add(model));
+          Object.values(jsonData.forecasts).forEach((dateData) => {
+            Object.values(dateData).forEach((targetData) => {
+              Object.keys(targetData).forEach((model) => modelSet.add(model));
             });
           });
           setModels(Array.from(modelSet).sort());
@@ -88,37 +105,37 @@ export const useForecastData = (location, viewType) => {
         // if flu, rsv, or covid data: // loop through JSON data to get model lists by target (for dynamic model selection)
         if (jsonData.forecasts) {
           const modelsByTargetMap = new Map();
-            
-            Object.values(jsonData.forecasts).forEach(dateData => {
-              // Loop over [target, targetData] entries
-              Object.entries(dateData).forEach(([target, targetData]) => {
-                
-                if (!modelsByTargetMap.has(target)) {
-                  modelsByTargetMap.set(target, new Set());
-                }
-                const modelSetForTarget = modelsByTargetMap.get(target);
-                
-                Object.keys(targetData).forEach(model => {
-                  modelSetForTarget.add(model);
-                });
+
+          Object.values(jsonData.forecasts).forEach((dateData) => {
+            // Loop over [target, targetData] entries
+            Object.entries(dateData).forEach(([target, targetData]) => {
+              if (!modelsByTargetMap.has(target)) {
+                modelsByTargetMap.set(target, new Set());
+              }
+              const modelSetForTarget = modelsByTargetMap.get(target);
+
+              Object.keys(targetData).forEach((model) => {
+                modelSetForTarget.add(model);
               });
             });
+          });
 
-            const modelsByTargetState = {};
-            for (const [target, modelSet] of modelsByTargetMap.entries()) {
-              modelsByTargetState[target] = Array.from(modelSet).sort();
-            }
-            setModelsByTarget(modelsByTargetState);
+          const modelsByTargetState = {};
+          for (const [target, modelSet] of modelsByTargetMap.entries()) {
+            modelsByTargetState[target] = Array.from(modelSet).sort();
           }
+          setModelsByTarget(modelsByTargetState);
+        }
 
         let targets = [];
         if (jsonData?.ground_truth) {
-          targets = Object.keys(jsonData.ground_truth).filter(key => key !== 'dates');
+          targets = Object.keys(jsonData.ground_truth).filter(
+            (key) => key !== "dates",
+          );
         }
         setAvailableTargets(targets);
-
       } catch (err) {
-        console.error('Error fetching forecast data:', err);
+        console.error("Error fetching forecast data:", err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -129,29 +146,40 @@ export const useForecastData = (location, viewType) => {
   }, [location, viewType]);
 
   useEffect(() => {
-        if (!peaks || typeof peaks !== 'object') {
-            setAvailablePeakDates([]);
-            setAvailablePeakModels([]);
-            return;
-        }
-        
-        const dates = Object.keys(peaks).sort();
-        setAvailablePeakDates(dates);
+    if (!peaks || typeof peaks !== "object") {
+      setAvailablePeakDates([]);
+      setAvailablePeakModels([]);
+      return;
+    }
 
-        const models = new Set();
-        const targets = new Set(); 
-        Object.values(peaks).forEach(dateData => {
-            Object.entries(dateData).forEach(([targetName, targetData]) => {
-                targets.add(targetName);
-                Object.keys(targetData).forEach(modelId => {
-                    models.add(modelId);
-                });
-            });
+    const dates = Object.keys(peaks).sort();
+    setAvailablePeakDates(dates);
+
+    const models = new Set();
+    const targets = new Set();
+    Object.values(peaks).forEach((dateData) => {
+      Object.entries(dateData).forEach(([targetName, targetData]) => {
+        targets.add(targetName);
+        Object.keys(targetData).forEach((modelId) => {
+          models.add(modelId);
         });
-        setAvailablePeakModels(Array.from(models).sort());
-        // setAvailablePeakTargets(Array.from(targets).sort());, leave this for now 
-        
-    }, [peaks]);
+      });
+    });
+    setAvailablePeakModels(Array.from(models).sort());
+    // setAvailablePeakTargets(Array.from(targets).sort());, leave this for now
+  }, [peaks]);
 
-  return { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget,  peaks, availablePeakDates, availablePeakModels };
+  return {
+    data,
+    metadata,
+    loading,
+    error,
+    availableDates,
+    models,
+    availableTargets,
+    modelsByTarget,
+    peaks,
+    availablePeakDates,
+    availablePeakModels,
+  };
 };

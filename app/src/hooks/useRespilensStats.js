@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { getForecastleGames } from '../utils/respilensStorage';
-import { calculateWIS } from '../utils/forecastleScoring';
+import { useMemo } from "react";
+import { getForecastleGames } from "../utils/respilensStorage";
+import { calculateWIS } from "../utils/forecastleScoring";
 
 /**
  * Calculate interval coverage for a single game
@@ -39,7 +39,7 @@ function calculateIntervalCoverage(userForecasts, groundTruth) {
   return {
     coverage95,
     coverage50,
-    validHorizons
+    validHorizons,
   };
 }
 
@@ -66,7 +66,7 @@ function computeGameStats(game) {
         forecast.lower50,
         forecast.upper50,
         forecast.lower95,
-        forecast.upper95
+        forecast.upper95,
       );
 
       if (wisResult) {
@@ -81,11 +81,15 @@ function computeGameStats(game) {
 
   const wis = validCount > 0 ? sumWIS / validCount : null;
   const dispersion = validCount > 0 ? sumDispersion / validCount : null;
-  const underprediction = validCount > 0 ? sumUnderprediction / validCount : null;
+  const underprediction =
+    validCount > 0 ? sumUnderprediction / validCount : null;
   const overprediction = validCount > 0 ? sumOverprediction / validCount : null;
 
   // Calculate interval coverage
-  const coverage = calculateIntervalCoverage(game.userForecasts, game.groundTruth);
+  const coverage = calculateIntervalCoverage(
+    game.userForecasts,
+    game.groundTruth,
+  );
 
   return {
     id: game.id,
@@ -136,8 +140,9 @@ function calculateStreaks(games) {
   }
 
   // Get unique challenge dates and sort (most recent first)
-  const uniqueDates = [...new Set(games.map(g => g.challengeDate))]
-    .sort((a, b) => b.localeCompare(a)); // ISO date string comparison
+  const uniqueDates = [...new Set(games.map((g) => g.challengeDate))].sort(
+    (a, b) => b.localeCompare(a),
+  ); // ISO date string comparison
 
   if (uniqueDates.length === 0) {
     return { currentStreak: 0, maxStreak: 0 };
@@ -145,13 +150,15 @@ function calculateStreaks(games) {
 
   // Get today's date in UTC (YYYY-MM-DD format)
   const today = new Date();
-  const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+  const todayUTC = new Date(
+    Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
+  );
   const todayStr = todayUTC.toISOString().slice(0, 10);
 
   // Calculate days difference between two YYYY-MM-DD date strings
   const daysDiff = (date1Str, date2Str) => {
-    const d1 = new Date(date1Str + 'T00:00:00Z');
-    const d2 = new Date(date2Str + 'T00:00:00Z');
+    const d1 = new Date(date1Str + "T00:00:00Z");
+    const d2 = new Date(date2Str + "T00:00:00Z");
     return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
   };
 
@@ -215,7 +222,7 @@ export function useRespilensStats(refreshTrigger) {
         maxStreak: 0,
         averageRankVsEnsemble: null,
         averagePercentDiffEnsemble: null,
-        gameHistory: []
+        gameHistory: [],
       };
     }
 
@@ -223,59 +230,85 @@ export function useRespilensStats(refreshTrigger) {
     const gameStats = games.map(computeGameStats);
 
     // Filter games with valid WIS
-    const validGames = gameStats.filter(g => Number.isFinite(g.wis));
+    const validGames = gameStats.filter((g) => Number.isFinite(g.wis));
 
     // Aggregate statistics
     const totalWIS = validGames.reduce((sum, g) => sum + g.wis, 0);
-    const averageWIS = validGames.length > 0 ? totalWIS / validGames.length : null;
-    const bestWIS = validGames.length > 0 ? Math.min(...validGames.map(g => g.wis)) : null;
-    const worstWIS = validGames.length > 0 ? Math.max(...validGames.map(g => g.wis)) : null;
+    const averageWIS =
+      validGames.length > 0 ? totalWIS / validGames.length : null;
+    const bestWIS =
+      validGames.length > 0 ? Math.min(...validGames.map((g) => g.wis)) : null;
+    const worstWIS =
+      validGames.length > 0 ? Math.max(...validGames.map((g) => g.wis)) : null;
 
     // Aggregate WIS components
-    const totalDispersion = validGames.reduce((sum, g) => sum + (g.dispersion || 0), 0);
-    const totalUnderprediction = validGames.reduce((sum, g) => sum + (g.underprediction || 0), 0);
-    const totalOverprediction = validGames.reduce((sum, g) => sum + (g.overprediction || 0), 0);
-    const averageDispersion = validGames.length > 0 ? totalDispersion / validGames.length : null;
-    const averageUnderprediction = validGames.length > 0 ? totalUnderprediction / validGames.length : null;
-    const averageOverprediction = validGames.length > 0 ? totalOverprediction / validGames.length : null;
+    const totalDispersion = validGames.reduce(
+      (sum, g) => sum + (g.dispersion || 0),
+      0,
+    );
+    const totalUnderprediction = validGames.reduce(
+      (sum, g) => sum + (g.underprediction || 0),
+      0,
+    );
+    const totalOverprediction = validGames.reduce(
+      (sum, g) => sum + (g.overprediction || 0),
+      0,
+    );
+    const averageDispersion =
+      validGames.length > 0 ? totalDispersion / validGames.length : null;
+    const averageUnderprediction =
+      validGames.length > 0 ? totalUnderprediction / validGames.length : null;
+    const averageOverprediction =
+      validGames.length > 0 ? totalOverprediction / validGames.length : null;
 
     // Aggregate interval coverage
     const totalCoverage95 = gameStats.reduce((sum, g) => sum + g.coverage95, 0);
     const totalCoverage50 = gameStats.reduce((sum, g) => sum + g.coverage50, 0);
-    const totalValidHorizons = gameStats.reduce((sum, g) => sum + g.validHorizons, 0);
+    const totalValidHorizons = gameStats.reduce(
+      (sum, g) => sum + g.validHorizons,
+      0,
+    );
 
-    const coverage95Percent = totalValidHorizons > 0
-      ? (totalCoverage95 / totalValidHorizons) * 100
-      : null;
-    const coverage50Percent = totalValidHorizons > 0
-      ? (totalCoverage50 / totalValidHorizons) * 100
-      : null;
+    const coverage95Percent =
+      totalValidHorizons > 0
+        ? (totalCoverage95 / totalValidHorizons) * 100
+        : null;
+    const coverage50Percent =
+      totalValidHorizons > 0
+        ? (totalCoverage50 / totalValidHorizons) * 100
+        : null;
 
     // Calculate streaks
     const streaks = calculateStreaks(gameStats);
 
     // Calculate rank comparison vs ensemble
-    const gamesWithRankData = gameStats.filter(g =>
-      Number.isFinite(g.userRank) && Number.isFinite(g.ensembleRank)
+    const gamesWithRankData = gameStats.filter(
+      (g) => Number.isFinite(g.userRank) && Number.isFinite(g.ensembleRank),
     );
-    const totalRankDiff = gamesWithRankData.reduce((sum, g) =>
-      sum + (g.ensembleRank - g.userRank), 0
+    const totalRankDiff = gamesWithRankData.reduce(
+      (sum, g) => sum + (g.ensembleRank - g.userRank),
+      0,
     );
-    const averageRankVsEnsemble = gamesWithRankData.length > 0
-      ? totalRankDiff / gamesWithRankData.length
-      : null;
+    const averageRankVsEnsemble =
+      gamesWithRankData.length > 0
+        ? totalRankDiff / gamesWithRankData.length
+        : null;
 
     // Calculate % difference in WIS vs ensemble
-    const gamesWithWISComparison = gameStats.filter(g =>
-      Number.isFinite(g.wis) && Number.isFinite(g.ensembleWIS) && g.ensembleWIS > 0
+    const gamesWithWISComparison = gameStats.filter(
+      (g) =>
+        Number.isFinite(g.wis) &&
+        Number.isFinite(g.ensembleWIS) &&
+        g.ensembleWIS > 0,
     );
     const totalPercentDiff = gamesWithWISComparison.reduce((sum, g) => {
       const percentDiff = ((g.wis - g.ensembleWIS) / g.ensembleWIS) * 100;
       return sum + percentDiff;
     }, 0);
-    const averagePercentDiffEnsemble = gamesWithWISComparison.length > 0
-      ? totalPercentDiff / gamesWithWISComparison.length
-      : null;
+    const averagePercentDiffEnsemble =
+      gamesWithWISComparison.length > 0
+        ? totalPercentDiff / gamesWithWISComparison.length
+        : null;
 
     return {
       gamesPlayed: games.length,
@@ -291,7 +324,7 @@ export function useRespilensStats(refreshTrigger) {
       maxStreak: streaks.maxStreak,
       averageRankVsEnsemble,
       averagePercentDiffEnsemble,
-      gameHistory: gameStats
+      gameHistory: gameStats,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]); // Recalculates when refreshTrigger changes

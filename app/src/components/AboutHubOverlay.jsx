@@ -1,8 +1,12 @@
-import { useDisclosure } from '@mantine/hooks';
-import { Modal, Group, Button } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { useDisclosure } from "@mantine/hooks";
+import { Modal, Group, Button } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 
-const AboutHubOverlay = ({ title, children, buttonLabel = "About the Hub" }) => {
+const AboutHubOverlay = ({
+  title,
+  children,
+  buttonLabel = "About the Hub",
+}) => {
   const [opened, { open, close }] = useDisclosure(false);
 
   return (
@@ -15,13 +19,13 @@ const AboutHubOverlay = ({ title, children, buttonLabel = "About the Hub" }) => 
         <Button
           variant="light"
           size="xs"
-          color='red'
+          color="red"
           onClick={open}
           leftSection={<IconInfoCircle size={16} />}
         >
           {/* Use the buttonLabel prop per view to name button */}
           {buttonLabel}
-        </Button> 
+        </Button>
       </Group>
     </>
   );

@@ -1,15 +1,25 @@
-import { Badge, Button, Card, Container, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
-import { IconClock, IconTools } from '@tabler/icons-react';
-import { Link } from 'react-router-dom';
+import {
+  Badge,
+  Button,
+  Card,
+  Container,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import { IconClock, IconTools } from "@tabler/icons-react";
+import { Link } from "react-router-dom";
 
 const tools = [
   {
-    title: 'Reporting delay explorer',
+    title: "Reporting delay explorer",
     description:
-      'Do you need to nowcast? What does your reporting delay distribution look like? Securely upload your reporting data to build your reporting triangle and answer these questions.',
+      "Do you need to nowcast? What does your reporting delay distribution look like? Securely upload your reporting data to build your reporting triangle and answer these questions.",
     icon: IconClock,
-    href: '/reporting-triangle',
-    badge: 'Nowcasting',
+    href: "/reporting-triangle",
+    badge: "Nowcasting",
   },
 ];
 
@@ -22,7 +32,8 @@ const ToolsPage = () => {
           <Title order={1}>RespiLens Toolboox</Title>
         </Group>
         <Text c="dimmed" size="lg">
-          Browse lightweight utilities for data QA and perhaps more at some point.
+          Browse lightweight utilities for data QA and perhaps more at some
+          point.
         </Text>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
@@ -39,7 +50,12 @@ const ToolsPage = () => {
                 <Text size="sm" c="dimmed">
                   {tool.description}
                 </Text>
-                <Button component={Link} to={tool.href} size="sm" w="fit-content">
+                <Button
+                  component={Link}
+                  to={tool.href}
+                  size="sm"
+                  w="fit-content"
+                >
                   Open tool
                 </Button>
               </Stack>

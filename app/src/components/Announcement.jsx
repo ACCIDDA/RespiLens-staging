@@ -1,6 +1,13 @@
-import { useState } from 'react';
-import { Paper, Group, Text, ThemeIcon, Stack, CloseButton } from '@mantine/core';
-import { IconSpeakerphone, IconAlertSquareRounded } from '@tabler/icons-react';
+import { useState } from "react";
+import {
+  Paper,
+  Group,
+  Text,
+  ThemeIcon,
+  Stack,
+  CloseButton,
+} from "@mantine/core";
+import { IconSpeakerphone, IconAlertSquareRounded } from "@tabler/icons-react";
 
 // Announcement component params:
 // `id` | unique ID for the announcement
@@ -10,17 +17,17 @@ import { IconSpeakerphone, IconAlertSquareRounded } from '@tabler/icons-react';
 // `announcementType` | alert or update
 const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
   const storageKey = `dismissed-announcement-${id}`;
-  
+
   const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(storageKey) === 'true';
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(storageKey) === "true";
   });
 
   const currentDate = new Date();
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  const validTypes = ['update', 'alert'];
+  const validTypes = ["update", "alert"];
   if (!validTypes.includes(announcementType)) {
     console.error(`[Announcement Error]: Invalid type "${announcementType}".`);
   }
@@ -29,11 +36,11 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
   if (!isVisible || dismissed) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(storageKey, 'true');
+    localStorage.setItem(storageKey, "true");
     setDismissed(true);
   };
 
-  const isAlert = announcementType === 'alert';
+  const isAlert = announcementType === "alert";
 
   return (
     <Stack>
@@ -43,32 +50,36 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
         radius="md"
         shadow="xs"
         style={{
-          background: isAlert 
-            ? 'linear-gradient(45deg, #fef3c7, #fffbeb)' 
-            : 'linear-gradient(45deg, var(--mantine-color-blue-light), var(--mantine-color-cyan-light))',
-          borderColor: isAlert 
-            ? '#f59e0b' 
-            : 'var(--mantine-color-blue-outline)',
+          background: isAlert
+            ? "linear-gradient(45deg, #fef3c7, #fffbeb)"
+            : "linear-gradient(45deg, var(--mantine-color-blue-light), var(--mantine-color-cyan-light))",
+          borderColor: isAlert
+            ? "#f59e0b"
+            : "var(--mantine-color-blue-outline)",
         }}
       >
         <Group justify="space-between" wrap="nowrap">
           <Group gap="sm">
-            <ThemeIcon 
-              variant="light" 
-              color={isAlert ? "yellow" : "blue"} 
-              radius="xl" 
+            <ThemeIcon
+              variant="light"
+              color={isAlert ? "yellow" : "blue"}
+              radius="xl"
               size="sm"
             >
-              {isAlert ? <IconAlertSquareRounded size={14} /> : <IconSpeakerphone size={14} />}
+              {isAlert ? (
+                <IconAlertSquareRounded size={14} />
+              ) : (
+                <IconSpeakerphone size={14} />
+              )}
             </ThemeIcon>
             <Text size="sm" fw={500} c={isAlert ? "yellow.9" : "blue.9"}>
-              <strong>{isAlert ? 'Alert' : 'Update'}:</strong> {text}
+              <strong>{isAlert ? "Alert" : "Update"}:</strong> {text}
             </Text>
           </Group>
 
-          <CloseButton 
-            size="sm" 
-            iconSize={14} 
+          <CloseButton
+            size="sm"
+            iconSize={14}
             onClick={handleDismiss}
             variant="transparent"
             c={isAlert ? "yellow.9" : "blue.9"}

@@ -28,9 +28,9 @@ export const FORECASTLE_CONFIG = {
    * These match the target column names in the forecast data
    */
   targetKeys: {
-    flusight: 'wk inc flu hosp',
-    rsv: 'wk inc rsv hosp',
-    covid19: 'wk inc covid hosp',
+    flusight: "wk inc flu hosp",
+    rsv: "wk inc rsv hosp",
+    covid19: "wk inc covid hosp",
   },
 
   /**
@@ -41,8 +41,8 @@ export const FORECASTLE_CONFIG = {
    * - Number: Show last N weeks of data
    */
   historyDisplay: {
-    flusight: 'seasonStart',
-    rsv: 'seasonStart',
+    flusight: "seasonStart",
+    rsv: "seasonStart",
     covid19: 20, // Last 20 weeks (~5 months)
     default: 26, // Last 26 weeks (~6 months)
   },

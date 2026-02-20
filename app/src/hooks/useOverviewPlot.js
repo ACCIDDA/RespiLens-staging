@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
 const DEFAULT_MARGIN = { l: 40, r: 20, t: 40, b: 40 };
 
@@ -32,12 +32,13 @@ const useOverviewPlot = ({
   layoutDefaults = null,
 }) => {
   const traces = useMemo(() => {
-    if (!data || typeof buildTraces !== 'function') return [];
+    if (!data || typeof buildTraces !== "function") return [];
     return buildTraces(data) || [];
   }, [data, buildTraces]);
 
   const yRange = useMemo(() => {
-    if (!xRange || !Array.isArray(xRange) || xRange.length !== 2) return undefined;
+    if (!xRange || !Array.isArray(xRange) || xRange.length !== 2)
+      return undefined;
     const [rangeStart, rangeEnd] = xRange;
     if (!isValidDate(rangeStart) || !isValidDate(rangeEnd)) return undefined;
 
@@ -64,7 +65,10 @@ const useOverviewPlot = ({
     const spread = maxY - minY;
     const paddingTop = spread * yPaddingTopRatio;
     const paddingBottom = spread * yPaddingBottomRatio;
-    const paddedMin = yMinFloor === null ? minY - paddingBottom : Math.max(yMinFloor, minY - paddingBottom);
+    const paddedMin =
+      yMinFloor === null
+        ? minY - paddingBottom
+        : Math.max(yMinFloor, minY - paddingBottom);
     const paddedMax = maxY + paddingTop;
 
     return [paddedMin, paddedMax];
@@ -74,22 +78,24 @@ const useOverviewPlot = ({
     const baseLayout = {
       autosize: true,
       margin: DEFAULT_MARGIN,
-      title: { text: '', font: { size: 13 } },
+      title: { text: "", font: { size: 13 } },
       xaxis: {
         range: xRange || undefined,
         showgrid: false,
-        tickfont: { size: 10 }
+        tickfont: { size: 10 },
       },
       yaxis: {
         automargin: true,
         tickfont: { size: 10 },
-        range: yRange
+        range: yRange,
       },
       showlegend: false,
-      hovermode: 'x unified'
+      hovermode: "x unified",
     };
 
-    const mergedLayout = layoutDefaults ? { ...baseLayout, ...layoutDefaults } : baseLayout;
+    const mergedLayout = layoutDefaults
+      ? { ...baseLayout, ...layoutDefaults }
+      : baseLayout;
 
     if (layoutOverrides) {
       return layoutOverrides(mergedLayout, { traces, xRange, yRange });
