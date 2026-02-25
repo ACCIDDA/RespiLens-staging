@@ -348,6 +348,10 @@ const Documentation = () => {
                 <Code>output_type</Code>, <Code>output_type_id</Code>,{" "}
                 <Code>value</Code>, and <Code>target_end_date</Code>
               </List.Item>
+              <List.Item>
+                Note that MyRespiLens does not handle peak or 'pmf'
+                visualization: only quantiles.
+              </List.Item>
             </List>
             <Text>
               <strong style={{ color: "#2563eb" }}>
