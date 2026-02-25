@@ -10,6 +10,9 @@ import { buildPlotDownloadName } from "../utils/plotDownloadName";
 
 // helper to convert Hex to RGBA for opacity control
 const hexToRgba = (hex, alpha) => {
+
+
+  
   let c;
   if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
     c = hex.substring(1).split("");
