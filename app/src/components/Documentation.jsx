@@ -341,12 +341,17 @@ const Documentation = () => {
                 Must be a <code>.csv</code> file
               </List.Item>
               <List.Item>Must be for flu, RSV, or COVID-19</List.Item>
+
               <List.Item>
                 Must contain columns <Code>location</Code>,{" "}
                 <Code>reference_date</Code>, <Code>target</Code>,{" "}
                 <Code>model_id</Code>, <Code>horizon</Code>,{" "}
                 <Code>output_type</Code>, <Code>output_type_id</Code>,{" "}
                 <Code>value</Code>, and <Code>target_end_date</Code>
+              </List.Item>
+              <List.Item>
+                Note that MyRespiLens does not handle peak or 'pmf'
+                visualization: only quantiles.
               </List.Item>
             </List>
             <Text>
