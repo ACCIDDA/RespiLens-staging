@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "format": "prettier . --write",
     "format:check": "prettier . --check --log-level warn",
-    "prepare": "husky"
+    "prepare": "cd .. && husky app/.husky"
   },
   "dependencies": {
     "@mantine/carousel": "^8.1.1",

@@ -1,1 +1,8 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Move into the app directory where package.json lives
+cd app
+
+# Run lint-staged
 npx lint-staged
