@@ -283,6 +283,12 @@ const MyRespiLensDashboard = () => {
 
         const getQuantile = (q) =>
           predictions.map((pred) => {
+
+
+
+
+
+            
             if (!pred.quantiles || !pred.values) return 0;
             const index = pred.quantiles.indexOf(q);
             return index !== -1 ? (pred.values[index] ?? 0) : 0;
