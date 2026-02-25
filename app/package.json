@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "format": "prettier . --write",
-    "format:check": "prettier . --check --log-level warn"
+    "format:check": "prettier . --check --log-level warn",
+    "prepare": "husky"
   },
   "dependencies": {
     "@mantine/carousel": "^8.1.1",
@@ -46,10 +47,15 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^16.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "postcss": "^8.5.0",
     "postcss-preset-mantine": "^1.17.0",
     "postcss-simple-vars": "^7.0.1",
     "prettier": "3.8.1",
     "vite": "^6.0.1"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx}": "prettier --write"
   }
 }
