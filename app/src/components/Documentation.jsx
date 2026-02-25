@@ -32,7 +32,7 @@ import {
   IconChevronUp,
 } from "@tabler/icons-react";
 import JsonView from "@uiw/react-json-view";
-// TEST COMMENT
+
 const glossaryItems = [
   { term: "forecasts", definition: "Data that is predicted (future)." },
   {
