@@ -59,6 +59,7 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, fi
         # Filter `output_type_id` values
         categorical_ids = ['decrease', 'increase', 'large_decrease', 'large_increase', 'stable'] 
         numeric_ids = [0.025, 0.25, 0.5, 0.75, 0.975]
+        df['output_type_id'] = df['output_type_id'].astype(object)
         # Also valid, date-like values where target is 'peak' something
         numeric_output_ids = pd.to_numeric(df['output_type_id'], errors='coerce')
         is_categorical_id = df['output_type_id'].isin(categorical_ids)
