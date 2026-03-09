@@ -1,6 +1,11 @@
 import { useLocation, Link } from "react-router-dom";
 import { Group, Button, Image, Title, Anchor } from "@mantine/core";
-import { IconChartLine, IconTarget, IconDashboard } from "@tabler/icons-react";
+import {
+  IconChartLine,
+  IconTarget,
+  IconDashboard,
+  IconChartScatter,
+} from "@tabler/icons-react";
 import InfoOverlay from "../InfoOverlay";
 import { useView } from "../../hooks/useView";
 
@@ -29,6 +34,12 @@ const MainNavigation = () => {
       label: "MyRespiLens",
       icon: IconDashboard,
       active: isActive("/myrespilens"),
+    },
+    {
+      href: "/myplots",
+      label: "My Plots",
+      icon: IconChartScatter,
+      active: isActive("/myplots"),
     },
     // { href: '/documentation', label: 'Documentation', icon: IconClipboard, active: isActive('/documentation')}
   ];

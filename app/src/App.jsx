@@ -10,6 +10,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { ViewProvider } from "./contexts/ViewContext";
 import { useView } from "./hooks/useView";
 import DataVisualizationContainer from "./components/DataVisualizationContainer";
+import MyPlots from "./components/MyPlots";
 import NarrativeBrowser from "./components/narratives/NarrativeBrowser";
 import SlideNarrativeViewer from "./components/narratives/SlideNarrativeViewer";
 import ForecastleGame from "./components/forecastle/ForecastleGame";
@@ -20,7 +21,6 @@ import Documentation from "./components/Documentation";
 import ReportingDelayPage from "./components/reporting/ReportingDelayPage";
 import ToolsPage from "./components/tools/ToolsPage";
 import { Center, Text } from "@mantine/core";
-// import ShutdownBanner from './components/ShutdownBanner';, no longer necessary
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -59,6 +59,7 @@ const AppLayout = () => {
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />
         <Route path="/epidemics10" element={<TournamentDashboard />} />
+        <Route path="/myplots" element={<MyPlots />} />
         <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
         <Route path="/toolbox" element={<ToolsPage />} />
         <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
