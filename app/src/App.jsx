@@ -10,7 +10,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { ViewProvider } from "./contexts/ViewContext";
 import { useView } from "./hooks/useView";
 import DataVisualizationContainer from "./components/DataVisualizationContainer";
-import MyPlots from "./components/MyPlots";
+import MyPlots from "./components/myplots/MyPlots";
 import NarrativeBrowser from "./components/narratives/NarrativeBrowser";
 import SlideNarrativeViewer from "./components/narratives/SlideNarrativeViewer";
 import ForecastleGame from "./components/forecastle/ForecastleGame";
