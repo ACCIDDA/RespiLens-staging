@@ -1,7 +1,7 @@
 export const DATASETS = {
   flu: {
     shortName: "flu",
-    fullName: "Flu Forecast",
+    fullName: "Flu Forecasts",
     titleName: "Flusight Forecasts",
     views: [
       {
@@ -22,7 +22,7 @@ export const DATASETS = {
   },
   rsv: {
     shortName: "rsv",
-    fullName: "RSV Forecast",
+    fullName: "RSV Forecasts",
     titleName: "RSV Forecast Hub",
     views: [{ key: "forecasts", label: "Forecasts", value: "rsv_forecasts" }],
     defaultView: "rsv_forecasts",
