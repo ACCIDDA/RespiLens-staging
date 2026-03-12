@@ -12,12 +12,17 @@ import {
   List,
 } from "@mantine/core";
 import { useView } from "../hooks/useView";
+import { extractPlotData } from "../hooks/extractPlotDataFromURL";
 import DateSelector from "./DateSelector";
 import ViewSwitchboard from "./ViewSwitchboard";
 import ErrorBoundary from "./ErrorBoundary";
 import AboutHubOverlay from "./AboutHubOverlay";
 import FrontPage from "./FrontPage";
-import { IconShare, IconBrandGithub } from "@tabler/icons-react";
+import {
+  IconShare,
+  IconBrandGithub,
+  IconChartScatter,
+} from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
 
 const DataVisualizationContainer = () => {
@@ -50,6 +55,13 @@ const DataVisualizationContainer = () => {
     height: window.innerHeight,
   });
   const clipboard = useClipboard({ timeout: 2000 });
+
+  const handleSaveToMyPlots = () => {
+    const plotData = extractPlotData(viewType, window.location.href);
+
+    // Temporary console feedback for development
+    console.log("Saved the plot", plotData);
+  };
 
   // Configuration for AboutHubOverlay based on viewType
   const aboutHubConfig = {
@@ -552,22 +564,34 @@ const DataVisualizationContainer = () => {
                     </AboutHubOverlay>
                   )}
                   {windowSize.width <= 800 && (
-                    <Tooltip
-                      label={
-                        clipboard.copied
-                          ? "Link copied"
-                          : "Copy link to this view"
-                      }
-                    >
+                    <Group gap="xs">
+                      {" "}
+                      {/* Wrapped in Group to maintain horizontal alignment */}
                       <Button
                         variant="light"
                         size="xs"
-                        leftSection={<IconShare size={16} />}
-                        onClick={handleShare}
+                        leftSection={<IconChartScatter size={16} />}
+                        onClick={handleSaveToMyPlots}
                       >
-                        {clipboard.copied ? "URL Copied" : "Share View"}
+                        Add to My Plots
                       </Button>
-                    </Tooltip>
+                      <Tooltip
+                        label={
+                          clipboard.copied
+                            ? "Link copied"
+                            : "Copy link to this view"
+                        }
+                      >
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconShare size={16} />}
+                          onClick={handleShare}
+                        >
+                          {clipboard.copied ? "URL Copied" : "Share View"}
+                        </Button>
+                      </Tooltip>
+                    </Group>
                   )}
                 </div>
                 {currentDataset?.hasDateSelector && windowSize.width > 800 && (
@@ -585,6 +609,15 @@ const DataVisualizationContainer = () => {
                 )}
                 {windowSize.width > 800 && (
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      mr="xs" // Added margin right to separate from Share button
+                      leftSection={<IconChartScatter size={16} />}
+                      onClick={handleSaveToMyPlots}
+                    >
+                      Add to My Plots
+                    </Button>
                     <Tooltip
                       label={
                         clipboard.copied
