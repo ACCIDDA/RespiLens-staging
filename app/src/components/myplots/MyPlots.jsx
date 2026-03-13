@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Title,
   Text,
@@ -7,46 +8,46 @@ import {
   Center,
   SimpleGrid,
   Box,
+  Badge,
+  Group,
+  Button,
+  Divider,
 } from "@mantine/core";
-import { IconChartScatter } from "@tabler/icons-react";
-import { useState, useEffect } from "react";
-import { getSavedPlots, deletePlot } from "../utils/plotStorage";
+import { IconChartScatter, IconExternalLink } from "@tabler/icons-react";
+import { getSavedPlots, deletePlot } from "../../utils/plotStorage";
 
 const MyPlots = () => {
   const [userSavedPlots, setUserSavedPlots] = useState([]);
 
   useEffect(() => {
-    // Using your new utility to get validated plots
-    setUserSavedPlots(getSavedPlots());
+    const plots = getSavedPlots();
+    setUserSavedPlots(plots);
   }, []);
 
   const handleDelete = (id) => {
     if (deletePlot(id)) {
-      setUserSavedPlots(getSavedPlots()); // Refresh list
+      setUserSavedPlots(getSavedPlots());
     }
   };
+
   const hasPlots = userSavedPlots.length > 0;
 
-  // filler grid pattern (for if you have no plots saved yet)
-  const fullGridPattern = {
+  // Clean container style without the grid
+  const pageContainerStyle = {
     width: "100%",
     minHeight: "calc(100vh - 80px)",
-    backgroundPosition: "top left",
-    backgroundImage: `
-      linear-gradient(to right, var(--mantine-color-gray-2) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--mantine-color-gray-2) 1px, transparent 1px)
-    `,
-    backgroundSize: "60px 60px",
     backgroundColor: "var(--mantine-color-body)",
     display: "flex",
     flexDirection: "column",
+    alignItems: "center",
+    padding: "40px",
   };
 
   return (
-    <Box style={fullGridPattern}>
-      <Center style={{ minHeight: "100vh", padding: "40px" }}>
-        {!hasPlots ? (
-          /* empty state: no plots chosen yet */
+    <Box style={pageContainerStyle}>
+      {!hasPlots ? (
+        /* Empty state: Vertically centered */
+        <Center style={{ flex: 1, width: "100%" }}>
           <Paper
             shadow="xl"
             p="xl"
@@ -80,40 +81,94 @@ const MyPlots = () => {
               </Text>
             </Stack>
           </Paper>
-        ) : (
-          /* render for if there are actually plots -- unfinished */
-          <Stack
-            style={{
-              width: "100%",
-              maxWidth: "1400px",
-              backgroundColor: "rgba(255,255,255,0.85)",
-              padding: "30px",
-              borderRadius: "12px",
-              boxShadow: "var(--mantine-shadow-sm)",
-            }}
-            gap="md"
-          >
-            <Title order={2}>My Plots</Title>
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="xl">
-              <Box
-                h={220}
-                style={{
-                  border: "1px solid #ced4da",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "var(--mantine-color-body)",
-                }}
+        </Center>
+      ) : (
+        /* Has plots: Top-aligned */
+        <Stack style={{ width: "100%", maxWidth: "1400px" }} gap="xl">
+          <Group justify="space-between" align="flex-end">
+            <div>
+              <Title order={2}>My Plots</Title>
+              <Text size="sm" c="dimmed">
+                Your personalized library of saved visualizations.
+              </Text>
+            </div>
+            <Badge variant="filled" size="lg" color="blue">
+              {userSavedPlots.length} Saved
+            </Badge>
+          </Group>
+
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="xl">
+            {userSavedPlots.map((plot) => (
+              <Paper
+                key={plot.id}
+                p="lg"
+                radius="md"
+                withBorder
+                shadow="md"
+                style={{ backgroundColor: "var(--mantine-color-body)" }}
               >
-                <Text c="dimmed" size="sm">
-                  Plot Placeholder
-                </Text>
-              </Box>
-            </SimpleGrid>
-          </Stack>
-        )}
-      </Center>
+                <Stack gap="sm">
+                  <Group justify="space-between">
+                    <Badge color="gray" variant="outline" size="xs">
+                      {plot.viewType.replace(/_/g, " ").toUpperCase()}
+                    </Badge>
+                    <Text size="xs" c="dimmed">
+                      {new Date(plot.timestamp).toLocaleDateString()}
+                    </Text>
+                  </Group>
+
+                  <Title order={3} c="blue.7">
+                    {plot.settings.location.toUpperCase()}
+                  </Title>
+
+                  <Divider variant="dashed" />
+
+                  <Stack gap={4}>
+                    <Text size="xs" fw={700} c="dimmed">
+                      TARGET
+                    </Text>
+                    <Text size="sm" lineClamp={1} fw={500}>
+                      {plot.settings.target}
+                    </Text>
+                  </Stack>
+
+                  {plot.settings.models && plot.settings.models.length > 0 && (
+                    <Stack gap={4}>
+                      <Text size="xs" fw={700} c="dimmed">
+                        MODELS
+                      </Text>
+                      <Group gap={4}>
+                        {plot.settings.models.slice(0, 3).map((m) => (
+                          <Badge key={m} size="xs" variant="light" color="gray">
+                            {m}
+                          </Badge>
+                        ))}
+                        {plot.settings.models.length > 3 && (
+                          <Text size="xs" c="dimmed">
+                            +{plot.settings.models.length - 3} more
+                          </Text>
+                        )}
+                      </Group>
+                    </Stack>
+                  )}
+
+                  <Button
+                    component="a"
+                    href={plot.fullUrl}
+                    variant="light"
+                    color="blue"
+                    fullWidth
+                    mt="md"
+                    leftSection={<IconExternalLink size={16} />}
+                  >
+                    Restore Plot
+                  </Button>
+                </Stack>
+              </Paper>
+            ))}
+          </SimpleGrid>
+        </Stack>
+      )}
     </Box>
   );
 };
