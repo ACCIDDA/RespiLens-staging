@@ -9,9 +9,22 @@ import {
   Box,
 } from "@mantine/core";
 import { IconChartScatter } from "@tabler/icons-react";
+import { useState, useEffect } from "react";
+import { getSavedPlots, deletePlot } from "../utils/plotStorage";
 
 const MyPlots = () => {
-  const userSavedPlots = [];
+  const [userSavedPlots, setUserSavedPlots] = useState([]);
+
+  useEffect(() => {
+    // Using your new utility to get validated plots
+    setUserSavedPlots(getSavedPlots());
+  }, []);
+
+  const handleDelete = (id) => {
+    if (deletePlot(id)) {
+      setUserSavedPlots(getSavedPlots()); // Refresh list
+    }
+  };
   const hasPlots = userSavedPlots.length > 0;
 
   // filler grid pattern (for if you have no plots saved yet)

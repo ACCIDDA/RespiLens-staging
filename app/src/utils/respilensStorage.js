@@ -1,11 +1,3 @@
-/**
- * RespiLens Storage Utility
- *
- * Manages localStorage for RespiLens games (currently Forecastle).
- * Stores raw game data (user predictions, intervals, ground truth).
- * Statistics are computed on-the-fly from stored data.
- */
-
 const STORAGE_KEY = "respilens_forecastle_games";
 
 /**

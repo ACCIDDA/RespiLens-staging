@@ -1,3 +1,5 @@
+import { savePlot } from "../utils/plotStorage";
+
 /**
  * Parses the current URL and viewType to extract a serialized state
  * for the "My Plots" persistence feature.
@@ -8,6 +10,7 @@
 export const extractPlotData = (viewType, href) => {
   const url = new URL(href);
   const params = url.searchParams;
+  const id = crypto.randomUUID();
 
   let dataSuffix = "";
   let location = "";
@@ -95,6 +98,7 @@ export const extractPlotData = (viewType, href) => {
   const plotData = {
     viewType: viewType,
     fullUrl: href,
+    id,
     // add editorializations from logic above
     settings: {
       dataSuffix,
@@ -107,9 +111,7 @@ export const extractPlotData = (viewType, href) => {
     },
   };
 
-  // Persist to Web Storage (for later)
-  // const currentSaved = JSON.parse(localStorage.getItem("userSavedPlots") || "[]");
-  // localStorage.setItem("userSavedPlots", JSON.stringify([plotData, ...currentSaved]));
+  savePlot(plotData);
 
   return plotData;
 };
