@@ -13,7 +13,11 @@ import {
   Button,
   Divider,
 } from "@mantine/core";
-import { IconChartScatter, IconExternalLink } from "@tabler/icons-react";
+import {
+  IconChartScatter,
+  IconExternalLink,
+  IconTrash,
+} from "@tabler/icons-react";
 import { getSavedPlots, deletePlot } from "../../utils/plotStorage";
 
 const MyPlots = () => {
@@ -111,9 +115,15 @@ const MyPlots = () => {
                     <Badge color="gray" variant="outline" size="xs">
                       {plot.viewType.replace(/_/g, " ").toUpperCase()}
                     </Badge>
-                    <Text size="xs" c="dimmed">
-                      text placeholder
-                    </Text>
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="compact-xs"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => handleDelete(plot.id)}
+                    >
+                      Remove
+                    </Button>
                   </Group>
                   <Title order={3} c="blue.7">
                     {plot.settings.location.toUpperCase()}
