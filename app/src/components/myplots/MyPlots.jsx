@@ -32,7 +32,6 @@ const MyPlots = () => {
 
   const hasPlots = userSavedPlots.length > 0;
 
-  // Clean container style without the grid
   const pageContainerStyle = {
     width: "100%",
     minHeight: "calc(100vh - 80px)",
@@ -46,7 +45,6 @@ const MyPlots = () => {
   return (
     <Box style={pageContainerStyle}>
       {!hasPlots ? (
-        /* Empty state: Vertically centered */
         <Center style={{ flex: 1, width: "100%" }}>
           <Paper
             shadow="xl"
@@ -83,19 +81,20 @@ const MyPlots = () => {
           </Paper>
         </Center>
       ) : (
-        /* Has plots: Top-aligned */
         <Stack style={{ width: "100%", maxWidth: "1400px" }} gap="xl">
-          <Group justify="space-between" align="flex-end">
-            <div>
-              <Title order={2}>My Plots</Title>
-              <Text size="sm" c="dimmed">
-                Your personalized library of saved visualizations.
-              </Text>
-            </div>
-            <Badge variant="filled" size="lg" color="blue">
-              {userSavedPlots.length} Saved
-            </Badge>
-          </Group>
+          <Paper p="md" radius="md" withBorder shadow="sm">
+            <Group justify="space-between" align="center">
+              <div>
+                <Title order={2}>My Plots</Title>
+                <Text size="sm" c="dimmed">
+                  Your personalized library of saved visualizations.
+                </Text>
+              </div>
+              <Badge variant="filled" size="lg" color="blue">
+                {userSavedPlots.length} Saved
+              </Badge>
+            </Group>
+          </Paper>
 
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="xl">
             {userSavedPlots.map((plot) => (
@@ -113,16 +112,13 @@ const MyPlots = () => {
                       {plot.viewType.replace(/_/g, " ").toUpperCase()}
                     </Badge>
                     <Text size="xs" c="dimmed">
-                      {new Date(plot.timestamp).toLocaleDateString()}
+                      text placeholder
                     </Text>
                   </Group>
-
                   <Title order={3} c="blue.7">
                     {plot.settings.location.toUpperCase()}
                   </Title>
-
                   <Divider variant="dashed" />
-
                   <Stack gap={4}>
                     <Text size="xs" fw={700} c="dimmed">
                       TARGET
@@ -131,7 +127,6 @@ const MyPlots = () => {
                       {plot.settings.target}
                     </Text>
                   </Stack>
-
                   {plot.settings.models && plot.settings.models.length > 0 && (
                     <Stack gap={4}>
                       <Text size="xs" fw={700} c="dimmed">
@@ -150,8 +145,32 @@ const MyPlots = () => {
                         )}
                       </Group>
                     </Stack>
-                  )}
-
+                  )}{" "}
+                  {plot.settings.columns &&
+                    plot.settings.columns.length > 0 && (
+                      <Stack gap={4}>
+                        <Text size="xs" fw={700} c="dimmed">
+                          COLUMNS
+                        </Text>
+                        <Group gap={4}>
+                          {plot.settings.columns.slice(0, 3).map((m) => (
+                            <Badge
+                              key={m}
+                              size="xs"
+                              variant="light"
+                              color="gray"
+                            >
+                              {m}
+                            </Badge>
+                          ))}
+                          {plot.settings.columns.length > 3 && (
+                            <Text size="xs" c="dimmed">
+                              +{plot.settings.columns.length - 3} more
+                            </Text>
+                          )}
+                        </Group>
+                      </Stack>
+                    )}
                   <Button
                     component="a"
                     href={plot.fullUrl}
@@ -161,7 +180,7 @@ const MyPlots = () => {
                     mt="md"
                     leftSection={<IconExternalLink size={16} />}
                   >
-                    Restore Plot
+                    Visit view
                   </Button>
                 </Stack>
               </Paper>
