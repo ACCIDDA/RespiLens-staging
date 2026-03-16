@@ -590,10 +590,11 @@ const DataVisualizationContainer = () => {
                         <Button
                           variant="light"
                           size="xs"
+                          color={clipboard.copied ? "green" : "blue"}
                           leftSection={<IconShare size={16} />}
                           onClick={handleShare}
                         >
-                          {clipboard.copied ? "URL Copied" : "Share View"}
+                          {clipboard.copied ? "URL Copied!" : "Share View"}
                         </Button>
                       </Tooltip>
                     </Group>
@@ -635,10 +636,11 @@ const DataVisualizationContainer = () => {
                       <Button
                         variant="light"
                         size="xs"
+                        color={clipboard.copied ? "green" : "blue"}
                         leftSection={<IconShare size={16} />}
                         onClick={handleShare}
                       >
-                        {clipboard.copied ? "URL Copied" : "Share View"}
+                        {clipboard.copied ? "URL Copied!" : "Share View"}
                       </Button>
                     </Tooltip>
                   </div>
