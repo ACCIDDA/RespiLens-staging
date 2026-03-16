@@ -56,9 +56,13 @@ const DataVisualizationContainer = () => {
   });
   const clipboard = useClipboard({ timeout: 2000 });
 
+  const [isAdded, setIsAdded] = useState(false);
   const handleSaveToMyPlots = () => {
     const plotData = extractPlotData(viewType, window.location.href);
-
+    // visual cue to signal it has been added
+    setIsAdded(true);
+    // Reset text after 2 seconds
+    setTimeout(() => setIsAdded(false), 2000);
     // Temporary console feedback for development
     console.log("Saved the plot", plotData);
   };
@@ -565,15 +569,16 @@ const DataVisualizationContainer = () => {
                   )}
                   {windowSize.width <= 800 && (
                     <Group gap="xs">
-                      {" "}
-                      {/* Wrapped in Group to maintain horizontal alignment */}
                       <Button
                         variant="light"
                         size="xs"
+                        mr="xs"
+                        color={isAdded ? "green" : "blue"}
+                        className={isAdded ? "added-text-pulse" : ""}
                         leftSection={<IconChartScatter size={16} />}
                         onClick={handleSaveToMyPlots}
                       >
-                        Add to My Plots
+                        {isAdded ? "Added!" : "Add to My Plots"}
                       </Button>
                       <Tooltip
                         label={
@@ -612,11 +617,13 @@ const DataVisualizationContainer = () => {
                     <Button
                       variant="light"
                       size="xs"
-                      mr="xs" // Added margin right to separate from Share button
+                      mr="xs"
+                      color={isAdded ? "green" : "blue"}
+                      className={isAdded ? "added-text-pulse" : ""}
                       leftSection={<IconChartScatter size={16} />}
                       onClick={handleSaveToMyPlots}
                     >
-                      Add to My Plots
+                      {isAdded ? "Added!" : "Add to My Plots"}
                     </Button>
                     <Tooltip
                       label={
