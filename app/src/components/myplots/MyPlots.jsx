@@ -129,6 +129,28 @@ const MyPlots = () => {
                     {plot.settings.location.toUpperCase()}
                   </Title>
                   <Divider variant="dashed" />
+
+                  {/* DATES SECTION */}
+                  {plot.settings.dates && plot.settings.dates.length > 0 && (
+                    <Stack gap={4}>
+                      <Text size="xs" fw={700} c="dimmed">
+                        DATES
+                      </Text>
+                      <Group gap={4}>
+                        {plot.settings.dates.slice(0, 2).map((d) => (
+                          <Badge key={d} size="xs" variant="light" color="blue">
+                            {d}
+                          </Badge>
+                        ))}
+                        {plot.settings.dates.length > 2 && (
+                          <Text size="xs" c="dimmed">
+                            +{plot.settings.dates.length - 2} more
+                          </Text>
+                        )}
+                      </Group>
+                    </Stack>
+                  )}
+
                   <Stack gap={4}>
                     <Text size="xs" fw={700} c="dimmed">
                       TARGET
@@ -137,6 +159,7 @@ const MyPlots = () => {
                       {plot.settings.target}
                     </Text>
                   </Stack>
+
                   {plot.settings.models && plot.settings.models.length > 0 && (
                     <Stack gap={4}>
                       <Text size="xs" fw={700} c="dimmed">
@@ -155,7 +178,8 @@ const MyPlots = () => {
                         )}
                       </Group>
                     </Stack>
-                  )}{" "}
+                  )}
+
                   {plot.settings.columns &&
                     plot.settings.columns.length > 0 && (
                       <Stack gap={4}>

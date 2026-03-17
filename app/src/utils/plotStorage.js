@@ -23,13 +23,13 @@ function isValidPlot(plot) {
     typeof plot.fullUrl === "string" &&
     typeof plot.viewType === "string" &&
     plot.settings &&
-    typeof plot.settings === "object"
+    typeof plot.settings === "object" &&
+    Array.isArray(plot.settings.dates) // Added check for dates array
   );
 }
 
 /**
  * Get all stored saved plots
- * @returns {Array} Array of plot objects
  */
 export function getSavedPlots() {
   if (!isLocalStorageAvailable()) return [];
@@ -50,8 +50,6 @@ export function getSavedPlots() {
 
 /**
  * Save a plot to My Plots
- * @param {Object} plotData - The processed plot object
- * @returns {boolean} Success status
  */
 export function savePlot(plotData) {
   if (!isLocalStorageAvailable()) return false;
@@ -59,7 +57,7 @@ export function savePlot(plotData) {
   try {
     const plots = getSavedPlots();
 
-    // Check if this specific view/URL already exists to prevent duplicates
+    // Check for duplicates based on URL
     const existingIndex = plots.findIndex(
       (p) => p.fullUrl === plotData.fullUrl,
     );
@@ -71,10 +69,8 @@ export function savePlot(plotData) {
     };
 
     if (existingIndex >= 0) {
-      // Update the timestamp on the existing entry
       plots[existingIndex] = plotEntry;
     } else {
-      // Add new plot to the top of the list
       plots.unshift(plotEntry);
     }
 
