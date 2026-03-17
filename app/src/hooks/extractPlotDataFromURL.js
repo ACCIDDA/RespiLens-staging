@@ -7,25 +7,28 @@ import { savePlot } from "../utils/plotStorage";
  * @param {string} href - The full window.location.href string
  * @returns {Object} The processed plotData object
  */
-export const extractPlotData = (viewType, href) => {
+export const extractPlotData = (viewType, href, data) => {
   const url = new URL(href);
   const params = url.searchParams;
   const id = crypto.randomUUID();
-
+  const currentDate = new Date().toISOString().split("T")[0];
   let dataSuffix = "";
-  let location = "";
   let fileName = "";
   let fullDataPath = "";
+
+  // plot settings
+  let location = "";
   let target = "";
   let columns = [];
   let models = [];
+  let dates = [];
 
   switch (viewType) {
     case "covid_forecasts":
       dataSuffix = "covid19";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
-      fullDataPath = `processed_data/covid19forecasthub/${fileName}`;
+      fullDataPath = `covid19forecasthub/${fileName}`;
       target = params.has("covid_target")
         ? params.get("covid_target")
         : "wk inc covid hosp";
@@ -33,13 +36,30 @@ export const extractPlotData = (viewType, href) => {
       models = covidModelsString
         ? covidModelsString.split(",")
         : ["CovidHub-ensemble"];
+      const covidDatesString = params.get("covid_dates");
+      if (covidDatesString) {
+        dates = covidDatesString.split(",");
+      } else {
+        // extract most recent date key from forecasts key of data
+        const availableDates = Object.keys(data?.forecasts || {});
+        if (availableDates.length > 0) {
+          const mostRecent = availableDates.sort().pop();
+          dates = [mostRecent];
+        } else {
+          // throw error otherwise
+          throw new Error(
+            `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
+          );
+        }
+      }
       break;
+
     case "flu_forecasts":
     case "fludetailed":
       dataSuffix = "flu";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
-      fullDataPath = `processed_data/flusight/${fileName}`;
+      fullDataPath = `flusight/${fileName}`;
       target = params.has("flu_target")
         ? params.get("flu_target")
         : "wk inc flu hosp";
@@ -47,13 +67,29 @@ export const extractPlotData = (viewType, href) => {
       models = fluModelsString
         ? fluModelsString.split(",")
         : ["FluSight-ensemble"];
+      const fluDatesString = params.get("flu_dates");
+      if (fluDatesString) {
+        dates = fluDatesString.split(",");
+      } else {
+        // extract most recent date key from forecasts key of data
+        const availableDates = Object.keys(data?.forecasts || {});
+        if (availableDates.length > 0) {
+          const mostRecent = availableDates.sort().pop();
+          dates = [mostRecent];
+        } else {
+          // throw error otherwise
+          throw new Error(
+            `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
+          );
+        }
+      }
       break;
 
     case "rsv_forecasts":
       dataSuffix = "rsv";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
-      fullDataPath = `processed_data/rsvforecasthub/${fileName}`;
+      fullDataPath = `rsvforecasthub/${fileName}`;
       target = params.has("rsv_target")
         ? params.get("rsv_target")
         : "wk inc rsv hosp";
@@ -61,25 +97,57 @@ export const extractPlotData = (viewType, href) => {
       models = rsvModelsString
         ? rsvModelsString.split(",")
         : ["RSVHub-ensemble"];
+      const rsvDatesString = params.get("rsv_dates");
+      if (rsvDatesString) {
+        dates = rsvDatesString.split(",");
+      } else {
+        // extract most recent date key from forecasts key of data
+        const availableDates = Object.keys(data?.forecasts || {});
+        if (availableDates.length > 0) {
+          const mostRecent = availableDates.sort().pop();
+          dates = [mostRecent];
+        } else {
+          // throw error otherwise
+          throw new Error(
+            `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
+          );
+        }
+      }
       break;
 
     case "metrocast_forecasts":
       dataSuffix = "flu_metrocast";
       location = params.has("location") ? params.get("location") : "colorado";
       fileName = `${location}_${dataSuffix}.json`;
-      fullDataPath = `processed_data/flumetrocast/${fileName}`;
+      fullDataPath = `flumetrocast/${fileName}`;
       target = "Flu ED visits pct";
       const metrocastModelsString = params.get("metrocast_models");
       models = metrocastModelsString
         ? metrocastModelsString.split(",")
         : ["epiENGAGE-ensemble_mean"];
+      const metrocastDatesString = params.get("metrocast_dates");
+      if (metrocastDatesString) {
+        dates = metrocastDatesString.split(",");
+      } else {
+        // extract most recent date key from forecasts key of data
+        const availableDates = Object.keys(data?.forecasts || {});
+        if (availableDates.length > 0) {
+          const mostRecent = availableDates.sort().pop();
+          dates = [mostRecent];
+        } else {
+          // throw error otherwise
+          throw new Error(
+            `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
+          );
+        }
+      }
       break;
 
     case "nhsnall":
       dataSuffix = "nhsn";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
-      fullDataPath = `processed_data/nhsn/${fileName}`;
+      fullDataPath = `nhsn/${fileName}`;
       target = params.has("nhsn_target")
         ? params.get("nhsn_target")
         : "Hospital Admissions (rates)";
@@ -88,6 +156,7 @@ export const extractPlotData = (viewType, href) => {
         nhsnColsFromUrl.length > 0
           ? nhsnColsFromUrl
           : ["totalconfflunewadm", "totalconfc19newadm", "totalconfrsvnewadm"]; // TODO: slug:longform mapping
+      dates = [currentDate]; // TODO: handle the range slider?? if they have moved it, it is uncaptured
       break;
 
     default:
@@ -99,15 +168,17 @@ export const extractPlotData = (viewType, href) => {
     viewType: viewType,
     fullUrl: href,
     id,
+    currentDate,
+    dataSuffix,
+    fileName,
+    fullDataPath,
     // add editorializations from logic above
     settings: {
-      dataSuffix,
       location,
-      fileName,
-      fullDataPath,
       target,
       columns,
       models,
+      dates,
     },
   };
 

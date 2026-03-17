@@ -184,6 +184,8 @@ const MyPlots = () => {
                   <Button
                     component="a"
                     href={plot.fullUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     variant="light"
                     color="blue"
                     fullWidth

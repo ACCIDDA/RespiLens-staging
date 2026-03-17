@@ -58,7 +58,7 @@ const DataVisualizationContainer = () => {
 
   const [isAdded, setIsAdded] = useState(false);
   const handleSaveToMyPlots = () => {
-    const plotData = extractPlotData(viewType, window.location.href);
+    const plotData = extractPlotData(viewType, window.location.href, data);
     // visual cue to signal it has been added
     setIsAdded(true);
     // Reset text after 2 seconds
