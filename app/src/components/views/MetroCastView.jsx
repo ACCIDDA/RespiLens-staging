@@ -56,7 +56,6 @@ const MetroPlotCard = ({
   intervalVisibility,
   showLegend = true,
 }) => {
-  const [yAxisRange, setYAxisRange] = useState(null);
   const groundTruth = locationData?.ground_truth;
   const forecasts = locationData?.forecasts;
 
@@ -124,6 +123,12 @@ const MetroPlotCard = ({
   });
 
   const defRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+
+  const yAxisRange = useMemo(() => {
+    const range = xAxisRange || defRange;
+    return calculateYRange(projectionsData, range);
+  }, [projectionsData, xAxisRange, defRange, calculateYRange]);
+
   const sqrtTicks = useMemo(() => {
     if (chartScale !== "sqrt") return null;
     return buildSqrtTicks({
@@ -131,11 +136,6 @@ const MetroPlotCard = ({
       formatValue: (value) => `${value.toFixed(2)}%`,
     });
   }, [chartScale, rawYRange]);
-
-  useEffect(() => {
-    const range = xAxisRange || defRange;
-    setYAxisRange(calculateYRange(projectionsData, range));
-  }, [projectionsData, xAxisRange, defRange, calculateYRange]);
 
   const hasForecasts = projectionsData.length > 1;
 
@@ -262,10 +262,13 @@ const MetroPlotCard = ({
           staticPlot: isSmall,
         }}
         onRelayout={(e) => {
-          if (e["xaxis.range"]) {
-            setXAxisRange(e["xaxis.range"]);
+          const newRange = e["xaxis.range"];
+          if (newRange) {
+            if (JSON.stringify(xAxisRange) !== JSON.stringify(newRange)) {
+              setXAxisRange(newRange);
+            }
           } else if (e["xaxis.autorange"]) {
-            setXAxisRange(null);
+            if (xAxisRange !== null) setXAxisRange(null);
           }
         }}
       />
