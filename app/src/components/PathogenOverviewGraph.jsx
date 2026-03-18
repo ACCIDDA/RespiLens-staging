@@ -136,14 +136,28 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
     useForecastData(resolvedLocation, viewType);
   const datasetKey = VIEW_TO_DATASET[viewType];
   const datasetConfig = datasetKey ? DATASETS[datasetKey] : null;
-
-  const selectedDate = availableDates[availableDates.length - 1];
   const preferredTarget = DEFAULT_TARGETS[viewType];
   const selectedTarget =
     preferredTarget && availableTargets.includes(preferredTarget)
       ? preferredTarget
       : availableTargets[0];
+  // conditional logic to return latest date for which there is ensemble forecast
+  const selectedDate = useMemo(() => {
+    if (!availableDates.length || !models.length) return null;
+    const preferredModel = datasetConfig?.defaultModel;
+    for (let i = availableDates.length - 1; i >= 0; i--) {
+      const date = availableDates[i];
+      const hasModelData =
+        data?.forecasts?.[date]?.[selectedTarget]?.[preferredModel];
 
+      if (hasModelData) {
+        return date;
+      }
+    }
+    return availableDates[availableDates.length - 1];
+  }, [availableDates, data, selectedTarget, datasetConfig, models]);
+  // below is logic to simply use most recent date (doesn't account for lag in ensemble forecast submission)
+  // const selectedDate = availableDates[availableDates.length - 1];
   const selectedModel =
     datasetConfig?.defaultModel && models.includes(datasetConfig.defaultModel)
       ? datasetConfig.defaultModel
