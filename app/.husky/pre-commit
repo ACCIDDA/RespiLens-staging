@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Help GUI apps (like GitHub Desktop) find Node and npx
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+
+# Move into the app directory
+cd app
+
+# Run lint-staged
+npx lint-staged

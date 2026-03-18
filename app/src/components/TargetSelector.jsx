@@ -1,6 +1,6 @@
-import { Select, Stack } from '@mantine/core';
-import { useView } from '../hooks/useView';
-import { targetDisplayNameMap } from '../utils/mapUtils';
+import { Select, Stack } from "@mantine/core";
+import { useView } from "../hooks/useView";
+import { targetDisplayNameMap } from "../utils/mapUtils";
 
 const TargetSelector = () => {
   // Get the target-related state and functions from our central context
@@ -10,9 +10,9 @@ const TargetSelector = () => {
   const isDisabled = !availableTargets || availableTargets.length < 1;
 
   // Format the targets for the Select component's `data` prop
-  const selectData = availableTargets.map(target => ({
+  const selectData = availableTargets.map((target) => ({
     value: target,
-    label: targetDisplayNameMap[target] || target
+    label: targetDisplayNameMap[target] || target,
   }));
 
   return (

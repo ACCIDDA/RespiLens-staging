@@ -1,6 +1,22 @@
-import { Modal, Button, Group, Text, List, Anchor, Image, Title, Stack, Badge, ActionIcon } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconInfoCircle, IconBrandGithub, IconWorld } from '@tabler/icons-react';
+import {
+  Modal,
+  Button,
+  Group,
+  Text,
+  List,
+  Anchor,
+  Image,
+  Title,
+  Stack,
+  Badge,
+  ActionIcon,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import {
+  IconInfoCircle,
+  IconBrandGithub,
+  IconWorld,
+} from "@tabler/icons-react";
 
 const InfoOverlay = () => {
   const [opened, { open, close }] = useDisclosure(false);
@@ -37,74 +53,186 @@ const InfoOverlay = () => {
         onClose={close}
         title={
           <Group gap="md">
-            <Image src="respilens-logo.svg" alt="RespiLens logo" h={32} w={32} />
-            <Title order={2} c="blue">RespiLens</Title>
+            <Image
+              src="respilens-logo.svg"
+              alt="RespiLens logo"
+              h={32}
+              w={32}
+            />
+            <Title order={2} c="blue">
+              RespiLens
+            </Title>
           </Group>
         }
         size="lg"
         scrollAreaComponent={Modal.NativeScrollArea}
       >
         <Stack gap="md">
-
           <Text>
-            RespiLens is a responsive web app to visualize respiratory disease forecasts in the US, focused on
-            accessibility for state health departments and the general public. Key features include:
+            RespiLens is a responsive web app to visualize respiratory disease
+            forecasts in the US, focused on accessibility for state health
+            departments and the general public. Key features include:
           </Text>
 
           <List spacing="xs" size="sm">
-            <List.Item>URL-shareable views for specific forecast settings</List.Item>
+            <List.Item>
+              URL-shareable views for specific forecast settings
+            </List.Item>
             <List.Item>Responsive and mobile-friendly site</List.Item>
             <List.Item>Frequent and automatic site updates</List.Item>
             <List.Item>Multi date, target, and model comparison</List.Item>
             <List.Item>the Forecastle game!</List.Item>
-            <List.Item>MyRespiLens, a safe visualization tool for your own data</List.Item>
+            <List.Item>
+              MyRespiLens, a safe visualization tool for your own data
+            </List.Item>
           </List>
 
           <div>
-            <Title order={4} mb="xs">Attribution</Title>
-            RespiLens exists within a landscape of other respiratory illness data dashboards. We rely heavily on the{' '}
+            <Title order={4} mb="xs">
+              Attribution
+            </Title>
+            RespiLens exists within a landscape of other respiratory illness
+            data dashboards. We rely heavily on the{" "}
             <Anchor href="https://hubverse.io" target="_blank" rel="noopener">
               Hubverse
-            </Anchor>{' '}
-            project which standardizes and consolidates forecast data formats. For each of the hub displayed on RespiLens, the data, organization and forecasts
-            belong to their respective teams. <strong>RespiLens is only a visualization layer, and contains no original work.</strong>
+            </Anchor>{" "}
+            project which standardizes and consolidates forecast data formats.
+            For each of the hub displayed on RespiLens, the data, organization
+            and forecasts belong to their respective teams.{" "}
+            <strong>
+              RespiLens is only a visualization layer, and contains no original
+              work.
+            </strong>
           </div>
 
           <Text>
-            You can find information and alternative visualization for each pathogen at the following locations:
+            You can find information and alternative visualization for each
+            pathogen at the following locations:
           </Text>
           <List spacing="xs" size="sm">
             <List.Item>
-              FluSight Forecast Hub: <Anchor href="https://www.cdc.gov/flu-forecasting/about/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/flusight-dashboard/" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/cdcepi/FluSight-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+              FluSight Forecast Hub:{" "}
+              <Anchor
+                href="https://www.cdc.gov/flu-forecasting/about/index.html"
+                target="_blank"
+                rel="noopener"
+              >
+                official CDC page
+              </Anchor>{" "}
+              –{" "}
+              <Anchor
+                href="https://reichlab.io/flusight-dashboard/"
+                target="_blank"
+                rel="noopener"
+              >
+                Hubverse dashboard
+              </Anchor>{" "}
+              –{" "}
+              <Anchor
+                href="https://github.com/cdcepi/FluSight-forecast-hub"
+                target="_blank"
+                rel="noopener"
+              >
+                official GitHub repository
+              </Anchor>
             </List.Item>
             <List.Item>
-              RSV Forecast Hub: <Anchor href="https://github.com/CDCgov/rsv-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+              RSV Forecast Hub:{" "}
+              <Anchor
+                href="https://github.com/CDCgov/rsv-forecast-hub"
+                target="_blank"
+                rel="noopener"
+              >
+                official GitHub repository
+              </Anchor>
             </List.Item>
             <List.Item>
-              COVID-19 Forecast Hub: <Anchor href="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html" target="_blank" rel="noopener">official CDC page</Anchor> – <Anchor href="https://reichlab.io/covidhub-dashboard" target="_blank" rel="noopener">Hubverse dashboard</Anchor> – <Anchor href="https://github.com/CDCgov/covid19-forecast-hub" target="_blank" rel="noopener">official GitHub repository</Anchor>
+              COVID-19 Forecast Hub:{" "}
+              <Anchor
+                href="https://www.cdc.gov/cfa-modeling-and-forecasting/covid19-data-vis/index.html"
+                target="_blank"
+                rel="noopener"
+              >
+                official CDC page
+              </Anchor>{" "}
+              –{" "}
+              <Anchor
+                href="https://reichlab.io/covidhub-dashboard"
+                target="_blank"
+                rel="noopener"
+              >
+                Hubverse dashboard
+              </Anchor>{" "}
+              – 
+              <Anchor
+                href="https://github.com/CDCgov/covid19-forecast-hub"
+                target="_blank"
+                rel="noopener"
+              >
+                official GitHub repository
+              </Anchor>
             </List.Item>
             <List.Item>
-              Flu MetroCast Hub: <Anchor href="https://reichlab.io/metrocast-dashboard/forecast.html?as_of=2026-01-24&interval=95%25&target_var=ILI+ED+visits+pct&xaxis_range=2025-08-01&xaxis_range=2026-07-01&yaxis_range=0.5955774343586175&yaxis_range=11.579180135033756&model=epiENGAGE-ensemble_mean&location=nyc" target="_blank" rel="noopener noreferrer">official dashboard</Anchor> – <Anchor href="https://reichlab.io/metrocast-dashboard/" target="_blank" rel="noopener noreferrer">site</Anchor> – <Anchor href="https://github.com/reichlab/flu-metrocast" target="_blank" rel="noopener noreferrer">official GitHub repository</Anchor>
+              Flu MetroCast Hub:{" "}
+              <Anchor
+                href="https://reichlab.io/metrocast-dashboard/forecast.html?as_of=2026-01-24&interval=95%25&target_var=ILI+ED+visits+pct&xaxis_range=2025-08-01&xaxis_range=2026-07-01&yaxis_range=0.5955774343586175&yaxis_range=11.579180135033756&model=epiENGAGE-ensemble_mean&location=nyc"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                official dashboard
+              </Anchor>{" "}
+              –{" "}
+              <Anchor
+                href="https://reichlab.io/metrocast-dashboard/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                site
+              </Anchor>{" "}
+              – 
+              <Anchor
+                href="https://github.com/reichlab/flu-metrocast"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                official GitHub repository
+              </Anchor>
             </List.Item>
           </List>
 
           <Text></Text>
           <Text></Text>
           <Text>
-            RespiLens is made by Emily Przykucki (UNC Chapel Hill), {' '} 
-            <Anchor href="https://josephlemaitre.com" target="_blank" rel="noopener">
+            RespiLens is made by Emily Przykucki (UNC Chapel Hill),{" "}
+            <Anchor
+              href="https://josephlemaitre.com"
+              target="_blank"
+              rel="noopener"
+            >
               Joseph Lemaitre
-            </Anchor>{' '}
-            (UNC Chapel Hill) and others within <Anchor href="https://www.accidda.org"  target="_blank" rel="noopener">ACCIDDA</Anchor>, the Atlantic Coast Center
-            for Infectious Disease Dynamics and Analytics.
+            </Anchor>{" "}
+            (UNC Chapel Hill) and others within{" "}
+            <Anchor
+              href="https://www.accidda.org"
+              target="_blank"
+              rel="noopener"
+            >
+              ACCIDDA
+            </Anchor>
+            , the Atlantic Coast Center for Infectious Disease Dynamics and
+            Analytics.
           </Text>
 
-                <div>
-            <Text size="sm" fw={500} mb="xs">Deployments</Text>
+          <div>
+            <Text size="sm" fw={500} mb="xs">
+              Deployments
+            </Text>
             <List spacing="xs" size="sm">
               <List.Item>
                 <Group gap="xs" wrap="wrap">
-                  <Badge size="xs" color="green" variant="light">Stable</Badge>
+                  <Badge size="xs" color="green" variant="light">
+                    Stable
+                  </Badge>
                   <Anchor
                     href="https://github.com/ACCIDDA/RespiLens"
                     target="_blank"
@@ -130,7 +258,9 @@ const InfoOverlay = () => {
               </List.Item>
               <List.Item>
                 <Group gap="xs" wrap="wrap">
-                  <Badge size="xs" color="yellow" variant="light">Staging</Badge>
+                  <Badge size="xs" color="yellow" variant="light">
+                    Staging
+                  </Badge>
                   <Anchor
                     href="https://github.com/ACCIDDA/RespiLens-staging"
                     target="_blank"
@@ -156,7 +286,6 @@ const InfoOverlay = () => {
               </List.Item>
             </List>
           </div>
-
         </Stack>
       </Modal>
     </>

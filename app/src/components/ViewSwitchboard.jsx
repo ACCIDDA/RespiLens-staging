@@ -1,11 +1,11 @@
-import { Center, Stack, Loader, Text, Alert, Button } from '@mantine/core';
-import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
-import FluView from './views/FluView';
-import MetroCastView from './views/MetroCastView';
-import RSVView from './views/RSVView';
-import COVID19View from './views/COVID19View';
-import NHSNView from './views/NHSNView';
-import { CHART_CONSTANTS } from '../constants/chart';
+import { Center, Stack, Loader, Text, Alert, Button } from "@mantine/core";
+import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
+import FluView from "./views/FluView";
+import MetroCastView from "./views/MetroCastView";
+import RSVView from "./views/RSVView";
+import COVID19View from "./views/COVID19View";
+import NHSNView from "./views/NHSNView";
+import { CHART_CONSTANTS } from "../constants/chart";
 
 /**
  * Component that handles rendering different data visualization types
@@ -22,10 +22,10 @@ const ViewSwitchboard = ({
   selectedModels,
   setSelectedModels,
   windowSize,
-  selectedTarget, 
+  selectedTarget,
   peaks,
-  availablePeakDates, 
-  availablePeakModels
+  availablePeakDates,
+  availablePeakModels,
 }) => {
   // Show loading state
   if (loading) {
@@ -70,17 +70,23 @@ const ViewSwitchboard = ({
   const getDefaultRange = (forRangeslider = false) => {
     if (!data?.ground_truth || !selectedDates.length) return undefined;
 
-    const firstGroundTruthDate = new Date(data.ground_truth.dates?.[0] || selectedDates[0]);
-    const lastGroundTruthDate = new Date(data.ground_truth.dates?.slice(-1)[0] || selectedDates[0]);
+    const firstGroundTruthDate = new Date(
+      data.ground_truth.dates?.[0] || selectedDates[0],
+    );
+    const lastGroundTruthDate = new Date(
+      data.ground_truth.dates?.slice(-1)[0] || selectedDates[0],
+    );
 
     if (forRangeslider) {
       const rangesliderEnd = new Date(lastGroundTruthDate);
-      rangesliderEnd.setDate(rangesliderEnd.getDate() + (CHART_CONSTANTS.RANGESLIDER_WEEKS_AFTER * 7));
-      
+      rangesliderEnd.setDate(
+        rangesliderEnd.getDate() + CHART_CONSTANTS.RANGESLIDER_WEEKS_AFTER * 7,
+      );
+
       // Convert to YYYY-MM-DD strings
       return [
-        firstGroundTruthDate.toISOString().split('T')[0],
-        rangesliderEnd.toISOString().split('T')[0]
+        firstGroundTruthDate.toISOString().split("T")[0],
+        rangesliderEnd.toISOString().split("T")[0],
       ];
     }
 
@@ -90,21 +96,25 @@ const ViewSwitchboard = ({
     const startDate = new Date(firstDate);
     const endDate = new Date(lastDate);
 
-    startDate.setDate(startDate.getDate() - (CHART_CONSTANTS.DEFAULT_WEEKS_BEFORE * 7));
-    endDate.setDate(endDate.getDate() + (CHART_CONSTANTS.DEFAULT_WEEKS_AFTER * 7));
+    startDate.setDate(
+      startDate.getDate() - CHART_CONSTANTS.DEFAULT_WEEKS_BEFORE * 7,
+    );
+    endDate.setDate(
+      endDate.getDate() + CHART_CONSTANTS.DEFAULT_WEEKS_AFTER * 7,
+    );
 
     // Convert to YYYY-MM-DD strings
     return [
-      startDate.toISOString().split('T')[0],
-      endDate.toISOString().split('T')[0]
+      startDate.toISOString().split("T")[0],
+      endDate.toISOString().split("T")[0],
     ];
   };
 
   // Render appropriate view based on viewType
   switch (viewType) {
-    case 'fludetailed':
-    case 'flu_forecasts':
-    case 'flu_peak':
+    case "fludetailed":
+    case "flu_forecasts":
+    case "flu_peak":
       return (
         <FluView
           data={data}
@@ -124,7 +134,7 @@ const ViewSwitchboard = ({
         />
       );
 
-    case 'rsv_forecasts':
+    case "rsv_forecasts":
       return (
         <RSVView
           data={data}
@@ -140,8 +150,8 @@ const ViewSwitchboard = ({
         />
       );
 
-    case 'covid_forecasts':
-      return(
+    case "covid_forecasts":
+      return (
         <COVID19View
           data={data}
           metadata={metadata}
@@ -156,14 +166,14 @@ const ViewSwitchboard = ({
         />
       );
 
-    case 'nhsnall':
+    case "nhsnall":
       return (
         <NHSNView // gets its data from within NHSNView.jsx file
           location={location}
         />
       );
 
-    case 'metrocast_forecasts': 
+    case "metrocast_forecasts":
       return (
         <MetroCastView
           data={data}
@@ -182,7 +192,9 @@ const ViewSwitchboard = ({
       return (
         <Center h="100%">
           <Stack align="center" gap="md">
-            <Text size="lg" fw={600}>Unknown View Type</Text>
+            <Text size="lg" fw={600}>
+              Unknown View Type
+            </Text>
             <Text c="dimmed" ta="center">
               The requested view type "{viewType}" is not supported.
             </Text>

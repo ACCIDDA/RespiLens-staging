@@ -1,22 +1,22 @@
-import { useMemo, useCallback } from 'react';
-import { Text } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
-import { useForecastData } from '../hooks/useForecastData';
-import { DATASETS } from '../config';
-import { useView } from '../hooks/useView';
-import OverviewGraphCard from './OverviewGraphCard';
-import useOverviewPlot from '../hooks/useOverviewPlot';
+import { useMemo, useCallback } from "react";
+import { Text } from "@mantine/core";
+import { IconChevronRight } from "@tabler/icons-react";
+import { useForecastData } from "../hooks/useForecastData";
+import { DATASETS } from "../config";
+import { useView } from "../hooks/useView";
+import OverviewGraphCard from "./OverviewGraphCard";
+import useOverviewPlot from "../hooks/useOverviewPlot";
 
 const DEFAULT_TARGETS = {
-  covid_forecasts: 'wk inc covid hosp',
-  flu_forecasts: 'wk inc flu hosp',
-  rsv_forecasts: 'wk inc rsv hosp'
+  covid_forecasts: "wk inc covid hosp",
+  flu_forecasts: "wk inc flu hosp",
+  rsv_forecasts: "wk inc rsv hosp",
 };
 
 const VIEW_TO_DATASET = {
-  covid_forecasts: 'covid',
-  flu_forecasts: 'flu',
-  rsv_forecasts: 'rsv'
+  covid_forecasts: "covid",
+  flu_forecasts: "flu",
+  rsv_forecasts: "rsv",
 };
 
 const getRangeAroundDate = (dateStr, weeksBefore = 4, weeksAfter = 4) => {
@@ -29,17 +29,14 @@ const getRangeAroundDate = (dateStr, weeksBefore = 4, weeksAfter = 4) => {
   const end = new Date(baseDate);
   end.setDate(end.getDate() + weeksAfter * 7);
 
-  return [
-    start.toISOString().split('T')[0],
-    end.toISOString().split('T')[0]
-  ];
+  return [start.toISOString().split("T")[0], end.toISOString().split("T")[0]];
 };
 
 const buildIntervalTraces = (forecast, model) => {
-  if (!forecast || forecast.type !== 'quantile') return null;
+  if (!forecast || forecast.type !== "quantile") return null;
 
   const predictionEntries = Object.values(forecast.predictions || {}).sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
+    (a, b) => new Date(a.date) - new Date(b.date),
   );
 
   const x = [];
@@ -57,7 +54,13 @@ const buildIntervalTraces = (forecast, model) => {
     const lower50Index = quantiles.indexOf(0.25);
     const upper50Index = quantiles.indexOf(0.75);
 
-    if (medianIndex !== -1 && lower95Index !== -1 && upper95Index !== -1 && lower50Index !== -1 && upper50Index !== -1) {
+    if (
+      medianIndex !== -1 &&
+      lower95Index !== -1 &&
+      upper95Index !== -1 &&
+      lower50Index !== -1 &&
+      upper50Index !== -1
+    ) {
       x.push(pred.date);
       median.push(values[medianIndex]);
       lower95.push(values[lower95Index]);
@@ -74,105 +77,130 @@ const buildIntervalTraces = (forecast, model) => {
       x,
       y: upper95,
       name: `${model} 95% interval`,
-      type: 'scatter',
-      mode: 'lines',
+      type: "scatter",
+      mode: "lines",
       line: { width: 0 },
       showlegend: false,
-      hoverinfo: 'skip'
+      hoverinfo: "skip",
     },
     {
       x,
       y: lower95,
       name: `${model} 95% interval`,
-      type: 'scatter',
-      mode: 'lines',
-      fill: 'tonexty',
-      fillcolor: 'rgba(34, 139, 230, 0.15)',
+      type: "scatter",
+      mode: "lines",
+      fill: "tonexty",
+      fillcolor: "rgba(34, 139, 230, 0.15)",
       line: { width: 0 },
       showlegend: false,
-      hoverinfo: 'skip'
+      hoverinfo: "skip",
     },
     {
       x,
       y: upper50,
       name: `${model} 50% interval`,
-      type: 'scatter',
-      mode: 'lines',
+      type: "scatter",
+      mode: "lines",
       line: { width: 0 },
       showlegend: false,
-      hoverinfo: 'skip'
+      hoverinfo: "skip",
     },
     {
       x,
       y: lower50,
       name: `${model} 50% interval`,
-      type: 'scatter',
-      mode: 'lines',
-      fill: 'tonexty',
-      fillcolor: 'rgba(34, 139, 230, 0.25)',
+      type: "scatter",
+      mode: "lines",
+      fill: "tonexty",
+      fillcolor: "rgba(34, 139, 230, 0.25)",
       line: { width: 0 },
       showlegend: false,
-      hoverinfo: 'skip'
+      hoverinfo: "skip",
     },
     {
       x,
       y: median,
       name: `${model} median`,
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: { width: 2, color: '#228be6' },
-      marker: { size: 4 }
-    }
+      type: "scatter",
+      mode: "lines+markers",
+      line: { width: 2, color: "#228be6" },
+      marker: { size: 4 },
+    },
   ];
 };
 
 const PathogenOverviewGraph = ({ viewType, title, location }) => {
   const { viewType: activeViewType, setViewType } = useView();
-  const resolvedLocation = location || 'US';
-  const { data, loading, error, availableDates, availableTargets, models } = useForecastData(resolvedLocation, viewType);
+  const resolvedLocation = location || "US";
+  const { data, loading, error, availableDates, availableTargets, models } =
+    useForecastData(resolvedLocation, viewType);
   const datasetKey = VIEW_TO_DATASET[viewType];
   const datasetConfig = datasetKey ? DATASETS[datasetKey] : null;
-
-  const selectedDate = availableDates[availableDates.length - 1];
   const preferredTarget = DEFAULT_TARGETS[viewType];
-  const selectedTarget = preferredTarget && availableTargets.includes(preferredTarget)
-    ? preferredTarget
-    : availableTargets[0];
+  const selectedTarget =
+    preferredTarget && availableTargets.includes(preferredTarget)
+      ? preferredTarget
+      : availableTargets[0];
+  // conditional logic to return latest date for which there is ensemble forecast
+  const selectedDate = useMemo(() => {
+    if (!availableDates.length || !models.length) return null;
+    const preferredModel = datasetConfig?.defaultModel;
+    for (let i = availableDates.length - 1; i >= 0; i--) {
+      const date = availableDates[i];
+      const hasModelData =
+        data?.forecasts?.[date]?.[selectedTarget]?.[preferredModel];
 
-  const selectedModel = datasetConfig?.defaultModel && models.includes(datasetConfig.defaultModel)
-    ? datasetConfig.defaultModel
-    : models[0];
-
-  const chartRange = useMemo(() => getRangeAroundDate(selectedDate), [selectedDate]);
-  const isActive = datasetConfig?.views?.some((view) => view.value === activeViewType) ?? false;
-
-  const buildTraces = useCallback((forecastData) => {
-    if (!forecastData || !selectedTarget) return [];
-    const groundTruth = forecastData.ground_truth;
-    const groundTruthValues = groundTruth?.[selectedTarget];
-    const groundTruthTrace = groundTruthValues
-      ? {
-        x: groundTruth.dates || [],
-        y: groundTruthValues,
-        name: 'Observed',
-        type: 'scatter',
-        mode: 'lines+markers',
-        line: { color: '#1f1f1f', width: 2, dash: 'dash' },
-        marker: { size: 3 }
+      if (hasModelData) {
+        return date;
       }
-      : null;
+    }
+    return availableDates[availableDates.length - 1];
+  }, [availableDates, data, selectedTarget, datasetConfig, models]);
+  // below is logic to simply use most recent date (doesn't account for lag in ensemble forecast submission)
+  // const selectedDate = availableDates[availableDates.length - 1];
+  const selectedModel =
+    datasetConfig?.defaultModel && models.includes(datasetConfig.defaultModel)
+      ? datasetConfig.defaultModel
+      : models[0];
 
-    const forecast = selectedDate && selectedTarget && selectedModel
-      ? forecastData.forecasts?.[selectedDate]?.[selectedTarget]?.[selectedModel]
-      : null;
+  const chartRange = useMemo(
+    () => getRangeAroundDate(selectedDate),
+    [selectedDate],
+  );
+  const isActive =
+    datasetConfig?.views?.some((view) => view.value === activeViewType) ??
+    false;
 
-    const intervalTraces = buildIntervalTraces(forecast, selectedModel);
+  const buildTraces = useCallback(
+    (forecastData) => {
+      if (!forecastData || !selectedTarget) return [];
+      const groundTruth = forecastData.ground_truth;
+      const groundTruthValues = groundTruth?.[selectedTarget];
+      const groundTruthTrace = groundTruthValues
+        ? {
+            x: groundTruth.dates || [],
+            y: groundTruthValues,
+            name: "Observed",
+            type: "scatter",
+            mode: "lines+markers",
+            line: { color: "#1f1f1f", width: 2, dash: "dash" },
+            marker: { size: 3 },
+          }
+        : null;
 
-    return [
-      groundTruthTrace,
-      ...(intervalTraces || [])
-    ].filter(Boolean);
-  }, [selectedDate, selectedTarget, selectedModel]);
+      const forecast =
+        selectedDate && selectedTarget && selectedModel
+          ? forecastData.forecasts?.[selectedDate]?.[selectedTarget]?.[
+              selectedModel
+            ]
+          : null;
+
+      const intervalTraces = buildIntervalTraces(forecast, selectedModel);
+
+      return [groundTruthTrace, ...(intervalTraces || [])].filter(Boolean);
+    },
+    [selectedDate, selectedTarget, selectedModel],
+  );
 
   const { traces, layout } = useOverviewPlot({
     data,
@@ -180,22 +208,29 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
     xRange: chartRange,
     yPaddingTopRatio: 0.1,
     yPaddingBottomRatio: 0.1,
-    yMinFloor: 0
+    yMinFloor: 0,
   });
 
-  const locationLabel = resolvedLocation === 'US' ? 'US national view' : resolvedLocation;
+  const locationLabel =
+    resolvedLocation === "US" ? "US national view" : resolvedLocation;
 
   return (
     <OverviewGraphCard
       title={title}
-      meta={selectedDate ? <Text size="xs" c="dimmed">{selectedDate}</Text> : null}
+      meta={
+        selectedDate ? (
+          <Text size="xs" c="dimmed">
+            {selectedDate}
+          </Text>
+        ) : null
+      }
       loading={loading}
       loadingLabel="Loading data..."
       error={error}
       traces={traces}
       layout={layout}
       emptyLabel="No data available."
-      actionLabel={isActive ? 'Viewing' : 'View forecasts'}
+      actionLabel={isActive ? "Viewing" : "View forecasts"}
       actionActive={isActive}
       onAction={() => setViewType(datasetConfig?.defaultView || viewType)}
       actionIcon={<IconChevronRight size={14} />}

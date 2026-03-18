@@ -29,8 +29,8 @@ export const CHART_CONFIG = {
    * Values are strings to match CSS/SVG opacity format
    */
   opacity: {
-    ci95: '10', // 95% confidence interval (lighter)
-    ci50: '30', // 50% confidence interval (darker)
+    ci95: "10", // 95% confidence interval (lighter)
+    ci50: "30", // 50% confidence interval (darker)
   },
 
   /**
@@ -44,7 +44,7 @@ export const CHART_CONFIG = {
    * Colors used in the Forecastle game for user-drawn forecasts
    */
   forecastleColors: {
-    interval95: 'rgba(220, 20, 60, 0.25)', // Crimson with transparency
-    interval50: 'rgba(220, 20, 60, 0.45)', // Crimson with more opacity
+    interval95: "rgba(220, 20, 60, 0.25)", // Crimson with transparency
+    interval50: "rgba(220, 20, 60, 0.45)", // Crimson with more opacity
   },
 };

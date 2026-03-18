@@ -1,4 +1,4 @@
-import { DATASETS } from '../config/datasets';
+import { DATASETS } from "../config/datasets";
 
 export const getDatasetTitleFromView = (viewType) => {
   if (!viewType) return null;
