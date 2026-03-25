@@ -19,6 +19,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { getSavedPlots, deletePlot } from "../../utils/plotStorage";
+import MiniPlot from "./MiniPlot";
 
 const MyPlots = () => {
   const [userSavedPlots, setUserSavedPlots] = useState([]);
@@ -108,103 +109,134 @@ const MyPlots = () => {
                 radius="md"
                 withBorder
                 shadow="md"
-                style={{ backgroundColor: "var(--mantine-color-body)" }}
+                style={{
+                  backgroundColor: "var(--mantine-color-body)",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
               >
-                <Stack gap="sm">
-                  <Group justify="space-between">
-                    <Badge color="gray" variant="outline" size="xs">
-                      {plot.viewType.replace(/_/g, " ").toUpperCase()}
-                    </Badge>
-                    <Button
-                      variant="subtle"
-                      color="red"
-                      size="compact-xs"
-                      leftSection={<IconTrash size={14} />}
-                      onClick={() => handleDelete(plot.id)}
+                <Stack gap="sm" justify="space-between" h="100%">
+                  <Box>
+                    <Group justify="space-between" mb="xs">
+                      <Badge color="gray" variant="outline" size="xs">
+                        {plot.viewType.replace(/_/g, " ").toUpperCase()}
+                      </Badge>
+                      <Button
+                        variant="subtle"
+                        color="red"
+                        size="compact-xs"
+                        leftSection={<IconTrash size={14} />}
+                        onClick={() => handleDelete(plot.id)}
+                      >
+                        Remove
+                      </Button>
+                    </Group>
+
+                    {/* MiniPlot visualization */}
+                    <Paper
+                      withBorder
+                      radius="sm"
+                      bg="gray.0"
+                      mb="sm"
+                      style={{ overflow: "hidden" }}
                     >
-                      Remove
-                    </Button>
-                  </Group>
-                  <Title order={3} c="blue.7">
-                    {plot.settings.location.toUpperCase()}
-                  </Title>
-                  <Divider variant="dashed" />
+                      <MiniPlot plot={plot} />
+                    </Paper>
 
-                  {/* DATES SECTION */}
-                  {plot.settings.dates && plot.settings.dates.length > 0 && (
-                    <Stack gap={4}>
-                      <Text size="xs" fw={700} c="dimmed">
-                        DATES
-                      </Text>
-                      <Group gap={4}>
-                        {plot.settings.dates.slice(0, 2).map((d) => (
-                          <Badge key={d} size="xs" variant="light" color="blue">
-                            {d}
-                          </Badge>
-                        ))}
-                        {plot.settings.dates.length > 2 && (
-                          <Text size="xs" c="dimmed">
-                            +{plot.settings.dates.length - 2} more
-                          </Text>
-                        )}
-                      </Group>
-                    </Stack>
-                  )}
+                    <Title order={3} c="blue.7">
+                      {plot.settings.location.toUpperCase()}
+                    </Title>
 
-                  <Stack gap={4}>
-                    <Text size="xs" fw={700} c="dimmed">
-                      TARGET
-                    </Text>
-                    <Text size="sm" lineClamp={1} fw={500}>
-                      {plot.settings.target}
-                    </Text>
-                  </Stack>
+                    <Divider variant="dashed" my="sm" />
 
-                  {plot.settings.models && plot.settings.models.length > 0 && (
-                    <Stack gap={4}>
-                      <Text size="xs" fw={700} c="dimmed">
-                        MODELS
-                      </Text>
-                      <Group gap={4}>
-                        {plot.settings.models.slice(0, 3).map((m) => (
-                          <Badge key={m} size="xs" variant="light" color="gray">
-                            {m}
-                          </Badge>
-                        ))}
-                        {plot.settings.models.length > 3 && (
-                          <Text size="xs" c="dimmed">
-                            +{plot.settings.models.length - 3} more
-                          </Text>
-                        )}
-                      </Group>
-                    </Stack>
-                  )}
-
-                  {plot.settings.columns &&
-                    plot.settings.columns.length > 0 && (
-                      <Stack gap={4}>
+                    {/* dates */}
+                    {plot.settings.dates && plot.settings.dates.length > 0 && (
+                      <Stack gap={4} mb="sm">
                         <Text size="xs" fw={700} c="dimmed">
-                          COLUMNS
+                          DATES
                         </Text>
                         <Group gap={4}>
-                          {plot.settings.columns.slice(0, 3).map((m) => (
+                          {plot.settings.dates.slice(0, 2).map((d) => (
                             <Badge
-                              key={m}
+                              key={d}
                               size="xs"
                               variant="light"
-                              color="gray"
+                              color="blue"
                             >
-                              {m}
+                              {d}
                             </Badge>
                           ))}
-                          {plot.settings.columns.length > 3 && (
+                          {plot.settings.dates.length > 2 && (
                             <Text size="xs" c="dimmed">
-                              +{plot.settings.columns.length - 3} more
+                              +{plot.settings.dates.length - 2} more
                             </Text>
                           )}
                         </Group>
                       </Stack>
                     )}
+
+                    <Stack gap={4} mb="sm">
+                      <Text size="xs" fw={700} c="dimmed">
+                        TARGET
+                      </Text>
+                      <Text size="sm" lineClamp={1} fw={500}>
+                        {plot.settings.target}
+                      </Text>
+                    </Stack>
+
+                    {plot.settings.models &&
+                      plot.settings.models.length > 0 && (
+                        <Stack gap={4} mb="sm">
+                          <Text size="xs" fw={700} c="dimmed">
+                            MODELS
+                          </Text>
+                          <Group gap={4}>
+                            {plot.settings.models.slice(0, 3).map((m) => (
+                              <Badge
+                                key={m}
+                                size="xs"
+                                variant="light"
+                                color="gray"
+                              >
+                                {m}
+                              </Badge>
+                            ))}
+                            {plot.settings.models.length > 3 && (
+                              <Text size="xs" c="dimmed">
+                                +{plot.settings.models.length - 3} more
+                              </Text>
+                            )}
+                          </Group>
+                        </Stack>
+                      )}
+
+                    {plot.settings.columns &&
+                      plot.settings.columns.length > 0 && (
+                        <Stack gap={4}>
+                          <Text size="xs" fw={700} c="dimmed">
+                            COLUMNS
+                          </Text>
+                          <Group gap={4}>
+                            {plot.settings.columns.slice(0, 3).map((m) => (
+                              <Badge
+                                key={m}
+                                size="xs"
+                                variant="light"
+                                color="gray"
+                              >
+                                {m}
+                              </Badge>
+                            ))}
+                            {plot.settings.columns.length > 3 && (
+                              <Text size="xs" c="dimmed">
+                                +{plot.settings.columns.length - 3} more
+                              </Text>
+                            )}
+                          </Group>
+                        </Stack>
+                      )}
+                  </Box>
+
                   <Button
                     component="a"
                     href={plot.fullUrl}
