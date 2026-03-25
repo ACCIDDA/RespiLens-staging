@@ -22,6 +22,8 @@ export const extractPlotData = (viewType, href, data) => {
   let columns = [];
   let models = [];
   let dates = [];
+  let scale = "";
+  let intervals = [];
 
   switch (viewType) {
     case "covid_forecasts":
@@ -52,6 +54,12 @@ export const extractPlotData = (viewType, href, data) => {
           );
         }
       }
+      // advanced controls:
+      scale = params.has("scale") ? params.get("scale") : "linear";
+      const covidIntervalsString = params.get("intervals");
+      intervals = covidIntervalsString
+        ? covidIntervalsString.split(",")
+        : ["median", "ci50", "ci95"];
       break;
 
     case "flu_forecasts":
@@ -83,6 +91,11 @@ export const extractPlotData = (viewType, href, data) => {
           );
         }
       }
+      scale = params.has("scale") ? params.get("scale") : "linear";
+      const fluIntervalsString = params.get("intervals");
+      intervals = fluIntervalsString
+        ? fluIntervalsString.split(",")
+        : ["median", "ci50", "ci95"];
       break;
 
     case "rsv_forecasts":
@@ -113,6 +126,11 @@ export const extractPlotData = (viewType, href, data) => {
           );
         }
       }
+      scale = params.has("scale") ? params.get("scale") : "linear";
+      const rsvIntervalsString = params.get("intervals");
+      intervals = rsvIntervalsString
+        ? rsvIntervalsString.split(",")
+        : ["median", "ci50", "ci95"];
       break;
 
     case "metrocast_forecasts":
@@ -141,6 +159,11 @@ export const extractPlotData = (viewType, href, data) => {
           );
         }
       }
+      scale = params.has("scale") ? params.get("scale") : "linear";
+      const metrocastIntervalsString = params.get("intervals");
+      intervals = metrocastIntervalsString
+        ? metrocastIntervalsString.split(",")
+        : ["median", "ci50", "ci95"];
       break;
 
     case "nhsnall":
@@ -157,6 +180,7 @@ export const extractPlotData = (viewType, href, data) => {
           ? nhsnColsFromUrl
           : ["totalconfflunewadm", "totalconfc19newadm", "totalconfrsvnewadm"]; // TODO: slug:longform mapping
       dates = [currentDate]; // TODO: handle the range slider?? if they have moved it, it is uncaptured
+      scale = params.has("scale") ? params.get("scale") : "linear";
       break;
 
     default:
@@ -179,6 +203,8 @@ export const extractPlotData = (viewType, href, data) => {
       columns,
       models,
       dates,
+      scale,
+      intervals,
     },
   };
 
