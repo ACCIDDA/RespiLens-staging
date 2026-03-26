@@ -86,8 +86,41 @@ const MiniPlot = ({ plot }) => {
 
   const finalTraces = isNHSN ? nhsnTraces : forecastTraces;
 
-  const layout = useMemo(
-    () => ({
+  const layout = useMemo(() => {
+    let xRange = undefined;
+
+    if (data) {
+      if (isNHSN && data.series?.dates?.length > 0) {
+        const lastDate = new Date(
+          data.series.dates[data.series.dates.length - 1],
+        );
+        const startDate = new Date(lastDate);
+        startDate.setMonth(startDate.getMonth() - 3);
+        xRange = [
+          startDate.toISOString().split("T")[0],
+          data.series.dates[data.series.dates.length - 1],
+        ];
+      } else if (!isNHSN && plot.settings.dates?.length > 0) {
+        const sortedDates = [...plot.settings.dates].sort();
+
+        const earliestDate = new Date(sortedDates[0]);
+        const latestDate = new Date(sortedDates[sortedDates.length - 1]);
+        // 3 month lead to first date
+        const startDate = new Date(earliestDate);
+        startDate.setMonth(startDate.getMonth() - 3);
+
+        // 6 week gap after last date
+        const endDate = new Date(latestDate);
+        endDate.setDate(endDate.getDate() + 42);
+
+        xRange = [
+          startDate.toISOString().split("T")[0],
+          endDate.toISOString().split("T")[0],
+        ];
+      }
+    }
+
+    return {
       autosize: true,
       height: 180,
       margin: { l: 35, r: 10, t: 10, b: 35 },
@@ -99,20 +132,7 @@ const MiniPlot = ({ plot }) => {
         showgrid: false,
         fixedrange: true,
         tickfont: { size: 8 },
-        // Show the last 3 months for surveillance data ?
-        range:
-          isNHSN && data?.series?.dates?.length > 0
-            ? [
-                (() => {
-                  const lastDate = new Date(
-                    data.series.dates[data.series.dates.length - 1],
-                  );
-                  lastDate.setMonth(lastDate.getMonth() - 3);
-                  return lastDate.toISOString().split("T")[0];
-                })(),
-                data.series.dates[data.series.dates.length - 1],
-              ]
-            : undefined,
+        range: xRange,
       },
       yaxis: {
         showgrid: true,
@@ -132,9 +152,8 @@ const MiniPlot = ({ plot }) => {
             line: { color: "red", width: 1, dash: "dash" },
           }))
         : [],
-    }),
-    [colorScheme, plot.settings, isNHSN, data],
-  );
+    };
+  }, [colorScheme, plot.settings, isNHSN, data]);
 
   if (loading)
     return (
