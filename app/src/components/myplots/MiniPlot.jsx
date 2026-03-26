@@ -88,6 +88,7 @@ const MiniPlot = ({ plot }) => {
 
   const layout = useMemo(() => {
     let xRange = undefined;
+    let yRange = undefined;
 
     if (data) {
       if (isNHSN && data.series?.dates?.length > 0) {
@@ -118,12 +119,32 @@ const MiniPlot = ({ plot }) => {
           endDate.toISOString().split("T")[0],
         ];
       }
+
+      if (xRange && finalTraces?.length > 0) {
+        const [viewStart, viewEnd] = xRange;
+        let maxY = 0;
+
+        finalTraces.forEach((trace) => {
+          if (!trace.x || !trace.y) return;
+          trace.x.forEach((xVal, i) => {
+            if (xVal >= viewStart && xVal <= viewEnd) {
+              const yVal = trace.y[i];
+              if (yVal !== null && !isNaN(yVal)) {
+                maxY = Math.max(maxY, yVal);
+              }
+            }
+          });
+        });
+
+        const padding = maxY === 0 ? 1 : maxY * 0.15;
+        yRange = [0, maxY + padding];
+      }
     }
 
     return {
       autosize: true,
       height: 180,
-      margin: { l: 35, r: 10, t: 10, b: 35 },
+      margin: { l: 45, r: 10, t: 10, b: 35 },
       showlegend: false,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       paper_bgcolor: "rgba(0,0,0,0)",
@@ -140,6 +161,7 @@ const MiniPlot = ({ plot }) => {
         fixedrange: true,
         tickfont: { size: 8 },
         type: plot.settings.scale === "log" ? "log" : "linear",
+        range: plot.settings.scale === "log" ? undefined : yRange, // Set the calculated range
       },
       shapes: !isNHSN
         ? (plot.settings.dates || []).map((date) => ({
@@ -153,7 +175,7 @@ const MiniPlot = ({ plot }) => {
           }))
         : [],
     };
-  }, [colorScheme, plot.settings, isNHSN, data]);
+  }, [colorScheme, plot.settings, isNHSN, data, finalTraces]);
 
   if (loading)
     return (
