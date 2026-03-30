@@ -54,24 +54,20 @@ const MiniPlot = ({ plot }) => {
   const nhsnTraces = useMemo(() => {
     if (!isNHSN || !data?.series) return [];
 
-    const isPercentage = plot.settings.target?.includes("%");
     const dateAxis = data.series.dates;
+    const applySqrt = plot.settings.scale === "sqrt";
 
     return (plot.settings.columns || [])
       .map((slug, index) => {
         const longformName = nhsnSlugToNameMap[slug] || slug;
         const rawY = data.series[longformName] || [];
-
-        const yValues = isPercentage
-          ? rawY.map((v) => (v !== null ? v * 100 : v))
+        const yValues = applySqrt
+          ? rawY.map((v) => (v !== null ? Math.sqrt(Math.max(0, v)) : v))
           : rawY;
 
         return {
           x: dateAxis,
-          y:
-            plot.settings.scale === "sqrt"
-              ? yValues.map((v) => Math.sqrt(Math.max(0, v)))
-              : yValues,
+          y: yValues,
           name: longformName,
           type: "scatter",
           mode: "lines",
@@ -106,11 +102,9 @@ const MiniPlot = ({ plot }) => {
 
         const earliestDate = new Date(sortedDates[0]);
         const latestDate = new Date(sortedDates[sortedDates.length - 1]);
-        // 3 month lead to first date
         const startDate = new Date(earliestDate);
         startDate.setMonth(startDate.getMonth() - 3);
 
-        // 6 week gap after last date
         const endDate = new Date(latestDate);
         endDate.setDate(endDate.getDate() + 42);
 
@@ -160,8 +154,9 @@ const MiniPlot = ({ plot }) => {
         gridcolor: colorScheme === "dark" ? "#333" : "#eee",
         fixedrange: true,
         tickfont: { size: 8 },
+        // Use linear for sqrt since the transformation is done in the data array
         type: plot.settings.scale === "log" ? "log" : "linear",
-        range: plot.settings.scale === "log" ? undefined : yRange, // Set the calculated range
+        range: plot.settings.scale === "log" ? undefined : yRange,
       },
       shapes: !isNHSN
         ? (plot.settings.dates || []).map((date) => ({
