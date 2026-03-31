@@ -13,7 +13,11 @@ import {
 import Plot from "react-plotly.js";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
-import { nhsnSlugToNameMap } from "../../utils/mapUtils";
+import {
+  nhsnSlugToNameMap,
+  targetDisplayNameMap,
+  nhsnNameToPrettyNameMap,
+} from "../../utils/mapUtils";
 
 const MiniPlot = ({ plot }) => {
   const [data, setData] = useState(null);
@@ -173,8 +177,20 @@ const MiniPlot = ({ plot }) => {
   }, [colorScheme, plot.settings, isNHSN, data, finalTraces]);
 
   // Helper for hover label content
-  const tooltipContent = useMemo(
-    () => (
+  const tooltipContent = useMemo(() => {
+    const resolvedTarget =
+      targetDisplayNameMap[plot.settings.target] || plot.settings.target;
+    let resolvedColumns = "";
+    if (isNHSN && plot.settings.columns) {
+      resolvedColumns = plot.settings.columns
+        .map((slug) => {
+          const longformName = nhsnSlugToNameMap[slug] || slug;
+          return longformName;
+        })
+        .join(", ");
+    }
+
+    return (
       <Stack gap={4} p={5}>
         <Text
           fw={700}
@@ -187,16 +203,12 @@ const MiniPlot = ({ plot }) => {
         >
           PLOT INFO
         </Text>
-
-        <Group gap={6} wrap="nowrap">
+        <Group gap={6} wrap="nowrap" align="flex-start">
           <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
             TARGET:
           </Text>
-          <Text size="xs" truncate>
-            {plot.settings.target}
-          </Text>
+          <Text size="xs">{resolvedTarget}</Text>
         </Group>
-
         <Group gap={6}>
           <Text size="xs" fw={700}>
             SCALE:
@@ -205,18 +217,14 @@ const MiniPlot = ({ plot }) => {
             {plot.settings.scale?.toUpperCase()}
           </Badge>
         </Group>
-
         <Group gap={6} align="flex-start" wrap="nowrap">
           <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
             {isNHSN ? "COLUMNS:" : "DATES:"}
           </Text>
           <Text size="xs" lineClamp={3}>
-            {isNHSN
-              ? plot.settings.columns?.join(", ")
-              : plot.settings.dates?.join(", ")}
+            {isNHSN ? resolvedColumns : plot.settings.dates?.join(", ")}
           </Text>
         </Group>
-
         {!isNHSN && (
           <Group gap={6} align="flex-start" wrap="nowrap">
             <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
@@ -228,9 +236,8 @@ const MiniPlot = ({ plot }) => {
           </Group>
         )}
       </Stack>
-    ),
-    [plot.settings, isNHSN],
-  );
+    );
+  }, [plot.settings, isNHSN]);
 
   if (loading)
     return (
