@@ -203,7 +203,7 @@ const MiniPlot = ({ plot }) => {
         >
           PLOT INFO
         </Text>
-        <Group gap={6} wrap="nowrap" align="flex-start">
+        <Group gap={6} align="flex-start">
           <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
             TARGET:
           </Text>
@@ -217,16 +217,16 @@ const MiniPlot = ({ plot }) => {
             {plot.settings.scale?.toUpperCase()}
           </Badge>
         </Group>
-        <Group gap={6} align="flex-start" wrap="nowrap">
+        <Group gap={6} align="flex-start">
           <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
             {isNHSN ? "COLUMNS:" : "DATES:"}
           </Text>
-          <Text size="xs" lineClamp={3}>
+          <Text size="xs">
             {isNHSN ? resolvedColumns : plot.settings.dates?.join(", ")}
           </Text>
         </Group>
         {!isNHSN && (
-          <Group gap={6} align="flex-start" wrap="nowrap">
+          <Group gap={6} align="flex-start">
             <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
               MODELS:
             </Text>
@@ -260,7 +260,7 @@ const MiniPlot = ({ plot }) => {
       position="bottom"
       withArrow
       multiline
-      w={280}
+      w={350}
       events={{ hover: true, focus: false, touch: true }}
     >
       <Box h={180} style={{ overflow: "hidden", cursor: "help" }}>
