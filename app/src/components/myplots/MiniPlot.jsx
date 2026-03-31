@@ -13,11 +13,7 @@ import {
 import Plot from "react-plotly.js";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
-import {
-  nhsnSlugToNameMap,
-  targetDisplayNameMap,
-  nhsnNameToPrettyNameMap,
-} from "../../utils/mapUtils";
+import { nhsnSlugToNameMap, targetDisplayNameMap } from "../../utils/mapUtils";
 
 const MiniPlot = ({ plot }) => {
   const [data, setData] = useState(null);
@@ -180,18 +176,9 @@ const MiniPlot = ({ plot }) => {
   const tooltipContent = useMemo(() => {
     const resolvedTarget =
       targetDisplayNameMap[plot.settings.target] || plot.settings.target;
-    let resolvedColumns = "";
-    if (isNHSN && plot.settings.columns) {
-      resolvedColumns = plot.settings.columns
-        .map((slug) => {
-          const longformName = nhsnSlugToNameMap[slug] || slug;
-          return longformName;
-        })
-        .join(", ");
-    }
 
     return (
-      <Stack gap={4} p={5}>
+      <Stack gap={8} p={5}>
         <Text
           fw={700}
           size="xs"
@@ -203,37 +190,55 @@ const MiniPlot = ({ plot }) => {
         >
           PLOT INFO
         </Text>
+
         <Group gap={6} align="flex-start">
           <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
             TARGET:
           </Text>
           <Text size="xs">{resolvedTarget}</Text>
         </Group>
+
         <Group gap={6}>
           <Text size="xs" fw={700}>
             SCALE:
           </Text>
-          <Badge size="xs" variant="outline" color="gray.4">
+          <Badge size="xs" variant="outline" color="blue.3">
             {plot.settings.scale?.toUpperCase()}
           </Badge>
         </Group>
-        <Group gap={6} align="flex-start">
-          <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
+
+        <Stack gap={4}>
+          <Text size="xs" fw={700}>
             {isNHSN ? "COLUMNS:" : "DATES:"}
           </Text>
-          <Text size="xs">
-            {isNHSN ? resolvedColumns : plot.settings.dates?.join(", ")}
-          </Text>
-        </Group>
+          <Group gap={4}>
+            {isNHSN
+              ? plot.settings.columns?.map((slug) => (
+                  <Badge key={slug} size="xs" variant="outline" color="blue.3">
+                    {nhsnSlugToNameMap[slug] || slug}
+                  </Badge>
+                ))
+              : plot.settings.dates?.map((date) => (
+                  <Badge key={date} size="xs" variant="outline" color="blue.3">
+                    {date}
+                  </Badge>
+                ))}
+          </Group>
+        </Stack>
+
         {!isNHSN && (
-          <Group gap={6} align="flex-start">
-            <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
+          <Stack gap={4}>
+            <Text size="xs" fw={700}>
               MODELS:
             </Text>
-            <Text size="xs" lineClamp={3}>
-              {plot.settings.models?.join(", ")}
-            </Text>
-          </Group>
+            <Group gap={4}>
+              {plot.settings.models?.map((model) => (
+                <Badge key={model} size="xs" variant="outline" color="blue.3">
+                  {model}
+                </Badge>
+              ))}
+            </Group>
+          </Stack>
         )}
       </Stack>
     );
