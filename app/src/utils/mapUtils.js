@@ -72,7 +72,7 @@ export const nhsnTargetsToColumnsMap = {
     "Number of Pediatric RSV Admissions, 5-17 years",
     "Number of RSV Admissions, unknown age",
   ],
-  "Hospital Admissions (rates)": [
+  "Hospital Admissions (rate)": [
     "Total Number of Adult COVID-19 Admissions per 100,000 population",
     "Total Number of Adult Influenza Admissions per 100,000 population",
     "Total Number of Adult RSV Admissions per 100,000 population",

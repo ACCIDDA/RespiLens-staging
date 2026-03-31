@@ -27,7 +27,7 @@ import {
 
 const nhsnYAxisLabelMap = {
   "Hospital Admissions (count)": "Patient Count",
-  "Hospital Admissions (rates)": "Rate per 100k",
+  "Hospital Admissions (rate)": "Rate per 100k",
   "Hospital Admissions (%)": "Percent (%)",
   "Bed Capacity (count)": "Bed Count",
   "Bed Capacity (%)": "Percent (%)",
@@ -41,7 +41,7 @@ const getDefaultColumnsForTarget = (target) => {
       "Total Influenza Admissions",
       "Total RSV Admissions",
     ],
-    "Hospital Admissions (rates)": [
+    "Hospital Admissions (rate)": [
       "Total number of COVID-19 Admissions per 100,000 population",
       "Total number of Influenza Admissions per 100,000 population",
       "Total number of RSV Admissions per 100,000 population",

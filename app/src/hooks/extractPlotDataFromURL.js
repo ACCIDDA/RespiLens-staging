@@ -178,13 +178,34 @@ export const extractPlotData = (viewType, href, data) => {
       fullDataPath = `nhsn/${fileName}`;
       target = params.has("nhsn_target")
         ? params.get("nhsn_target")
-        : "Hospital Admissions (rates)";
+        : "Hospital Admissions (count)";
+      // default columns are dependent on target (aka column unit)
       const nhsnColsFromUrl = params.getAll("nhsn_cols");
-      columns =
-        nhsnColsFromUrl.length > 0
-          ? nhsnColsFromUrl
-          : ["totalconfflunewadm", "totalconfc19newadm", "totalconfrsvnewadm"]; // TODO: slug:longform mapping
-      dates = [currentDate]; // TODO: handle the range slider?? if they have moved it, it is uncaptured
+      const defaultColumnSlugsByTarget = {
+        "Hospital Admissions (count)": [
+          "totalconfc19newadm",
+          "totalconfflunewadm",
+          "totalconfrsvnewadm",
+        ],
+        "Hospital Admissions (rate)": [
+          "totalconfc19newadmper100k",
+          "totalconfflunewadmper100k",
+          "totalconfrsvnewadmper100k",
+        ],
+        "Hospital Admissions (%)": [
+          "pctconfc19newadmadult",
+          "pctconfflunewadmadult",
+          "pctconfrsvnewadmadult",
+        ],
+        "Bed Capacity (count)": ["numinptbeds", "numinptbedsocc"],
+        "Bed Capacity (%)": ["pctinptbedsocc"],
+      };
+      if (nhsnColsFromUrl.length > 0) {
+        columns = nhsnColsFromUrl;
+      } else {
+        columns = defaultColumnSlugsByTarget[target] || [];
+      }
+      dates = [currentDate];
       scale = params.has("scale") ? params.get("scale") : "linear";
       viewDisplayName = "NHSN Data";
       break;
