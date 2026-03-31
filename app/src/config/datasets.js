@@ -48,8 +48,8 @@ export const DATASETS = {
   },
   nhsn: {
     shortName: "nhsn",
-    fullName: "NHSN Respiratory Data",
-    titleName: "NHSN Respiratory Data",
+    fullName: "NHSN Surveillance Data",
+    titleName: "NHSN Surveillance Data",
     views: [{ key: "all", label: "All Data", value: "nhsnall" }],
     defaultView: "nhsnall",
     defaultColumn: "Number of Adult COVID-19 Admissions, 18-49 years",
