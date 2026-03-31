@@ -116,16 +116,28 @@ const MyPlots = () => {
               >
                 <Stack gap="sm" justify="space-between" h="100%">
                   <Box>
-                    <Group justify="space-between" mb="xs">
-                      <Badge color="gray" variant="outline" size="xs">
-                        {plot.viewType.replace(/_/g, " ").toUpperCase()}
-                      </Badge>
+                    <Group justify="space-between" mb="xs" wrap="nowrap">
+                      <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                        <Badge
+                          color="gray"
+                          variant="outline"
+                          size="xs"
+                          style={{ flexShrink: 0 }}
+                        >
+                          {plot.viewType.replace(/_/g, " ").toUpperCase()}
+                        </Badge>
+                        <Text fw={700} size="sm" c="blue.7" truncate>
+                          {plot.settings.location.toUpperCase()}
+                        </Text>
+                      </Group>
+
                       <Button
                         variant="subtle"
                         color="red"
                         size="compact-xs"
                         leftSection={<IconTrash size={14} />}
                         onClick={() => handleDelete(plot.id)}
+                        style={{ flexShrink: 0 }}
                       >
                         Remove
                       </Button>
@@ -134,15 +146,10 @@ const MyPlots = () => {
                       withBorder
                       radius="sm"
                       bg="gray.0"
-                      mb="sm"
                       style={{ overflow: "hidden" }}
                     >
                       <MiniPlot plot={plot} />
                     </Paper>
-
-                    <Title order={3} c="blue.7">
-                      {plot.settings.location.toUpperCase()}
-                    </Title>
                   </Box>
 
                   <Button
@@ -153,7 +160,7 @@ const MyPlots = () => {
                     variant="light"
                     color="blue"
                     fullWidth
-                    mt="md"
+                    mt="xs"
                     leftSection={<IconExternalLink size={16} />}
                   >
                     Visit view
