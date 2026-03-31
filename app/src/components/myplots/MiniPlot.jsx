@@ -58,24 +58,20 @@ const MiniPlot = ({ plot }) => {
   const nhsnTraces = useMemo(() => {
     if (!isNHSN || !data?.series) return [];
 
-    const isPercentage = plot.settings.target?.includes("%");
     const dateAxis = data.series.dates;
+    const applySqrt = plot.settings.scale === "sqrt";
 
     return (plot.settings.columns || [])
       .map((slug, index) => {
         const longformName = nhsnSlugToNameMap[slug] || slug;
         const rawY = data.series[longformName] || [];
-
-        const yValues = isPercentage
-          ? rawY.map((v) => (v !== null ? v * 100 : v))
+        const yValues = applySqrt
+          ? rawY.map((v) => (v !== null ? Math.sqrt(Math.max(0, v)) : v))
           : rawY;
 
         return {
           x: dateAxis,
-          y:
-            plot.settings.scale === "sqrt"
-              ? yValues.map((v) => Math.sqrt(Math.max(0, v)))
-              : yValues,
+          y: yValues,
           name: longformName,
           type: "scatter",
           mode: "lines",

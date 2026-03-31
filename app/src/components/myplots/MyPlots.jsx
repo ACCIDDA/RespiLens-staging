@@ -124,7 +124,7 @@ const MyPlots = () => {
                           size="xs"
                           style={{ flexShrink: 0 }}
                         >
-                          {plot.viewType.replace(/_/g, " ").toUpperCase()}
+                          {plot.viewDisplayName.toUpperCase()}
                         </Badge>
                         <Text fw={700} size="sm" c="blue.7" truncate>
                           {plot.settings.location.toUpperCase()}

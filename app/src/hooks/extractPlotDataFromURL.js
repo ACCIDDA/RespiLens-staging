@@ -24,6 +24,7 @@ export const extractPlotData = (viewType, href, data) => {
   let dates = [];
   let scale = "";
   let intervals = [];
+  let viewDisplayName = "";
 
   switch (viewType) {
     case "covid_forecasts":
@@ -60,6 +61,7 @@ export const extractPlotData = (viewType, href, data) => {
       intervals = covidIntervalsString
         ? covidIntervalsString.split(",")
         : ["median", "ci50", "ci95"];
+      viewDisplayName = "COVID-19 Forecasts";
       break;
 
     case "flu_forecasts":
@@ -96,6 +98,7 @@ export const extractPlotData = (viewType, href, data) => {
       intervals = fluIntervalsString
         ? fluIntervalsString.split(",")
         : ["median", "ci50", "ci95"];
+      viewDisplayName = "Flu Forecasts";
       break;
 
     case "rsv_forecasts":
@@ -131,6 +134,7 @@ export const extractPlotData = (viewType, href, data) => {
       intervals = rsvIntervalsString
         ? rsvIntervalsString.split(",")
         : ["median", "ci50", "ci95"];
+      viewDisplayName = "RSV Forecasts";
       break;
 
     case "metrocast_forecasts":
@@ -164,6 +168,7 @@ export const extractPlotData = (viewType, href, data) => {
       intervals = metrocastIntervalsString
         ? metrocastIntervalsString.split(",")
         : ["median", "ci50", "ci95"];
+      viewDisplayName = "Flu Forecasts";
       break;
 
     case "nhsnall":
@@ -181,6 +186,7 @@ export const extractPlotData = (viewType, href, data) => {
           : ["totalconfflunewadm", "totalconfc19newadm", "totalconfrsvnewadm"]; // TODO: slug:longform mapping
       dates = [currentDate]; // TODO: handle the range slider?? if they have moved it, it is uncaptured
       scale = params.has("scale") ? params.get("scale") : "linear";
+      viewDisplayName = "NHSN Data";
       break;
 
     default:
@@ -191,6 +197,7 @@ export const extractPlotData = (viewType, href, data) => {
   const plotData = {
     viewType: viewType,
     fullUrl: href,
+    viewDisplayName,
     id,
     currentDate,
     dataSuffix,
