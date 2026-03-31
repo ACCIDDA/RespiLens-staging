@@ -4,6 +4,10 @@ import {
   Loader,
   Text,
   Box,
+  Stack,
+  Group,
+  Badge,
+  Tooltip,
   useMantineColorScheme,
 } from "@mantine/core";
 import Plot from "react-plotly.js";
@@ -54,20 +58,24 @@ const MiniPlot = ({ plot }) => {
   const nhsnTraces = useMemo(() => {
     if (!isNHSN || !data?.series) return [];
 
+    const isPercentage = plot.settings.target?.includes("%");
     const dateAxis = data.series.dates;
-    const applySqrt = plot.settings.scale === "sqrt";
 
     return (plot.settings.columns || [])
       .map((slug, index) => {
         const longformName = nhsnSlugToNameMap[slug] || slug;
         const rawY = data.series[longformName] || [];
-        const yValues = applySqrt
-          ? rawY.map((v) => (v !== null ? Math.sqrt(Math.max(0, v)) : v))
+
+        const yValues = isPercentage
+          ? rawY.map((v) => (v !== null ? v * 100 : v))
           : rawY;
 
         return {
           x: dateAxis,
-          y: yValues,
+          y:
+            plot.settings.scale === "sqrt"
+              ? yValues.map((v) => Math.sqrt(Math.max(0, v)))
+              : yValues,
           name: longformName,
           type: "scatter",
           mode: "lines",
@@ -99,12 +107,10 @@ const MiniPlot = ({ plot }) => {
         ];
       } else if (!isNHSN && plot.settings.dates?.length > 0) {
         const sortedDates = [...plot.settings.dates].sort();
-
         const earliestDate = new Date(sortedDates[0]);
         const latestDate = new Date(sortedDates[sortedDates.length - 1]);
         const startDate = new Date(earliestDate);
         startDate.setMonth(startDate.getMonth() - 3);
-
         const endDate = new Date(latestDate);
         endDate.setDate(endDate.getDate() + 42);
 
@@ -117,7 +123,6 @@ const MiniPlot = ({ plot }) => {
       if (xRange && finalTraces?.length > 0) {
         const [viewStart, viewEnd] = xRange;
         let maxY = 0;
-
         finalTraces.forEach((trace) => {
           if (!trace.x || !trace.y) return;
           trace.x.forEach((xVal, i) => {
@@ -129,8 +134,7 @@ const MiniPlot = ({ plot }) => {
             }
           });
         });
-
-        const padding = maxY === 0 ? 1 : maxY * 0.15;
+        const padding = maxY === 0 ? 1 : maxY * 0.2;
         yRange = [0, maxY + padding];
       }
     }
@@ -154,9 +158,9 @@ const MiniPlot = ({ plot }) => {
         gridcolor: colorScheme === "dark" ? "#333" : "#eee",
         fixedrange: true,
         tickfont: { size: 8 },
-        // Use linear for sqrt since the transformation is done in the data array
         type: plot.settings.scale === "log" ? "log" : "linear",
         range: plot.settings.scale === "log" ? undefined : yRange,
+        nticks: 5,
       },
       shapes: !isNHSN
         ? (plot.settings.dates || []).map((date) => ({
@@ -171,6 +175,66 @@ const MiniPlot = ({ plot }) => {
         : [],
     };
   }, [colorScheme, plot.settings, isNHSN, data, finalTraces]);
+
+  // Helper for hover label content
+  const tooltipContent = useMemo(
+    () => (
+      <Stack gap={4} p={5}>
+        <Text
+          fw={700}
+          size="xs"
+          c="blue.2"
+          style={{
+            borderBottom: "1px solid rgba(255,255,255,0.2)",
+            marginBottom: 4,
+          }}
+        >
+          PLOT INFO
+        </Text>
+
+        <Group gap={6} wrap="nowrap">
+          <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
+            TARGET:
+          </Text>
+          <Text size="xs" truncate>
+            {plot.settings.target}
+          </Text>
+        </Group>
+
+        <Group gap={6}>
+          <Text size="xs" fw={700}>
+            SCALE:
+          </Text>
+          <Badge size="xs" variant="outline" color="gray.4">
+            {plot.settings.scale?.toUpperCase()}
+          </Badge>
+        </Group>
+
+        <Group gap={6} align="flex-start" wrap="nowrap">
+          <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
+            {isNHSN ? "COLUMNS:" : "DATES:"}
+          </Text>
+          <Text size="xs" lineClamp={3}>
+            {isNHSN
+              ? plot.settings.columns?.join(", ")
+              : plot.settings.dates?.join(", ")}
+          </Text>
+        </Group>
+
+        {!isNHSN && (
+          <Group gap={6} align="flex-start" wrap="nowrap">
+            <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
+              MODELS:
+            </Text>
+            <Text size="xs" lineClamp={3}>
+              {plot.settings.models?.join(", ")}
+            </Text>
+          </Group>
+        )}
+      </Stack>
+    ),
+    [plot.settings, isNHSN],
+  );
 
   if (loading)
     return (
@@ -188,15 +252,24 @@ const MiniPlot = ({ plot }) => {
     );
 
   return (
-    <Box h={180} style={{ overflow: "hidden" }}>
-      <Plot
-        data={finalTraces}
-        layout={layout}
-        config={{ displayModeBar: false, staticPlot: true, responsive: true }}
-        style={{ width: "100%", height: "100%" }}
-        useResizeHandler
-      />
-    </Box>
+    <Tooltip
+      label={tooltipContent}
+      position="bottom"
+      withArrow
+      multiline
+      w={280}
+      events={{ hover: true, focus: false, touch: true }}
+    >
+      <Box h={180} style={{ overflow: "hidden", cursor: "help" }}>
+        <Plot
+          data={finalTraces}
+          layout={layout}
+          config={{ displayModeBar: false, staticPlot: true, responsive: true }}
+          style={{ width: "100%", height: "100%" }}
+          useResizeHandler
+        />
+      </Box>
+    </Tooltip>
   );
 };
 
