@@ -12,12 +12,17 @@ import {
   List,
 } from "@mantine/core";
 import { useView } from "../hooks/useView";
+import { extractPlotData } from "../hooks/extractPlotDataFromURL";
 import DateSelector from "./DateSelector";
 import ViewSwitchboard from "./ViewSwitchboard";
 import ErrorBoundary from "./ErrorBoundary";
 import AboutHubOverlay from "./AboutHubOverlay";
 import FrontPage from "./FrontPage";
-import { IconShare, IconBrandGithub } from "@tabler/icons-react";
+import {
+  IconShare,
+  IconBrandGithub,
+  IconChartScatter,
+} from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
 
 const DataVisualizationContainer = () => {
@@ -50,6 +55,17 @@ const DataVisualizationContainer = () => {
     height: window.innerHeight,
   });
   const clipboard = useClipboard({ timeout: 2000 });
+
+  const [isAdded, setIsAdded] = useState(false);
+  const handleSaveToMyPlots = () => {
+    const plotData = extractPlotData(viewType, window.location.href, data);
+    // visual cue to signal it has been added
+    setIsAdded(true);
+    // Reset text after 2 seconds
+    setTimeout(() => setIsAdded(false), 2000);
+    // Temporary console feedback for development
+    console.log("Saved the plot", plotData);
+  };
 
   // Configuration for AboutHubOverlay based on viewType
   const aboutHubConfig = {
@@ -552,22 +568,38 @@ const DataVisualizationContainer = () => {
                     </AboutHubOverlay>
                   )}
                   {windowSize.width <= 800 && (
-                    <Tooltip
-                      label={
-                        clipboard.copied
-                          ? "Link copied"
-                          : "Copy link to this view"
-                      }
-                    >
-                      <Button
-                        variant="light"
-                        size="xs"
-                        leftSection={<IconShare size={16} />}
-                        onClick={handleShare}
+                    <Group gap="xs">
+                      {viewType !== "flu_peak" && (
+                        <Button
+                          variant="light"
+                          size="xs"
+                          mr="xs"
+                          color={isAdded ? "green" : "blue"}
+                          className={isAdded ? "added-text-pulse" : ""}
+                          leftSection={<IconChartScatter size={16} />}
+                          onClick={handleSaveToMyPlots}
+                        >
+                          {isAdded ? "Added!" : "Add to My Plots"}
+                        </Button>
+                      )}
+                      <Tooltip
+                        label={
+                          clipboard.copied
+                            ? "Link copied"
+                            : "Copy link to this view"
+                        }
                       >
-                        {clipboard.copied ? "URL Copied" : "Share View"}
-                      </Button>
-                    </Tooltip>
+                        <Button
+                          variant="light"
+                          size="xs"
+                          color={clipboard.copied ? "green" : "blue"}
+                          leftSection={<IconShare size={16} />}
+                          onClick={handleShare}
+                        >
+                          {clipboard.copied ? "URL Copied!" : "Share View"}
+                        </Button>
+                      </Tooltip>
+                    </Group>
                   )}
                 </div>
                 {currentDataset?.hasDateSelector && windowSize.width > 800 && (
@@ -585,6 +617,19 @@ const DataVisualizationContainer = () => {
                 )}
                 {windowSize.width > 800 && (
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    {viewType !== "flu_peak" && (
+                      <Button
+                        variant="light"
+                        size="xs"
+                        mr="xs"
+                        color={isAdded ? "green" : "blue"}
+                        className={isAdded ? "added-text-pulse" : ""}
+                        leftSection={<IconChartScatter size={16} />}
+                        onClick={handleSaveToMyPlots}
+                      >
+                        {isAdded ? "Added!" : "Add to My Plots"}
+                      </Button>
+                    )}
                     <Tooltip
                       label={
                         clipboard.copied
@@ -595,10 +640,11 @@ const DataVisualizationContainer = () => {
                       <Button
                         variant="light"
                         size="xs"
+                        color={clipboard.copied ? "green" : "blue"}
                         leftSection={<IconShare size={16} />}
                         onClick={handleShare}
                       >
-                        {clipboard.copied ? "URL Copied" : "Share View"}
+                        {clipboard.copied ? "URL Copied!" : "Share View"}
                       </Button>
                     </Tooltip>
                   </div>

@@ -14,6 +14,7 @@ import {
   IconTrophy,
   IconDashboard,
   IconClipboard,
+  IconChartScatter,
 } from "@tabler/icons-react";
 import MainNavigation from "./MainNavigation";
 import StateSelector from "../StateSelector";
@@ -94,6 +95,12 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       label: "Documentation",
       icon: IconClipboard,
       active: location.pathname.startsWith("/documentation"),
+    },
+    {
+      href: "/myplots",
+      label: "My Plots",
+      icon: IconChartScatter,
+      active: location.pathname.startsWith("/myplots"),
     },
   ];
 

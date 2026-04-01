@@ -27,7 +27,7 @@ import {
 
 const nhsnYAxisLabelMap = {
   "Hospital Admissions (count)": "Patient Count",
-  "Hospital Admissions (rates)": "Rate per 100k",
+  "Hospital Admissions (rate)": "Rate per 100k",
   "Hospital Admissions (%)": "Percent (%)",
   "Bed Capacity (count)": "Bed Count",
   "Bed Capacity (%)": "Percent (%)",
@@ -41,7 +41,7 @@ const getDefaultColumnsForTarget = (target) => {
       "Total Influenza Admissions",
       "Total RSV Admissions",
     ],
-    "Hospital Admissions (rates)": [
+    "Hospital Admissions (rate)": [
       "Total number of COVID-19 Admissions per 100,000 population",
       "Total number of Influenza Admissions per 100,000 population",
       "Total number of RSV Admissions per 100,000 population",
@@ -87,6 +87,20 @@ const NHSNView = ({ location }) => {
 
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
+
+  const getProcessedYValues = useCallback(
+    (columnName, rawValues) => {
+      if (!rawValues) return [];
+      return rawValues.map((val) => {
+        if (val === null || val === undefined) return val;
+        const transformed = val;
+        return chartScale === "sqrt"
+          ? Math.sqrt(Math.max(0, transformed))
+          : transformed;
+      });
+    },
+    [chartScale],
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -206,8 +220,7 @@ const NHSNView = ({ location }) => {
         return newSelectedCols;
       return currentCols;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, selectedTarget, allDataColumns]);
+  }, [loading, selectedTarget, allDataColumns, searchParams]);
 
   useEffect(() => {
     if (
@@ -341,19 +354,10 @@ const NHSNView = ({ location }) => {
       return;
     }
 
-    const isPercentage = selectedTarget && selectedTarget.includes("%");
-    const traces = selectedColumns.map((column) => {
-      const yValues = data.series[column];
-      const processedYValues = isPercentage
-        ? yValues.map((val) =>
-            val !== null && val !== undefined ? val * 100 : val,
-          )
-        : yValues;
-      return {
-        x: data.series.dates,
-        y: processedYValues,
-      };
-    });
+    const currentTraces = selectedColumns.map((column) => ({
+      x: data.series.dates,
+      y: getProcessedYValues(column, data.series[column]),
+    }));
 
     const currentXRange = xAxisRange || defaultRange;
 
@@ -362,15 +366,8 @@ const NHSNView = ({ location }) => {
       return;
     }
 
-    const newYRange = calculateYRange(traces, currentXRange);
-    if (chartScale === "sqrt" && newYRange) {
-      const [minY, maxY] = newYRange;
-      const sqrtMin = Math.sqrt(Math.max(0, minY));
-      const sqrtMax = Math.sqrt(Math.max(0, maxY));
-      setYAxisRange([sqrtMin, sqrtMax]);
-    } else {
-      setYAxisRange(newYRange);
-    }
+    const newYRange = calculateYRange(currentTraces, currentXRange);
+    setYAxisRange(newYRange);
   }, [
     data,
     selectedColumns,
@@ -378,7 +375,7 @@ const NHSNView = ({ location }) => {
     selectedTarget,
     defaultRange,
     calculateYRange,
-    chartScale,
+    getProcessedYValues,
   ]);
 
   const handleRelayout = useCallback(
@@ -399,21 +396,12 @@ const NHSNView = ({ location }) => {
 
   const rawTraces = useMemo(() => {
     if (!data) return [];
-    const isPercentage = selectedTarget && selectedTarget.includes("%");
-    return selectedColumns.map((column) => {
-      const yValues = data.series[column];
-      const processedYValues = isPercentage
-        ? yValues.map((val) =>
-            val !== null && val !== undefined ? val * 100 : val,
-          )
-        : yValues;
-      return {
-        x: data.series.dates,
-        y: processedYValues,
-        name: column,
-      };
-    });
-  }, [data, selectedTarget, selectedColumns]);
+    return selectedColumns.map((column) => ({
+      x: data.series.dates,
+      y: getProcessedYValues(column, data.series[column]),
+      name: column,
+    }));
+  }, [data, getProcessedYValues, selectedColumns]);
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
 
@@ -424,22 +412,18 @@ const NHSNView = ({ location }) => {
 
   const traces = useMemo(() => {
     if (!data) return [];
-    const applySqrt = chartScale === "sqrt";
 
-    return rawTraces.map((trace) => {
-      const columnIndex = filteredAvailableColumns.indexOf(trace.name);
-      const transformedY = applySqrt
-        ? trace.y.map((val) =>
-            val === null || val === undefined
-              ? val
-              : Math.sqrt(Math.max(0, val)),
-          )
-        : trace.y;
+    return selectedColumns.map((columnName) => {
+      const columnIndex = filteredAvailableColumns.indexOf(columnName);
+      const processedY = getProcessedYValues(
+        columnName,
+        data.series[columnName],
+      );
 
       return {
-        x: trace.x,
-        y: transformedY,
-        name: trace.name,
+        x: data.series.dates,
+        y: processedY,
+        name: columnName,
         type: "scatter",
         mode: "lines+markers",
         line: {
@@ -449,7 +433,7 @@ const NHSNView = ({ location }) => {
         marker: { size: 6 },
       };
     });
-  }, [data, rawTraces, filteredAvailableColumns, chartScale]);
+  }, [data, selectedColumns, filteredAvailableColumns, getProcessedYValues]);
 
   const layout = useMemo(
     () => ({
@@ -543,16 +527,10 @@ const NHSNView = ({ location }) => {
             const newDefaultRange = getDefaultXRange();
             if (!newDefaultRange || newDefaultRange[0] === null) return;
 
-            const isPct = selectedTarget && selectedTarget.includes("%");
-            const currentTraces = selectedColumns.map((column) => {
-              const yValues = data.series[column];
-              const pYValues = isPct
-                ? yValues.map((val) =>
-                    val !== null && val !== undefined ? val * 100 : val,
-                  )
-                : yValues;
-              return { x: data.series.dates, y: pYValues };
-            });
+            const currentTraces = selectedColumns.map((column) => ({
+              x: data.series.dates,
+              y: getProcessedYValues(column, data.series[column]),
+            }));
 
             const newYRange = calculateYRange(currentTraces, newDefaultRange);
 
@@ -569,7 +547,13 @@ const NHSNView = ({ location }) => {
         },
       ],
     }),
-    [data, selectedTarget, selectedColumns, getDefaultXRange, calculateYRange],
+    [
+      data,
+      selectedColumns,
+      getDefaultXRange,
+      calculateYRange,
+      getProcessedYValues,
+    ],
   );
 
   if (loading)
