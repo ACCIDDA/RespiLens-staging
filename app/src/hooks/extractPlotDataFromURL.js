@@ -26,8 +26,9 @@ export const extractPlotData = (viewType, href, data) => {
   let intervals = [];
   let viewDisplayName = "";
 
+  // forecast views set date dynamically if it is the default date (not present in URL)
   switch (viewType) {
-    case "covid_forecasts":
+    case "covid_forecasts": {
       dataSuffix = "covid19";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
@@ -43,19 +44,16 @@ export const extractPlotData = (viewType, href, data) => {
       if (covidDatesString) {
         dates = covidDatesString.split(",");
       } else {
-        // extract most recent date key from forecasts key of data
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
           const mostRecent = availableDates.sort().pop();
           dates = [mostRecent];
         } else {
-          // throw error otherwise
           throw new Error(
             `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
           );
         }
       }
-      // advanced controls:
       scale = params.has("scale") ? params.get("scale") : "linear";
       const covidIntervalsString = params.get("intervals");
       intervals = covidIntervalsString
@@ -63,9 +61,10 @@ export const extractPlotData = (viewType, href, data) => {
         : ["median", "ci50", "ci95"];
       viewDisplayName = "COVID-19 Forecasts";
       break;
+    }
 
     case "flu_forecasts":
-    case "fludetailed":
+    case "fludetailed": {
       dataSuffix = "flu";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
@@ -81,13 +80,11 @@ export const extractPlotData = (viewType, href, data) => {
       if (fluDatesString) {
         dates = fluDatesString.split(",");
       } else {
-        // extract most recent date key from forecasts key of data
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
           const mostRecent = availableDates.sort().pop();
           dates = [mostRecent];
         } else {
-          // throw error otherwise
           throw new Error(
             `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
           );
@@ -100,8 +97,9 @@ export const extractPlotData = (viewType, href, data) => {
         : ["median", "ci50", "ci95"];
       viewDisplayName = "Flu Forecasts";
       break;
+    }
 
-    case "rsv_forecasts":
+    case "rsv_forecasts": {
       dataSuffix = "rsv";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
@@ -117,13 +115,11 @@ export const extractPlotData = (viewType, href, data) => {
       if (rsvDatesString) {
         dates = rsvDatesString.split(",");
       } else {
-        // extract most recent date key from forecasts key of data
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
           const mostRecent = availableDates.sort().pop();
           dates = [mostRecent];
         } else {
-          // throw error otherwise
           throw new Error(
             `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
           );
@@ -136,8 +132,9 @@ export const extractPlotData = (viewType, href, data) => {
         : ["median", "ci50", "ci95"];
       viewDisplayName = "RSV Forecasts";
       break;
+    }
 
-    case "metrocast_forecasts":
+    case "metrocast_forecasts": {
       dataSuffix = "flu_metrocast";
       location = params.has("location") ? params.get("location") : "colorado";
       fileName = `${location}_${dataSuffix}.json`;
@@ -151,13 +148,11 @@ export const extractPlotData = (viewType, href, data) => {
       if (metrocastDatesString) {
         dates = metrocastDatesString.split(",");
       } else {
-        // extract most recent date key from forecasts key of data
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
           const mostRecent = availableDates.sort().pop();
           dates = [mostRecent];
         } else {
-          // throw error otherwise
           throw new Error(
             `Unable to extract plot data: No dates found in URL and no forecast data available for ${viewType}.`,
           );
@@ -170,8 +165,9 @@ export const extractPlotData = (viewType, href, data) => {
         : ["median", "ci50", "ci95"];
       viewDisplayName = "Flu Forecasts";
       break;
+    }
 
-    case "nhsnall":
+    case "nhsnall": {
       dataSuffix = "nhsn";
       location = params.has("location") ? params.get("location") : "US";
       fileName = `${location}_${dataSuffix}.json`;
@@ -179,7 +175,6 @@ export const extractPlotData = (viewType, href, data) => {
       target = params.has("nhsn_target")
         ? params.get("nhsn_target")
         : "Hospital Admissions (count)";
-      // default columns are dependent on target (aka column unit)
       const nhsnColsFromUrl = params.getAll("nhsn_cols");
       const defaultColumnSlugsByTarget = {
         "Hospital Admissions (count)": [
@@ -202,6 +197,7 @@ export const extractPlotData = (viewType, href, data) => {
       };
       if (nhsnColsFromUrl.length > 0) {
         columns = nhsnColsFromUrl;
+        // default columns are dependent on target (aka column unit)
       } else {
         columns = defaultColumnSlugsByTarget[target] || [];
       }
@@ -209,12 +205,12 @@ export const extractPlotData = (viewType, href, data) => {
       scale = params.has("scale") ? params.get("scale") : "linear";
       viewDisplayName = "NHSN Data";
       break;
+    }
 
     default:
-      throw new Error(`Unknown view type: ${viewType}`); // TODO: handle peak view??
+      throw new Error(`Unknown view type: ${viewType}`); // TODO: handle peak view
   }
 
-  // Construct the finalized plotData object
   const plotData = {
     viewType: viewType,
     fullUrl: href,
@@ -224,7 +220,6 @@ export const extractPlotData = (viewType, href, data) => {
     dataSuffix,
     fileName,
     fullDataPath,
-    // add editorializations from logic above
     settings: {
       location,
       target,
