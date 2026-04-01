@@ -15,6 +15,9 @@ function isLocalStorageAvailable() {
   }
 }
 
+/**
+ * Validates the plot object against the schema defined in extractPlotData.js
+ */
 function isValidPlot(plot) {
   return (
     plot &&
@@ -22,9 +25,13 @@ function isValidPlot(plot) {
     typeof plot.id === "string" &&
     typeof plot.fullUrl === "string" &&
     typeof plot.viewType === "string" &&
+    typeof plot.viewDisplayName === "string" &&
+    typeof plot.fullDataPath === "string" &&
     plot.settings &&
     typeof plot.settings === "object" &&
-    Array.isArray(plot.settings.dates) // Added check for dates array
+    typeof plot.settings.location === "string" &&
+    typeof plot.settings.target === "string" &&
+    Array.isArray(plot.settings.dates)
   );
 }
 
@@ -41,6 +48,7 @@ export function getSavedPlots() {
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
 
+    // Filters out any old/legacy schemas that don't match the new extractPlotData structure
     return parsed.filter((plot) => isValidPlot(plot));
   } catch (error) {
     console.error("Error reading plots from localStorage:", error);
@@ -57,20 +65,23 @@ export function savePlot(plotData) {
   try {
     const plots = getSavedPlots();
 
-    // Check for duplicates based on URL
+    // Check for duplicates based on URL to prevent clutter
     const existingIndex = plots.findIndex(
       (p) => p.fullUrl === plotData.fullUrl,
     );
 
     const plotEntry = {
       ...plotData,
+      // Ensure we have a UUID and a timestamp for sorting
       id: plotData.id || crypto.randomUUID(),
       savedAt: new Date().toISOString(),
     };
 
     if (existingIndex >= 0) {
+      // Update existing entry
       plots[existingIndex] = plotEntry;
     } else {
+      // Add new entry to the top of the list
       plots.unshift(plotEntry);
     }
 
@@ -79,6 +90,8 @@ export function savePlot(plotData) {
   } catch (error) {
     if (error.name === "QuotaExceededError" || error.code === 22) {
       console.error("Storage quota exceeded.");
+    } else {
+      console.error("Failed to save plot:", error);
     }
     return false;
   }
@@ -94,7 +107,7 @@ export function deletePlot(id) {
     const filtered = plots.filter((p) => p.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

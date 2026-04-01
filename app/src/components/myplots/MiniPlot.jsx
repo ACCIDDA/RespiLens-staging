@@ -161,7 +161,8 @@ const MiniPlot = ({ plot }) => {
         ticksuffix:
           plot.settings.target?.includes("%") ||
           plot.settings.target?.includes("pct") ||
-          plot.settings.target?.includes("Percent")
+          plot.settings.target?.includes("Percent") ||
+          plot.settings.target?.includes("percent")
             ? "%"
             : "",
       },
