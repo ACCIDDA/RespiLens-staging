@@ -52,14 +52,15 @@ const InfoOverlay = () => {
         opened={opened}
         onClose={close}
         title={
-          <Group gap="md">
+          <Group gap="sm" wrap="nowrap" align="center">
             <Image
               src="respilens-logo.svg"
               alt="RespiLens logo"
               h={32}
               w={32}
+              fit="contain"
             />
-            <Title order={2} c="blue">
+            <Title order={2} c="blue" style={{ lineHeight: 1 }}>
               RespiLens
             </Title>
           </Group>
