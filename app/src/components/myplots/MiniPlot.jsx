@@ -157,6 +157,12 @@ const MiniPlot = ({ plot }) => {
         type: plot.settings.scale === "log" ? "log" : "linear",
         range: plot.settings.scale === "log" ? undefined : yRange,
         nticks: 5,
+        ticksuffix:
+          plot.settings.target?.includes("%") ||
+          plot.settings.target?.includes("pct") ||
+          plot.settings.target?.includes("Percent")
+            ? "%"
+            : "",
       },
       shapes: !isNHSN
         ? (plot.settings.dates || []).map((date) => ({
