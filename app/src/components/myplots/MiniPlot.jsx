@@ -137,7 +137,7 @@ const MiniPlot = ({ plot }) => {
 
     return {
       autosize: true,
-      height: 180,
+      height: 230,
       margin: { l: 45, r: 10, t: 10, b: 35 },
       showlegend: false,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
@@ -254,13 +254,13 @@ const MiniPlot = ({ plot }) => {
 
   if (loading)
     return (
-      <Center h={180}>
+      <Center h={230}>
         <Loader size="sm" variant="dots" />
       </Center>
     );
   if (error)
     return (
-      <Center h={180}>
+      <Center h={230}>
         <Text size="xs" c="red">
           Error loading chart
         </Text>
@@ -276,7 +276,7 @@ const MiniPlot = ({ plot }) => {
       w={350}
       events={{ hover: true, focus: false, touch: true }}
     >
-      <Box h={180} style={{ overflow: "hidden", cursor: "grab" }}>
+      <Box h={230} style={{ overflow: "hidden", cursor: "grab" }}>
         <Plot
           data={finalTraces}
           layout={layout}

@@ -146,7 +146,7 @@ const MyPlots = () => {
                       withBorder
                       radius="sm"
                       bg="gray.0"
-                      style={{ overflow: "hidden" }}
+                      style={{ overflow: "hidden", height: 230 }}
                     >
                       <MiniPlot plot={plot} />
                     </Paper>
