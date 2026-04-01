@@ -143,9 +143,10 @@ const MiniPlot = ({ plot }) => {
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
+      dragmode: "pan",
       xaxis: {
         showgrid: false,
-        fixedrange: true,
+        fixedrange: false,
         tickfont: { size: 8 },
         range: xRange,
       },
@@ -274,11 +275,16 @@ const MiniPlot = ({ plot }) => {
       w={350}
       events={{ hover: true, focus: false, touch: true }}
     >
-      <Box h={180} style={{ overflow: "hidden", cursor: "help" }}>
+      <Box h={180} style={{ overflow: "hidden", cursor: "grab" }}>
         <Plot
           data={finalTraces}
           layout={layout}
-          config={{ displayModeBar: false, staticPlot: true, responsive: true }}
+          config={{
+            displayModeBar: false,
+            staticPlot: false,
+            scrollZoom: true,
+            responsive: true,
+          }}
           style={{ width: "100%", height: "100%" }}
           useResizeHandler
         />
