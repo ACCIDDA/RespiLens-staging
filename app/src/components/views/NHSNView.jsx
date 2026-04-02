@@ -74,6 +74,7 @@ const NHSNView = ({ location }) => {
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
 
   const [selectedColumns, setSelectedColumns] = useState([]);
+  const hasInteractedRef = useRef(false);
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
 
@@ -195,14 +196,24 @@ const NHSNView = ({ location }) => {
     setFilteredAvailableColumns(filtered);
 
     const urlSlugs = searchParams.getAll("nhsn_cols");
+    const urlTarget = searchParams.get("nhsn_target");
+
+    const isExplicitlyEmpty = urlSlugs.includes("none");
+
     const validUrlCols = urlSlugs
       .map((slug) => nhsnSlugToNameMap[slug])
       .filter((colName) => colName && filtered.includes(colName));
 
     let newSelectedCols;
+
     if (validUrlCols.length > 0) {
       newSelectedCols = validUrlCols;
-    } else if (filtered.length > 0) {
+    } else if (isExplicitlyEmpty) {
+      newSelectedCols = [];
+    } else if (
+      !hasInteractedRef.current ||
+      (urlTarget !== selectedTarget && urlSlugs.length === 0)
+    ) {
       const defaultColumns = getDefaultColumnsForTarget(selectedTarget);
       const filteredDefaults = defaultColumns.filter((col) =>
         filtered.includes(col),
@@ -214,10 +225,11 @@ const NHSNView = ({ location }) => {
     }
 
     setSelectedColumns((currentCols) => {
-      const newSorted = [...newSelectedCols].sort();
-      const currentSorted = [...currentCols].sort();
-      if (JSON.stringify(newSorted) !== JSON.stringify(currentSorted))
+      const sortedNew = [...newSelectedCols].sort();
+      const sortedCurrent = [...currentCols].sort();
+      if (JSON.stringify(sortedNew) !== JSON.stringify(sortedCurrent)) {
         return newSelectedCols;
+      }
       return currentCols;
     });
   }, [loading, selectedTarget, allDataColumns, searchParams]);
@@ -231,18 +243,25 @@ const NHSNView = ({ location }) => {
     ) {
       return;
     }
+
     const currentSearch = window.location.search;
     const newParams = new URLSearchParams(currentSearch);
-    const defaultTarget = availableTargets[0];
-    if (selectedTarget && selectedTarget !== defaultTarget)
-      newParams.set("nhsn_target", selectedTarget);
-    else newParams.delete("nhsn_target");
 
-    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
-    const filteredCols = allDataColumns.filter((col) =>
-      columnsForTarget.includes(col),
-    );
+    // Target Sync
+    const defaultTarget = availableTargets[0];
+    if (selectedTarget && selectedTarget !== defaultTarget) {
+      newParams.set("nhsn_target", selectedTarget);
+    } else {
+      newParams.delete("nhsn_target");
+    }
+
+    // Column Sync
+    newParams.delete("nhsn_cols");
+
     const defaultColumnsArray = getDefaultColumnsForTarget(selectedTarget);
+    const filteredCols = allDataColumns.filter((col) =>
+      (nhsnTargetsToColumnsMap[selectedTarget] || []).includes(col),
+    );
     const filteredDefaults = defaultColumnsArray.filter((col) =>
       filteredCols.includes(col),
     );
@@ -252,20 +271,22 @@ const NHSNView = ({ location }) => {
         : filteredCols.length > 0
           ? [filteredCols[0]]
           : [];
-    const sortedSelected = [...selectedColumns].sort();
-    const sortedDefault = [...defaultColumns].sort();
-    const selectedSlugs = sortedSelected
-      .map((name) => nhsnNameToSlugMap[name])
-      .filter(Boolean);
-    const defaultSlugs = sortedDefault
-      .map((name) => nhsnNameToSlugMap[name])
-      .filter(Boolean);
-    if (JSON.stringify(selectedSlugs) !== JSON.stringify(defaultSlugs)) {
-      newParams.delete("nhsn_cols");
-      selectedSlugs.forEach((slug) => newParams.append("nhsn_cols", slug));
-    } else {
-      newParams.delete("nhsn_cols");
+
+    const isDefault =
+      JSON.stringify([...selectedColumns].sort()) ===
+      JSON.stringify([...defaultColumns].sort());
+
+    if (!isDefault) {
+      if (selectedColumns.length > 0) {
+        selectedColumns.forEach((name) => {
+          const slug = nhsnNameToSlugMap[name];
+          if (slug) newParams.append("nhsn_cols", slug);
+        });
+      } else if (hasInteractedRef.current) {
+        newParams.set("nhsn_cols", "none");
+      }
     }
+
     if (
       newParams.toString() !== new URLSearchParams(currentSearch).toString()
     ) {
@@ -279,6 +300,11 @@ const NHSNView = ({ location }) => {
     loading,
     setSearchParams,
   ]);
+
+  const handleSetSelectedColumns = useCallback((newCols) => {
+    hasInteractedRef.current = true;
+    setSelectedColumns(newCols);
+  }, []);
 
   useEffect(() => {
     if (data) setPlotRevision((p) => p + 1);
@@ -412,6 +438,17 @@ const NHSNView = ({ location }) => {
 
   const traces = useMemo(() => {
     if (!data) return [];
+    if (selectedColumns.length === 0) {
+      return [
+        {
+          x: [data.series.dates[0]],
+          y: [null],
+          type: "scatter",
+          mode: "lines",
+          showlegend: false,
+        },
+      ];
+    }
 
     return selectedColumns.map((columnName) => {
       const columnIndex = filteredAvailableColumns.indexOf(columnName);
@@ -465,7 +502,10 @@ const NHSNView = ({ location }) => {
       yaxis: {
         title: nhsnYAxisLabelMap[selectedTarget] || "Value",
         range: chartScale === "log" ? undefined : yAxisRange,
-        autorange: chartScale === "log" ? true : yAxisRange === null,
+        autorange:
+          chartScale === "log"
+            ? true
+            : yAxisRange === null || selectedColumns.length === 0,
         type: chartScale === "log" ? "log" : "linear",
         tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
         tickvals:
@@ -489,6 +529,21 @@ const NHSNView = ({ location }) => {
       },
       margin: { t: 40, r: 10, l: 60, b: 120 },
       uirevision: plotRevision,
+      annotations:
+        selectedColumns.length === 0
+          ? [
+              {
+                text: "No columns selected",
+                xref: "paper",
+                yref: "paper",
+                showarrow: false,
+                font: {
+                  size: 20,
+                  color: colorScheme === "dark" ? "#5c5f66" : "#adb5bd",
+                },
+              },
+            ]
+          : [],
     }),
     [
       colorScheme,
@@ -602,11 +657,14 @@ const NHSNView = ({ location }) => {
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
-        setSelectedColumns={setSelectedColumns}
+        setSelectedColumns={handleSetSelectedColumns}
         nameMap={nhsnNameToPrettyNameMap}
         selectedTarget={selectedTarget}
         availableTargets={availableTargets}
-        onTargetChange={setSelectedTarget}
+        onTargetChange={(val) => {
+          hasInteractedRef.current = false;
+          setSelectedTarget(val);
+        }}
         loading={loading}
       />
     </Stack>
