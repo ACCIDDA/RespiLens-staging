@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useMantineColorScheme, Stack, Text } from "@mantine/core";
+import { useMantineColorScheme, Stack, Text, Box, Center } from "@mantine/core";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
@@ -359,6 +359,7 @@ const ForecastPlotView = ({
     return baseConfig;
   }, [calculateYRange, configOverrides]);
 
+  const hasForecasts = projectionsData.length > 1;
   if (requireTarget && !selectedTarget) {
     return (
       <Stack align="center" justify="center" style={{ height: "300px" }}>
@@ -374,12 +375,40 @@ const ForecastPlotView = ({
         timestamp={metadata?.last_updated}
       />
       <div
-        style={{ width: "100%", height: "min(800px, 60vh)", minHeight: 320 }}
+        style={{
+          width: "100%",
+          height: "min(800px, 60vh)",
+          minHeight: 320,
+          position: "relative", // Ensure the container is relative for absolute positioning
+        }}
       >
+        {!hasForecasts && (
+          <Box
+            style={{
+              position: "absolute",
+              top: 80, // Adjusted slightly for the larger main view
+              left: 0,
+              right: 0,
+              zIndex: 1,
+              pointerEvents: "none",
+            }}
+          >
+            <Center>
+              <Text size="sm" c="dimmed" fs="italic">
+                No forecast data available for the current selection
+              </Text>
+            </Center>
+          </Box>
+        )}
+
         <Plot
           ref={plotRef}
           useResizeHandler
-          style={{ width: "100%", height: "100%" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            opacity: hasForecasts ? 1 : 0.6, // Dim the plot if no forecasts exist
+          }}
           data={finalTraces}
           layout={layout}
           config={config}
