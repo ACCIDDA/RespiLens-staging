@@ -135,6 +135,7 @@ export const nhsnTargetsToColumnsMap = {
     "Percent Adult Inpatient Beds Occupied",
     "Percent Pediatric Inpatient Beds Occupied",
     "Percent Adult ICU Beds Occupied",
+    "Percent Pediatric ICU Beds Occupied",
   ],
 };
 
@@ -805,26 +806,38 @@ export const nhsnNameToPrettyNameMap = {
   "Total Adult RSV Admissions": "Adult Admissions",
   "Number of RSV Admissions, unknown age": "Admissions (unknown age)",
   "Total RSV Admissions": "Total Admissions",
-  "Percent Inpatient Beds Occupied": "Inpatient Beds Occupied",
+  "Percent Adult ICU Beds Occupied": "Percent of Adult ICU Beds Occupied",
+  "Percent Pediatric ICU Beds Occupied":
+    "Percent of Pediatric ICU Beds Occupied",
+  "Percent Adult Inpatient Beds Occupied":
+    "Percent of Adult Inpatient Beds Occupied",
+  "Percent Pediatric Inpatient Beds Occupied":
+    "Percent of Pediatric Inpatient Beds Occupied",
+  "Percent Inpatient Beds Occupied": "Percent of Inpatient Beds Occupied",
   "Percent Inpatient Beds Occupied by COVID-19 Patients":
-    "Inpatient Beds Occupied by COVID-19 Patients",
+    "Percent of Inpatient Beds Occupied by COVID-19 Patients",
   "Percent Inpatient Beds Occupied by Influenza Patients":
-    "Inpatient Beds Occupied by Influenza Patients",
+    "Percent of Inpatient Beds Occupied by Influenza Patients",
   "Percent Inpatient Beds Occupied by RSV Patients":
-    "Inpatient Beds Occupied by RSV Patients",
-  "Percent ICU Beds Occupied": "ICU Beds Occupied",
+    "Percent of Inpatient Beds Occupied by RSV Patients",
+  "Percent ICU Beds Occupied": "Percent of ICU Beds Occupied",
   "Percent ICU Beds Occupied by COVID-19 Patients":
-    "ICU Beds Occupied by COVID-19 Patients",
+    "Percent of ICU Beds Occupied by COVID-19 Patients",
   "Percent ICU Beds Occupied by Influenza Patients":
-    "ICU Beds Occupied by Influenza Patients",
+    "Percent of ICU Beds Occupied by Influenza Patients",
   "Percent ICU Beds Occupied by RSV Patients":
-    "ICU Beds Occupied by RSV Patients",
-  "Percent Adult COVID-19 Admissions": "Adult Admissions",
-  "Percent Pediatric COVID-19 Admissions": "Pediatric Admissions",
-  "Percent Adult Influenza Admissions": "Adult Admissions",
-  "Percent Pediatric Influenza Admissions": "Pediatric Admissions",
-  "Percent Adult RSV Admissions": "Adult Admissions",
-  "Percent Pediatric RSV Admissions": "Pediatric Admissions",
+    "Percent of ICU Beds Occupied by RSV Patients",
+  "Percent Adult COVID-19 Admissions":
+    "Percent of COVID-19 Admissions that are Adults",
+  "Percent Pediatric COVID-19 Admissions":
+    "Percent of COVID-19 Admissions that are Pediatric",
+  "Percent Adult Influenza Admissions":
+    "Percent of Influenza Admissions that are Adults",
+  "Percent Pediatric Influenza Admissions":
+    "Percent of Influenza Admissions that are Pediatric",
+  "Percent Adult RSV Admissions": "Percent of RSV Admissions that are Adults",
+  "Percent Pediatric RSV Admissions":
+    "Percent of RSV Admissions that are Pediatric",
   "Number of Pediatric COVID-19 Admissions, 0-4 years, per 100,000 population":
     "Pediatric Admissions (0-4 years)",
   "Number of Pediatric COVID-19 Admissions, 5-17 years, per 100,000 population":

@@ -208,7 +208,7 @@ export const extractPlotData = (viewType, href, data) => {
     }
 
     default:
-      throw new Error(`Unknown view type: ${viewType}`); // TODO: handle peak view
+      throw new Error(`Unknown view type: ${viewType}`);
   }
 
   const plotData = {
