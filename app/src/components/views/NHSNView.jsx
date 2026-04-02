@@ -232,7 +232,8 @@ const NHSNView = ({ location }) => {
       }
       return currentCols;
     });
-  }, [loading, selectedTarget, allDataColumns, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selectedTarget, allDataColumns]);
 
   useEffect(() => {
     if (
