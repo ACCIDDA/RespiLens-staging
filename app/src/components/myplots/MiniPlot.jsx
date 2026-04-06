@@ -140,7 +140,6 @@ const MiniPlot = ({ plot }) => {
       height: 230,
       margin: { l: 45, r: 10, t: 10, b: 35 },
       showlegend: false,
-      hovermode: false,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
