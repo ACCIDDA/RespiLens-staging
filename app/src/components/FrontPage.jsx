@@ -4,6 +4,23 @@ import NHSNOverviewGraph from "./NHSNOverviewGraph";
 import Announcement from "./Announcement";
 import { useView } from "../hooks/useView";
 
+const MyPlotsLink = () => {
+  return (
+    <span>
+      Check out the new{" "}
+      <Anchor
+        href="/myplots"
+        fw={700}
+        c="blue.7"
+        style={{ fontSize: "inherit", verticalAlign: "baseline" }}
+      >
+        My Plots
+      </Anchor>{" "}
+      feature, where you can assemble your own dashboard of saved plots.
+    </span>
+  );
+};
+
 const MetroCastLink = () => {
   const { setViewType } = useView();
 
@@ -40,6 +57,13 @@ const FrontPage = () => {
         endDate="2026-04-15"
         announcementType={"update"}
         text={<MetroCastLink />}
+      />
+      <Announcement
+        id="new-myplots-feature"
+        startDate="2026-04-06"
+        endDate="2026-06-30"
+        announcementType={"update"}
+        text={<MyPlotsLink />}
       />
       <Announcement
         id={"hub-seasonal-warning"}
