@@ -73,8 +73,17 @@ const MyPlots = () => {
                 </Title>
                 <Text size="sm" c="dimmed">
                   You haven't added any visualizations to <b>My Plots</b> yet.
-                  Click the "Add to My Plots" button on any plot view to see
-                  them here with any editorializations you choose.
+                  Click the "Add to My Plots" button on any plot to see it here
+                  with any editorializations you choose. This feature is in its
+                  alpha release; if you encounter bugs or have suggestions,
+                  please report them
+                  <a
+                    href="https://github.com/ACCIDDA/RespiLens/issues/new?title=%E2%80%BC%EF%B8%8FMy%20Plots:%20user%20bug%20or%20suggestion%20%E2%80%BC%EF%B8%8F"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    here.
+                  </a>
                 </Text>
               </div>
 
@@ -92,6 +101,18 @@ const MyPlots = () => {
                 <Title order={2}>My Plots</Title>
                 <Text size="sm" c="dimmed">
                   Your personalized library of saved visualizations.
+                </Text>
+                <Text size="sm" c="dimmed">
+                  This feature is in its alpha release, and is still under
+                  develoment. If you encounter a bug or have a suggestion,
+                  please{" "}
+                  <a
+                    href="https://github.com/ACCIDDA/RespiLens/issues/new?title=%E2%80%BC%EF%B8%8FMy%20Plots:%20user%20bug%20or%20suggestion%20%E2%80%BC%EF%B8%8F"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    let us know.
+                  </a>
                 </Text>
               </div>
               <Badge variant="filled" size="lg" color="blue">
