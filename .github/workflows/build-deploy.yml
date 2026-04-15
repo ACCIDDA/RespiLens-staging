@@ -55,8 +55,7 @@ jobs:
           --rsv-hub-path $GITHUB_WORKSPACE/rsv-forecast-hub \
           --covid-hub-path $GITHUB_WORKSPACE/covid19-forecast-hub \
           --flu-metrocast-hub-path $GITHUB_WORKSPACE/flu-metrocast \
-          --NHSN \
-          --NSSP
+          --NHSN
 
     - name: Upload all processed data as a single artifact
       uses: actions/upload-artifact@v4
