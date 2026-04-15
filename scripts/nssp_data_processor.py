@@ -10,17 +10,15 @@ import os
 import pandas as pd
 
 from helper import retrieve_data_from_endpoint_aslist, STATENAME_TO_ABBREVIATION_MAP
-# from helper import get_location_info TODO: maybe remove? don't need loc data?
+
 
 logger = logging.getLogger(__name__)
 script_dir = os.path.dirname(__file__)
-# locations_file_path = os.path.join(script_dir, 'locations.csv') TODO maybe remove? 
 
 
 class NSSPDataProcessor:
     def __init__(self, resource_id):
         self.data_url = "https://data.cdc.gov/resource/" + f"{resource_id}.json"
-        self.metadata_url = "https://data.cdc.gov/api/views/" + f"{resource_id}.json" # TODO: maybe we don't need this
         self.output_dict = {}
 
         self._process_data()
@@ -53,7 +51,6 @@ class NSSPDataProcessor:
                 data[col] = pd.to_numeric(data[col], errors='raise')
         # cleanse NaN values
         data = data.replace(np.nan, value=None) # cleanse NaN values 
-        # cdc_metadata = (requests.get(self.metadata_url)).json() # TODO, remove? 
         logger.info("Success ✅")
         
         # Process the data 
