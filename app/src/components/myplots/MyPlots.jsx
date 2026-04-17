@@ -82,6 +82,7 @@ const MyPlots = () => {
                     rel="noopener"
                     target="_blank"
                   >
+                    {" "}
                     here.
                   </a>
                 </Text>
