@@ -17,6 +17,9 @@ from helper import save_json_file, hubverse_df_preprocessor, clean_nan_values
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+SCRIPT_LOCATION = Path(__file__).resolve().parent
+LOCATIONS_DATA = pd.read_csv(SCRIPT_LOCATION / "locations.csv")
+
 
 def main():
     """
@@ -63,13 +66,12 @@ def main():
         logger.info("Success ✅")
         logger.info("Collecting data from FluSight repo...")
         flu_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=flu_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
-        flu_locations_data = clean_nan_values(pd.read_csv(Path(args.flusight_hub_path) / 'auxiliary-data/locations.csv'))
         flu_target_data = clean_nan_values(connect_target_data(hub_path=args.flusight_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas()) 
         logger.info("Success ✅")
         # Initialize converter object
         flu_processor_object = FlusightDataProcessor(
             data=flu_hubverse_df,
-            locations_data=flu_locations_data,
+            locations_data=LOCATIONS_DATA,
             target_data=flu_target_data,
         )
         # Iteratively save output files
@@ -92,13 +94,12 @@ def main():
         logger.info("Success ✅")
         logger.info("Collecting data from RSV repo...")
         rsv_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=rsv_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
-        rsv_locations_data = clean_nan_values(pd.read_csv(Path(args.rsv_hub_path) / 'auxiliary-data/locations.csv'))
         rsv_target_data = clean_nan_values(connect_target_data(hub_path=args.rsv_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas()) 
         logger.info("Success ✅")
         # Initialize converter object
         rsv_processor_object = RSVDataProcessor(
             data=rsv_hubverse_df,
-            locations_data=rsv_locations_data,
+            locations_data=LOCATIONS_DATA,
             target_data=rsv_target_data,
         )
         # Iteratively save output files
@@ -120,13 +121,12 @@ def main():
         logger.info("Success ✅")
         logger.info("Collecting data from covid19 repo...")
         covid_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=covid_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
-        covid_locations_data = clean_nan_values(pd.read_csv(Path(args.covid_hub_path) / 'auxiliary-data/locations.csv'))
         covid_target_data = clean_nan_values(connect_target_data(hub_path=args.covid_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas())
         logger.info("Success ✅")
         # Initialize converter object
         covid_processor_object = COVIDDataProcessor(
             data=covid_hubverse_df,
-            locations_data=covid_locations_data,
+            locations_data=LOCATIONS_DATA,
             target_data=covid_target_data,
         )
         # Iteratively save output files
@@ -148,7 +148,7 @@ def main():
         logger.info("Success ✅")
         logger.info("Collecting data from flu metrocast repo...")
         flu_metrocast_hubverse_df = clean_nan_values(hubverse_df_preprocessor(df=flu_metrocast_hub_conn.get_dataset().to_table().to_pandas(), filter_nowcasts=True))
-        flu_metrocast_locations_data = clean_nan_values(pd.read_csv(Path(args.flu_metrocast_hub_path) / 'auxiliary-data/locations.csv'))
+        flu_metrocast_locations_data = clean_nan_values(pd.read_csv(Path(args.flu_metrocast_hub_path) / 'auxiliary-data/locations.csv')) # DEP: metrocast still pulls hub locations.csv
         flu_metrocast_target_data = clean_nan_values(connect_target_data(hub_path=args.flu_metrocast_hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas())
         logger.info("Success ✅")
         # Initialize converter oject

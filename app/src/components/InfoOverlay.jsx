@@ -52,14 +52,15 @@ const InfoOverlay = () => {
         opened={opened}
         onClose={close}
         title={
-          <Group gap="md">
+          <Group gap="sm" wrap="nowrap" align="center">
             <Image
               src="respilens-logo.svg"
               alt="RespiLens logo"
               h={32}
               w={32}
+              fit="contain"
             />
-            <Title order={2} c="blue">
+            <Title order={2} c="blue" style={{ lineHeight: 1 }}>
               RespiLens
             </Title>
           </Group>
@@ -78,12 +79,14 @@ const InfoOverlay = () => {
             <List.Item>
               URL-shareable views for specific forecast settings
             </List.Item>
-            <List.Item>Responsive and mobile-friendly site</List.Item>
-            <List.Item>Frequent and automatic site updates</List.Item>
+            <List.Item>
+              Responsive and mobile-friendly site with frequent and automatic
+              updates
+            </List.Item>
             <List.Item>Multi date, target, and model comparison</List.Item>
             <List.Item>the Forecastle game!</List.Item>
             <List.Item>
-              MyRespiLens, a safe visualization tool for your own data
+              MyRespiLens: a safe visualization tool for your own data
             </List.Item>
           </List>
 
@@ -96,8 +99,8 @@ const InfoOverlay = () => {
             <Anchor href="https://hubverse.io" target="_blank" rel="noopener">
               Hubverse
             </Anchor>{" "}
-            project which standardizes and consolidates forecast data formats.
-            For each of the hub displayed on RespiLens, the data, organization
+            project, which standardizes and consolidates forecast data formats.
+            For each of the hubs displayed on RespiLens, the data, organization,
             and forecasts belong to their respective teams.{" "}
             <strong>
               RespiLens is only a visualization layer, and contains no original
@@ -106,7 +109,7 @@ const InfoOverlay = () => {
           </div>
 
           <Text>
-            You can find information and alternative visualization for each
+            You can find information (and alternative visualization) for each
             pathogen at the following locations:
           </Text>
           <List spacing="xs" size="sm">
@@ -119,7 +122,7 @@ const InfoOverlay = () => {
               >
                 official CDC page
               </Anchor>{" "}
-              –{" "}
+              |{" "}
               <Anchor
                 href="https://reichlab.io/flusight-dashboard/"
                 target="_blank"
@@ -127,7 +130,7 @@ const InfoOverlay = () => {
               >
                 Hubverse dashboard
               </Anchor>{" "}
-              –{" "}
+              |{" "}
               <Anchor
                 href="https://github.com/cdcepi/FluSight-forecast-hub"
                 target="_blank"
@@ -155,7 +158,7 @@ const InfoOverlay = () => {
               >
                 official CDC page
               </Anchor>{" "}
-              –{" "}
+              |{" "}
               <Anchor
                 href="https://reichlab.io/covidhub-dashboard"
                 target="_blank"
@@ -163,7 +166,7 @@ const InfoOverlay = () => {
               >
                 Hubverse dashboard
               </Anchor>{" "}
-              – 
+              | 
               <Anchor
                 href="https://github.com/CDCgov/covid19-forecast-hub"
                 target="_blank"
@@ -181,7 +184,7 @@ const InfoOverlay = () => {
               >
                 official dashboard
               </Anchor>{" "}
-              –{" "}
+              |{" "}
               <Anchor
                 href="https://reichlab.io/metrocast-dashboard/"
                 target="_blank"
@@ -189,7 +192,7 @@ const InfoOverlay = () => {
               >
                 site
               </Anchor>{" "}
-              – 
+              |
               <Anchor
                 href="https://github.com/reichlab/flu-metrocast"
                 target="_blank"

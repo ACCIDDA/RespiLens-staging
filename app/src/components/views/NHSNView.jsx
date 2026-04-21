@@ -27,7 +27,7 @@ import {
 
 const nhsnYAxisLabelMap = {
   "Hospital Admissions (count)": "Patient Count",
-  "Hospital Admissions (rates)": "Rate per 100k",
+  "Hospital Admissions (rate)": "Rate per 100k",
   "Hospital Admissions (%)": "Percent (%)",
   "Bed Capacity (count)": "Bed Count",
   "Bed Capacity (%)": "Percent (%)",
@@ -41,7 +41,7 @@ const getDefaultColumnsForTarget = (target) => {
       "Total Influenza Admissions",
       "Total RSV Admissions",
     ],
-    "Hospital Admissions (rates)": [
+    "Hospital Admissions (rate)": [
       "Total number of COVID-19 Admissions per 100,000 population",
       "Total number of Influenza Admissions per 100,000 population",
       "Total number of RSV Admissions per 100,000 population",
@@ -74,6 +74,7 @@ const NHSNView = ({ location }) => {
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
 
   const [selectedColumns, setSelectedColumns] = useState([]);
+  const hasInteractedRef = useRef(false);
   const [availableTargets, setAvailableTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
 
@@ -87,6 +88,20 @@ const NHSNView = ({ location }) => {
 
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
+
+  const getProcessedYValues = useCallback(
+    (columnName, rawValues) => {
+      if (!rawValues) return [];
+      return rawValues.map((val) => {
+        if (val === null || val === undefined) return val;
+        const transformed = val;
+        return chartScale === "sqrt"
+          ? Math.sqrt(Math.max(0, transformed))
+          : transformed;
+      });
+    },
+    [chartScale],
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -181,14 +196,24 @@ const NHSNView = ({ location }) => {
     setFilteredAvailableColumns(filtered);
 
     const urlSlugs = searchParams.getAll("nhsn_cols");
+    const urlTarget = searchParams.get("nhsn_target");
+
+    const isExplicitlyEmpty = urlSlugs.includes("none");
+
     const validUrlCols = urlSlugs
       .map((slug) => nhsnSlugToNameMap[slug])
       .filter((colName) => colName && filtered.includes(colName));
 
     let newSelectedCols;
+
     if (validUrlCols.length > 0) {
       newSelectedCols = validUrlCols;
-    } else if (filtered.length > 0) {
+    } else if (isExplicitlyEmpty) {
+      newSelectedCols = [];
+    } else if (
+      !hasInteractedRef.current ||
+      (urlTarget !== selectedTarget && urlSlugs.length === 0)
+    ) {
       const defaultColumns = getDefaultColumnsForTarget(selectedTarget);
       const filteredDefaults = defaultColumns.filter((col) =>
         filtered.includes(col),
@@ -200,10 +225,11 @@ const NHSNView = ({ location }) => {
     }
 
     setSelectedColumns((currentCols) => {
-      const newSorted = [...newSelectedCols].sort();
-      const currentSorted = [...currentCols].sort();
-      if (JSON.stringify(newSorted) !== JSON.stringify(currentSorted))
+      const sortedNew = [...newSelectedCols].sort();
+      const sortedCurrent = [...currentCols].sort();
+      if (JSON.stringify(sortedNew) !== JSON.stringify(sortedCurrent)) {
         return newSelectedCols;
+      }
       return currentCols;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,18 +244,25 @@ const NHSNView = ({ location }) => {
     ) {
       return;
     }
+
     const currentSearch = window.location.search;
     const newParams = new URLSearchParams(currentSearch);
-    const defaultTarget = availableTargets[0];
-    if (selectedTarget && selectedTarget !== defaultTarget)
-      newParams.set("nhsn_target", selectedTarget);
-    else newParams.delete("nhsn_target");
 
-    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
-    const filteredCols = allDataColumns.filter((col) =>
-      columnsForTarget.includes(col),
-    );
+    // Target Sync
+    const defaultTarget = availableTargets[0];
+    if (selectedTarget && selectedTarget !== defaultTarget) {
+      newParams.set("nhsn_target", selectedTarget);
+    } else {
+      newParams.delete("nhsn_target");
+    }
+
+    // Column Sync
+    newParams.delete("nhsn_cols");
+
     const defaultColumnsArray = getDefaultColumnsForTarget(selectedTarget);
+    const filteredCols = allDataColumns.filter((col) =>
+      (nhsnTargetsToColumnsMap[selectedTarget] || []).includes(col),
+    );
     const filteredDefaults = defaultColumnsArray.filter((col) =>
       filteredCols.includes(col),
     );
@@ -239,20 +272,22 @@ const NHSNView = ({ location }) => {
         : filteredCols.length > 0
           ? [filteredCols[0]]
           : [];
-    const sortedSelected = [...selectedColumns].sort();
-    const sortedDefault = [...defaultColumns].sort();
-    const selectedSlugs = sortedSelected
-      .map((name) => nhsnNameToSlugMap[name])
-      .filter(Boolean);
-    const defaultSlugs = sortedDefault
-      .map((name) => nhsnNameToSlugMap[name])
-      .filter(Boolean);
-    if (JSON.stringify(selectedSlugs) !== JSON.stringify(defaultSlugs)) {
-      newParams.delete("nhsn_cols");
-      selectedSlugs.forEach((slug) => newParams.append("nhsn_cols", slug));
-    } else {
-      newParams.delete("nhsn_cols");
+
+    const isDefault =
+      JSON.stringify([...selectedColumns].sort()) ===
+      JSON.stringify([...defaultColumns].sort());
+
+    if (!isDefault) {
+      if (selectedColumns.length > 0) {
+        selectedColumns.forEach((name) => {
+          const slug = nhsnNameToSlugMap[name];
+          if (slug) newParams.append("nhsn_cols", slug);
+        });
+      } else if (hasInteractedRef.current) {
+        newParams.set("nhsn_cols", "none");
+      }
     }
+
     if (
       newParams.toString() !== new URLSearchParams(currentSearch).toString()
     ) {
@@ -266,6 +301,11 @@ const NHSNView = ({ location }) => {
     loading,
     setSearchParams,
   ]);
+
+  const handleSetSelectedColumns = useCallback((newCols) => {
+    hasInteractedRef.current = true;
+    setSelectedColumns(newCols);
+  }, []);
 
   useEffect(() => {
     if (data) setPlotRevision((p) => p + 1);
@@ -341,19 +381,10 @@ const NHSNView = ({ location }) => {
       return;
     }
 
-    const isPercentage = selectedTarget && selectedTarget.includes("%");
-    const traces = selectedColumns.map((column) => {
-      const yValues = data.series[column];
-      const processedYValues = isPercentage
-        ? yValues.map((val) =>
-            val !== null && val !== undefined ? val * 100 : val,
-          )
-        : yValues;
-      return {
-        x: data.series.dates,
-        y: processedYValues,
-      };
-    });
+    const currentTraces = selectedColumns.map((column) => ({
+      x: data.series.dates,
+      y: getProcessedYValues(column, data.series[column]),
+    }));
 
     const currentXRange = xAxisRange || defaultRange;
 
@@ -362,15 +393,8 @@ const NHSNView = ({ location }) => {
       return;
     }
 
-    const newYRange = calculateYRange(traces, currentXRange);
-    if (chartScale === "sqrt" && newYRange) {
-      const [minY, maxY] = newYRange;
-      const sqrtMin = Math.sqrt(Math.max(0, minY));
-      const sqrtMax = Math.sqrt(Math.max(0, maxY));
-      setYAxisRange([sqrtMin, sqrtMax]);
-    } else {
-      setYAxisRange(newYRange);
-    }
+    const newYRange = calculateYRange(currentTraces, currentXRange);
+    setYAxisRange(newYRange);
   }, [
     data,
     selectedColumns,
@@ -378,7 +402,7 @@ const NHSNView = ({ location }) => {
     selectedTarget,
     defaultRange,
     calculateYRange,
-    chartScale,
+    getProcessedYValues,
   ]);
 
   const handleRelayout = useCallback(
@@ -399,21 +423,12 @@ const NHSNView = ({ location }) => {
 
   const rawTraces = useMemo(() => {
     if (!data) return [];
-    const isPercentage = selectedTarget && selectedTarget.includes("%");
-    return selectedColumns.map((column) => {
-      const yValues = data.series[column];
-      const processedYValues = isPercentage
-        ? yValues.map((val) =>
-            val !== null && val !== undefined ? val * 100 : val,
-          )
-        : yValues;
-      return {
-        x: data.series.dates,
-        y: processedYValues,
-        name: column,
-      };
-    });
-  }, [data, selectedTarget, selectedColumns]);
+    return selectedColumns.map((column) => ({
+      x: data.series.dates,
+      y: getProcessedYValues(column, data.series[column]),
+      name: column,
+    }));
+  }, [data, getProcessedYValues, selectedColumns]);
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
 
@@ -424,22 +439,29 @@ const NHSNView = ({ location }) => {
 
   const traces = useMemo(() => {
     if (!data) return [];
-    const applySqrt = chartScale === "sqrt";
+    if (selectedColumns.length === 0) {
+      return [
+        {
+          x: [data.series.dates[0]],
+          y: [null],
+          type: "scatter",
+          mode: "lines",
+          showlegend: false,
+        },
+      ];
+    }
 
-    return rawTraces.map((trace) => {
-      const columnIndex = filteredAvailableColumns.indexOf(trace.name);
-      const transformedY = applySqrt
-        ? trace.y.map((val) =>
-            val === null || val === undefined
-              ? val
-              : Math.sqrt(Math.max(0, val)),
-          )
-        : trace.y;
+    return selectedColumns.map((columnName) => {
+      const columnIndex = filteredAvailableColumns.indexOf(columnName);
+      const processedY = getProcessedYValues(
+        columnName,
+        data.series[columnName],
+      );
 
       return {
-        x: trace.x,
-        y: transformedY,
-        name: trace.name,
+        x: data.series.dates,
+        y: processedY,
+        name: columnName,
         type: "scatter",
         mode: "lines+markers",
         line: {
@@ -449,7 +471,7 @@ const NHSNView = ({ location }) => {
         marker: { size: 6 },
       };
     });
-  }, [data, rawTraces, filteredAvailableColumns, chartScale]);
+  }, [data, selectedColumns, filteredAvailableColumns, getProcessedYValues]);
 
   const layout = useMemo(
     () => ({
@@ -481,7 +503,10 @@ const NHSNView = ({ location }) => {
       yaxis: {
         title: nhsnYAxisLabelMap[selectedTarget] || "Value",
         range: chartScale === "log" ? undefined : yAxisRange,
-        autorange: chartScale === "log" ? true : yAxisRange === null,
+        autorange:
+          chartScale === "log"
+            ? true
+            : yAxisRange === null || selectedColumns.length === 0,
         type: chartScale === "log" ? "log" : "linear",
         tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
         tickvals:
@@ -505,6 +530,21 @@ const NHSNView = ({ location }) => {
       },
       margin: { t: 40, r: 10, l: 60, b: 120 },
       uirevision: plotRevision,
+      annotations:
+        selectedColumns.length === 0
+          ? [
+              {
+                text: "No columns selected",
+                xref: "paper",
+                yref: "paper",
+                showarrow: false,
+                font: {
+                  size: 20,
+                  color: colorScheme === "dark" ? "#5c5f66" : "#adb5bd",
+                },
+              },
+            ]
+          : [],
     }),
     [
       colorScheme,
@@ -543,16 +583,10 @@ const NHSNView = ({ location }) => {
             const newDefaultRange = getDefaultXRange();
             if (!newDefaultRange || newDefaultRange[0] === null) return;
 
-            const isPct = selectedTarget && selectedTarget.includes("%");
-            const currentTraces = selectedColumns.map((column) => {
-              const yValues = data.series[column];
-              const pYValues = isPct
-                ? yValues.map((val) =>
-                    val !== null && val !== undefined ? val * 100 : val,
-                  )
-                : yValues;
-              return { x: data.series.dates, y: pYValues };
-            });
+            const currentTraces = selectedColumns.map((column) => ({
+              x: data.series.dates,
+              y: getProcessedYValues(column, data.series[column]),
+            }));
 
             const newYRange = calculateYRange(currentTraces, newDefaultRange);
 
@@ -569,7 +603,13 @@ const NHSNView = ({ location }) => {
         },
       ],
     }),
-    [data, selectedTarget, selectedColumns, getDefaultXRange, calculateYRange],
+    [
+      data,
+      selectedColumns,
+      getDefaultXRange,
+      calculateYRange,
+      getProcessedYValues,
+    ],
   );
 
   if (loading)
@@ -618,11 +658,14 @@ const NHSNView = ({ location }) => {
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
-        setSelectedColumns={setSelectedColumns}
+        setSelectedColumns={handleSetSelectedColumns}
         nameMap={nhsnNameToPrettyNameMap}
         selectedTarget={selectedTarget}
         availableTargets={availableTargets}
-        onTargetChange={setSelectedTarget}
+        onTargetChange={(val) => {
+          hasInteractedRef.current = false;
+          setSelectedTarget(val);
+        }}
         loading={loading}
       />
     </Stack>
