@@ -76,7 +76,7 @@ const MyPlots = () => {
                   Click the "Add to My Plots" button on any plot to see it here
                   with any editorializations you choose. This feature is in its
                   alpha release; if you encounter bugs or have suggestions,
-                  please report them
+                  please report them{" "}
                   <a
                     href="https://github.com/ACCIDDA/RespiLens/issues/new?title=%E2%80%BC%EF%B8%8FMy%20Plots:%20user%20bug%20or%20suggestion%20%E2%80%BC%EF%B8%8F"
                     rel="noopener"
