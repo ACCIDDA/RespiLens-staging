@@ -493,6 +493,21 @@ const DataVisualizationContainer = () => {
         </>
       ),
     },
+    nsspall: {
+      title: (
+        <Group gap="sm">
+          <Title order={4}>
+            National Syndromic Surveillance Program (NSSP)
+          </Title>
+        </Group>
+      ),
+      buttonLabel: "About NSSP Data",
+      content: (
+        <>
+          <p>write write write</p>
+        </>
+      ),
+    },
   };
 
   const currentAboutConfig = aboutHubConfig[viewType];
