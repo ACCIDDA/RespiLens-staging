@@ -74,6 +74,18 @@ export const DATASETS = {
     dataPath: "flumetrocast",
     targetLineDayOfWeek: 3,
   },
+  nssp: {
+    shortName: "nssp",
+    fullName: "NSSP Surveillance Data",
+    titleName: "NSSP Surveillance Data",
+    views: [{ key: "all", label: "All Data", value: "nsspall" }],
+    defaultView: "nsspall",
+    defaultColumn: "TO DO",
+    hasDateSelector: false,
+    hasModelSelector: false,
+    prefix: "nssp",
+    dataPath: "nssp",
+  },
 };
 
 // Helper function to get all valid view values

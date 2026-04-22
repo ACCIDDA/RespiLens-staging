@@ -55,6 +55,7 @@ export const useForecastData = (location, viewType) => {
           },
           rsv_forecasts: { directory: "rsvforecasthub", suffix: "rsv" },
           nhsnall: { directory: "nhsn", suffix: "nhsn" },
+          nsspall: { directory: "nssp", suffix: "nssp" },
           metrocast_forecasts: {
             directory: "flumetrocast",
             suffix: "flu_metrocast",
