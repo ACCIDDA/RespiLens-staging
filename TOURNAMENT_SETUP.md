@@ -19,7 +19,37 @@ The Epidemics 10 Tournament is a multi-participant forecasting competition built
 1. **Set up Google Sheets** (see structure below)
 2. **Deploy Google Apps Script** (see Apps Script code below)
 3. **Configure API URL** in `/app/.env`
-4. **Navigate to** `/tournament` in the app
+4. **Configure the tournament** in `/app/src/config/tournament.js`
+5. **Navigate to** the tournament `path` from that config, such as `/epidemics10`
+
+## Tournament Configuration
+
+Tournament instances live in `/app/src/config/tournament.js`.
+
+To add a new event like CSTE2026, add one object to `TOURNAMENT_REGISTRY` with:
+
+- a stable `id`
+- `enabled: true`
+- `path`, such as `/cste2026`
+- `navLabel`
+- `name` and `description`
+- `apiUrl` for that event's Apps Script backend
+- `sheetId` for documentation
+- `storageKeyPrefix`, such as `cste2026`
+- a `challenges` array
+
+Each challenge object needs:
+
+- a stable `id`
+- a stable numeric `number`
+- `dataset`, `datasetKey`, `dataPath`, `fileSuffix`, `location`, `target`
+- `forecastDate`
+- `horizons`
+- `enabled: true`
+
+Routes, sidebar navigation, localStorage keys, enabled challenge counts, and leaderboard API selection are derived from this registry. Set a tournament or challenge to `enabled: false` to keep it in code but hidden.
+
+The Google Sheets backend stores `challenge_id` as the primary challenge key. Keep `challenge_num` only as a legacy/display field so old rows can be migrated safely. For a separate leaderboard, use a separate spreadsheet and Apps Script URL for the tournament entry.
 
 ---
 
@@ -38,14 +68,14 @@ uuid-2         | TeamBlue      | 2025-11-18 10:15
 ### 2. **Submissions** (Sheet 2)
 **Simple format - just raw forecasts (scoring done on frontend):**
 ```
-submission_id | participant_id | challenge_num | horizon | median | q25  | q75  | q025 | q975 | submitted_at
--------------|----------------|---------------|---------|--------|------|------|------|------|-------------------
-sub-1        | uuid-1         | 1             | 1       | 1500   | 1200 | 1800 | 900  | 2100 | 2025-11-18 10:30
-sub-1        | uuid-1         | 1             | 2       | 1600   | 1300 | 1900 | 1000 | 2200 | 2025-11-18 10:30
-sub-1        | uuid-1         | 1             | 3       | 1700   | 1400 | 2000 | 1100 | 2300 | 2025-11-18 10:30
-sub-2        | uuid-1         | 2             | 1       | 2300   | 2000 | 2600 | 1800 | 2900 | 2025-11-18 11:00
+submission_id | participant_id | challenge_id | challenge_num | horizon | median | q25  | q75  | q025 | q975 | submitted_at
+-------------|----------------|--------------|---------------|---------|--------|------|------|------|------|-------------------
+sub-1        | uuid-1         | ch-1         | 1             | 1       | 1500   | 1200 | 1800 | 900  | 2100 | 2025-11-18 10:30
+sub-1        | uuid-1         | ch-1         | 1             | 2       | 1600   | 1300 | 1900 | 1000 | 2200 | 2025-11-18 10:30
+sub-1        | uuid-1         | ch-1         | 1             | 3       | 1700   | 1400 | 2000 | 1100 | 2300 | 2025-11-18 10:30
+sub-2        | uuid-1         | ch-2         | 2             | 1       | 2300   | 2000 | 2600 | 1800 | 2900 | 2025-11-18 11:00
 ```
-**Note**: No WIS column - all scoring is calculated on the frontend
+**Note**: `challenge_id` is the primary key. `challenge_num` is retained for display/backward compatibility. No WIS column - all scoring is calculated on the frontend.
 
 ---
 
@@ -77,9 +107,9 @@ function doGet(e) {
 
   let result;
   if (action === 'getLeaderboard') {
-    result = getLeaderboard(ss);
+    result = getLeaderboard(ss, e.parameter.tournamentId);
   } else if (action === 'getParticipant') {
-    result = getParticipant(ss, e.parameter.participantId);
+    result = getParticipant(ss, e.parameter.participantId, e.parameter.tournamentId);
   } else {
     result = {error: 'Invalid action'};
   }
@@ -137,6 +167,7 @@ function submitForecast(ss, data) {
   const submissionsSheet = ss.getSheetByName('Submissions');
   const submissionId = Utilities.getUuid();
   const timestamp = new Date().toISOString();
+  const challengeId = data.challengeId || `ch-${data.challengeNum}`;
 
   // Handle multiple horizons (new format)
   const forecasts = data.forecasts || [{
@@ -152,7 +183,8 @@ function submitForecast(ss, data) {
   const existingData = submissionsSheet.getDataRange().getValues();
   const rowsToDelete = [];
   for (let i = existingData.length - 1; i >= 1; i--) {
-    if (existingData[i][1] === data.participantId && existingData[i][2] === data.challengeNum) {
+    const rowChallengeId = existingData[i][2] || `ch-${existingData[i][3]}`;
+    if (existingData[i][1] === data.participantId && rowChallengeId === challengeId) {
       rowsToDelete.push(i + 1); // +1 because sheet rows are 1-indexed
     }
   }
@@ -167,6 +199,7 @@ function submitForecast(ss, data) {
     submissionsSheet.appendRow([
       submissionId,
       data.participantId,
+      challengeId,
       data.challengeNum,
       forecast.horizon,
       forecast.median,
@@ -185,7 +218,7 @@ function submitForecast(ss, data) {
   };
 }
 
-function getLeaderboard(ss) {
+function getLeaderboard(ss, tournamentId) {
   const participantsSheet = ss.getSheetByName('Participants');
   const submissionsSheet = ss.getSheetByName('Submissions');
 
@@ -208,24 +241,27 @@ function getLeaderboard(ss) {
 
   for (let i = 1; i < submissionData.length; i++) {
     const participantId = submissionData[i][1];
-    const challengeNum = submissionData[i][2];
-    const horizon = submissionData[i][3];
+    const challengeId = submissionData[i][2] || `ch-${submissionData[i][3]}`;
+    const challengeNum = submissionData[i][3];
+    const horizon = submissionData[i][4];
 
     if (!participantSubmissions[participantId]) {
       participantSubmissions[participantId] = {};
     }
 
-    if (!participantSubmissions[participantId][challengeNum]) {
-      participantSubmissions[participantId][challengeNum] = [];
+    if (!participantSubmissions[participantId][challengeId]) {
+      participantSubmissions[participantId][challengeId] = [];
     }
 
-    participantSubmissions[participantId][challengeNum].push({
+    participantSubmissions[participantId][challengeId].push({
+      challengeId: challengeId,
+      challengeNum: challengeNum,
       horizon: horizon,
-      median: submissionData[i][4],
-      q25: submissionData[i][5],
-      q75: submissionData[i][6],
-      q025: submissionData[i][7],
-      q975: submissionData[i][8]
+      median: submissionData[i][5],
+      q25: submissionData[i][6],
+      q75: submissionData[i][7],
+      q025: submissionData[i][8],
+      q975: submissionData[i][9]
     });
   }
 
@@ -248,7 +284,7 @@ function getLeaderboard(ss) {
   };
 }
 
-function getParticipant(ss, participantId) {
+function getParticipant(ss, participantId, tournamentId) {
   const participantsSheet = ss.getSheetByName('Participants');
   const submissionsSheet = ss.getSheetByName('Submissions');
 
@@ -278,24 +314,26 @@ function getParticipant(ss, participantId) {
 
   for (let i = 1; i < submissionData.length; i++) {
     if (submissionData[i][1] === participantId) {
-      const challengeNum = submissionData[i][2];
-      const horizon = submissionData[i][3];
+      const challengeId = submissionData[i][2] || `ch-${submissionData[i][3]}`;
+      const challengeNum = submissionData[i][3];
+      const horizon = submissionData[i][4];
 
-      if (!submissionsByChallenge[challengeNum]) {
-        submissionsByChallenge[challengeNum] = {
+      if (!submissionsByChallenge[challengeId]) {
+        submissionsByChallenge[challengeId] = {
+          challengeId: challengeId,
           challengeNum: challengeNum,
           forecasts: [],
-          submittedAt: submissionData[i][9]
+          submittedAt: submissionData[i][10]
         };
       }
 
-      submissionsByChallenge[challengeNum].forecasts.push({
+      submissionsByChallenge[challengeId].forecasts.push({
         horizon: horizon,
-        median: submissionData[i][4],
-        q25: submissionData[i][5],
-        q75: submissionData[i][6],
-        q025: submissionData[i][7],
-        q975: submissionData[i][8]
+        median: submissionData[i][5],
+        q25: submissionData[i][6],
+        q75: submissionData[i][7],
+        q025: submissionData[i][8],
+        q975: submissionData[i][9]
       });
     }
   }

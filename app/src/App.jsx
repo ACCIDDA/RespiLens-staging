@@ -14,6 +14,7 @@ import Documentation from './components/Documentation'
 import ReportingDelayPage from './components/reporting/ReportingDelayPage';
 import ToolsPage from './components/tools/ToolsPage';
 import { Center, Text } from '@mantine/core';
+import { ENABLED_TOURNAMENTS } from './config';
 // import ShutdownBanner from './components/ShutdownBanner';, no longer necessary
 
 const ForecastApp = () => {
@@ -43,7 +44,13 @@ const AppLayout = () => {
           <Route path="/narratives" element={<NarrativeBrowser onNarrativeSelect={(id) => navigate(`/narratives/${id}`)} />} />
           <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
           <Route path="/forecastle" element={<ForecastleGame />} />
-          <Route path="/epidemics10" element={<TournamentDashboard />} />
+          {ENABLED_TOURNAMENTS.map((tournament) => (
+            <Route
+              key={tournament.id}
+              path={tournament.path}
+              element={<TournamentDashboard tournamentConfig={tournament} />}
+            />
+          ))}
           <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
           <Route path="/toolbox" element={<ToolsPage />} />
           <Route path="/reporting-triangle" element={<ReportingDelayPage />} />

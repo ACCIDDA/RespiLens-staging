@@ -3,6 +3,7 @@ import { Card, Title, Text, Button, Badge, Stack, Group, Modal, Alert, Loader, S
 import { IconCheck, IconLock, IconEdit, IconAlertCircle } from '@tabler/icons-react';
 import { useForecastData } from '../../hooks/useForecastData';
 import { submitForecast, getParticipant } from '../../utils/tournamentAPI';
+import { TOURNAMENT_CONFIG } from '../../config';
 import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
 import { validateForecastSubmission } from '../../utils/forecastleValidation';
 import ForecastleChartCanvas from '../forecastle/ForecastleChartCanvas';
@@ -17,7 +18,13 @@ const addWeeksToDate = (dateString, weeks) => {
   return base.toISOString().slice(0, 10);
 };
 
-const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubmissionComplete }) => {
+const TournamentChallengeCard = ({
+  tournamentConfig = TOURNAMENT_CONFIG,
+  challenge,
+  participantId,
+  isCompleted,
+  onSubmissionComplete,
+}) => {
   const [modalOpened, setModalOpened] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -74,9 +81,9 @@ const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubm
     const loadExistingSubmission = async () => {
       if (isCompleted && participantId) {
         try {
-          const participantData = await getParticipant(participantId);
+          const participantData = await getParticipant(participantId, tournamentConfig);
           const submission = participantData.submissions.find(
-            sub => sub.challengeNum === challenge.number
+            sub => sub.challengeId === challenge.id || Number(sub.challengeNum) === Number(challenge.number)
           );
           if (submission && submission.forecasts) {
             setExistingSubmission(submission);
@@ -100,7 +107,7 @@ const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubm
     };
 
     loadExistingSubmission();
-  }, [isCompleted, participantId, challenge.number]);
+  }, [isCompleted, participantId, challenge.id, challenge.number, tournamentConfig]);
 
   // Use the challenge's forecast date (historical date)
   const forecastDate = challenge.forecastDate;
@@ -197,7 +204,7 @@ const TournamentChallengeCard = ({ challenge, participantId, isCompleted, onSubm
 
     try {
       // Submit forecasts for all horizons (scoring will be done on frontend)
-      await submitForecast(participantId, challenge.number, forecastEntries);
+      await submitForecast(participantId, challenge.number, forecastEntries, tournamentConfig);
 
       setModalOpened(false);
       setInputMode('median');

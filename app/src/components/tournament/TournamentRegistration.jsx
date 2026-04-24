@@ -4,7 +4,7 @@ import { IconUserPlus, IconAlertCircle } from '@tabler/icons-react';
 import { registerParticipant } from '../../utils/tournamentAPI';
 import { TOURNAMENT_CONFIG } from '../../config';
 
-const TournamentRegistration = ({ onSuccess }) => {
+const TournamentRegistration = ({ tournamentConfig = TOURNAMENT_CONFIG, onSuccess }) => {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -21,7 +21,7 @@ const TournamentRegistration = ({ onSuccess }) => {
     setLoading(true);
 
     try {
-      const data = await registerParticipant(name);
+      const data = await registerParticipant(name, tournamentConfig);
       onSuccess(data.participantId, name);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
@@ -39,10 +39,10 @@ const TournamentRegistration = ({ onSuccess }) => {
               Join the Tournament
             </Title>
             <Text color="dimmed" size="lg">
-              {TOURNAMENT_CONFIG.name}
+              {tournamentConfig.name}
             </Text>
             <Text color="dimmed" size="sm" mt="xs">
-              {TOURNAMENT_CONFIG.description}
+              {tournamentConfig.description}
             </Text>
           </div>
 
@@ -82,7 +82,7 @@ const TournamentRegistration = ({ onSuccess }) => {
               <strong>How it works:</strong>
             </Text>
             <Text size="sm" color="dimmed" mt="xs">
-              • Complete 3 forecasting challenges
+              • Complete {tournamentConfig.numChallenges} forecasting challenge{tournamentConfig.numChallenges === 1 ? '' : 's'}
               <br />
               • Predict hospitalization counts for different diseases and locations
               <br />
