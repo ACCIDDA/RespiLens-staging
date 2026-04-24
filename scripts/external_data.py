@@ -42,7 +42,7 @@ FORECAST_REQUIRED_COLUMNS: Set[str] = {
 }
 
 PATHOGEN_TARGET_REQUIREMENTS: Dict[str, Set[str]] = {
-    "flu": {"as_of", "target_end_date", "location", "observation"},
+    "flu": {"as_of", "target_end_date", "location", "observation", "target"},
     "rsvforecasthub": {"as_of", "date", "location", "observation", "target"},
     "covid19forecasthub": {"as_of", "date", "location", "observation", "target"},
 }

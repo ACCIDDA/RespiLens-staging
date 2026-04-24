@@ -9,13 +9,18 @@
  */
 
 // Dataset configuration
-import { DATASETS, getAllViewValues, MODEL_COLORS, getModelColor } from './datasets';
+import {
+  DATASETS,
+  getAllViewValues,
+  MODEL_COLORS,
+  getModelColor,
+} from "./datasets";
 
 // Application defaults
-import { APP_CONFIG } from './app';
+import { APP_CONFIG } from "./app";
 
 // Forecastle game settings
-import { FORECASTLE_CONFIG } from './forecastle';
+import { FORECASTLE_CONFIG } from "./forecastle";
 
 // Tournament settings
 import {
@@ -27,10 +32,10 @@ import {
   getChallengeById,
   getChallengeByNumber,
   areAllChallengesCompleted,
-} from './tournament';
+} from "./tournament";
 
 // Visualization and chart settings
-import { CHART_CONFIG } from './visualization';
+import { CHART_CONFIG } from "./visualization";
 
 // Re-export all configurations
 export { DATASETS, getAllViewValues, MODEL_COLORS, getModelColor };

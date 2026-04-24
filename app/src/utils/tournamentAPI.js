@@ -3,23 +3,30 @@
  * Handles communication with Google Sheets backend via Apps Script
  */
 
-import { TOURNAMENT_CONFIG, getChallengeByNumber } from '../config';
+import { TOURNAMENT_CONFIG, getChallengeByNumber } from "../config";
 
 /**
  * Make a GET request to the tournament API
  * @param {string} action - API action
  * @param {Object} params - Query parameters
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {Promise<Object>} Response data
  */
-const apiGet = async (action, params = {}, tournamentConfig = TOURNAMENT_CONFIG) => {
+const apiGet = async (
+  action,
+  params = {},
+  tournamentConfig = TOURNAMENT_CONFIG,
+) => {
   const apiUrl = tournamentConfig.apiUrl;
 
   if (!apiUrl) {
-    throw new Error(`Tournament API URL not configured for ${tournamentConfig.id}`);
+    throw new Error(
+      `Tournament API URL not configured for ${tournamentConfig.id}`,
+    );
   }
 
   const url = new URL(apiUrl);
-  url.searchParams.append('action', action);
+  url.searchParams.append("action", action);
 
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.append(key, value);
@@ -28,7 +35,7 @@ const apiGet = async (action, params = {}, tournamentConfig = TOURNAMENT_CONFIG)
   try {
     // No headers needed for GET - avoids CORS preflight
     const response = await fetch(url.toString(), {
-      method: 'GET',
+      method: "GET",
     });
 
     if (!response.ok) {
@@ -38,12 +45,12 @@ const apiGet = async (action, params = {}, tournamentConfig = TOURNAMENT_CONFIG)
     const data = await response.json();
 
     if (!data.success) {
-      throw new Error(data.error || 'Unknown API error');
+      throw new Error(data.error || "Unknown API error");
     }
 
     return data;
   } catch (error) {
-    console.error('Tournament API GET error:', error);
+    console.error("Tournament API GET error:", error);
     throw error;
   }
 };
@@ -51,21 +58,24 @@ const apiGet = async (action, params = {}, tournamentConfig = TOURNAMENT_CONFIG)
 /**
  * Make a POST request to the tournament API
  * @param {Object} payload - Request payload
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {Promise<Object>} Response data
  */
 const apiPost = async (payload, tournamentConfig = TOURNAMENT_CONFIG) => {
   const apiUrl = tournamentConfig.apiUrl;
 
   if (!apiUrl) {
-    throw new Error(`Tournament API URL not configured for ${tournamentConfig.id}`);
+    throw new Error(
+      `Tournament API URL not configured for ${tournamentConfig.id}`,
+    );
   }
 
   try {
     // Use text/plain to avoid CORS preflight
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'text/plain',
+        "Content-Type": "text/plain",
       },
       body: JSON.stringify(payload),
     });
@@ -77,12 +87,12 @@ const apiPost = async (payload, tournamentConfig = TOURNAMENT_CONFIG) => {
     const data = await response.json();
 
     if (!data.success) {
-      throw new Error(data.error || 'Unknown API error');
+      throw new Error(data.error || "Unknown API error");
     }
 
     return data;
   } catch (error) {
-    console.error('Tournament API POST error:', error);
+    console.error("Tournament API POST error:", error);
     throw error;
   }
 };
@@ -90,22 +100,35 @@ const apiPost = async (payload, tournamentConfig = TOURNAMENT_CONFIG) => {
 /**
  * Register a new participant or login existing participant
  * @param {string} name - Participant's recognizable name
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {Promise<Object>} Participant data {participantId, message}
  */
-export const registerParticipant = async (name, tournamentConfig = TOURNAMENT_CONFIG) => {
+export const registerParticipant = async (
+  name,
+  tournamentConfig = TOURNAMENT_CONFIG,
+) => {
   if (!name) {
-    throw new Error('Name is required');
+    throw new Error("Name is required");
   }
 
-  const data = await apiPost({
-    action: 'register',
-    tournamentId: tournamentConfig.id,
-    name: name.trim(),
-  }, tournamentConfig);
+  const data = await apiPost(
+    {
+      action: "register",
+      tournamentId: tournamentConfig.id,
+      name: name.trim(),
+    },
+    tournamentConfig,
+  );
 
   // Store in localStorage
-  localStorage.setItem(tournamentConfig.storageKeys.participantId, data.participantId);
-  localStorage.setItem(tournamentConfig.storageKeys.participantName, name.trim());
+  localStorage.setItem(
+    tournamentConfig.storageKeys.participantId,
+    data.participantId,
+  );
+  localStorage.setItem(
+    tournamentConfig.storageKeys.participantName,
+    name.trim(),
+  );
 
   return data;
 };
@@ -115,6 +138,7 @@ export const registerParticipant = async (name, tournamentConfig = TOURNAMENT_CO
  * @param {string} participantId - Participant ID
  * @param {number} challengeNum - Stable enabled challenge number
  * @param {Array|Object} forecasts - Array of forecast entries (one per horizon) or single forecast object for backward compatibility
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {Promise<Object>} Submission data {submissionId, message}
  */
 export const submitForecast = async (
@@ -124,23 +148,26 @@ export const submitForecast = async (
   tournamentConfig = TOURNAMENT_CONFIG,
 ) => {
   if (!participantId) {
-    throw new Error('Participant ID is required');
+    throw new Error("Participant ID is required");
   }
 
-  const challenge = getChallengeByNumber(Number(challengeNum), tournamentConfig);
+  const challenge = getChallengeByNumber(
+    Number(challengeNum),
+    tournamentConfig,
+  );
   if (!challengeNum || !challenge) {
     const enabledChallengeNumbers = tournamentConfig.challenges
-      .map((challenge) => challenge.number)
-      .join(', ');
+      .map((enabledChallenge) => enabledChallenge.number)
+      .join(", ");
     throw new Error(
       enabledChallengeNumbers
         ? `Challenge number must be one of: ${enabledChallengeNumbers}`
-        : 'No tournament challenges are enabled',
+        : "No tournament challenges are enabled",
     );
   }
 
   if (!forecasts) {
-    throw new Error('Forecast data is required');
+    throw new Error("Forecast data is required");
   }
 
   // Convert to array if single forecast object (backward compatibility)
@@ -148,13 +175,17 @@ export const submitForecast = async (
 
   // Validate that all forecasts have required fields
   for (const forecast of forecastArray) {
-    if (!forecast || forecast.median === null || forecast.median === undefined) {
-      throw new Error('Each forecast must have a median value');
+    if (
+      !forecast ||
+      forecast.median === null ||
+      forecast.median === undefined
+    ) {
+      throw new Error("Each forecast must have a median value");
     }
   }
 
   // Format forecasts for submission
-  const formattedForecasts = forecastArray.map(f => ({
+  const formattedForecasts = forecastArray.map((f) => ({
     horizon: f.horizon || 1,
     median: f.median,
     q25: f.q25 || f.lower50,
@@ -163,42 +194,61 @@ export const submitForecast = async (
     q975: f.q975 || f.upper95,
   }));
 
-  const data = await apiPost({
-    action: 'submitForecast',
-    tournamentId: tournamentConfig.id,
-    participantId,
-    challengeNum,
-    challengeId: challenge.id,
-    forecasts: formattedForecasts,
-    // No WIS - scoring is done on frontend
-  }, tournamentConfig);
+  const data = await apiPost(
+    {
+      action: "submitForecast",
+      tournamentId: tournamentConfig.id,
+      participantId,
+      challengeNum,
+      challengeId: challenge.id,
+      forecasts: formattedForecasts,
+      // No WIS - scoring is done on frontend
+    },
+    tournamentConfig,
+  );
 
   // Update last sync time
-  localStorage.setItem(tournamentConfig.storageKeys.lastSync, new Date().toISOString());
+  localStorage.setItem(
+    tournamentConfig.storageKeys.lastSync,
+    new Date().toISOString(),
+  );
 
   return data;
 };
 
 /**
  * Get the leaderboard
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {Promise<Array>} Leaderboard data
  */
 export const getLeaderboard = async (tournamentConfig = TOURNAMENT_CONFIG) => {
-  const data = await apiGet('getLeaderboard', { tournamentId: tournamentConfig.id }, tournamentConfig);
+  const data = await apiGet(
+    "getLeaderboard",
+    { tournamentId: tournamentConfig.id },
+    tournamentConfig,
+  );
   return data.leaderboard || [];
 };
 
 /**
  * Get participant data including submissions
  * @param {string} participantId - Participant ID
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {Promise<Object>} Participant data {participant, submissions}
  */
-export const getParticipant = async (participantId, tournamentConfig = TOURNAMENT_CONFIG) => {
+export const getParticipant = async (
+  participantId,
+  tournamentConfig = TOURNAMENT_CONFIG,
+) => {
   if (!participantId) {
-    throw new Error('Participant ID is required');
+    throw new Error("Participant ID is required");
   }
 
-  const data = await apiGet('getParticipant', { participantId, tournamentId: tournamentConfig.id }, tournamentConfig);
+  const data = await apiGet(
+    "getParticipant",
+    { participantId, tournamentId: tournamentConfig.id },
+    tournamentConfig,
+  );
 
   return {
     participant: data.participant,
@@ -208,22 +258,29 @@ export const getParticipant = async (participantId, tournamentConfig = TOURNAMEN
 
 /**
  * Get participant ID from localStorage
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {string|null} Participant ID or null if not found
  */
-export const getStoredParticipantId = (tournamentConfig = TOURNAMENT_CONFIG) => {
+export const getStoredParticipantId = (
+  tournamentConfig = TOURNAMENT_CONFIG,
+) => {
   return localStorage.getItem(tournamentConfig.storageKeys.participantId);
 };
 
 /**
  * Get participant name from localStorage
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {string|null} Participant name or null if not found
  */
-export const getStoredParticipantName = (tournamentConfig = TOURNAMENT_CONFIG) => {
+export const getStoredParticipantName = (
+  tournamentConfig = TOURNAMENT_CONFIG,
+) => {
   return localStorage.getItem(tournamentConfig.storageKeys.participantName);
 };
 
 /**
  * Clear participant data from localStorage (logout)
+ * @param {Object} tournamentConfig - Tournament configuration
  */
 export const clearParticipantData = (tournamentConfig = TOURNAMENT_CONFIG) => {
   localStorage.removeItem(tournamentConfig.storageKeys.participantId);
@@ -234,8 +291,11 @@ export const clearParticipantData = (tournamentConfig = TOURNAMENT_CONFIG) => {
 
 /**
  * Check if participant is registered
+ * @param {Object} tournamentConfig - Tournament configuration
  * @returns {boolean} True if participant ID is stored
  */
-export const isParticipantRegistered = (tournamentConfig = TOURNAMENT_CONFIG) => {
+export const isParticipantRegistered = (
+  tournamentConfig = TOURNAMENT_CONFIG,
+) => {
   return !!getStoredParticipantId(tournamentConfig);
 };

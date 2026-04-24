@@ -1,5 +1,5 @@
 // Chart and visualization constants
-import { CHART_CONFIG } from '../config';
+import { CHART_CONFIG } from "../config";
 
 export const CHART_CONSTANTS = {
   // Plot dimensions (from centralized config)
@@ -22,7 +22,7 @@ export const CHART_CONSTANTS = {
     ROWS: 3,
     COLUMNS: 2,
     ROW_HEIGHTS: [0.6, 0.2, 0.2],
-    COLUMN_WIDTHS: [0.5, 0.5]
+    COLUMN_WIDTHS: [0.5, 0.5],
   },
 
   // Default margins
@@ -30,18 +30,18 @@ export const CHART_CONSTANTS = {
     LEFT: 60,
     RIGHT: 30,
     TOP: 30,
-    BOTTOM: 30
+    BOTTOM: 30,
   },
 
   // Y-axis padding percentage (from centralized config)
-  Y_AXIS_PADDING_PERCENT: CHART_CONFIG.yAxisPaddingPercent
+  Y_AXIS_PADDING_PERCENT: CHART_CONFIG.yAxisPaddingPercent,
 };
 
 // Rate change category order
 export const RATE_CHANGE_CATEGORIES = [
-  'large_decrease',
-  'decrease', 
-  'stable',
-  'increase',
-  'large_increase'
+  "large_decrease",
+  "decrease",
+  "stable",
+  "increase",
+  "large_increase",
 ];

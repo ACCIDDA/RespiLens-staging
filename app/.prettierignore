@@ -1,0 +1,32 @@
+# build outputs
+dist/
+build/
+out/
+.next/
+
+# dependencies
+node_modules/
+vendor/
+
+# environment variables
+.env
+.env.*
+
+# any potential testing and logs
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# assets + data (corrupts images, takes too long for data)
+public/
+*.svg
+*.ico
+*.png
+*.jpg
+
+# locks
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

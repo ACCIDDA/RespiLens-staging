@@ -1,54 +1,47 @@
-import { SimpleGrid, Stack, Title, Paper, Anchor } from '@mantine/core';
-import PathogenOverviewGraph from './PathogenOverviewGraph';
-import NHSNOverviewGraph from './NHSNOverviewGraph'
-import Announcement from './Announcement'
-import { useView } from '../hooks/useView';
+import { SimpleGrid, Stack, Title, Paper, Anchor } from "@mantine/core";
+import PathogenOverviewGraph from "./PathogenOverviewGraph";
+import NHSNOverviewGraph from "./NHSNOverviewGraph";
+import Announcement from "./Announcement";
+import { useView } from "../hooks/useView";
 
-const FluPeakLink = () => {
-  const { setViewType } = useView();
-
-  const handleClick = (e) => {
-    e.preventDefault();
-    setViewType('flu_peak');
-  };
-
+const MyPlotsLink = () => {
   return (
     <span>
-      RespiLens now displays{' '}
+      Check out the new{" "}
       <Anchor
-        component="button"
-        onClick={handleClick}
+        href="/myplots"
         fw={700}
         c="blue.7"
-        style={{ fontSize: 'inherit', veriticalAlign: 'baseline' }}
+        style={{ fontSize: "inherit", verticalAlign: "baseline" }}
       >
-        flu peak forecasts;
-      </Anchor>
-      {' '}forecasts for peak of the current influenza season.
+        My Plots
+      </Anchor>{" "}
+      feature, where you can assemble your own dashboard of saved plots.
     </span>
-  )
-}
+  );
+};
+
 const MetroCastLink = () => {
   const { setViewType } = useView();
 
   const handleClick = (e) => {
     e.preventDefault();
-    setViewType('metrocast_forecasts');
+    setViewType("metrocast_forecasts");
   };
 
   return (
     <span>
-      RespiLens now displays{' '}
-      <Anchor 
-        component="button" 
+      RespiLens now displays{" "}
+      <Anchor
+        component="button"
         onClick={handleClick}
         fw={700}
-        c="blue.7" 
-        style={{ fontSize: 'inherit', verticalAlign: 'baseline' }}
+        c="blue.7"
+        style={{ fontSize: "inherit", verticalAlign: "baseline" }}
       >
         flu MetroCast forecasts;
-      </Anchor>
-      {' '}metro area-level flu forecasts.
+      </Anchor>{" "}
+      metro area-level flu forecasts.
     </span>
   );
 };
@@ -58,39 +51,56 @@ const FrontPage = () => {
 
   return (
     <Stack>
-      <Announcement 
-        id="new-metrocast-2026" 
-        startDate="2026-02-01" 
-        endDate="2026-03-15" 
-        announcementType="update"
-        text={<MetroCastLink />} 
+      <Announcement
+        id="new-metrocast-2026"
+        startDate="2026-02-01"
+        endDate="2026-04-15"
+        announcementType={"update"}
+        text={<MetroCastLink />}
       />
       <Announcement
-        id="new-flu-peaks-2026"
-        startDate="2026-02-01"
-        endDate="2026-03-01"
+        id="new-myplots-feature"
+        startDate="2026-04-06"
+        endDate="2026-06-30"
         announcementType={"update"}
-        text={<FluPeakLink />}
+        text={<MyPlotsLink />}
       />
-      <Announcement id={"hub-seasonal-warning"} startDate={'2026-05-31'} endDate={'2026-11-10'} announcementType={'alert'} text={
-        "Forecast hubs are out of season. Forecasting will begin again in Novembor."
-      }
+      <Announcement
+        id={"hub-seasonal-warning"}
+        startDate={"2026-05-31"}
+        endDate={"2026-11-10"}
+        announcementType={"alert"}
+        text={
+          "Forecast hubs are out of season. Forecasting will begin again in November."
+        }
       />
       <Paper shadow="sm" p="lg" radius="md" withBorder>
         <Stack gap="md">
           <Title order={3}>Explore forecasts by pathogen</Title>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-            <PathogenOverviewGraph viewType="covid_forecasts" title="COVID-19" location={selectedLocation} />
-            <PathogenOverviewGraph viewType="flu_forecasts" title="Flu" location={selectedLocation} />
-            <PathogenOverviewGraph viewType="rsv_forecasts" title="RSV" location={selectedLocation} />
+            <PathogenOverviewGraph
+              viewType="covid_forecasts"
+              title="COVID-19"
+              location={selectedLocation}
+            />
+            <PathogenOverviewGraph
+              viewType="flu_forecasts"
+              title="Flu"
+              location={selectedLocation}
+            />
+            <PathogenOverviewGraph
+              viewType="rsv_forecasts"
+              title="RSV"
+              location={selectedLocation}
+            />
           </SimpleGrid>
         </Stack>
       </Paper>
       <Paper shadow="sm" p="lg" radius="md" withBorder>
         <Stack gap="md">
           <Title order={3}>Explore surveillance data</Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg:3 }} spacing="md">
-            <NHSNOverviewGraph location={selectedLocation}/>
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+            <NHSNOverviewGraph location={selectedLocation} />
           </SimpleGrid>
         </Stack>
       </Paper>

@@ -58,6 +58,7 @@ The Google Sheets backend stores `challenge_id` as the primary challenge key. Ke
 Your sheet should have the following tabs:
 
 ### 1. **Participants** (Sheet 1)
+
 ```
 participant_id | name          | joined_at
 ---------------|---------------|-------------------
@@ -66,7 +67,9 @@ uuid-2         | TeamBlue      | 2025-11-18 10:15
 ```
 
 ### 2. **Submissions** (Sheet 2)
+
 **Simple format - just raw forecasts (scoring done on frontend):**
+
 ```
 submission_id | participant_id | challenge_id | challenge_num | horizon | median | q25  | q75  | q025 | q975 | submitted_at
 -------------|----------------|--------------|---------------|---------|--------|------|------|------|------|-------------------
@@ -75,6 +78,7 @@ sub-1        | uuid-1         | ch-1         | 1             | 2       | 1600   
 sub-1        | uuid-1         | ch-1         | 1             | 3       | 1700   | 1400 | 2000 | 1100 | 2300 | 2025-11-18 10:30
 sub-2        | uuid-1         | ch-2         | 2             | 1       | 2300   | 2000 | 2600 | 1800 | 2900 | 2025-11-18 11:00
 ```
+
 **Note**: `challenge_id` is the primary key. `challenge_num` is retained for display/backward compatibility. No WIS column - all scoring is calculated on the frontend.
 
 ---
@@ -99,23 +103,28 @@ sub-2        | uuid-1         | ch-2         | 2             | 1       | 2300   
 ```javascript
 // Paste this in Google Apps Script Editor
 
-const SHEET_ID = '17J5KWUrVuqmqqBcVJg2A-dfVdrL4LjXTvlztCDpS0g0';
+const SHEET_ID = "17J5KWUrVuqmqqBcVJg2A-dfVdrL4LjXTvlztCDpS0g0";
 
 function doGet(e) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const action = e.parameter.action;
 
   let result;
-  if (action === 'getLeaderboard') {
+  if (action === "getLeaderboard") {
     result = getLeaderboard(ss, e.parameter.tournamentId);
-  } else if (action === 'getParticipant') {
-    result = getParticipant(ss, e.parameter.participantId, e.parameter.tournamentId);
+  } else if (action === "getParticipant") {
+    result = getParticipant(
+      ss,
+      e.parameter.participantId,
+      e.parameter.tournamentId,
+    );
   } else {
-    result = {error: 'Invalid action'};
+    result = { error: "Invalid action" };
   }
 
-  return ContentService.createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }
 
 function doPost(e) {
@@ -124,20 +133,21 @@ function doPost(e) {
   const action = data.action;
 
   let result;
-  if (action === 'register') {
+  if (action === "register") {
     result = registerParticipant(ss, data);
-  } else if (action === 'submitForecast') {
+  } else if (action === "submitForecast") {
     result = submitForecast(ss, data);
   } else {
-    result = {error: 'Invalid action'};
+    result = { error: "Invalid action" };
   }
 
-  return ContentService.createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }
 
 function registerParticipant(ss, data) {
-  const sheet = ss.getSheetByName('Participants');
+  const sheet = ss.getSheetByName("Participants");
   const participantId = Utilities.getUuid();
   const timestamp = new Date().toISOString();
 
@@ -148,7 +158,7 @@ function registerParticipant(ss, data) {
       return {
         success: true,
         participantId: existingData[i][0],
-        message: 'Welcome back!'
+        message: "Welcome back!",
       };
     }
   }
@@ -159,32 +169,37 @@ function registerParticipant(ss, data) {
   return {
     success: true,
     participantId: participantId,
-    message: 'Registration successful!'
+    message: "Registration successful!",
   };
 }
 
 function submitForecast(ss, data) {
-  const submissionsSheet = ss.getSheetByName('Submissions');
+  const submissionsSheet = ss.getSheetByName("Submissions");
   const submissionId = Utilities.getUuid();
   const timestamp = new Date().toISOString();
   const challengeId = data.challengeId || `ch-${data.challengeNum}`;
 
   // Handle multiple horizons (new format)
-  const forecasts = data.forecasts || [{
-    horizon: 1,
-    median: data.median,
-    q25: data.q25,
-    q75: data.q75,
-    q025: data.q025,
-    q975: data.q975
-  }];
+  const forecasts = data.forecasts || [
+    {
+      horizon: 1,
+      median: data.median,
+      q25: data.q25,
+      q75: data.q75,
+      q025: data.q025,
+      q975: data.q975,
+    },
+  ];
 
   // Delete existing submissions for this challenge
   const existingData = submissionsSheet.getDataRange().getValues();
   const rowsToDelete = [];
   for (let i = existingData.length - 1; i >= 1; i--) {
     const rowChallengeId = existingData[i][2] || `ch-${existingData[i][3]}`;
-    if (existingData[i][1] === data.participantId && rowChallengeId === challengeId) {
+    if (
+      existingData[i][1] === data.participantId &&
+      rowChallengeId === challengeId
+    ) {
       rowsToDelete.push(i + 1); // +1 because sheet rows are 1-indexed
     }
   }
@@ -195,7 +210,7 @@ function submitForecast(ss, data) {
   }
 
   // Add new submissions (one row per horizon)
-  forecasts.forEach(forecast => {
+  forecasts.forEach((forecast) => {
     submissionsSheet.appendRow([
       submissionId,
       data.participantId,
@@ -207,20 +222,20 @@ function submitForecast(ss, data) {
       forecast.q75,
       forecast.q025,
       forecast.q975,
-      timestamp
+      timestamp,
     ]);
   });
 
   return {
     success: true,
     submissionId: submissionId,
-    message: 'Forecast submitted!'
+    message: "Forecast submitted!",
   };
 }
 
 function getLeaderboard(ss, tournamentId) {
-  const participantsSheet = ss.getSheetByName('Participants');
-  const submissionsSheet = ss.getSheetByName('Submissions');
+  const participantsSheet = ss.getSheetByName("Participants");
+  const submissionsSheet = ss.getSheetByName("Submissions");
 
   // Get all participants
   const participantData = participantsSheet.getDataRange().getValues();
@@ -229,7 +244,7 @@ function getLeaderboard(ss, tournamentId) {
   for (let i = 1; i < participantData.length; i++) {
     participants.push({
       participantId: participantData[i][0],
-      name: participantData[i][1]
+      name: participantData[i][1],
     });
   }
 
@@ -261,12 +276,12 @@ function getLeaderboard(ss, tournamentId) {
       q25: submissionData[i][6],
       q75: submissionData[i][7],
       q025: submissionData[i][8],
-      q975: submissionData[i][9]
+      q975: submissionData[i][9],
     });
   }
 
   // Build leaderboard data (frontend will calculate WIS)
-  const leaderboard = participants.map(participant => {
+  const leaderboard = participants.map((participant) => {
     const submissions = participantSubmissions[participant.participantId] || {};
     const completed = Object.keys(submissions).length;
 
@@ -274,19 +289,19 @@ function getLeaderboard(ss, tournamentId) {
       participantId: participant.participantId,
       name: participant.name,
       completed: completed,
-      submissions: submissions // Send raw submissions to frontend for scoring
+      submissions: submissions, // Send raw submissions to frontend for scoring
     };
   });
 
   return {
     success: true,
-    leaderboard: leaderboard
+    leaderboard: leaderboard,
   };
 }
 
 function getParticipant(ss, participantId, tournamentId) {
-  const participantsSheet = ss.getSheetByName('Participants');
-  const submissionsSheet = ss.getSheetByName('Submissions');
+  const participantsSheet = ss.getSheetByName("Participants");
+  const submissionsSheet = ss.getSheetByName("Submissions");
 
   // Get participant info
   const participantData = participantsSheet.getDataRange().getValues();
@@ -295,7 +310,7 @@ function getParticipant(ss, participantId, tournamentId) {
     if (participantData[i][0] === participantId) {
       participant = {
         participantId: participantData[i][0],
-        name: participantData[i][1]
+        name: participantData[i][1],
       };
       break;
     }
@@ -304,7 +319,7 @@ function getParticipant(ss, participantId, tournamentId) {
   if (!participant) {
     return {
       success: false,
-      error: 'Participant not found'
+      error: "Participant not found",
     };
   }
 
@@ -323,7 +338,7 @@ function getParticipant(ss, participantId, tournamentId) {
           challengeId: challengeId,
           challengeNum: challengeNum,
           forecasts: [],
-          submittedAt: submissionData[i][10]
+          submittedAt: submissionData[i][10],
         };
       }
 
@@ -333,21 +348,21 @@ function getParticipant(ss, participantId, tournamentId) {
         q25: submissionData[i][6],
         q75: submissionData[i][7],
         q025: submissionData[i][8],
-        q975: submissionData[i][9]
+        q975: submissionData[i][9],
       });
     }
   }
 
   // Convert to array and sort forecasts by horizon
-  const submissions = Object.values(submissionsByChallenge).map(sub => ({
+  const submissions = Object.values(submissionsByChallenge).map((sub) => ({
     ...sub,
-    forecasts: sub.forecasts.sort((a, b) => a.horizon - b.horizon)
+    forecasts: sub.forecasts.sort((a, b) => a.horizon - b.horizon),
   }));
 
   return {
     success: true,
     participant: participant,
-    submissions: submissions
+    submissions: submissions,
   };
 }
 ```
@@ -361,8 +376,8 @@ After deploying the Apps Script, add the Web App URL to your React config:
 ```javascript
 // /app/src/config/tournament.js
 export const TOURNAMENT_CONFIG = {
-  apiUrl: 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
-  sheetId: '17J5KWUrVuqmqqBcVJg2A-dfVdrL4LjXTvlztCDpS0g0',
+  apiUrl: "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE",
+  sheetId: "17J5KWUrVuqmqqBcVJg2A-dfVdrL4LjXTvlztCDpS0g0",
   // ... rest of config
 };
 ```
@@ -384,12 +399,14 @@ export const TOURNAMENT_CONFIG = {
 ### How It Works
 
 **Google Sheets = Dumb Data Store**
+
 - Only stores raw forecast submissions (median, q25, q75, q025, q975)
 - No WIS calculations
 - No ranking logic
 - Just stores and retrieves data
 
 **Frontend = Smart Scoring Engine**
+
 1. **TournamentLeaderboard** fetches all participants' forecasts from Google Sheets
 2. Loads ground truth data from the same files Forecastle uses
 3. Calculates WIS for each participant/challenge using `scoreUserForecast()`
@@ -407,6 +424,7 @@ export const TOURNAMENT_CONFIG = {
 ### Historical Challenges
 
 Each tournament challenge uses a specific past date where ground truth is already available:
+
 - Challenge 1: US Flu on **2024-01-20**
 - Challenge 2: US COVID on **2024-02-10**
 - Challenge 3: US RSV on **2024-01-27**

@@ -1,9 +1,31 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
-import { Container, Paper, Title, Text, Group, Stack, Badge, ThemeIcon, Loader, Center, Button, ActionIcon, Box, Divider } from '@mantine/core';
-import { IconBook, IconCalendar, IconUser, IconChevronLeft, IconChevronRight, IconCode } from '@tabler/icons-react';
-import DataVisualizationContainer from '../DataVisualizationContainer';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import {
+  Container,
+  Paper,
+  Title,
+  Text,
+  Group,
+  Stack,
+  Badge,
+  ThemeIcon,
+  Loader,
+  Center,
+  Button,
+  ActionIcon,
+  Box,
+  Divider,
+} from "@mantine/core";
+import {
+  IconBook,
+  IconCalendar,
+  IconUser,
+  IconChevronLeft,
+  IconChevronRight,
+  IconCode,
+} from "@tabler/icons-react";
+import DataVisualizationContainer from "../DataVisualizationContainer";
 
 // Plotly Gaussian Chart Component
 const PlotlyGaussianChart = () => {
@@ -19,13 +41,13 @@ const PlotlyGaussianChart = () => {
     }
 
     if (!document.querySelector('script[src*="plotly"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.plot.ly/plotly-2.27.0.min.js'; // Use specific version
+      const script = document.createElement("script");
+      script.src = "https://cdn.plot.ly/plotly-2.27.0.min.js"; // Use specific version
       script.onload = () => {
         setPlotlyLoaded(true);
       };
       script.onerror = () => {
-        console.error('Failed to load Plotly');
+        console.error("Failed to load Plotly");
       };
       document.head.appendChild(script);
     }
@@ -39,51 +61,56 @@ const PlotlyGaussianChart = () => {
     const generateGaussian = (mean = 0, std = 1, points = 200) => {
       const x = [];
       const y = [];
-      
+
       for (let i = 0; i < points; i++) {
-        const xi = (i - points/2) * 6 / points; // Range from -3 to 3
+        const xi = ((i - points / 2) * 6) / points; // Range from -3 to 3
         x.push(xi);
-        y.push((1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((xi - mean) / std, 2)));
+        y.push(
+          (1 / (std * Math.sqrt(2 * Math.PI))) *
+            Math.exp(-0.5 * Math.pow((xi - mean) / std, 2)),
+        );
       }
-      
+
       return { x, y };
     };
 
     const gaussianData = generateGaussian(0, 1, 200);
-    
-    const plotData = [{
-      x: gaussianData.x,
-      y: gaussianData.y,
-      type: 'scatter',
-      mode: 'lines',
-      name: 'Gaussian Distribution',
-      line: {
-        color: '#228be6',
-        width: 3
+
+    const plotData = [
+      {
+        x: gaussianData.x,
+        y: gaussianData.y,
+        type: "scatter",
+        mode: "lines",
+        name: "Gaussian Distribution",
+        line: {
+          color: "#228be6",
+          width: 3,
+        },
+        fill: "tonexty",
+        fillcolor: "rgba(34, 139, 230, 0.2)",
       },
-      fill: 'tonexty',
-      fillcolor: 'rgba(34, 139, 230, 0.2)'
-    }];
+    ];
 
     const layout = {
       title: {
-        text: 'Standard Normal Distribution (μ=0, σ=1)',
-        font: { size: 16 }
+        text: "Standard Normal Distribution (μ=0, σ=1)",
+        font: { size: 16 },
       },
       xaxis: {
-        title: 'Value',
+        title: "Value",
         showgrid: true,
-        gridcolor: '#f0f0f0'
+        gridcolor: "#f0f0f0",
       },
       yaxis: {
-        title: 'Probability Density',
+        title: "Probability Density",
         showgrid: true,
-        gridcolor: '#f0f0f0'
+        gridcolor: "#f0f0f0",
       },
       margin: { t: 50, r: 20, b: 50, l: 60 },
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      font: { family: 'Inter, sans-serif' }
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif" },
     };
 
     setChartData({ data: plotData, layout });
@@ -92,13 +119,18 @@ const PlotlyGaussianChart = () => {
   // Render chart when data is ready
   useEffect(() => {
     if (chartData && plotlyLoaded && window.Plotly && chartRef.current) {
-      window.Plotly.newPlot(chartRef.current, chartData.data, chartData.layout, {
-        responsive: true,
-        displayModeBar: true,
-        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
-        displaylogo: false
-      }).catch(error => {
-        console.error('Error creating Plotly chart:', error);
+      window.Plotly.newPlot(
+        chartRef.current,
+        chartData.data,
+        chartData.layout,
+        {
+          responsive: true,
+          displayModeBar: true,
+          modeBarButtonsToRemove: ["pan2d", "lasso2d", "select2d"],
+          displaylogo: false,
+        },
+      ).catch((error) => {
+        console.error("Error creating Plotly chart:", error);
       });
     }
   }, [chartData, plotlyLoaded]);
@@ -115,8 +147,8 @@ const PlotlyGaussianChart = () => {
   }
 
   return (
-    <div style={{ height: '100%', padding: '20px' }}>
-      <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+    <div style={{ height: "100%", padding: "20px" }}>
+      <div ref={chartRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
 };
@@ -132,87 +164,104 @@ const SlideNarrativeViewer = () => {
 
   const parseVisualizationUrl = useCallback((url) => {
     if (!url) return null;
-    if (url.startsWith('javascript:')) {
-      return { type: 'custom', code: url.replace('javascript:', '') };
+    if (url.startsWith("javascript:")) {
+      return { type: "custom", code: url.replace("javascript:", "") };
     }
 
     const urlObj = new URL(url, window.location.origin);
     const params = new URLSearchParams(urlObj.search);
 
     return {
-      type: 'respilens',
-      location: params.get('location') || 'US',
-      view: params.get('view') || 'fludetailed',
-      dates: params.get('dates')?.split(',') || [],
-      models: params.get('models')?.split(',') || []
+      type: "respilens",
+      location: params.get("location") || "US",
+      view: params.get("view") || "fludetailed",
+      dates: params.get("dates")?.split(",") || [],
+      models: params.get("models")?.split(",") || [],
     };
   }, []);
 
-  const parseNarrative = useCallback((content) => {
-    try {
-      const parts = content.split('---');
-      
-      if (parts.length >= 3) {
-        const frontmatterLines = parts[1].trim().split('\n');
-        const parsedMetadata = {};
-        frontmatterLines.forEach(line => {
-          const [key, ...valueParts] = line.split(':');
-          if (key && valueParts.length > 0) {
-            parsedMetadata[key.trim()] = valueParts.join(':').trim().replace(/"/g, '');
-          }
-        });
-        setMetadata(parsedMetadata);
+  const parseNarrative = useCallback(
+    (content) => {
+      try {
+        const parts = content.split("---");
 
-        const slideContent = parts.slice(2).join('---');
+        if (parts.length >= 3) {
+          const frontmatterLines = parts[1].trim().split("\n");
+          const parsedMetadata = {};
+          frontmatterLines.forEach((line) => {
+            const [key, ...valueParts] = line.split(":");
+            if (key && valueParts.length > 0) {
+              parsedMetadata[key.trim()] = valueParts
+                .join(":")
+                .trim()
+                .replace(/"/g, "");
+            }
+          });
+          setMetadata(parsedMetadata);
 
-        const slideMatches = slideContent.split(/\n# /).filter(s => s.trim());
-        
-        const parsedSlides = slideMatches.map((slide, index) => {
-          let normalizedSlide = slide;
-          if (index === 0) {
-            normalizedSlide = normalizedSlide.replace(/^# /, '');
-          }
-          
-          const lines = normalizedSlide.split('\n');
-          const titleLine = lines[0];
-          const titleMatch = titleLine.match(/^(.*?)\s*\[(.*?)\]$/);
-          
-          const title = titleMatch ? titleMatch[1].trim() : titleLine.trim();
-          const url = titleMatch ? titleMatch[2].trim() : null;
-          const body = lines.slice(1).join('\n').trim();
-          
-          return { title, url, content: body };
-        });
+          const slideContent = parts.slice(2).join("---");
 
-        setSlides(parsedSlides);
-        
-        const initialVisualizationUrl = parsedSlides[0]?.url || parsedMetadata.dataset;
-        setCurrentVisualization(initialVisualizationUrl ? parseVisualizationUrl(initialVisualizationUrl) : null);
-      } else {
-        console.error('Invalid narrative format - not enough parts after splitting by ---');
+          const slideMatches = slideContent
+            .split(/\n# /)
+            .filter((s) => s.trim());
+
+          const parsedSlides = slideMatches.map((slide, index) => {
+            let normalizedSlide = slide;
+            if (index === 0) {
+              normalizedSlide = normalizedSlide.replace(/^# /, "");
+            }
+
+            const lines = normalizedSlide.split("\n");
+            const titleLine = lines[0];
+            const titleMatch = titleLine.match(/^(.*?)\s*\[(.*?)\]$/);
+
+            const title = titleMatch ? titleMatch[1].trim() : titleLine.trim();
+            const url = titleMatch ? titleMatch[2].trim() : null;
+            const body = lines.slice(1).join("\n").trim();
+
+            return { title, url, content: body };
+          });
+
+          setSlides(parsedSlides);
+
+          const initialVisualizationUrl =
+            parsedSlides[0]?.url || parsedMetadata.dataset;
+          setCurrentVisualization(
+            initialVisualizationUrl
+              ? parseVisualizationUrl(initialVisualizationUrl)
+              : null,
+          );
+        } else {
+          console.error(
+            "Invalid narrative format - not enough parts after splitting by ---",
+          );
+          setMetadata({});
+          setSlides([]);
+          setCurrentVisualization(null);
+        }
+      } catch (error) {
+        console.error("Error parsing narrative:", error);
         setMetadata({});
         setSlides([]);
         setCurrentVisualization(null);
       }
-    } catch (error) {
-      console.error('Error parsing narrative:', error);
-      setMetadata({});
-      setSlides([]);
-      setCurrentVisualization(null);
-    }
 
-    setLoading(false);
-  }, [parseVisualizationUrl]);
+      setLoading(false);
+    },
+    [parseVisualizationUrl],
+  );
 
   useEffect(() => {
-    const narrativeId = id || 'flu-winter-2024-25-slides';
+    const narrativeId = id || "flu-winter-2024-25-slides";
 
     const loadNarrative = async () => {
       try {
-        const narrativeModule = await import(`../../data/narratives/${narrativeId}.js`);
+        const narrativeModule = await import(
+          `../../data/narratives/${narrativeId}.js`
+        );
         parseNarrative(narrativeModule.narrativeContent);
       } catch (error) {
-        console.error('Error loading narrative module:', error);
+        console.error("Error loading narrative module:", error);
 
         const fallbackContent = `---
 title: "Flu Season Winter 2024-25: A Data Story"
@@ -323,42 +372,52 @@ The final view returns to the national perspective with our latest forecasts, sh
   }, [id, parseNarrative]);
 
   const renderMarkdown = (content) => {
-    return content
-      .split('\n')
-      .map((line, index) => {
-        if (line.startsWith('**') && line.endsWith('**')) {
-          return <Title key={index} order={4} mb="sm" mt="md">{line.slice(2, -2)}</Title>;
-        }
-        if (line.startsWith('- ')) {
-          const text = line.substring(2);
-          const parts = text.split(/(\*\*.*?\*\*)/);
-          return (
-            <Text key={index} component="li" mb="xs" ml="md">
-              {parts.map((part, i) => 
-                part.startsWith('**') && part.endsWith('**') 
-                  ? <strong key={i}>{part.slice(2, -2)}</strong>
-                  : part
-              )}
-            </Text>
-          );
-        }
-        if (line.match(/^\d+\./)) {
-          return <Text key={index} component="li" mb="xs" ml="md">{line.substring(line.indexOf('.') + 2)}</Text>;
-        }
-        if (line.trim()) {
-          const parts = line.split(/(\*\*.*?\*\*)/);
-          return (
-            <Text key={index} mb="md">
-              {parts.map((part, i) => 
-                part.startsWith('**') && part.endsWith('**') 
-                  ? <strong key={i}>{part.slice(2, -2)}</strong>
-                  : part
-              )}
-            </Text>
-          );
-        }
-        return <div key={index} style={{ height: '0.5rem' }} />;
-      });
+    return content.split("\n").map((line, index) => {
+      if (line.startsWith("**") && line.endsWith("**")) {
+        return (
+          <Title key={index} order={4} mb="sm" mt="md">
+            {line.slice(2, -2)}
+          </Title>
+        );
+      }
+      if (line.startsWith("- ")) {
+        const text = line.substring(2);
+        const parts = text.split(/(\*\*.*?\*\*)/);
+        return (
+          <Text key={index} component="li" mb="xs" ml="md">
+            {parts.map((part, i) =>
+              part.startsWith("**") && part.endsWith("**") ? (
+                <strong key={i}>{part.slice(2, -2)}</strong>
+              ) : (
+                part
+              ),
+            )}
+          </Text>
+        );
+      }
+      if (line.match(/^\d+\./)) {
+        return (
+          <Text key={index} component="li" mb="xs" ml="md">
+            {line.substring(line.indexOf(".") + 2)}
+          </Text>
+        );
+      }
+      if (line.trim()) {
+        const parts = line.split(/(\*\*.*?\*\*)/);
+        return (
+          <Text key={index} mb="md">
+            {parts.map((part, i) =>
+              part.startsWith("**") && part.endsWith("**") ? (
+                <strong key={i}>{part.slice(2, -2)}</strong>
+              ) : (
+                part
+              ),
+            )}
+          </Text>
+        );
+      }
+      return <div key={index} style={{ height: "0.5rem" }} />;
+    });
   };
 
   const goToSlide = (index) => {
@@ -372,22 +431,22 @@ The final view returns to the national perspective with our latest forecasts, sh
   };
 
   const visualizationDetails = useMemo(() => {
-    if (!currentVisualization || currentVisualization.type !== 'respilens') {
+    if (!currentVisualization || currentVisualization.type !== "respilens") {
       return null;
     }
 
     const params = new URLSearchParams();
     if (currentVisualization.location) {
-      params.set('location', currentVisualization.location);
+      params.set("location", currentVisualization.location);
     }
     if (currentVisualization.view) {
-      params.set('view', currentVisualization.view);
+      params.set("view", currentVisualization.view);
     }
     if (currentVisualization.dates?.length) {
-      params.set('dates', currentVisualization.dates.join(','));
+      params.set("dates", currentVisualization.dates.join(","));
     }
     if (currentVisualization.models?.length) {
-      params.set('models', currentVisualization.models.join(','));
+      params.set("models", currentVisualization.models.join(","));
     }
 
     return {
@@ -395,7 +454,7 @@ The final view returns to the national perspective with our latest forecasts, sh
       location: currentVisualization.location,
       view: currentVisualization.view,
       dates: currentVisualization.dates,
-      models: currentVisualization.models
+      models: currentVisualization.models,
     };
   }, [currentVisualization]);
 
@@ -408,12 +467,12 @@ The final view returns to the national perspective with our latest forecasts, sh
       );
     }
 
-    if (currentVisualization.type === 'custom') {
+    if (currentVisualization.type === "custom") {
       // Handle specific custom visualizations
-      if (currentVisualization.code === 'plotly-gaussian') {
+      if (currentVisualization.code === "plotly-gaussian") {
         return <PlotlyGaussianChart />;
       }
-      
+
       // Default custom visualization placeholder
       return (
         <Center h="100%">
@@ -421,9 +480,13 @@ The final view returns to the national perspective with our latest forecasts, sh
             <ThemeIcon size="xl" variant="light">
               <IconCode size={32} />
             </ThemeIcon>
-            <div style={{ textAlign: 'center' }}>
-              <Text fw={500} mb="xs">Custom Visualization</Text>
-              <Text size="sm" c="dimmed">{currentVisualization.code}</Text>
+            <div style={{ textAlign: "center" }}>
+              <Text fw={500} mb="xs">
+                Custom Visualization
+              </Text>
+              <Text size="sm" c="dimmed">
+                {currentVisualization.code}
+              </Text>
               <Text size="xs" c="dimmed" mt="md">
                 Custom JavaScript visualizations would be rendered here
               </Text>
@@ -435,17 +498,19 @@ The final view returns to the national perspective with our latest forecasts, sh
 
     // Render RespiLens visualization
     return (
-      <Stack gap="sm" style={{ height: '100%' }}>
+      <Stack gap="sm" style={{ height: "100%" }}>
         <Group justify="space-between" align="center">
-          <Badge variant="light" size="sm">RespiLens View</Badge>
+          <Badge variant="light" size="sm">
+            RespiLens View
+          </Badge>
           {visualizationDetails?.url && (
-            <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
+            <Text size="xs" c="dimmed" style={{ fontFamily: "monospace" }}>
               {visualizationDetails.url}
             </Text>
           )}
         </Group>
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          <DataVisualizationContainer 
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <DataVisualizationContainer
             location={currentVisualization.location}
             // Additional props would be passed here to control the view
           />
@@ -457,7 +522,7 @@ The final view returns to the national perspective with our latest forecasts, sh
   if (loading) {
     return (
       <Container size="xl" py="xl">
-        <Center style={{ minHeight: '50vh' }}>
+        <Center style={{ minHeight: "50vh" }}>
           <Stack align="center" gap="md">
             <Loader size="lg" />
             <Text>Loading narrative...</Text>
@@ -474,101 +539,126 @@ The final view returns to the national perspective with our latest forecasts, sh
       <Helmet>
         <title>RespiLens | Narrative Viewer</title>
       </Helmet>
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{ height: "100vh", display: "flex", flexDirection: "column" }}
+      >
         {/* Header */}
         <Paper shadow="sm" p="md" style={{ flexShrink: 0 }}>
-        <Group justify="space-between" align="center">
-          <Button
-            variant="light"
-            leftSection={<IconChevronLeft size={16}/>}
-            onClick={() => navigate('/narratives')}
-          >
-            Back
-          </Button>
-          <div>
-            <Group gap="xs" mb="xs">
-              <ThemeIcon size="sm" variant="light">
-                <IconBook size={16} />
-              </ThemeIcon>
-              <Text size="sm" c="dimmed">Interactive Narrative</Text>
-            </Group>
-            <Title order={2}>{metadata.title}</Title>
-          </div>
-          <Group gap="xs">
-            <Badge variant="light" size="sm">Slide {currentSlide + 1} of {slides.length}</Badge>
-          </Group>
-        </Group>
-      </Paper>
-
-      {/* Main Content */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', minHeight: 0 }}>
-        {/* Left Panel - Slide Content */}
-        <Paper p="xl" style={{ overflow: 'auto', borderRight: '1px solid var(--mantine-color-gray-3)' }}>
-          <Stack gap="md" style={{ maxWidth: '600px' }}>
+          <Group justify="space-between" align="center">
+            <Button
+              variant="light"
+              leftSection={<IconChevronLeft size={16} />}
+              onClick={() => navigate("/narratives")}
+            >
+              Back
+            </Button>
             <div>
-              <Title order={3} mb="lg">{currentSlideData?.title}</Title>
-              <div style={{ lineHeight: 1.6 }}>
-                {renderMarkdown(currentSlideData?.content || '')}
-              </div>
+              <Group gap="xs" mb="xs">
+                <ThemeIcon size="sm" variant="light">
+                  <IconBook size={16} />
+                </ThemeIcon>
+                <Text size="sm" c="dimmed">
+                  Interactive Narrative
+                </Text>
+              </Group>
+              <Title order={2}>{metadata.title}</Title>
             </div>
-
-            <Divider my="xl" />
-
-            {/* Navigation */}
-            <Group justify="space-between" align="center">
-              <Button
-                variant="subtle"
-                leftSection={<IconChevronLeft size={16} />}
-                onClick={() => goToSlide(currentSlide - 1)}
-                disabled={currentSlide === 0}
-              >
-                Previous
-              </Button>
-
-              <Group gap="xs">
-                {slides.map((_, index) => (
-                  <ActionIcon
-                    key={index}
-                    variant={index === currentSlide ? 'filled' : 'subtle'}
-                    size="sm"
-                    onClick={() => goToSlide(index)}
-                    aria-label={`Go to slide ${index + 1}`}
-                    aria-current={index === currentSlide ? 'true' : 'false'}
-                  >
-                    {index + 1}
-                  </ActionIcon>
-                ))}
-              </Group>
-
-              <Button
-                rightSection={<IconChevronRight size={16} />}
-                onClick={() => goToSlide(currentSlide + 1)}
-                disabled={currentSlide === slides.length - 1}
-              >
-                Next
-              </Button>
+            <Group gap="xs">
+              <Badge variant="light" size="sm">
+                Slide {currentSlide + 1} of {slides.length}
+              </Badge>
             </Group>
-
-            {/* Slide metadata */}
-            <Group gap="md" mt="xl">
-              <Group gap="xs">
-                <IconUser size={16} />
-                <Text size="sm" c="dimmed">{metadata.authors}</Text>
-              </Group>
-              <Group gap="xs">
-                <IconCalendar size={16} />
-                <Text size="sm" c="dimmed">{metadata.date}</Text>
-              </Group>
-            </Group>
-          </Stack>
+          </Group>
         </Paper>
 
-        {/* Right Panel - Visualization */}
-        <Box style={{ position: 'relative', overflow: 'hidden' }}>
-          {renderVisualization()}
-        </Box>
+        {/* Main Content */}
+        <div
+          style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            minHeight: 0,
+          }}
+        >
+          {/* Left Panel - Slide Content */}
+          <Paper
+            p="xl"
+            style={{
+              overflow: "auto",
+              borderRight: "1px solid var(--mantine-color-gray-3)",
+            }}
+          >
+            <Stack gap="md" style={{ maxWidth: "600px" }}>
+              <div>
+                <Title order={3} mb="lg">
+                  {currentSlideData?.title}
+                </Title>
+                <div style={{ lineHeight: 1.6 }}>
+                  {renderMarkdown(currentSlideData?.content || "")}
+                </div>
+              </div>
+
+              <Divider my="xl" />
+
+              {/* Navigation */}
+              <Group justify="space-between" align="center">
+                <Button
+                  variant="subtle"
+                  leftSection={<IconChevronLeft size={16} />}
+                  onClick={() => goToSlide(currentSlide - 1)}
+                  disabled={currentSlide === 0}
+                >
+                  Previous
+                </Button>
+
+                <Group gap="xs">
+                  {slides.map((_, index) => (
+                    <ActionIcon
+                      key={index}
+                      variant={index === currentSlide ? "filled" : "subtle"}
+                      size="sm"
+                      onClick={() => goToSlide(index)}
+                      aria-label={`Go to slide ${index + 1}`}
+                      aria-current={index === currentSlide ? "true" : "false"}
+                    >
+                      {index + 1}
+                    </ActionIcon>
+                  ))}
+                </Group>
+
+                <Button
+                  rightSection={<IconChevronRight size={16} />}
+                  onClick={() => goToSlide(currentSlide + 1)}
+                  disabled={currentSlide === slides.length - 1}
+                >
+                  Next
+                </Button>
+              </Group>
+
+              {/* Slide metadata */}
+              <Group gap="md" mt="xl">
+                <Group gap="xs">
+                  <IconUser size={16} />
+                  <Text size="sm" c="dimmed">
+                    {metadata.authors}
+                  </Text>
+                </Group>
+                <Group gap="xs">
+                  <IconCalendar size={16} />
+                  <Text size="sm" c="dimmed">
+                    {metadata.date}
+                  </Text>
+                </Group>
+              </Group>
+            </Stack>
+          </Paper>
+
+          {/* Right Panel - Visualization */}
+          <Box style={{ position: "relative", overflow: "hidden" }}>
+            {renderVisualization()}
+          </Box>
+        </div>
       </div>
-    </div>
     </>
   );
 };

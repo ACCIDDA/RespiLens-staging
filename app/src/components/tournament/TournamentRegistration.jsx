@@ -1,11 +1,23 @@
-import { useState } from 'react';
-import { Container, Title, Text, TextInput, Button, Card, Stack, Alert } from '@mantine/core';
-import { IconUserPlus, IconAlertCircle } from '@tabler/icons-react';
-import { registerParticipant } from '../../utils/tournamentAPI';
-import { TOURNAMENT_CONFIG } from '../../config';
+import { useState } from "react";
+import {
+  Container,
+  Title,
+  Text,
+  TextInput,
+  Button,
+  Card,
+  Stack,
+  Alert,
+} from "@mantine/core";
+import { IconUserPlus, IconAlertCircle } from "@tabler/icons-react";
+import { registerParticipant } from "../../utils/tournamentAPI";
+import { TOURNAMENT_CONFIG } from "../../config";
 
-const TournamentRegistration = ({ tournamentConfig = TOURNAMENT_CONFIG, onSuccess }) => {
-  const [name, setName] = useState('');
+const TournamentRegistration = ({
+  tournamentConfig = TOURNAMENT_CONFIG,
+  onSuccess,
+}) => {
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -14,7 +26,7 @@ const TournamentRegistration = ({ tournamentConfig = TOURNAMENT_CONFIG, onSucces
     setError(null);
 
     if (!name.trim()) {
-      setError('Please enter a recognizable name');
+      setError("Please enter a recognizable name");
       return;
     }
 
@@ -24,17 +36,21 @@ const TournamentRegistration = ({ tournamentConfig = TOURNAMENT_CONFIG, onSucces
       const data = await registerParticipant(name, tournamentConfig);
       onSuccess(data.participantId, name);
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container size="sm" py="xl" style={{ minHeight: '70vh', display: 'flex', alignItems: 'center' }}>
-      <Card shadow="lg" p="xl" radius="md" withBorder style={{ width: '100%' }}>
+    <Container
+      size="sm"
+      py="xl"
+      style={{ minHeight: "70vh", display: "flex", alignItems: "center" }}
+    >
+      <Card shadow="lg" p="xl" radius="md" withBorder style={{ width: "100%" }}>
         <Stack spacing="lg">
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: "center" }}>
             <Title order={1} mb="xs">
               Join the Tournament
             </Title>
@@ -47,7 +63,11 @@ const TournamentRegistration = ({ tournamentConfig = TOURNAMENT_CONFIG, onSucces
           </div>
 
           {error && (
-            <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              title="Error"
+              color="red"
+            >
               {error}
             </Alert>
           )}
@@ -77,18 +97,26 @@ const TournamentRegistration = ({ tournamentConfig = TOURNAMENT_CONFIG, onSucces
             </Stack>
           </form>
 
-          <div style={{ marginTop: 16, padding: 16, backgroundColor: '#f8f9fa', borderRadius: 8 }}>
-            <Text size="sm" color="dimmed" style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              marginTop: 16,
+              padding: 16,
+              backgroundColor: "#f8f9fa",
+              borderRadius: 8,
+            }}
+          >
+            <Text size="sm" color="dimmed" style={{ textAlign: "center" }}>
               <strong>How it works:</strong>
             </Text>
             <Text size="sm" color="dimmed" mt="xs">
-              • Complete {tournamentConfig.numChallenges} forecasting challenge{tournamentConfig.numChallenges === 1 ? '' : 's'}
+              • Complete {tournamentConfig.numChallenges} forecasting challenge
+              {tournamentConfig.numChallenges === 1 ? "" : "s"}
               <br />
-              • Predict hospitalization counts for different diseases and locations
+              • Predict hospitalization counts for different diseases and
+              locations
               <br />
               • Get scored using Weighted Interval Score (lower is better)
-              <br />
-              • Climb the leaderboard and compete with others!
+              <br />• Climb the leaderboard and compete with others!
             </Text>
           </div>
         </Stack>

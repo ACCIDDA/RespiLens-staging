@@ -1,60 +1,89 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
-import { URLParameterManager } from '../utils/urlManager';
-import { useForecastData } from '../hooks/useForecastData';
-import { ViewContext } from './ViewContextObject';
-import { APP_CONFIG } from '../config';
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { URLParameterManager } from "../utils/urlManager";
+import { useForecastData } from "../hooks/useForecastData";
+import { ViewContext } from "./ViewContextObject";
+import { APP_CONFIG } from "../config";
 
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const isForecastPage = location.pathname === '/';
+  const isForecastPage = location.pathname === "/";
 
-  const urlManager = useMemo(() => new URLParameterManager(searchParams, setSearchParams), [searchParams, setSearchParams]);
+  const urlManager = useMemo(
+    () => new URLParameterManager(searchParams, setSearchParams),
+    [searchParams, setSearchParams],
+  );
 
   const [viewType, setViewTypeState] = useState(() => urlManager.getView());
   const [selectedLocation, setSelectedLocation] = useState(() => {
-    const urlLoc = urlManager.getLocation(); 
+    const urlLoc = urlManager.getLocation();
     const currentView = urlManager.getView();
     const dataset = urlManager.getDatasetFromView(currentView);
     if (dataset?.defaultLocation && urlLoc === APP_CONFIG.defaultLocation) {
       return dataset.defaultLocation;
     }
-    
+
     return urlLoc;
   });
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
-  const [chartScale, setChartScale] = useState(() => urlManager.getAdvancedParams().chartScale);
-  const [intervalVisibility, setIntervalVisibility] = useState(() => urlManager.getAdvancedParams().intervalVisibility);
-  const [showLegend, setShowLegend] = useState(() => urlManager.getAdvancedParams().showLegend);
-  const CURRENT_FLU_SEASON_START = '2025-11-01'; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
+  const [chartScale, setChartScale] = useState(
+    () => urlManager.getAdvancedParams().chartScale,
+  );
+  const [intervalVisibility, setIntervalVisibility] = useState(
+    () => urlManager.getAdvancedParams().intervalVisibility,
+  );
+  const [showLegend, setShowLegend] = useState(
+    () => urlManager.getAdvancedParams().showLegend,
+  );
+  const CURRENT_FLU_SEASON_START = "2025-11-01"; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
 
-  const { data, metadata, loading, error, availableDates, models, availableTargets, modelsByTarget, peaks, availablePeakDates, availablePeakModels } = useForecastData(selectedLocation, viewType);
+  const {
+    data,
+    metadata,
+    loading,
+    error,
+    availableDates,
+    models,
+    availableTargets,
+    modelsByTarget,
+    peaks,
+    availablePeakDates,
+    availablePeakModels,
+  } = useForecastData(selectedLocation, viewType);
 
   // filter flu_peak dates based on current season
   const availableDatesToExpose = useMemo(() => {
-    if (viewType === 'flu_peak') {
-      return (availablePeakDates || []).filter(date => date >= CURRENT_FLU_SEASON_START);
+    if (viewType === "flu_peak") {
+      return (availablePeakDates || []).filter(
+        (date) => date >= CURRENT_FLU_SEASON_START,
+      );
     }
     return availableDates || [];
   }, [viewType, availablePeakDates, availableDates]);
-  
-  const updateDatasetParams = useCallback((params) => {
-    const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (currentDataset) urlManager.updateDatasetParams(currentDataset, params);
-  }, [viewType, urlManager]);
+
+  const updateDatasetParams = useCallback(
+    (params) => {
+      const currentDataset = urlManager.getDatasetFromView(viewType);
+      if (currentDataset)
+        urlManager.updateDatasetParams(currentDataset, params);
+    },
+    [viewType, urlManager],
+  );
 
   const modelsForView = useMemo(() => {
-    if (viewType === 'fludetailed') {
-      const target1Models = new Set(modelsByTarget['wk inc flu hosp'] || []);
-      const target2Models = new Set(modelsByTarget['wk flu hosp rate change'] || []);
+    if (viewType === "fludetailed") {
+      const target1Models = new Set(modelsByTarget["wk inc flu hosp"] || []);
+      const target2Models = new Set(
+        modelsByTarget["wk flu hosp rate change"] || [],
+      );
       return Array.from(new Set([...target1Models, ...target2Models])).sort();
     }
 
-    if (viewType === 'flu_peak') {
+    if (viewType === "flu_peak") {
       return availablePeakModels || [];
     }
 
@@ -62,26 +91,31 @@ export const ViewProvider = ({ children }) => {
       return modelsByTarget[selectedTarget];
     }
 
-    return []; 
-  }, [selectedTarget, modelsByTarget, viewType, availablePeakModels]); 
+    return [];
+  }, [selectedTarget, modelsByTarget, viewType, availablePeakModels]);
 
   const availableTargetsToExpose = useMemo(() => {
-    if (viewType === 'flu_peak') {
+    if (viewType === "flu_peak") {
       return [];
     }
-    
-    const peakTargets = ['peak inc flu hosp', 'peak week inc flu hosp'];
-    
-    return availableTargets.filter(target => !peakTargets.includes(target));
-  }, [availableTargets, viewType]);
 
+    const peakTargets = ["peak inc flu hosp", "peak week inc flu hosp"];
+
+    return availableTargets.filter((target) => !peakTargets.includes(target));
+  }, [availableTargets, viewType]);
 
   useEffect(() => {
     if (!isForecastPage) {
       return;
     }
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    if (loading || !currentDataset || modelsForView.length === 0 || availableDatesToExpose.length === 0 || availableTargets.length === 0) {
+    if (
+      loading ||
+      !currentDataset ||
+      modelsForView.length === 0 ||
+      availableDatesToExpose.length === 0 ||
+      availableTargets.length === 0
+    ) {
       return;
     }
 
@@ -89,23 +123,30 @@ export const ViewProvider = ({ children }) => {
     let needsModelUrlUpdate = false;
 
     let modelsToSet = [];
-    const validUrlModels = params.models?.filter(m => modelsForView.includes(m)) || []; 
+    const validUrlModels =
+      params.models?.filter((m) => modelsForView.includes(m)) || [];
     if (validUrlModels.length > 0) {
-        modelsToSet = validUrlModels;
-    } else if (currentDataset.defaultModel && modelsForView.includes(currentDataset.defaultModel)) {
-        modelsToSet = [currentDataset.defaultModel];
-        needsModelUrlUpdate = true; 
+      modelsToSet = validUrlModels;
+    } else if (
+      currentDataset.defaultModel &&
+      modelsForView.includes(currentDataset.defaultModel)
+    ) {
+      modelsToSet = [currentDataset.defaultModel];
+      needsModelUrlUpdate = true;
     } else if (modelsForView.length > 0) {
-        modelsToSet = [modelsForView[0]]; 
-        needsModelUrlUpdate = true; 
+      modelsToSet = [modelsForView[0]];
+      needsModelUrlUpdate = true;
     }
 
     let datesToSet = [];
-    const validUrlDates = params.dates?.filter(date => availableDatesToExpose.includes(date)) || [];
+    const validUrlDates =
+      params.dates?.filter((date) => availableDatesToExpose.includes(date)) ||
+      [];
     if (validUrlDates.length > 0) {
       datesToSet = validUrlDates;
     } else {
-      const latestDate = availableDatesToExpose[availableDatesToExpose.length - 1];
+      const latestDate =
+        availableDatesToExpose[availableDatesToExpose.length - 1];
       if (latestDate) {
         datesToSet = [latestDate];
       }
@@ -114,12 +155,20 @@ export const ViewProvider = ({ children }) => {
     const urlTarget = params.target;
     let targetToSet = null;
     if (urlTarget && availableTargets.includes(urlTarget)) {
-        targetToSet = urlTarget;
+      targetToSet = urlTarget;
     }
 
-    setSelectedModels(current => JSON.stringify(current) !== JSON.stringify(modelsToSet) ? modelsToSet : current);
-    setSelectedDates(current => JSON.stringify(current) !== JSON.stringify(datesToSet) ? datesToSet : current);
-    setActiveDate(currentActive => {
+    setSelectedModels((current) =>
+      JSON.stringify(current) !== JSON.stringify(modelsToSet)
+        ? modelsToSet
+        : current,
+    );
+    setSelectedDates((current) =>
+      JSON.stringify(current) !== JSON.stringify(datesToSet)
+        ? datesToSet
+        : current,
+    );
+    setActiveDate((currentActive) => {
       if (currentActive && datesToSet.includes(currentActive)) {
         return currentActive;
       }
@@ -131,14 +180,25 @@ export const ViewProvider = ({ children }) => {
     }
 
     if (needsModelUrlUpdate) {
-      updateDatasetParams({ models: [] }); 
+      updateDatasetParams({ models: [] });
     }
-  }, [isForecastPage, loading, viewType, models, availableTargets, urlManager, updateDatasetParams, selectedTarget, modelsForView, availableDatesToExpose]);
+  }, [
+    isForecastPage,
+    loading,
+    viewType,
+    models,
+    availableTargets,
+    urlManager,
+    updateDatasetParams,
+    selectedTarget,
+    modelsForView,
+    availableDatesToExpose,
+  ]);
 
   useEffect(() => {
     const availableModelsSet = new Set(modelsForView);
-    const cleanedSelectedModels = selectedModels.filter(model =>
-      availableModelsSet.has(model)
+    const cleanedSelectedModels = selectedModels.filter((model) =>
+      availableModelsSet.has(model),
     );
 
     if (cleanedSelectedModels.length !== selectedModels.length) {
@@ -150,16 +210,17 @@ export const ViewProvider = ({ children }) => {
     if (loading || !availableTargets || availableTargets.length === 0) {
       return;
     }
-    const isCurrentTargetValid = selectedTarget && availableTargets.includes(selectedTarget);
+    const isCurrentTargetValid =
+      selectedTarget && availableTargets.includes(selectedTarget);
     if (!isCurrentTargetValid) {
       setSelectedTarget(availableTargets[0]);
     }
   }, [loading, availableTargets, selectedTarget]);
 
-
   const handleLocationSelect = (newLocation) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    const effectiveDefault = currentDataset?.defaultLocation || APP_CONFIG.defaultLocation;
+    const effectiveDefault =
+      currentDataset?.defaultLocation || APP_CONFIG.defaultLocation;
     urlManager.updateLocation(newLocation, effectiveDefault);
     setSelectedLocation(newLocation);
   };
@@ -170,67 +231,77 @@ export const ViewProvider = ({ children }) => {
     updateDatasetParams({ target: target });
   };
 
-  const handleViewChange = useCallback((newView) => {
-    const oldView = viewType;
-    if (oldView === newView) return;
+  const handleViewChange = useCallback(
+    (newView) => {
+      const oldView = viewType;
+      if (oldView === newView) return;
 
-    const oldDataset = urlManager.getDatasetFromView(oldView);
-    const newDataset = urlManager.getDatasetFromView(newView);
-    const newSearchParams = new URLSearchParams(searchParams);
+      const oldDataset = urlManager.getDatasetFromView(oldView);
+      const newDataset = urlManager.getDatasetFromView(newView);
+      const newSearchParams = new URLSearchParams(searchParams);
 
+      const isMovingToMetrocast = newView === "metrocast_forecasts";
 
-    const isMovingToMetrocast = newView === 'metrocast_forecasts';
-    
-    if (isMovingToMetrocast) {
-      const needsCityDefault = selectedLocation === APP_CONFIG.defaultLocation || selectedLocation.length === 2;
-      
-      if (needsCityDefault && newDataset?.defaultLocation) {
-        setSelectedLocation(newDataset.defaultLocation);
-        newSearchParams.delete('location');
-      }
-    } else {
-      if (selectedLocation !== APP_CONFIG.defaultLocation && selectedLocation.length > 2) {
-        setSelectedLocation(APP_CONFIG.defaultLocation);
-        newSearchParams.delete('location');
-      }
-    }
+      if (isMovingToMetrocast) {
+        const needsCityDefault =
+          selectedLocation === APP_CONFIG.defaultLocation ||
+          selectedLocation.length === 2;
 
-    if (newView !== APP_CONFIG.defaultView || newSearchParams.toString().length > 0) {
-      newSearchParams.set('view', newView);
-    } else {
-      newSearchParams.delete('view');
-    }
-
-    const isDatasetChange = oldDataset?.shortName !== newDataset?.shortName;
-    const isPeakTransition = oldView === 'flu_peak' || newView === 'flu_peak'; // reset if coming or going from flu_peak
-
-    if (isDatasetChange || isPeakTransition) {
-      setSelectedDates([]);
-      setSelectedModels([]);
-      setActiveDate(null);
-      setSelectedTarget(null);
-      
-      if (oldDataset) {
-        newSearchParams.delete(`${oldDataset.prefix}_models`);
-        newSearchParams.delete(`${oldDataset.prefix}_dates`);
-        newSearchParams.delete(`${oldDataset.prefix}_target`);
+        if (needsCityDefault && newDataset?.defaultLocation) {
+          setSelectedLocation(newDataset.defaultLocation);
+          newSearchParams.delete("location");
+        }
+      } else {
+        if (
+          selectedLocation !== APP_CONFIG.defaultLocation &&
+          selectedLocation.length > 2
+        ) {
+          setSelectedLocation(APP_CONFIG.defaultLocation);
+          newSearchParams.delete("location");
+        }
       }
 
-      if (oldDataset?.shortName === 'nhsn') {
-        newSearchParams.delete('nhsn_target');
-        newSearchParams.delete('nhsn_cols');
+      if (
+        newView !== APP_CONFIG.defaultView ||
+        newSearchParams.toString().length > 0
+      ) {
+        newSearchParams.set("view", newView);
+      } else {
+        newSearchParams.delete("view");
       }
-    } else {
-      if (newDataset) {
-         newSearchParams.delete(`${newDataset.prefix}_target`);
-      }
-      setSelectedTarget(null);
-    }
 
-    setViewTypeState(newView);
-    // Push history for view changes so browser back works between forecast views.
-    setSearchParams(newSearchParams, { replace: false });
-  }, [viewType, searchParams, setSearchParams, urlManager, selectedLocation]);
+      const isDatasetChange = oldDataset?.shortName !== newDataset?.shortName;
+      const isPeakTransition = oldView === "flu_peak" || newView === "flu_peak"; // reset if coming or going from flu_peak
+
+      if (isDatasetChange || isPeakTransition) {
+        setSelectedDates([]);
+        setSelectedModels([]);
+        setActiveDate(null);
+        setSelectedTarget(null);
+
+        if (oldDataset) {
+          newSearchParams.delete(`${oldDataset.prefix}_models`);
+          newSearchParams.delete(`${oldDataset.prefix}_dates`);
+          newSearchParams.delete(`${oldDataset.prefix}_target`);
+        }
+
+        if (oldDataset?.shortName === "nhsn") {
+          newSearchParams.delete("nhsn_target");
+          newSearchParams.delete("nhsn_cols");
+        }
+      } else {
+        if (newDataset) {
+          newSearchParams.delete(`${newDataset.prefix}_target`);
+        }
+        setSelectedTarget(null);
+      }
+
+      setViewTypeState(newView);
+      // Push history for view changes so browser back works between forecast views.
+      setSearchParams(newSearchParams, { replace: false });
+    },
+    [viewType, searchParams, setSearchParams, urlManager, selectedLocation],
+  );
 
   useEffect(() => {
     const viewFromUrl = urlManager.getView();
@@ -243,7 +314,11 @@ export const ViewProvider = ({ children }) => {
     if (!isForecastPage) {
       return;
     }
-    const { chartScale: urlScale, intervalVisibility: urlIntervals, showLegend: urlLegend } = urlManager.getAdvancedParams();
+    const {
+      chartScale: urlScale,
+      intervalVisibility: urlIntervals,
+      showLegend: urlLegend,
+    } = urlManager.getAdvancedParams();
     if (urlScale !== chartScale) {
       setChartScale(urlScale);
     }
@@ -253,78 +328,106 @@ export const ViewProvider = ({ children }) => {
     if (urlLegend !== showLegend) {
       setShowLegend(urlLegend);
     }
-  }, [searchParams, urlManager, isForecastPage, chartScale, intervalVisibility, showLegend]);
+  }, [
+    searchParams,
+    urlManager,
+    isForecastPage,
+    chartScale,
+    intervalVisibility,
+    showLegend,
+  ]);
 
-  const setChartScaleWithUrl = useCallback((nextScale) => {
-    setChartScale(nextScale);
-    if (isForecastPage) {
-      urlManager.updateAdvancedParams({ chartScale: nextScale });
-    }
-  }, [urlManager, isForecastPage]);
-
-  const setIntervalVisibilityWithUrl = useCallback((updater) => {
-    setIntervalVisibility(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
+  const setChartScaleWithUrl = useCallback(
+    (nextScale) => {
+      setChartScale(nextScale);
       if (isForecastPage) {
-        urlManager.updateAdvancedParams({ intervalVisibility: next });
+        urlManager.updateAdvancedParams({ chartScale: nextScale });
       }
-      return next;
-    });
-  }, [urlManager, isForecastPage]);
+    },
+    [urlManager, isForecastPage],
+  );
 
-  const setShowLegendWithUrl = useCallback((nextShowLegend) => {
-    setShowLegend(nextShowLegend);
-    if (isForecastPage) {
-      urlManager.updateAdvancedParams({ showLegend: nextShowLegend });
-    }
-  }, [urlManager, isForecastPage]);
+  const setIntervalVisibilityWithUrl = useCallback(
+    (updater) => {
+      setIntervalVisibility((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        if (isForecastPage) {
+          urlManager.updateAdvancedParams({ intervalVisibility: next });
+        }
+        return next;
+      });
+    },
+    [urlManager, isForecastPage],
+  );
+
+  const setShowLegendWithUrl = useCallback(
+    (nextShowLegend) => {
+      setShowLegend(nextShowLegend);
+      if (isForecastPage) {
+        urlManager.updateAdvancedParams({ showLegend: nextShowLegend });
+      }
+    },
+    [urlManager, isForecastPage],
+  );
 
   const contextValue = {
-    selectedLocation, handleLocationSelect,
-    data, metadata, loading, error, 
-    availableDates: availableDatesToExpose, 
+    selectedLocation,
+    handleLocationSelect,
+    data,
+    metadata,
+    loading,
+    error,
+    availableDates: availableDatesToExpose,
     models: modelsForView,
-    selectedModels, setSelectedModels: (updater) => {
-      const resolveModels = (prevModels) => (
-        typeof updater === 'function' ? updater(prevModels) : updater
-      );
+    selectedModels,
+    setSelectedModels: (updater) => {
+      const resolveModels = (prevModels) =>
+        typeof updater === "function" ? updater(prevModels) : updater;
       const currentDataset = urlManager.getDatasetFromView(viewType);
-      setSelectedModels(prevModels => {
+      setSelectedModels((prevModels) => {
         const nextModels = resolveModels(prevModels);
-        const defaultModel = currentDataset?.defaultModel ? [currentDataset.defaultModel] : [];
-        const isDefault = JSON.stringify(nextModels.slice().sort()) === JSON.stringify(defaultModel.slice().sort());
+        const defaultModel = currentDataset?.defaultModel
+          ? [currentDataset.defaultModel]
+          : [];
+        const isDefault =
+          JSON.stringify(nextModels.slice().sort()) ===
+          JSON.stringify(defaultModel.slice().sort());
         updateDatasetParams({ models: isDefault ? [] : nextModels });
         return nextModels;
       });
     },
-    selectedDates, setSelectedDates: (updater) => {
-      setSelectedDates(prevDates => {
-        const nextDates = typeof updater === 'function' ? updater(prevDates) : updater;
+    selectedDates,
+    setSelectedDates: (updater) => {
+      setSelectedDates((prevDates) => {
+        const nextDates =
+          typeof updater === "function" ? updater(prevDates) : updater;
         updateDatasetParams({ dates: nextDates });
         return nextDates;
       });
     },
-    activeDate, setActiveDate,
-    viewType, setViewType: handleViewChange,
+    activeDate,
+    setActiveDate,
+    viewType,
+    setViewType: handleViewChange,
     currentDataset: urlManager.getDatasetFromView(viewType),
-    availableTargets: availableTargetsToExpose, 
-    
+    availableTargets: availableTargetsToExpose,
+
     selectedTarget,
     handleTargetSelect,
     peaks,
-    availablePeakDates: (availablePeakDates || []).filter(date => date >= CURRENT_FLU_SEASON_START),
+    availablePeakDates: (availablePeakDates || []).filter(
+      (date) => date >= CURRENT_FLU_SEASON_START,
+    ),
     availablePeakModels,
     chartScale,
     setChartScale: setChartScaleWithUrl,
     intervalVisibility,
     setIntervalVisibility: setIntervalVisibilityWithUrl,
     showLegend,
-    setShowLegend: setShowLegendWithUrl
+    setShowLegend: setShowLegendWithUrl,
   };
 
   return (
-    <ViewContext.Provider value={contextValue}>
-      {children}
-    </ViewContext.Provider>
+    <ViewContext.Provider value={contextValue}>{children}</ViewContext.Provider>
   );
 };

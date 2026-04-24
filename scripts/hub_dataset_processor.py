@@ -21,7 +21,6 @@ class HubDatasetConfig:
 
     file_suffix: str
     dataset_label: str
-    ground_truth_date_column: str
     ground_truth_min_date: Optional[pd.Timestamp] = None
     series_type: str = "projection"
     observation_column: str = "observation"
@@ -34,7 +33,7 @@ class HubDataProcessorBase:
 
     Subclasses supply dataset-specific configuration via HubDatasetConfig.
     """
-
+    
     def __init__(
         self,
         data: pd.DataFrame,
@@ -48,6 +47,7 @@ class HubDataProcessorBase:
         self.locations_data = locations_data
         self.target_data = target_data
         self.config = config
+        self.locations_in_this_dump = set(self.df_data['location'])
         self.is_metro_cast = is_metro_cast
         if self.is_metro_cast: # necessary date filter for metrocast data
             self.df_data = self.df_data[self.df_data['reference_date'] >= datetime.date(2025, 11, 19)]
@@ -174,7 +174,7 @@ class HubDataProcessorBase:
         if filtered.empty:
             return filtered
 
-        date_col = self.config.ground_truth_date_column
+        date_col = "target_end_date"
         
         filtered["as_of"] = pd.to_datetime(filtered["as_of"])
         filtered[date_col] = pd.to_datetime(filtered[date_col])
@@ -196,7 +196,7 @@ class HubDataProcessorBase:
         if ground_truth_df.empty:
             return {"dates": []}
 
-        date_col = self.config.ground_truth_date_column
+        date_col = "target_end_date"
         pivot_truth = ground_truth_df.pivot(
             index=date_col, 
             columns="target", 
@@ -337,8 +337,9 @@ class HubDataProcessorBase:
             "models": sorted(all_models),
             "locations": [],
         }
+        filtered_locations_data = self.locations_data[self.locations_data['location'].isin(self.locations_in_this_dump)]
         if self.is_metro_cast: # different building for metrocast (stems from locations.csv structure)
-            for _, row in self.locations_data.iterrows():
+            for _, row in filtered_locations_data.iterrows():
                 file_name = str(row["location"]) + "_flu_metrocast.json"
                 location_info = {
                     "location": self.output_dict[file_name]["metadata"]["location"],
@@ -348,7 +349,7 @@ class HubDataProcessorBase:
                 }
                 metadata_file_contents["locations"].append(location_info)
         else:
-            for _, row in self.locations_data.iterrows():
+            for _, row in filtered_locations_data.iterrows():
                 location_info = {
                     "location": str(row["location"]),
                     "abbreviation": str(row["abbreviation"]),

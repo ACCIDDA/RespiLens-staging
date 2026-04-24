@@ -1,13 +1,35 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Card, Title, Text, Button, Badge, Stack, Group, Modal, Alert, Loader, Stepper, Box, Switch } from '@mantine/core';
-import { IconCheck, IconLock, IconEdit, IconAlertCircle } from '@tabler/icons-react';
-import { useForecastData } from '../../hooks/useForecastData';
-import { submitForecast, getParticipant } from '../../utils/tournamentAPI';
-import { TOURNAMENT_CONFIG } from '../../config';
-import { initialiseForecastInputs, convertToIntervals } from '../../utils/forecastleInputs';
-import { validateForecastSubmission } from '../../utils/forecastleValidation';
-import ForecastleChartCanvas from '../forecastle/ForecastleChartCanvas';
-import ForecastleInputControls from '../forecastle/ForecastleInputControls';
+import { useState, useEffect, useMemo } from "react";
+import {
+  Card,
+  Title,
+  Text,
+  Button,
+  Badge,
+  Stack,
+  Group,
+  Modal,
+  Alert,
+  Loader,
+  Stepper,
+  Box,
+  Switch,
+} from "@mantine/core";
+import {
+  IconCheck,
+  IconLock,
+  IconEdit,
+  IconAlertCircle,
+} from "@tabler/icons-react";
+import { useForecastData } from "../../hooks/useForecastData";
+import { submitForecast, getParticipant } from "../../utils/tournamentAPI";
+import { TOURNAMENT_CONFIG } from "../../config";
+import {
+  initialiseForecastInputs,
+  convertToIntervals,
+} from "../../utils/forecastleInputs";
+import { validateForecastSubmission } from "../../utils/forecastleValidation";
+import ForecastleChartCanvas from "../forecastle/ForecastleChartCanvas";
+import ForecastleInputControls from "../forecastle/ForecastleInputControls";
 
 const addWeeksToDate = (dateString, weeks) => {
   const base = new Date(`${dateString}T00:00:00Z`);
@@ -28,31 +50,36 @@ const TournamentChallengeCard = ({
   const [modalOpened, setModalOpened] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [inputMode, setInputMode] = useState('median'); // 'median' or 'intervals'
+  const [inputMode, setInputMode] = useState("median"); // 'median' or 'intervals'
   const [existingSubmission, setExistingSubmission] = useState(null);
   const [zoomedView, setZoomedView] = useState(true); // Start with zoomed view
 
   // Map dataset to viewType
   const getViewType = (dataset) => {
     const map = {
-      'flu': 'flu_projs',
-      'covid': 'covid_projs',
-      'rsv': 'rsv_projs',
+      flu: "flu_projs",
+      covid: "covid_projs",
+      rsv: "rsv_projs",
     };
-    return map[dataset] || 'flu_projs';
+    return map[dataset] || "flu_projs";
   };
 
   // Load forecast data for the challenge (for displaying chart)
-  const { data, loading: dataLoading } = useForecastData(challenge.location, getViewType(challenge.dataset));
-
+  const { data, loading: dataLoading } = useForecastData(
+    challenge.location,
+    getViewType(challenge.dataset),
+  );
 
   // Get ground truth data for the chart
   const groundTruthSeries = useMemo(() => {
     return data?.ground_truth?.dates && data?.ground_truth?.[challenge.target]
-      ? data.ground_truth.dates.map((date, idx) => ({
-          date,
-          value: data.ground_truth[challenge.target][idx],
-        })).filter(entry => entry.value !== null).slice(-20) // Last 20 points
+      ? data.ground_truth.dates
+          .map((date, idx) => ({
+            date,
+            value: data.ground_truth[challenge.target][idx],
+          }))
+          .filter((entry) => entry.value !== null)
+          .slice(-20) // Last 20 points
       : [];
   }, [data, challenge.target]);
 
@@ -65,15 +92,24 @@ const TournamentChallengeCard = ({
 
   // Forecast state - array of forecasts for each horizon (like Forecastle)
   const initialForecasts = useMemo(
-    () => initialiseForecastInputs(challenge.horizons || [1, 2, 3], latestObservationValue),
-    [challenge.horizons, latestObservationValue]
+    () =>
+      initialiseForecastInputs(
+        challenge.horizons || [1, 2, 3],
+        latestObservationValue,
+      ),
+    [challenge.horizons, latestObservationValue],
   );
 
   const [forecastEntries, setForecastEntries] = useState(initialForecasts);
 
   // Reset forecast entries when latestObservationValue changes
   useEffect(() => {
-    setForecastEntries(initialiseForecastInputs(challenge.horizons || [1, 2, 3], latestObservationValue));
+    setForecastEntries(
+      initialiseForecastInputs(
+        challenge.horizons || [1, 2, 3],
+        latestObservationValue,
+      ),
+    );
   }, [challenge.horizons, latestObservationValue]);
 
   // Load existing submission if challenge is completed
@@ -81,14 +117,19 @@ const TournamentChallengeCard = ({
     const loadExistingSubmission = async () => {
       if (isCompleted && participantId) {
         try {
-          const participantData = await getParticipant(participantId, tournamentConfig);
+          const participantData = await getParticipant(
+            participantId,
+            tournamentConfig,
+          );
           const submission = participantData.submissions.find(
-            sub => sub.challengeId === challenge.id || Number(sub.challengeNum) === Number(challenge.number)
+            (sub) =>
+              sub.challengeId === challenge.id ||
+              Number(sub.challengeNum) === Number(challenge.number),
           );
           if (submission && submission.forecasts) {
             setExistingSubmission(submission);
             // Pre-fill forecast with existing submission (supports multiple horizons)
-            const restoredForecasts = submission.forecasts.map(f => ({
+            const restoredForecasts = submission.forecasts.map((f) => ({
               horizon: f.horizon,
               median: f.median,
               lower50: f.q25,
@@ -101,30 +142,45 @@ const TournamentChallengeCard = ({
             setForecastEntries(restoredForecasts);
           }
         } catch (err) {
-          console.error('Failed to load existing submission:', err);
+          console.error("Failed to load existing submission:", err);
         }
       }
     };
 
     loadExistingSubmission();
-  }, [isCompleted, participantId, challenge.id, challenge.number, tournamentConfig]);
+  }, [
+    isCompleted,
+    participantId,
+    challenge.id,
+    challenge.number,
+    tournamentConfig,
+  ]);
 
   // Use the challenge's forecast date (historical date)
   const forecastDate = challenge.forecastDate;
 
   // Horizon dates
   const horizonDates = (challenge.horizons || [1, 2, 3]).map((horizon) =>
-    addWeeksToDate(forecastDate, horizon)
+    addWeeksToDate(forecastDate, horizon),
   );
 
   // Calculate max value for chart
-  const latestValue = Number.isFinite(latestObservationValue) ? latestObservationValue : 0;
+  const latestValue = Number.isFinite(latestObservationValue)
+    ? latestObservationValue
+    : 0;
   const baseMax = latestValue > 0 ? latestValue * 5 : 1;
   const userMaxCandidate = Math.max(
-    ...forecastEntries.map((entry) => (entry.median ?? 0) + (entry.width95 ?? 0)),
+    ...forecastEntries.map(
+      (entry) => (entry.median ?? 0) + (entry.width95 ?? 0),
+    ),
     0,
   );
-  const yAxisMax = Math.max(baseMax, userMaxCandidate * 1.1 || 0, latestObservationValue, 1);
+  const yAxisMax = Math.max(
+    baseMax,
+    userMaxCandidate * 1.1 || 0,
+    latestObservationValue,
+    1,
+  );
 
   // Handle forecast adjustments
   const handleMedianAdjust = (index, field, value) => {
@@ -134,7 +190,7 @@ const TournamentChallengeCard = ({
 
         const nextEntry = { ...entry };
 
-        if (field === 'median') {
+        if (field === "median") {
           const oldMedian = entry.median;
           const newMedian = Math.max(0, value);
           const medianShift = newMedian - oldMedian;
@@ -150,19 +206,30 @@ const TournamentChallengeCard = ({
             nextEntry.lower50 = Math.max(0, entry.lower50 + medianShift);
             nextEntry.upper50 = entry.upper50 + medianShift;
           }
-        } else if (field === 'interval95') {
+        } else if (field === "interval95") {
           const [lower, upper] = value;
           nextEntry.lower95 = Math.max(0, lower);
           nextEntry.upper95 = Math.max(lower, upper);
           // Ensure 50% interval stays within 95% bounds
-          if (nextEntry.lower50 < nextEntry.lower95) nextEntry.lower50 = nextEntry.lower95;
-          if (nextEntry.upper50 > nextEntry.upper95) nextEntry.upper50 = nextEntry.upper95;
-          nextEntry.width95 = Math.max(nextEntry.upper95 - entry.median, entry.median - nextEntry.lower95);
-        } else if (field === 'interval50') {
+          if (nextEntry.lower50 < nextEntry.lower95)
+            nextEntry.lower50 = nextEntry.lower95;
+          if (nextEntry.upper50 > nextEntry.upper95)
+            nextEntry.upper50 = nextEntry.upper95;
+          nextEntry.width95 = Math.max(
+            nextEntry.upper95 - entry.median,
+            entry.median - nextEntry.lower95,
+          );
+        } else if (field === "interval50") {
           const [lower, upper] = value;
           nextEntry.lower50 = Math.max(nextEntry.lower95 || 0, lower);
-          nextEntry.upper50 = Math.min(nextEntry.upper95 || 99999, Math.max(lower, upper));
-          nextEntry.width50 = Math.max(nextEntry.upper50 - entry.median, entry.median - nextEntry.lower50);
+          nextEntry.upper50 = Math.min(
+            nextEntry.upper95 || 99999,
+            Math.max(lower, upper),
+          );
+          nextEntry.width50 = Math.max(
+            nextEntry.upper50 - entry.median,
+            entry.median - nextEntry.lower50,
+          );
         }
 
         return nextEntry;
@@ -177,26 +244,32 @@ const TournamentChallengeCard = ({
 
     // Validate that forecastEntries is properly populated
     if (!forecastEntries || forecastEntries.length === 0) {
-      setError('No forecast entries to submit');
+      setError("No forecast entries to submit");
       return;
     }
 
     // Check if all entries have valid median values
-    const hasInvalidEntries = forecastEntries.some(entry =>
-      !entry || entry.median === null || entry.median === undefined || !Number.isFinite(entry.median)
+    const hasInvalidEntries = forecastEntries.some(
+      (entry) =>
+        !entry ||
+        entry.median === null ||
+        entry.median === undefined ||
+        !Number.isFinite(entry.median),
     );
 
     if (hasInvalidEntries) {
-      setError('Some forecast entries have invalid median values');
+      setError("Some forecast entries have invalid median values");
       return;
     }
 
     // Convert to intervals for validation
     const intervalsForValidation = convertToIntervals(forecastEntries);
-    const { valid, errors } = validateForecastSubmission(intervalsForValidation);
+    const { valid, errors } = validateForecastSubmission(
+      intervalsForValidation,
+    );
 
     if (!valid) {
-      setError(Object.values(errors).join('. '));
+      setError(Object.values(errors).join(". "));
       return;
     }
 
@@ -204,15 +277,20 @@ const TournamentChallengeCard = ({
 
     try {
       // Submit forecasts for all horizons (scoring will be done on frontend)
-      await submitForecast(participantId, challenge.number, forecastEntries, tournamentConfig);
+      await submitForecast(
+        participantId,
+        challenge.number,
+        forecastEntries,
+        tournamentConfig,
+      );
 
       setModalOpened(false);
-      setInputMode('median');
+      setInputMode("median");
       if (onSubmissionComplete) {
         onSubmissionComplete();
       }
     } catch (err) {
-      setError(err.message || 'Submission failed. Please try again.');
+      setError(err.message || "Submission failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -220,11 +298,11 @@ const TournamentChallengeCard = ({
 
   const getDatasetColor = (dataset) => {
     const colors = {
-      'flu': '#4c6ef5',
-      'covid': '#f03e3e',
-      'rsv': '#f59f00',
+      flu: "#4c6ef5",
+      covid: "#f03e3e",
+      rsv: "#f59f00",
     };
-    return colors[dataset] || '#868e96';
+    return colors[dataset] || "#868e96";
   };
 
   return (
@@ -236,8 +314,8 @@ const TournamentChallengeCard = ({
         withBorder
         style={{
           borderLeft: `4px solid ${getDatasetColor(challenge.dataset)}`,
-          cursor: 'pointer',
-          transition: 'transform 0.2s',
+          cursor: "pointer",
+          transition: "transform 0.2s",
         }}
         onClick={() => setModalOpened(true)}
       >
@@ -254,7 +332,9 @@ const TournamentChallengeCard = ({
           </Group>
 
           <Title order={4}>{challenge.title}</Title>
-          <Text size="sm" color="dimmed">{challenge.description}</Text>
+          <Text size="sm" color="dimmed">
+            {challenge.description}
+          </Text>
 
           <Group spacing="xs" mt="xs">
             <Badge size="sm" variant="outline">
@@ -268,19 +348,26 @@ const TournamentChallengeCard = ({
             </Badge>
           </Group>
 
-          {isCompleted && existingSubmission && existingSubmission.forecasts && (
-            <Alert color="green" variant="light" icon={<IconCheck size={16} />}>
-              Submitted {existingSubmission.forecasts.length} forecast{existingSubmission.forecasts.length !== 1 ? 's' : ''}
-            </Alert>
-          )}
+          {isCompleted &&
+            existingSubmission &&
+            existingSubmission.forecasts && (
+              <Alert
+                color="green"
+                variant="light"
+                icon={<IconCheck size={16} />}
+              >
+                Submitted {existingSubmission.forecasts.length} forecast
+                {existingSubmission.forecasts.length !== 1 ? "s" : ""}
+              </Alert>
+            )}
 
           <Button
-            variant={isCompleted ? 'light' : 'filled'}
+            variant={isCompleted ? "light" : "filled"}
             leftSection={isCompleted ? <IconEdit size={16} /> : null}
             onClick={() => setModalOpened(true)}
             fullWidth
           >
-            {isCompleted ? 'Update Forecast' : 'Start Challenge'}
+            {isCompleted ? "Update Forecast" : "Start Challenge"}
           </Button>
         </Stack>
       </Card>
@@ -290,7 +377,7 @@ const TournamentChallengeCard = ({
         opened={modalOpened}
         onClose={() => {
           setModalOpened(false);
-          setInputMode('median');
+          setInputMode("median");
           setError(null);
         }}
         title={<Title order={3}>{challenge.title}</Title>}
@@ -300,22 +387,34 @@ const TournamentChallengeCard = ({
           <Text color="dimmed">{challenge.description}</Text>
 
           {error && (
-            <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              title="Error"
+              color="red"
+            >
               {error}
             </Alert>
           )}
 
           {/* Step indicator */}
           <Stepper
-            active={inputMode === 'median' ? 0 : 1}
+            active={inputMode === "median" ? 0 : 1}
             onStepClick={(step) => {
-              if (step === 0) setInputMode('median');
-              else if (step === 1) setInputMode('intervals');
+              if (step === 0) setInputMode("median");
+              else if (step === 1) setInputMode("intervals");
             }}
             size="sm"
           >
-            <Stepper.Step label="Median" description="Point forecasts" completedIcon={<IconCheck size={16} />} />
-            <Stepper.Step label="Intervals" description="Uncertainty" completedIcon={<IconCheck size={16} />} />
+            <Stepper.Step
+              label="Median"
+              description="Point forecasts"
+              completedIcon={<IconCheck size={16} />}
+            />
+            <Stepper.Step
+              label="Intervals"
+              description="Uncertainty"
+              completedIcon={<IconCheck size={16} />}
+            />
           </Stepper>
 
           {dataLoading ? (
@@ -331,12 +430,14 @@ const TournamentChallengeCard = ({
                 <Switch
                   label="Show More History"
                   checked={!zoomedView}
-                  onChange={(event) => setZoomedView(!event.currentTarget.checked)}
+                  onChange={(event) =>
+                    setZoomedView(!event.currentTarget.checked)
+                  }
                   color="red"
                   size="md"
                 />
               </Group>
-              <Box style={{ width: '100%', height: 400 }}>
+              <Box style={{ width: "100%", height: 400 }}>
                 <ForecastleChartCanvas
                   groundTruthSeries={groundTruthSeries}
                   horizonDates={horizonDates}
@@ -344,15 +445,15 @@ const TournamentChallengeCard = ({
                   maxValue={yAxisMax}
                   onAdjust={handleMedianAdjust}
                   height={400}
-                  showIntervals={inputMode === 'intervals'}
+                  showIntervals={inputMode === "intervals"}
                   zoomedView={zoomedView}
                 />
               </Box>
 
               <Text size="sm" c="dimmed" mt="xs">
-                {inputMode === 'median'
-                  ? 'Drag the handles to set your median forecast for each week ahead.'
-                  : 'Drag the handles to adjust interval bounds, or use the sliders for precise control.'}
+                {inputMode === "median"
+                  ? "Drag the handles to set your median forecast for each week ahead."
+                  : "Drag the handles to adjust interval bounds, or use the sliders for precise control."}
               </Text>
 
               {/* Input Controls */}
@@ -366,15 +467,15 @@ const TournamentChallengeCard = ({
           )}
 
           <Group position="apart">
-            {inputMode === 'intervals' && (
-              <Button variant="subtle" onClick={() => setInputMode('median')}>
+            {inputMode === "intervals" && (
+              <Button variant="subtle" onClick={() => setInputMode("median")}>
                 ← Back
               </Button>
             )}
-            <div style={{ marginLeft: 'auto' }}>
-              {inputMode === 'median' ? (
+            <div style={{ marginLeft: "auto" }}>
+              {inputMode === "median" ? (
                 <Button
-                  onClick={() => setInputMode('intervals')}
+                  onClick={() => setInputMode("intervals")}
                   rightSection="→"
                 >
                   Next: Set Intervals

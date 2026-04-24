@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'; 
-import { Helmet } from 'react-helmet-async';
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Container,
   Title,
@@ -14,21 +14,29 @@ import {
   Button,
   Modal,
   Anchor,
-  Select
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { useSearchParams } from 'react-router-dom';
-import { IconUpload, IconFileText, IconArrowLeft, IconInfoCircle, IconDashboard } from '@tabler/icons-react';
-import Plot from 'react-plotly.js';
-import Plotly from 'plotly.js/dist/plotly'; 
-import ModelSelector from '../ModelSelector';
-import DateSelector from '../DateSelector';
-import { MODEL_COLORS } from '../../config/datasets';
-import { buildPlotDownloadName } from '../../utils/plotDownloadName';
+  Select,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { useSearchParams } from "react-router-dom";
+import {
+  IconUpload,
+  IconFileText,
+  IconArrowLeft,
+  IconInfoCircle,
+  IconDashboard,
+} from "@tabler/icons-react";
+import Plot from "react-plotly.js";
+import Plotly from "plotly.js/dist/plotly";
+import ModelSelector from "../ModelSelector";
+import DateSelector from "../DateSelector";
+import { MODEL_COLORS } from "../../config/datasets";
 
 const formatTargetNameForTitle = (name) => {
-  if (!name) return 'Value';
-  return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  if (!name) return "Value";
+  return name
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 };
 
 const MyRespiLensDashboard = () => {
@@ -38,13 +46,11 @@ const MyRespiLensDashboard = () => {
   }, [setSearchParams]);
 
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null); 
+  const [xAxisRange, setXAxisRange] = useState(null);
   const plotRef = useRef(null);
-  const isResettingRef = useRef(false); 
-
+  const isResettingRef = useRef(false);
 
   const [opened, { open, close }] = useDisclosure(false);
-
   const { colorScheme } = useMantineColorScheme();
 
   const [dragActive, setDragActive] = useState(false);
@@ -65,21 +71,16 @@ const MyRespiLensDashboard = () => {
     if (selectedTarget && modelsByTarget[selectedTarget]) {
       return modelsByTarget[selectedTarget];
     }
-    return []; 
+    return [];
   }, [selectedTarget, modelsByTarget]);
 
   useEffect(() => {
-    // This effect runs whenever the target changes (because modelsForView changes)
-    
     if (modelsForView.length === 0) {
-      // If the new target has no models, clear the selection
       setSelectedModels([]);
     } else {
-      // Always reset the selection to the first available model for the new target
       setSelectedModels([modelsForView[0]]);
     }
   }, [modelsForView]);
-
 
   useEffect(() => {
     if (!uploadedFile) return;
@@ -96,41 +97,40 @@ const MyRespiLensDashboard = () => {
         }
         setFileData(data);
 
-        const forecastDates = Object.keys(data.forecasts || {}).sort((a, b) => new Date(a) - new Date(b));
+        const forecastDates = Object.keys(data.forecasts || {}).sort(
+          (a, b) => new Date(a) - new Date(b),
+        );
 
-        // Build both the full model list AND the map
         const allModelsSet = new Set();
         const modelsByTargetMap = new Map();
 
         if (data.forecasts) {
-          Object.values(data.forecasts).forEach(dateData => {
+          Object.values(data.forecasts).forEach((dateData) => {
             Object.entries(dateData).forEach(([target, targetData]) => {
-              
               if (!modelsByTargetMap.has(target)) {
                 modelsByTargetMap.set(target, new Set());
               }
               const modelSetForTarget = modelsByTargetMap.get(target);
-
-              Object.keys(targetData).forEach(model => {
-                allModelsSet.add(model); // Add to the master list
-                modelSetForTarget.add(model); // Add to the target-specific list
+              Object.keys(targetData).forEach((model) => {
+                allModelsSet.add(model);
+                modelSetForTarget.add(model);
               });
             });
           });
         }
 
         const allModels = Array.from(allModelsSet).sort();
-        
         const modelsByTargetState = {};
         for (const [target, modelSet] of modelsByTargetMap.entries()) {
           modelsByTargetState[target] = Array.from(modelSet).sort();
         }
 
-        setModelsByTarget(modelsByTargetState); 
-
+        setModelsByTarget(modelsByTargetState);
         setAvailableDates(forecastDates);
-        
-        const targets = Object.keys(data.ground_truth || {}).filter(key => key !== 'dates');
+
+        const targets = Object.keys(data.ground_truth || {}).filter(
+          (key) => key !== "dates",
+        );
         setAvailableTargets(targets);
 
         let defaultTarget = null;
@@ -149,6 +149,7 @@ const MyRespiLensDashboard = () => {
         } else {
           setSelectedModels([]);
         }
+
         if (forecastDates.length > 0) {
           const latestDate = forecastDates[forecastDates.length - 1];
           setSelectedDates([latestDate]);
@@ -157,21 +158,16 @@ const MyRespiLensDashboard = () => {
           setSelectedDates([]);
           setActiveDate(null);
         }
-
       } catch (error) {
-        console.error('Error parsing JSON file:', error);
-        alert('Could not read the file. Please ensure it is a valid RespiLens projections JSON file.');
+        console.error("Error parsing JSON file:", error);
+        alert(
+          "Could not read the file. Please ensure it is a valid RespiLens projections JSON file.",
+        );
         setUploadedFile(null);
         setFileData(null);
       } finally {
         setIsProcessing(false);
       }
-    };
-
-    reader.onerror = () => {
-      setIsProcessing(false);
-      alert('An error occurred while reading the file.');
-      console.error('FileReader error.');
     };
 
     reader.readAsText(uploadedFile);
@@ -195,11 +191,11 @@ const MyRespiLensDashboard = () => {
   }, []);
 
   const processFile = useCallback((file) => {
-    if (file && file.name.endsWith('.json')) {
+    if (file && file.name.endsWith(".json")) {
       setFileData(null);
       setUploadedFile(file);
     } else {
-      alert('Please upload a .json file');
+      alert("Please upload a .json file");
     }
   }, []);
 
@@ -212,7 +208,7 @@ const MyRespiLensDashboard = () => {
         processFile(event.dataTransfer.files[0]);
       }
     },
-    [processFile]
+    [processFile],
   );
 
   const handleFileSelect = useCallback(
@@ -221,7 +217,7 @@ const MyRespiLensDashboard = () => {
         processFile(event.target.files[0]);
       }
     },
-    [processFile]
+    [processFile],
   );
 
   const handleReset = useCallback(() => {
@@ -237,341 +233,369 @@ const MyRespiLensDashboard = () => {
     setYAxisRange(null);
   }, []);
 
+  const getModelColor = useCallback(
+    (model) => {
+      const index = selectedModels.indexOf(model);
+      return MODEL_COLORS[index % MODEL_COLORS.length];
+    },
+    [selectedModels],
+  );
 
-  const getModelColor = useCallback((model) => {
-    const index = selectedModels.indexOf(model); 
-    return MODEL_COLORS[index % MODEL_COLORS.length];
-  }, [selectedModels]);
-  
   const groundTruthTrace = useMemo(() => {
     if (!fileData) return {};
     return {
       x: fileData.ground_truth?.dates || [],
       y: selectedTarget ? fileData.ground_truth?.[selectedTarget] || [] : [],
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Observed',
-      line: { color: 'black', width: 2, dash: 'dash' },
-      marker: { size: 4, color: 'black' }
+      type: "scatter",
+      mode: "lines+markers",
+      name: "Observed",
+      line: { color: "black", width: 2, dash: "dash" },
+      marker: { size: 4, color: "black" },
+      hoverinfo: "text",
+      hovertemplate:
+        `<b>Observed Data</b><br>` +
+        `Value: %{y:.1f}<br>` +
+        `Date: %{x}<br>` +
+        `<extra></extra>`,
     };
   }, [fileData, selectedTarget]);
 
   const modelTraces = useMemo(() => {
     if (!fileData) return [];
-    return selectedModels.flatMap(model => {
+    return selectedModels.flatMap((model) => {
       const modelColor = getModelColor(model);
       return selectedDates.flatMap((forecastDate, dateIndex) => {
-        const forecastData = fileData.forecasts?.[forecastDate]?.[selectedTarget]?.[model];
-        if (!forecastData || forecastData.type !== 'quantile' || !forecastData.predictions) {
+        const forecastData =
+          fileData.forecasts?.[forecastDate]?.[selectedTarget]?.[model];
+        if (
+          !forecastData ||
+          forecastData.type !== "quantile" ||
+          !forecastData.predictions
+        ) {
           return [];
         }
-        
-        const isFirstDate = dateIndex === 0;
 
-        const predictions = Object.values(forecastData.predictions || {}).sort((a, b) => new Date(a.date) - new Date(b.date));
-        const forecastDates = predictions.map(pred => pred.date);
-        const getQuantile = (q) => predictions.map(pred => {
-          if (!pred.quantiles || !pred.values) return 0;
-          const index = pred.quantiles.indexOf(q);
-          return index !== -1 ? (pred.values[index] ?? 0) : 0;
+        const isFirstDate = dateIndex === 0;
+        const predictions = Object.values(forecastData.predictions || {}).sort(
+          (a, b) => new Date(a.date) - new Date(b.date),
+        );
+        const forecastDates = predictions.map((pred) => pred.date);
+
+        const getQuantile = (q) =>
+          predictions.map((pred) => {
+            if (!pred.quantiles || !pred.values) return 0;
+            const index = pred.quantiles.indexOf(q);
+            return index !== -1 ? (pred.values[index] ?? 0) : 0;
+          });
+
+        const availableQuantiles = predictions[0]?.quantiles || [];
+
+        const quantilePairs = availableQuantiles
+          .filter((q) => q < 0.5)
+          .map((q) => {
+            const upper = parseFloat((1 - q).toFixed(3));
+            return availableQuantiles.includes(upper)
+              ? { lower: q, upper, spread: upper - q }
+              : null;
+          })
+          .filter((pair) => pair !== null)
+          .sort((a, b) => b.spread - a.spread);
+
+        const areaTraces = quantilePairs.map((pair) => {
+          const confidenceLevel = Math.round(pair.spread * 100);
+          const opacityBase = Math.floor(40 - pair.spread * 30);
+          const opacityHex = Math.max(10, opacityBase).toString();
+
+          const upperValues = getQuantile(pair.upper);
+          const lowerValues = getQuantile(pair.lower);
+
+          return {
+            x: [...forecastDates, ...[...forecastDates].reverse()],
+            y: [...upperValues, ...[...lowerValues].reverse()],
+            customdata: [...lowerValues, ...[...upperValues].reverse()],
+            fill: "toself",
+            fillcolor: `${modelColor}${opacityHex}`,
+            line: { color: "transparent" },
+            showlegend: false,
+            type: "scatter",
+            name: `${model} ${confidenceLevel}% CI`,
+            legendgroup: model,
+            hoverinfo: "text",
+            hovertemplate:
+              `<b>${model}</b> - ${confidenceLevel}% CI<br>` +
+              `pred. <b>${forecastDate}</b><br>` +
+              `Upper: %{y:.1f}<br>` +
+              `Lower: %{customdata:.1f}<br>` +
+              `<extra></extra>`,
+          };
         });
 
-        return [
-          {
-            x: [...forecastDates, ...[...forecastDates].reverse()],
-            y: [...getQuantile(0.975), ...[...getQuantile(0.025)].reverse()],
-            fill: 'toself',
-            fillcolor: `${modelColor}10`,
-            line: { color: 'transparent' },
-            showlegend: false,
-            type: 'scatter',
-            name: `${model} 95% CI`,
-            hoverinfo: 'none',
-            legendgroup: model
-          },
-          {
-            x: [...forecastDates, ...[...forecastDates].reverse()],
-            y: [...getQuantile(0.75), ...[...getQuantile(0.25)].reverse()],
-            fill: 'toself',
-            fillcolor: `${modelColor}30`,
-            line: { color: 'transparent' },
-            showlegend: false,
-            type: 'scatter',
-            name: `${model} 50% CI`,
-            hoverinfo: 'none',
-            legendgroup: model
-          },
-          {
-            x: forecastDates,
-            y: getQuantile(0.5),
-            name: model,
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: { color: modelColor, width: 2 },
-            marker: { size: 6, color: modelColor },
-            showlegend: isFirstDate,
-            legendgroup: model
-          }
-        ];
+        const medianTrace = {
+          x: forecastDates,
+          y: getQuantile(0.5),
+          name: model,
+          type: "scatter",
+          mode: "lines+markers",
+          line: { color: modelColor, width: 2 },
+          marker: { size: 6, color: modelColor },
+          showlegend: isFirstDate,
+          legendgroup: model,
+          hoverinfo: "text",
+          hovertemplate:
+            `<b>${model}</b><br>` +
+            `pred. <b>${forecastDate}</b><br>` +
+            `Median Forecast: %{y:.1f}<br>` +
+            `<extra></extra>`,
+        };
+
+        return [...areaTraces, medianTrace];
       });
     });
   }, [fileData, selectedModels, selectedDates, selectedTarget, getModelColor]);
 
   const traces = useMemo(() => {
-    if (!fileData) return []; 
+    if (!fileData) return [];
     return [groundTruthTrace, ...modelTraces];
   }, [groundTruthTrace, modelTraces, fileData]);
 
-  /**
-   * Create a Set of all models that have forecast data for
-   * the currently selected target AND at least one of the selected dates.
-   */
   const activeModels = useMemo(() => {
     const activeModelSet = new Set();
-    if (!fileData || !fileData.forecasts || !selectedTarget || !selectedDates.length) {
+    if (
+      !fileData ||
+      !fileData.forecasts ||
+      !selectedTarget ||
+      !selectedDates.length
+    )
       return activeModelSet;
-    }
 
-    selectedDates.forEach(date => {
-      const forecastsForDate = fileData.forecasts[date];
-      if (!forecastsForDate) return;
-
-      const targetData = forecastsForDate[selectedTarget];
-      if (!targetData) return;
-
-      // Add all models found for this target on this date
-      Object.keys(targetData).forEach(model => {
-        activeModelSet.add(model);
-      });
+    selectedDates.forEach((date) => {
+      const targetData = fileData.forecasts[date]?.[selectedTarget];
+      if (targetData)
+        Object.keys(targetData).forEach((model) => activeModelSet.add(model));
     });
 
     return activeModelSet;
   }, [fileData, selectedDates, selectedTarget]);
 
-  const calculateYRange = useCallback((data, xRange) => {
-    if (!data || !xRange || !Array.isArray(data) || data.length === 0 || !selectedTarget) return null;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    const [startX, endX] = xRange;
-    const startDate = new Date(startX);
-    const endDate = new Date(endX);
+  const calculateYRange = useCallback(
+    (data, xRange) => {
+      if (!data || !xRange || data.length === 0 || !selectedTarget) return null;
+      let minY = Infinity,
+        maxY = -Infinity;
+      const [startX, endX] = [new Date(xRange[0]), new Date(xRange[1])];
 
-    data.forEach(trace => {
-      if (!trace.x || !trace.y) return;
-      for (let i = 0; i < trace.x.length; i++) {
-        const pointDate = new Date(trace.x[i]);
-        if (pointDate >= startDate && pointDate <= endDate) {
-          const value = Number(trace.y[i]);
-          if (!isNaN(value)) {
-            minY = Math.min(minY, value);
-            maxY = Math.max(maxY, value);
+      data.forEach((trace) => {
+        if (!trace.x || !trace.y) return;
+        for (let i = 0; i < trace.x.length; i++) {
+          const pointDate = new Date(trace.x[i]);
+          if (pointDate >= startX && pointDate <= endX) {
+            const val = Number(trace.y[i]);
+            if (!isNaN(val)) {
+              minY = Math.min(minY, val);
+              maxY = Math.max(maxY, val);
+            }
           }
         }
-      }
-    });
-    if (minY !== Infinity && maxY !== -Infinity) {
-      const padding = maxY * 0.1; 
-      const rangeMin = Math.max(0, minY - padding);
-      return [rangeMin, maxY + padding];
-    }
-    return null;
-  }, [selectedTarget]);
-
-  const getDefaultRange = useCallback((isFullRange = false) => {
-    if (isFullRange) {
-      if (!traces || traces.length === 0) return [null, null];
-      let minDate = '9999-12-31';
-      let maxDate = '1000-01-01';
-      traces.forEach(trace => {
-        if (trace.x && trace.x.length > 0) {
-          const first = trace.x[0];
-          const last = trace.x[trace.x.length - 1];
-          if (first && first < minDate) minDate = first;
-          if (last && last > maxDate) maxDate = last;
-        }
       });
-      return (minDate === '9999-12-31') ? [null, null] : [minDate, maxDate];
-    }
+      if (minY !== Infinity) {
+        const padding = maxY * 0.1;
+        return [Math.max(0, minY - padding), maxY + padding];
+      }
+      return null;
+    },
+    [selectedTarget],
+  );
 
-    if (!selectedDates || selectedDates.length === 0) return [null, null];
-    const firstDate = new Date(selectedDates[0]);
-    const lastDate = new Date(selectedDates[selectedDates.length - 1]);
-    
-    firstDate.setDate(firstDate.getDate() - 35); // 5 weeks before
-    lastDate.setDate(lastDate.getDate() + 35); // 5 weeks after
-
-    return [
-      firstDate.toISOString().split('T')[0],
-      lastDate.toISOString().split('T')[0]
-    ];
-  }, [traces, selectedDates]);
+  const getDefaultRange = useCallback(
+    (isFullRange = false) => {
+      if (isFullRange) {
+        if (!traces.length) return [null, null];
+        let minDate = "9999-12-31",
+          maxDate = "1000-01-01";
+        traces.forEach((t) => {
+          if (t.x?.length) {
+            if (t.x[0] < minDate) minDate = t.x[0];
+            if (t.x[t.x.length - 1] > maxDate) maxDate = t.x[t.x.length - 1];
+          }
+        });
+        return minDate === "9999-12-31" ? [null, null] : [minDate, maxDate];
+      }
+      if (!selectedDates.length) return [null, null];
+      const start = new Date(selectedDates[0]);
+      const end = new Date(selectedDates[selectedDates.length - 1]);
+      start.setDate(start.getDate() - 35);
+      end.setDate(end.getDate() + 35);
+      return [
+        start.toISOString().split("T")[0],
+        end.toISOString().split("T")[0],
+      ];
+    },
+    [traces, selectedDates],
+  );
 
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
-  // Reset xaxis range only when target changes
   useEffect(() => {
-    setXAxisRange(null); // Reset to auto-update mode on target change
+    setXAxisRange(null);
   }, [selectedTarget]);
 
-  // Recalculate y-axis when data or x-range changes
   useEffect(() => {
-    const currentXRange = xAxisRange || defaultRange;
-    if (traces.length > 0 && currentXRange && currentXRange[0] !== null) {
-      const initialYRange = calculateYRange(traces, currentXRange);
-      setYAxisRange(initialYRange);
+    const currentX = xAxisRange || defaultRange;
+    if (traces.length && currentX?.[0]) {
+      setYAxisRange(calculateYRange(traces, currentX));
     } else {
       setYAxisRange(null);
     }
   }, [traces, xAxisRange, defaultRange, calculateYRange]);
 
-  // Capture user zoom/pan from plot
-  const handlePlotUpdate = useCallback((figure) => {
-    if (isResettingRef.current) {
-      isResettingRef.current = false;
-      return;
-    }
-    if (figure && figure['xaxis.range']) {
-      const newXRange = figure['xaxis.range'];
-      if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-        setXAxisRange(newXRange);
+  const handlePlotUpdate = useCallback(
+    (figure) => {
+      if (isResettingRef.current) {
+        isResettingRef.current = false;
+        return;
       }
-    }
-  }, [xAxisRange]);
-
-  const layout = useMemo(() => ({
-    template: colorScheme === 'dark' ? 'plotly_dark' : 'plotly_white',
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'transparent',
-    font: { color: colorScheme === 'dark' ? '#c1c2c5' : '#000000' },
-    height: 600,
-    margin: { l: 60, r: 30, t: 50, b: 80 },
-    showlegend: selectedModels.length < 15,
-    legend: {
-      x: 0,
-      y: 1,
-      xanchor: 'left',
-      yanchor: 'top',
-      bgcolor: colorScheme === 'dark' ? 'rgba(26, 27, 30, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-      bordercolor: colorScheme === 'dark' ? '#444' : '#ccc',
-      borderwidth: 1,
-      font: {
-        size: 10
+      if (figure?.["xaxis.range"]) {
+        const newX = figure["xaxis.range"];
+        if (JSON.stringify(newX) !== JSON.stringify(xAxisRange))
+          setXAxisRange(newX);
       }
     },
-    hovermode: 'x unified',
-    dragmode: false,
-    xaxis: { 
-      rangeslider: { 
-        range: getDefaultRange(true)
+    [xAxisRange],
+  );
+
+  const layout = useMemo(
+    () => ({
+      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
+      paper_bgcolor: "transparent",
+      plot_bgcolor: "transparent",
+      font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+      height: 600,
+      margin: { l: 60, r: 30, t: 50, b: 80 },
+      showlegend: selectedModels.length < 15,
+      legend: {
+        x: 0,
+        y: 1,
+        bgcolor:
+          colorScheme === "dark"
+            ? "rgba(26,27,30,0.8)"
+            : "rgba(255,255,255,0.8)",
+        font: { size: 10 },
       },
-      range: xAxisRange || defaultRange
-    },
-    yaxis: { 
-      title: formatTargetNameForTitle(selectedTarget),
-      range: yAxisRange,
-      autorange: yAxisRange === null
-    },
-    shapes: selectedDates.map(date => ({
-      type: 'line',
-      x0: date,
-      x1: date,
-      y0: 0,
-      y1: 1,
-      yref: 'paper',
-      line: { color: 'red', width: 1, dash: 'dash' }
-    })),
-  }), [colorScheme, selectedModels.length, selectedDates, selectedTarget, yAxisRange, xAxisRange, defaultRange, getDefaultRange]);
-  
-  const config = useMemo(() => ({
-    responsive: true,
-    displayModeBar: true,
-    displaylogo: false,
-    showSendToCloud: false,
-    plotlyServerURL: "",
-    scrollZoom: false,
-    doubleClick: 'reset',
-    toImageButtonOptions: {
-      format: 'png',
-      filename: buildPlotDownloadName('forecast-plot')
-    },
-    modeBarButtonsToRemove: ['resetScale2d', 'select2d', 'lasso2d'],
-    modeBarButtonsToAdd: [{
-      name: 'Reset view',
-      icon: Plotly.Icons.home,
-      click: function(gd) {
-        const range = getDefaultRange(); 
-        if (!range || range[0] === null) return;
-        const newYRange = traces.length > 0 ? calculateYRange(traces, range) : null;
-        isResettingRef.current = true; 
-        setXAxisRange(null); 
-        setYAxisRange(newYRange);
-        Plotly.relayout(gd, {
-          'xaxis.range': range,
-          'yaxis.range': newYRange,
-          'yaxis.autorange': newYRange === null
-        });
-      }
-    }]
-  }), [getDefaultRange, traces, calculateYRange]);
+      hovermode: "x unified",
+      dragmode: false,
+      xaxis: {
+        rangeslider: { range: getDefaultRange(true) },
+        range: xAxisRange || defaultRange,
+      },
+      yaxis: {
+        title: formatTargetNameForTitle(selectedTarget),
+        range: yAxisRange,
+        autorange: yAxisRange === null,
+      },
+      shapes: selectedDates.map((date) => ({
+        type: "line",
+        x0: date,
+        x1: date,
+        y0: 0,
+        y1: 1,
+        yref: "paper",
+        line: { color: "red", width: 1, dash: "dash" },
+      })),
+    }),
+    [
+      colorScheme,
+      selectedModels.length,
+      selectedDates,
+      selectedTarget,
+      yAxisRange,
+      xAxisRange,
+      defaultRange,
+      getDefaultRange,
+    ],
+  );
 
+  const config = useMemo(
+    () => ({
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
+      modeBarButtonsToAdd: [
+        {
+          name: "Reset view",
+          icon: Plotly.Icons.home,
+          click: function (gd) {
+            const r = getDefaultRange();
+            const y = traces.length ? calculateYRange(traces, r) : null;
+            isResettingRef.current = true;
+            setXAxisRange(null);
+            setYAxisRange(y);
+            Plotly.relayout(gd, {
+              "xaxis.range": r,
+              "yaxis.range": y,
+              "yaxis.autorange": y === null,
+            });
+          },
+        },
+      ],
+    }),
+    [getDefaultRange, traces, calculateYRange],
+  );
 
-  if (isProcessing) {
+  if (isProcessing)
     return (
       <Container size="xl" py="xl">
-        <Center style={{ minHeight: '70vh' }}>
+        <Center style={{ minHeight: "70vh" }}>
           <Loader size="lg" />
         </Center>
       </Container>
     );
-  }
 
   if (fileData) {
     return (
-      <Container size="xl" py="xl" style={{ maxWidth: '1400px' }}>
+      <Container size="xl" py="xl" style={{ maxWidth: "1400px" }}>
         <Group justify="flex-start" mb="md">
-          <Button variant="light" leftSection={<IconArrowLeft size={16} />} onClick={handleReset}>
+          <Button
+            variant="light"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={handleReset}
+          >
             Upload a different file
           </Button>
         </Group>
-
         <Title order={2} mb="xl" ta="center">
-          Forecasts for {fileData.metadata?.location_name || 'Selected Location'}
+          Forecasts for{" "}
+          {fileData.metadata?.location_name || "Selected Location"}
         </Title>
-
         <Paper shadow="sm" p="lg" radius="md" withBorder>
-          <Stack gap="md" style={{ minHeight: '70vh' }}>
+          <Stack gap="md" style={{ minHeight: "70vh" }}>
             <Group justify="center">
-                <DateSelector
-                  availableDates={availableDates}
-                  selectedDates={selectedDates}
-                  setSelectedDates={setSelectedDates}
-                  activeDate={activeDate}
-                  setActiveDate={setActiveDate}
-                />
-                
-                <Select
-                  label="Select Target"
-                  placeholder="Pick a target to display"
-                  data={availableTargets}
-                  value={selectedTarget}
-                  onChange={(value) => setSelectedTarget(value)}
-                  disabled={availableTargets.length <= 1}
-                  style={{ minWidth: 250 }}
-                  allowDeselect={false}
-                />
+              <DateSelector
+                availableDates={availableDates}
+                selectedDates={selectedDates}
+                setSelectedDates={setSelectedDates}
+                activeDate={activeDate}
+                setActiveDate={setActiveDate}
+              />
+              <Select
+                label="Select Target"
+                data={availableTargets}
+                value={selectedTarget}
+                onChange={setSelectedTarget}
+                disabled={availableTargets.length <= 1}
+                style={{ minWidth: 250 }}
+                allowDeselect={false}
+              />
             </Group>
-
             <div style={{ flex: 1, minHeight: 0 }}>
-              <Plot 
+              <Plot
                 ref={plotRef}
-                data={traces} 
-                layout={layout} 
-                style={{ width: '100%' }} 
+                data={traces}
+                layout={layout}
+                style={{ width: "100%" }}
                 config={config}
                 onRelayout={handlePlotUpdate}
               />
             </div>
-
             <ModelSelector
               models={modelsForView}
               selectedModels={selectedModels}
@@ -590,108 +614,152 @@ const MyRespiLensDashboard = () => {
       <Helmet>
         <title>RespiLens | MyRespiLens</title>
       </Helmet>
-      <Container size="xl" py="xl" style={{ maxWidth: '800px' }}>
-        <Center style={{ minHeight: '70vh' }}>
-          <Stack align="center" gap="xl" style={{ width: '100%', maxWidth: '600px' }}>
-          <Modal 
-            opened={opened} 
-            onClose={close} 
-            title={
-              <Group gap="xs">
-                <IconDashboard color="var(--mantine-color-blue-6)" />
-                <Text fw={700} size="lg">MyRespiLens</Text>
-              </Group>
-            } 
-            centered
+      <Container size="xl" py="xl" style={{ maxWidth: "800px" }}>
+        <Center style={{ minHeight: "70vh" }}>
+          <Stack
+            align="center"
+            gap="xl"
+            style={{ width: "100%", maxWidth: "600px" }}
           >
-            <Stack>
-              <Title order={4}>About</Title>
-              <Text>
-                MyRespiLens allows epidemiologists to visualize their own public health projections directly in their browser. 
-                All the processing happens locally, meaning your data is never uploaded nor shared on any server. 
-              </Text>
-              <Title order={4}>Data Structure</Title>
-              <Text>MyRespiLens expects uploaded data to be valid JSON and in RespiLens projections format.</Text>
-              <Text fw={700}>
-                RespiLens projections format is the internally-defined JSON style for
-                forecast data. Documentation for this JSON format can be found on the MyRespiLens
-                <Anchor href="https://staging.respilens.com/documentation" target="_blank" rel="noopener noreferrer"> documentation</Anchor> page.
-                The documentation will delineate how you can convert your <Anchor href="https://docs.hubverse.io/en/latest/user-guide/model-output.html" target="_blank" rel="noopener noreferrer">Hubverse-style</Anchor> <code>.csv</code> to ResiLens projections <code>.json</code>.
-              </Text>
-              <Text> If you have questions or concerns, don't hesitate to <Anchor href="https://github.com/ACCIDDA/RespiLens/issues/new" target="_blank" rel="noopener noreferrer">contact the RespiLens Team.</Anchor>. We would love to make MyRespiLens useful to you!</Text>
-            </Stack>
-          </Modal>
-
-          <Group justify="center" style={{ width: '100%' }}>
-            <Button
-              variant="light"
-              size="xs"
-              color='red'
-              onClick={open}
-              leftSection={<IconInfoCircle size={16} />}
+            <Modal
+              opened={opened}
+              onClose={close}
+              title={
+                <Group gap="xs">
+                  <IconDashboard color="var(--mantine-color-blue-6)" />
+                  <Text fw={700} size="lg">
+                    MyRespiLens
+                  </Text>
+                </Group>
+              }
+              centered
             >
-              What is MyRespiLens?
-            </Button>
-            <Button
-              component="a" 
-              href="/documentation" 
-              target="_blank"
-              variant="light"
-              size="xs"
-              color="blue"
-              leftSection={<IconFileText size={16} />}
-            >
-              View Documentation
-            </Button>
-          </Group>
-
-          <Paper
-            shadow="sm"
-            p="xl"
-            radius="lg"
-            withBorder
-            style={{
-              width: '100%',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              border: dragActive ? '2px dashed var(--mantine-primary-color-filled)' : '2px dashed var(--mantine-color-gray-4)',
-              backgroundColor: dragActive ? 'var(--mantine-primary-color-light)' : 'transparent'
-            }}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            onClick={() => document.getElementById('file-input')?.click()}
-          >
-            <Stack align="center" gap="xl">
-              <ThemeIcon size={80} variant="light" color={dragActive ? 'blue' : 'gray'} style={{ transition: 'all 0.2s ease' }}>
-                <IconUpload size={40} />
-              </ThemeIcon>
-
-              <div style={{ textAlign: 'center' }}>
-                <Title order={2} mb="md" c={dragActive ? 'blue' : 'dark'}>
-                  Drop your RespiLens .json file here
-                </Title>
-                <Text size="sm" c="dimmed">
-                  Upload your RespiLens data file to view your personalized RespiLens dashboard
+              <Stack>
+                <Title order={4}>About</Title>
+                <Text>
+                  MyRespiLens allows epidemiologists to visualize their own
+                  public health projections directly in their browser. All the
+                  processing happens locally, meaning your data is never
+                  uploaded nor shared on any server.
                 </Text>
-              </div>
+                <Title order={4}>Data Structure</Title>
+                <Text>
+                  MyRespiLens expects uploaded data to be valid JSON and in
+                  RespiLens projections format.
+                </Text>
+                <Text fw={700}>
+                  RespiLens projections format is the internally-defined JSON
+                  style for forecast data. Documentation for this JSON format
+                  can be found on the MyRespiLens
+                  <Anchor
+                    href="https://staging.respilens.com/documentation"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {" "}
+                    documentation
+                  </Anchor>{" "}
+                  page.
+                </Text>
+                <Text>
+                  {" "}
+                  If you have questions or concerns, don't hesitate to{" "}
+                  <Anchor
+                    href="https://github.com/ACCIDDA/RespiLens/issues/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    contact the RespiLens Team.
+                  </Anchor>
+                </Text>
+              </Stack>
+            </Modal>
 
-              <Group gap="sm">
-                <ThemeIcon size="sm" variant="light" color="blue">
-                  <IconFileText size={14} />
+            <Group justify="center" style={{ width: "100%" }}>
+              <Button
+                variant="light"
+                size="xs"
+                color="red"
+                onClick={open}
+                leftSection={<IconInfoCircle size={16} />}
+              >
+                What is MyRespiLens?
+              </Button>
+              <Button
+                component="a"
+                href="/documentation"
+                target="_blank"
+                variant="light"
+                size="xs"
+                color="blue"
+                leftSection={<IconFileText size={16} />}
+              >
+                View Documentation
+              </Button>
+            </Group>
+
+            <Paper
+              shadow="sm"
+              p="xl"
+              radius="lg"
+              withBorder
+              style={{
+                width: "100%",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                border: dragActive
+                  ? "2px dashed var(--mantine-primary-color-filled)"
+                  : "2px dashed var(--mantine-color-gray-4)",
+                backgroundColor: dragActive
+                  ? "var(--mantine-primary-color-light)"
+                  : "transparent",
+              }}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById("file-input")?.click()}
+            >
+              <Stack align="center" gap="xl">
+                <ThemeIcon
+                  size={80}
+                  variant="light"
+                  color={dragActive ? "blue" : "gray"}
+                  style={{ transition: "all 0.2s ease" }}
+                >
+                  <IconUpload size={40} />
                 </ThemeIcon>
-                <Text size="sm" fw={500} c="blue">
-                  RespiLens projections-style .json files only
-                </Text>
-              </Group>
-            </Stack>
 
-            <input id="file-input" type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileSelect} />
-          </Paper>
-        </Stack>
-      </Center>
-    </Container>
+                <div style={{ textAlign: "center" }}>
+                  <Title order={2} mb="md" c={dragActive ? "blue" : "dark"}>
+                    Drop your RespiLens .json file here
+                  </Title>
+                  <Text size="sm" c="dimmed">
+                    Upload your RespiLens data file to view your personalized
+                    RespiLens dashboard
+                  </Text>
+                </div>
+
+                <Group gap="sm">
+                  <ThemeIcon size="sm" variant="light" color="blue">
+                    <IconFileText size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={500} c="blue">
+                    RespiLens projections-style .json files only
+                  </Text>
+                </Group>
+              </Stack>
+              <input
+                id="file-input"
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+              />
+            </Paper>
+          </Stack>
+        </Center>
+      </Container>
     </>
   );
 };
