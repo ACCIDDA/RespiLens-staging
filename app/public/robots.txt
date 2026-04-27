@@ -1,4 +1,4 @@
 User-agent: *
-Disallow: /
+Allow: /
 
-# Staging builds should not be indexed.
+Sitemap: https://www.respilens.com/sitemap.xml

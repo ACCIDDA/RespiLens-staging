@@ -8,6 +8,8 @@ const SITE_URL = (
 const DEFAULT_DESCRIPTION =
   "Explore respiratory disease forecasts, surveillance data, and interactive tools for influenza, COVID-19, and RSV across the United States.";
 const DEFAULT_IMAGE = "/og-image.png";
+const DEFAULT_IMAGE_ALT =
+  "RespiLens preview showing respiratory disease forecasts and surveillance data.";
 
 const toAbsoluteUrl = (pathOrUrl) => {
   if (!pathOrUrl) return `${SITE_URL}${DEFAULT_IMAGE}`;
@@ -20,6 +22,7 @@ const Seo = ({
   description = DEFAULT_DESCRIPTION,
   canonicalPath,
   image = DEFAULT_IMAGE,
+  imageAlt = DEFAULT_IMAGE_ALT,
   type = "website",
   structuredData,
 }) => {
@@ -48,19 +51,23 @@ const Seo = ({
     <Helmet>
       <title>{pageTitle}</title>
       <meta name="description" content={description} />
+      <meta name="robots" content="index,follow,max-image-preview:large" />
       <link rel="canonical" href={canonicalUrl} />
 
       <meta property="og:type" content={type} />
+      <meta property="og:locale" content="en_US" />
       <meta property="og:site_name" content="RespiLens" />
       <meta property="og:title" content={pageTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:image" content={imageUrl} />
+      <meta property="og:image:alt" content={imageAlt} />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={pageTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={imageUrl} />
+      <meta name="twitter:image:alt" content={imageAlt} />
 
       <script type="application/ld+json">
         {JSON.stringify(structuredData || webPageJsonLd)}
