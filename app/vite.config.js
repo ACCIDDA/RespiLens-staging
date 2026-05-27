@@ -78,4 +78,11 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
   },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.js",
+    css: true,
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
+  },
 });
