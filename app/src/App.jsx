@@ -68,6 +68,7 @@ const AppLayout = () => {
         ))}
         <Route path="/myplots" element={<MyPlots />} />
         <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
+        <Route path="/myrespilens/:hub" element={<MyRespiLensDashboard />} />
         <Route path="/toolbox" element={<ToolsPage />} />
         <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
         <Route path="/documentation" element={<Documentation />} />
