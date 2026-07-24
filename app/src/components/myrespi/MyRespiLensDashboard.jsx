@@ -31,25 +31,25 @@ const HUB_OPTIONS = [
     slug: "flusight",
     label: "FluSight forecast hub",
     pathogenKey: "flu",
-    processedDataPath: "processed_data/flusight",
+    processedDataPath: "processed_data/myrespi/flusight",
   },
   {
     slug: "covid19forecasthub",
     label: "covid19 forecast hub",
     pathogenKey: "covid19forecasthub",
-    processedDataPath: "processed_data/covid19forecasthub",
+    processedDataPath: "processed_data/myrespi/covid19forecasthub",
   },
   {
     slug: "rsvforecasthub",
     label: "rsv forecast hub",
     pathogenKey: "rsvforecasthub",
-    processedDataPath: "processed_data/rsvforecasthub",
+    processedDataPath: "processed_data/myrespi/rsvforecasthub",
   },
   {
     slug: "flumetrocast",
     label: "flu metrocast",
     pathogenKey: "flumetrocast",
-    processedDataPath: "processed_data/flumetrocast",
+    processedDataPath: "processed_data/myrespi/flumetrocast",
   },
 ];
 
@@ -76,6 +76,70 @@ const NUMERIC_OUTPUT_TYPE_IDS = new Set([0.025, 0.25, 0.5, 0.75, 0.975]);
 const DEFAULT_MODEL_ID = "user-uploaded-model";
 
 const csvDateLikeRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const countCsvDataRows = (text) => {
+  const rows = parseCsv(text);
+  return Math.max(0, rows.length - 1);
+};
+
+const formatFileSize = (sizeInBytes) => {
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  }
+  if (sizeInBytes < 1024 * 1024) {
+    return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const fetchReferenceFile = async (path, fileKind) => {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Could not load ${fileKind} from ${path}.`);
+  }
+
+  const blob = await response.blob();
+  const fileName = path.split("/").pop() ?? path;
+
+  if (fileName.endsWith(".csv")) {
+    const text = await blob.text();
+    return {
+      path,
+      fileName,
+      size: blob.size,
+      rowCount: countCsvDataRows(text),
+    };
+  }
+
+  return {
+    path,
+    fileName,
+    size: blob.size,
+    rowCount: null,
+  };
+};
+
+const loadHubReferenceData = async (hubConfig) => {
+  const basePath = `/${hubConfig.processedDataPath}`;
+  const locationsPath = `${basePath}/locations.csv`;
+  const locations = await fetchReferenceFile(locationsPath, "locations.csv");
+
+  try {
+    const timeSeriesCsvPath = `${basePath}/time-series.csv`;
+    const timeSeries = await fetchReferenceFile(
+      timeSeriesCsvPath,
+      "time-series.csv",
+    );
+    return { locations, timeSeries };
+  } catch {
+    const timeSeriesParquetPath = `${basePath}/time-series.parquet`;
+    const timeSeries = await fetchReferenceFile(
+      timeSeriesParquetPath,
+      "time-series.parquet",
+    );
+    return { locations, timeSeries };
+  }
+};
 
 const parseCsv = (text) => {
   const rows = [];
@@ -380,13 +444,67 @@ const HubUploadScreen = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [validationState, setValidationState] = useState(null);
+  const [referenceDataState, setReferenceDataState] = useState({
+    status: "idle",
+    data: null,
+    error: null,
+  });
 
   useEffect(() => {
     setDragActive(false);
     setIsProcessing(false);
     setUploadedFileName("");
     setValidationState(null);
+    setReferenceDataState({
+      status: "idle",
+      data: null,
+      error: null,
+    });
   }, [hub]);
+
+  useEffect(() => {
+    if (!hubConfig) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+
+    const loadReferences = async () => {
+      setReferenceDataState({
+        status: "loading",
+        data: null,
+        error: null,
+      });
+
+      try {
+        const data = await loadHubReferenceData(hubConfig);
+        if (!isCancelled) {
+          setReferenceDataState({
+            status: "success",
+            data,
+            error: null,
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setReferenceDataState({
+            status: "error",
+            data: null,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not load the hub reference files.",
+          });
+        }
+      }
+    };
+
+    loadReferences();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [hubConfig]);
 
   const processFile = useCallback(
     async (file) => {
@@ -536,6 +654,60 @@ const HubUploadScreen = () => {
             <code>{hubConfig.processedDataPath}</code>, so users only need to
             provide the Hubverse forecast CSV here.
           </Alert>
+
+          {referenceDataState.status === "loading" && (
+            <Alert
+              color="blue"
+              radius="lg"
+              icon={<IconInfoCircle size={16} />}
+              title="Loading hub reference files"
+            >
+              Fetching <code>locations.csv</code> and the hub's{" "}
+              <code>time-series</code> file for{" "}
+              <strong>{hubConfig.label}</strong>.
+            </Alert>
+          )}
+
+          {referenceDataState.status === "success" && (
+            <Alert
+              color="green"
+              radius="lg"
+              icon={<IconCheck size={16} />}
+              title="Hub reference files loaded"
+            >
+              <Stack gap="sm">
+                <Text>
+                  MyRespiLens successfully loaded the reference files for{" "}
+                  <strong>{hubConfig.label}</strong>.
+                </Text>
+                <List spacing="xs">
+                  <List.Item>
+                    <code>{referenceDataState.data.locations.fileName}</code>:{" "}
+                    {referenceDataState.data.locations.rowCount} data rows,{" "}
+                    {formatFileSize(referenceDataState.data.locations.size)}
+                  </List.Item>
+                  <List.Item>
+                    <code>{referenceDataState.data.timeSeries.fileName}</code>:{" "}
+                    {referenceDataState.data.timeSeries.rowCount !== null
+                      ? `${referenceDataState.data.timeSeries.rowCount} data rows, `
+                      : ""}
+                    {formatFileSize(referenceDataState.data.timeSeries.size)}
+                  </List.Item>
+                </List>
+              </Stack>
+            </Alert>
+          )}
+
+          {referenceDataState.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              icon={<IconAlertCircle size={16} />}
+              title="Could not load hub reference files"
+            >
+              {referenceDataState.error}
+            </Alert>
+          )}
 
           <Paper
             withBorder
