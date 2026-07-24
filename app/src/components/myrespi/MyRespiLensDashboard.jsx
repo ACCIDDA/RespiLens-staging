@@ -32,18 +32,27 @@ const HUB_OPTIONS = [
     label: "FluSight forecast hub",
     pathogenKey: "flu",
     processedDataPath: "processed_data/myrespi/flusight",
+    fileSuffix: "flu",
+    datasetLabel: "flusight forecasts",
+    groundTruthMinDate: "2022-10-01",
   },
   {
     slug: "covid19forecasthub",
     label: "covid19 forecast hub",
     pathogenKey: "covid19forecasthub",
     processedDataPath: "processed_data/myrespi/covid19forecasthub",
+    fileSuffix: "covid19",
+    datasetLabel: "covid19 forecast hub",
+    groundTruthMinDate: "2023-10-01",
   },
   {
     slug: "rsvforecasthub",
     label: "rsv forecast hub",
     pathogenKey: "rsvforecasthub",
     processedDataPath: "processed_data/myrespi/rsvforecasthub",
+    fileSuffix: "rsv",
+    datasetLabel: "rsv forecast hub",
+    groundTruthMinDate: "2023-10-01",
   },
   {
     slug: "flumetrocast",
@@ -92,6 +101,19 @@ const formatFileSize = (sizeInBytes) => {
   return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const normalizeDateString = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString().slice(0, 10);
+};
+
+const buildRequiredColumnError = (fileLabel, missingColumns) =>
+  `${fileLabel} is missing required columns: ${missingColumns.join(", ")}.`;
+
+const uniqueValuesInOrder = (values) => Array.from(new Set(values));
+
 const fetchReferenceFile = async (path, fileKind) => {
   const response = await fetch(path);
   if (!response.ok) {
@@ -103,11 +125,15 @@ const fetchReferenceFile = async (path, fileKind) => {
 
   if (fileName.endsWith(".csv")) {
     const text = await blob.text();
+    const rows = parseCsv(text);
+    const { headers, records } = toObjects(rows);
     return {
       path,
       fileName,
       size: blob.size,
       rowCount: countCsvDataRows(text),
+      headers,
+      records,
     };
   }
 
@@ -116,6 +142,8 @@ const fetchReferenceFile = async (path, fileKind) => {
     fileName,
     size: blob.size,
     rowCount: null,
+    headers: [],
+    records: null,
   };
 };
 
@@ -228,13 +256,14 @@ const normalizeOutputTypeId = (value) => {
   return value;
 };
 
-const validateHubverseCsv = (records) => {
+const validateHubverseCsv = (records, hubConfig) => {
   const summary = {
     totalRows: records.length,
     rowsMissingHorizon: 0,
     rowsFilteredAsNowcasts: 0,
     rowsFilteredAsSamples: 0,
     rowsFilteredByOutputTypeId: 0,
+    rowsFilteredAsPeakTargets: 0,
     usableRows: 0,
   };
 
@@ -246,11 +275,33 @@ const validateHubverseCsv = (records) => {
     return { ok: false, errors, summary };
   }
 
-  const usableRows = records.filter((record, index) => {
+  const usableRows = records.flatMap((record, index) => {
     const target = String(record.target ?? "");
     const outputType = String(record.output_type ?? "");
     const outputTypeId = String(record.output_type_id ?? "");
     const rawHorizon = String(record.horizon ?? "");
+    const modelId = String(record.model_id ?? DEFAULT_MODEL_ID);
+    const normalizedTargetEndDate = normalizeDateString(record.target_end_date);
+    const numericValue = Number(record.value);
+
+    if (hubConfig?.slug === "flusight" && PEAK_TARGETS.has(target)) {
+      summary.rowsFilteredAsPeakTargets += 1;
+      return [];
+    }
+
+    if (!normalizedTargetEndDate) {
+      sampleProblems.push(
+        `Row ${index + 2} has an invalid target_end_date of "${record.target_end_date}".`,
+      );
+      return [];
+    }
+
+    if (Number.isNaN(numericValue)) {
+      sampleProblems.push(
+        `Row ${index + 2} has a non-numeric value of "${record.value}".`,
+      );
+      return [];
+    }
 
     let horizonValue = rawHorizon;
     if (PEAK_TARGETS.has(target)) {
@@ -259,7 +310,7 @@ const validateHubverseCsv = (records) => {
 
     if (horizonValue === "") {
       summary.rowsMissingHorizon += 1;
-      return false;
+      return [];
     }
 
     const numericHorizon = Number(horizonValue);
@@ -267,17 +318,17 @@ const validateHubverseCsv = (records) => {
       sampleProblems.push(
         `Row ${index + 2} has a horizon of "${rawHorizon}", which is not an integer.`,
       );
-      return false;
+      return [];
     }
 
     if (numericHorizon < 0) {
       summary.rowsFilteredAsNowcasts += 1;
-      return false;
+      return [];
     }
 
     if (outputType === "sample") {
       summary.rowsFilteredAsSamples += 1;
-      return false;
+      return [];
     }
 
     const normalizedOutputTypeId = normalizeOutputTypeId(outputTypeId);
@@ -289,10 +340,26 @@ const validateHubverseCsv = (records) => {
 
     if (!(isCategorical || isNumeric || isValidPeakWeekDate)) {
       summary.rowsFilteredByOutputTypeId += 1;
-      return false;
+      return [];
     }
 
-    return true;
+    return [
+      {
+        ...record,
+        target,
+        output_type: outputType,
+        output_type_id:
+          outputType === "quantile"
+            ? Number(normalizedOutputTypeId)
+            : outputTypeId,
+        horizon: numericHorizon,
+        model_id: modelId,
+        value: numericValue,
+        target_end_date: normalizedTargetEndDate,
+        reference_date:
+          normalizeDateString(record.reference_date) ?? record.reference_date,
+      },
+    ];
   });
 
   if (sampleProblems.length > 0) {
@@ -307,7 +374,241 @@ const validateHubverseCsv = (records) => {
     );
   }
 
-  return { ok: errors.length === 0, errors, summary };
+  return { ok: errors.length === 0, errors, summary, usableRows };
+};
+
+const buildGroundTruthOutput = (targetRows, hubConfig) => {
+  const requiredColumns = [
+    "as_of",
+    "target_end_date",
+    "location",
+    "observation",
+    "target",
+  ];
+  const missingColumns = requiredColumns.filter(
+    (column) => !(targetRows[0] ? column in targetRows[0] : true),
+  );
+  if (missingColumns.length > 0) {
+    throw new Error(
+      buildRequiredColumnError("time-series data", missingColumns),
+    );
+  }
+
+  const minDate = new Date(hubConfig.groundTruthMinDate);
+  const latestByKey = new Map();
+
+  targetRows.forEach((row) => {
+    const normalizedTargetEndDate = normalizeDateString(row.target_end_date);
+    const normalizedAsOf = normalizeDateString(row.as_of);
+    const observation = Number(row.observation);
+
+    if (
+      !normalizedTargetEndDate ||
+      !normalizedAsOf ||
+      Number.isNaN(observation) ||
+      new Date(normalizedTargetEndDate) < minDate
+    ) {
+      return;
+    }
+
+    const dedupeKey = `${row.target}__${normalizedTargetEndDate}`;
+    const existing = latestByKey.get(dedupeKey);
+    if (!existing || normalizedAsOf >= existing.as_of) {
+      latestByKey.set(dedupeKey, {
+        target: String(row.target),
+        target_end_date: normalizedTargetEndDate,
+        as_of: normalizedAsOf,
+        observation,
+      });
+    }
+  });
+
+  const dedupedRows = Array.from(latestByKey.values()).sort((left, right) => {
+    const leftTime = new Date(left.target_end_date).getTime();
+    const rightTime = new Date(right.target_end_date).getTime();
+    if (leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+    return left.target.localeCompare(right.target);
+  });
+
+  const dates = uniqueValuesInOrder(
+    dedupedRows.map((row) => row.target_end_date),
+  );
+  const targets = uniqueValuesInOrder(dedupedRows.map((row) => row.target));
+  const groundTruth = { dates };
+
+  targets.forEach((target) => {
+    const valuesByDate = new Map(
+      dedupedRows
+        .filter((row) => row.target === target)
+        .map((row) => [row.target_end_date, row.observation]),
+    );
+    groundTruth[target] = dates.map((date) =>
+      valuesByDate.has(date) ? valuesByDate.get(date) : null,
+    );
+  });
+
+  return groundTruth;
+};
+
+const buildForecastOutput = (forecastRows) => {
+  const forecasts = {};
+
+  forecastRows.forEach((row) => {
+    const outputType = row.output_type;
+    if (outputType !== "quantile" && outputType !== "pmf") {
+      throw new Error(
+        `Unsupported output_type "${outputType}" found while building projections JSON.`,
+      );
+    }
+
+    const referenceDate = String(row.reference_date);
+    const target = String(row.target);
+    const modelId = String(row.model_id);
+    const horizon = String(row.horizon);
+
+    forecasts[referenceDate] ??= {};
+    forecasts[referenceDate][target] ??= {};
+    forecasts[referenceDate][target][modelId] ??= {
+      type: outputType,
+      predictions: {},
+    };
+
+    forecasts[referenceDate][target][modelId].predictions[horizon] ??= {
+      date: String(row.target_end_date),
+      ...(outputType === "quantile"
+        ? { quantiles: [], values: [] }
+        : { categories: [], probabilities: [] }),
+    };
+
+    if (outputType === "quantile") {
+      forecasts[referenceDate][target][modelId].predictions[
+        horizon
+      ].quantiles.push(row.output_type_id);
+      forecasts[referenceDate][target][modelId].predictions[
+        horizon
+      ].values.push(row.value);
+    } else {
+      forecasts[referenceDate][target][modelId].predictions[
+        horizon
+      ].categories.push(row.output_type_id);
+      forecasts[referenceDate][target][modelId].predictions[
+        horizon
+      ].probabilities.push(row.value);
+    }
+  });
+
+  return forecasts;
+};
+
+const buildProjectionOutputs = ({
+  hubConfig,
+  forecastRows,
+  locationsRows,
+  targetRows,
+}) => {
+  if (!locationsRows || !targetRows) {
+    throw new Error("Reference data did not include parsed CSV records.");
+  }
+
+  const requiredLocationColumns = [
+    "location",
+    "abbreviation",
+    "location_name",
+    "population",
+  ];
+  const missingLocationColumns = requiredLocationColumns.filter(
+    (column) => !(locationsRows[0] ? column in locationsRows[0] : true),
+  );
+  if (missingLocationColumns.length > 0) {
+    throw new Error(
+      buildRequiredColumnError("locations.csv", missingLocationColumns),
+    );
+  }
+
+  const locationMap = new Map(
+    locationsRows.map((row) => [String(row.location), row]),
+  );
+
+  const missingLocations = forecastRows
+    .map((row) => String(row.location))
+    .filter((location, index, all) => all.indexOf(location) === index)
+    .filter((location) => !locationMap.has(location))
+    .sort();
+  if (missingLocations.length > 0) {
+    throw new Error(
+      `The following locations are missing from locations.csv: ${missingLocations.join(", ")}.`,
+    );
+  }
+
+  const outputs = {};
+  const locationIds = uniqueValuesInOrder(
+    forecastRows.map((row) => String(row.location)),
+  );
+
+  locationIds.forEach((locationId) => {
+    const locationInfo = locationMap.get(locationId);
+    const locationForecastRows = forecastRows.filter(
+      (row) => String(row.location) === locationId,
+    );
+    const locationTargetRows = targetRows.filter(
+      (row) => String(row.location) === locationId,
+    );
+
+    const metadata = {
+      location: locationId,
+      abbreviation: String(locationInfo.abbreviation),
+      location_name: String(locationInfo.location_name),
+      population: Number(locationInfo.population),
+      dataset: hubConfig.datasetLabel,
+      series_type: "projection",
+      hubverse_keys: {
+        models: uniqueValuesInOrder(
+          locationForecastRows.map((row) => String(row.model_id)),
+        ),
+        targets: uniqueValuesInOrder(
+          locationForecastRows.map((row) => String(row.target)),
+        ),
+        horizons: uniqueValuesInOrder(
+          locationForecastRows.map((row) => String(row.horizon)),
+        ),
+        output_types: uniqueValuesInOrder(
+          locationForecastRows.map((row) => String(row.output_type)),
+        ).filter((value) => value !== "sample"),
+      },
+    };
+
+    const groundTruth = buildGroundTruthOutput(locationTargetRows, hubConfig);
+    const forecasts = buildForecastOutput(locationForecastRows);
+    const fileName = `${metadata.abbreviation}_${hubConfig.fileSuffix}.json`;
+
+    outputs[fileName] = {
+      metadata,
+      ground_truth: groundTruth,
+      forecasts,
+    };
+  });
+
+  const metadataFile = {
+    last_updated: new Date().toISOString(),
+    models: [
+      ...uniqueValuesInOrder(forecastRows.map((row) => String(row.model_id))),
+    ].sort(),
+    locations: locationIds.map((locationId) => {
+      const row = locationMap.get(locationId);
+      return {
+        location: String(row.location),
+        abbreviation: String(row.abbreviation),
+        location_name: String(row.location_name),
+        population: Number(row.population),
+      };
+    }),
+  };
+
+  outputs["metadata.json"] = metadataFile;
+
+  return outputs;
 };
 
 const getHubConfig = (slug) =>
@@ -339,6 +640,11 @@ const ValidationSummary = ({ summary }) => (
     {summary.rowsFilteredByOutputTypeId > 0 && (
       <Badge color="yellow" variant="light">
         {summary.rowsFilteredByOutputTypeId} unsupported output_type_id
+      </Badge>
+    )}
+    {summary.rowsFilteredAsPeakTargets > 0 && (
+      <Badge color="yellow" variant="light">
+        {summary.rowsFilteredAsPeakTargets} flu peak rows filtered
       </Badge>
     )}
   </Group>
@@ -444,6 +750,11 @@ const HubUploadScreen = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [validationState, setValidationState] = useState(null);
+  const [projectionBuildState, setProjectionBuildState] = useState({
+    status: "idle",
+    outputs: null,
+    error: null,
+  });
   const [referenceDataState, setReferenceDataState] = useState({
     status: "idle",
     data: null,
@@ -455,6 +766,11 @@ const HubUploadScreen = () => {
     setIsProcessing(false);
     setUploadedFileName("");
     setValidationState(null);
+    setProjectionBuildState({
+      status: "idle",
+      outputs: null,
+      error: null,
+    });
     setReferenceDataState({
       status: "idle",
       data: null,
@@ -523,6 +839,11 @@ const HubUploadScreen = () => {
       setUploadedFileName(file.name);
       setIsProcessing(true);
       setValidationState(null);
+      setProjectionBuildState({
+        status: "idle",
+        outputs: null,
+        error: null,
+      });
 
       try {
         const text = await file.text();
@@ -543,12 +864,7 @@ const HubUploadScreen = () => {
           return;
         }
 
-        const validation = validateHubverseCsv(records);
-        if (!headers.includes("model_id")) {
-          records.forEach((record) => {
-            record.model_id = DEFAULT_MODEL_ID;
-          });
-        }
+        const validation = validateHubverseCsv(records, hubConfig);
 
         if (!validation.ok) {
           setValidationState({
@@ -563,20 +879,68 @@ const HubUploadScreen = () => {
           status: "success",
           summary: validation.summary,
         });
-      } catch (error) {
-        setValidationState({
-          status: "error",
-          errors: [
-            error instanceof Error
-              ? error.message
-              : "The file could not be read as CSV.",
-          ],
+
+        if (hubConfig.slug === "flumetrocast") {
+          return;
+        }
+
+        if (referenceDataState.status !== "success") {
+          setProjectionBuildState({
+            status: "error",
+            outputs: null,
+            error:
+              "The hub reference files are not ready yet. Wait for them to load, then try the upload again.",
+          });
+          return;
+        }
+
+        if (!referenceDataState.data.timeSeries.records) {
+          setProjectionBuildState({
+            status: "error",
+            outputs: null,
+            error:
+              "This hub's time-series file was found, but it is not currently in a CSV format the frontend can process.",
+          });
+          return;
+        }
+
+        const outputs = buildProjectionOutputs({
+          hubConfig,
+          forecastRows: validation.usableRows,
+          locationsRows: referenceDataState.data.locations.records,
+          targetRows: referenceDataState.data.timeSeries.records,
         });
+
+        setProjectionBuildState({
+          status: "success",
+          outputs,
+          error: null,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The file could not be processed.";
+
+        setProjectionBuildState({
+          status: "error",
+          outputs: null,
+          error: message,
+        });
+
+        setValidationState((previousState) =>
+          previousState?.status === "success"
+            ? previousState
+            : {
+                status: "error",
+                errors: [message],
+              },
+        );
       } finally {
         setIsProcessing(false);
       }
     },
-    [hubConfig],
+    [hubConfig, referenceDataState],
   );
 
   const handleDrop = useCallback(
@@ -823,6 +1187,54 @@ const HubUploadScreen = () => {
                 </Text>
                 <ValidationSummary summary={validationState.summary} />
               </Stack>
+            </Alert>
+          )}
+
+          {projectionBuildState.status === "success" && (
+            <Alert
+              color="green"
+              radius="lg"
+              title="RespiLens projections JSON created"
+              icon={<IconCheck size={16} />}
+            >
+              <Stack gap="sm">
+                <Text>
+                  MyRespiLens successfully combined your Hubverse CSV with the
+                  hub's <code>locations.csv</code> and <code>time-series</code>{" "}
+                  reference data.
+                </Text>
+                <Text>
+                  Created{" "}
+                  <strong>
+                    {
+                      Object.keys(projectionBuildState.outputs).filter(
+                        (fileName) => fileName !== "metadata.json",
+                      ).length
+                    }
+                  </strong>{" "}
+                  location JSON files plus <code>metadata.json</code>.
+                </Text>
+                <List spacing="xs">
+                  {Object.keys(projectionBuildState.outputs)
+                    .slice(0, 5)
+                    .map((fileName) => (
+                      <List.Item key={fileName}>
+                        <code>{fileName}</code>
+                      </List.Item>
+                    ))}
+                </List>
+              </Stack>
+            </Alert>
+          )}
+
+          {projectionBuildState.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Could not create projections JSON"
+              icon={<IconAlertCircle size={16} />}
+            >
+              {projectionBuildState.error}
             </Alert>
           )}
 
