@@ -655,6 +655,19 @@ const HubUploadScreen = () => {
             provide the Hubverse forecast CSV here.
           </Alert>
 
+          {hubConfig.slug === "flumetrocast" && (
+            <Alert
+              color="yellow"
+              radius="lg"
+              icon={<IconInfoCircle size={16} />}
+              title="Please don't use this yet"
+            >
+              Flu Metrocast support will follow a somewhat different workflow.
+              The checks on this page are still active, but this hub is not
+              ready for real use yet.
+            </Alert>
+          )}
+
           {referenceDataState.status === "loading" && (
             <Alert
               color="blue"
