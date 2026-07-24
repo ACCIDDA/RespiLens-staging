@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Anchor,
@@ -113,6 +113,76 @@ const buildRequiredColumnError = (fileLabel, missingColumns) =>
   `${fileLabel} is missing required columns: ${missingColumns.join(", ")}.`;
 
 const uniqueValuesInOrder = (values) => Array.from(new Set(values));
+const folderInputAttributes = {
+  webkitdirectory: "",
+  directory: "",
+};
+
+const getFileRelativePath = (file) => file.webkitRelativePath || file.name;
+
+const readDirectoryEntry = (entry) =>
+  new Promise((resolve, reject) => {
+    const reader = entry.createReader();
+    const allEntries = [];
+
+    const readBatch = () => {
+      reader.readEntries(
+        (entries) => {
+          if (entries.length === 0) {
+            resolve(allEntries);
+            return;
+          }
+          allEntries.push(...entries);
+          readBatch();
+        },
+        (error) => reject(error),
+      );
+    };
+
+    readBatch();
+  });
+
+const fileFromEntry = (entry) =>
+  new Promise((resolve, reject) => {
+    entry.file(resolve, reject);
+  });
+
+const collectFilesFromEntry = async (entry) => {
+  if (entry.isFile) {
+    const file = await fileFromEntry(entry);
+    return [file];
+  }
+
+  if (entry.isDirectory) {
+    const entries = await readDirectoryEntry(entry);
+    const nestedFiles = await Promise.all(
+      entries.map((nestedEntry) => collectFilesFromEntry(nestedEntry)),
+    );
+    return nestedFiles.flat();
+  }
+
+  return [];
+};
+
+const collectDroppedFiles = async (dataTransfer) => {
+  const items = Array.from(dataTransfer?.items ?? []);
+  const directoryEntries = items
+    .map((item) =>
+      typeof item.webkitGetAsEntry === "function"
+        ? item.webkitGetAsEntry()
+        : null,
+    )
+    .filter(Boolean);
+
+  if (directoryEntries.length > 0) {
+    const nestedFiles = await Promise.all(
+      directoryEntries.map((entry) => collectFilesFromEntry(entry)),
+    );
+    return nestedFiles.flat();
+  }
+
+  return Array.from(dataTransfer?.files ?? []);
+};
 
 const fetchReferenceFile = async (path, fileKind) => {
   const response = await fetch(path);
@@ -264,6 +334,7 @@ const validateHubverseCsv = (records, hubConfig) => {
     rowsFilteredAsSamples: 0,
     rowsFilteredByOutputTypeId: 0,
     rowsFilteredAsPeakTargets: 0,
+    rowsFilteredAsDuplicates: 0,
     usableRows: 0,
   };
 
@@ -366,15 +437,42 @@ const validateHubverseCsv = (records, hubConfig) => {
     errors.push(...sampleProblems.slice(0, 5));
   }
 
-  summary.usableRows = usableRows.length;
+  const seenCompositeKeys = new Set();
+  const deduplicatedRows = usableRows.filter((row) => {
+    const compositeKey = [
+      String(row.reference_date),
+      String(row.target_end_date),
+      String(row.location ?? ""),
+      String(row.horizon),
+      String(row.target),
+      String(row.output_type),
+      String(row.output_type_id),
+      String(row.model_id ?? DEFAULT_MODEL_ID),
+    ].join("__");
 
-  if (usableRows.length === 0) {
+    if (seenCompositeKeys.has(compositeKey)) {
+      summary.rowsFilteredAsDuplicates += 1;
+      return false;
+    }
+
+    seenCompositeKeys.add(compositeKey);
+    return true;
+  });
+
+  summary.usableRows = deduplicatedRows.length;
+
+  if (deduplicatedRows.length === 0) {
     errors.push(
-      "No usable forecast rows remain after applying the same filtering rules as the Hubverse preprocessing step.",
+      "No usable forecast rows remain after duplicate filtering and Hubverse preprocessing.",
     );
   }
 
-  return { ok: errors.length === 0, errors, summary, usableRows };
+  return {
+    ok: errors.length === 0,
+    errors,
+    summary,
+    usableRows: deduplicatedRows,
+  };
 };
 
 const buildGroundTruthOutput = (targetRows, hubConfig) => {
@@ -647,6 +745,11 @@ const ValidationSummary = ({ summary }) => (
         {summary.rowsFilteredAsPeakTargets} flu peak rows filtered
       </Badge>
     )}
+    {summary.rowsFilteredAsDuplicates > 0 && (
+      <Badge color="yellow" variant="light">
+        {summary.rowsFilteredAsDuplicates} duplicate rows filtered
+      </Badge>
+    )}
   </Group>
 );
 
@@ -745,10 +848,11 @@ const HubUploadScreen = () => {
   const navigate = useNavigate();
   const { hub } = useParams();
   const hubConfig = useMemo(() => getHubConfig(hub), [hub]);
+  const folderInputRef = useRef(null);
 
   const [dragActive, setDragActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploadedSourceSummary, setUploadedSourceSummary] = useState("");
   const [validationState, setValidationState] = useState(null);
   const [projectionBuildState, setProjectionBuildState] = useState({
     status: "idle",
@@ -764,7 +868,7 @@ const HubUploadScreen = () => {
   useEffect(() => {
     setDragActive(false);
     setIsProcessing(false);
-    setUploadedFileName("");
+    setUploadedSourceSummary("");
     setValidationState(null);
     setProjectionBuildState({
       status: "idle",
@@ -822,21 +926,37 @@ const HubUploadScreen = () => {
     };
   }, [hubConfig]);
 
-  const processFile = useCallback(
-    async (file) => {
+  const processFiles = useCallback(
+    async (incomingFiles) => {
       if (!hubConfig) {
         return;
       }
 
-      if (!file.name.toLowerCase().endsWith(".csv")) {
+      const files = Array.from(incomingFiles ?? []);
+      const csvFiles = files.filter((file) =>
+        file.name.toLowerCase().endsWith(".csv"),
+      );
+
+      if (csvFiles.length === 0) {
         setValidationState({
           status: "error",
-          errors: ["Please upload a Hubverse forecast file in `.csv` format."],
+          errors: [
+            "Please upload at least one Hubverse forecast file in `.csv` format.",
+          ],
+        });
+        setProjectionBuildState({
+          status: "idle",
+          outputs: null,
+          error: null,
         });
         return;
       }
 
-      setUploadedFileName(file.name);
+      setUploadedSourceSummary(
+        csvFiles.length === 1
+          ? getFileRelativePath(csvFiles[0])
+          : `${csvFiles.length} CSV files selected`,
+      );
       setIsProcessing(true);
       setValidationState(null);
       setProjectionBuildState({
@@ -846,25 +966,45 @@ const HubUploadScreen = () => {
       });
 
       try {
-        const text = await file.text();
-        const rows = parseCsv(text);
-        const { headers, records } = toObjects(rows);
-
-        const missingColumns = FORECAST_REQUIRED_COLUMNS.filter(
-          (column) => !headers.includes(column),
+        const parsedFiles = await Promise.all(
+          csvFiles.map(async (file) => {
+            const text = await file.text();
+            const rows = parseCsv(text);
+            const { headers, records } = toObjects(rows);
+            return {
+              fileName: getFileRelativePath(file),
+              headers,
+              records,
+            };
+          }),
         );
 
-        if (missingColumns.length > 0) {
+        const missingColumnsByFile = parsedFiles
+          .map((parsedFile) => ({
+            fileName: parsedFile.fileName,
+            missingColumns: FORECAST_REQUIRED_COLUMNS.filter(
+              (column) => !parsedFile.headers.includes(column),
+            ),
+          }))
+          .filter((entry) => entry.missingColumns.length > 0);
+
+        if (missingColumnsByFile.length > 0) {
           setValidationState({
             status: "error",
-            errors: [
-              `This file is missing required forecast columns: ${missingColumns.join(", ")}.`,
-            ],
+            errors: missingColumnsByFile
+              .slice(0, 5)
+              .map(
+                (entry) =>
+                  `${entry.fileName} is missing required forecast columns: ${entry.missingColumns.join(", ")}.`,
+              ),
           });
           return;
         }
 
-        const validation = validateHubverseCsv(records, hubConfig);
+        const concatenatedRecords = parsedFiles.flatMap(
+          (parsedFile) => parsedFile.records,
+        );
+        const validation = validateHubverseCsv(concatenatedRecords, hubConfig);
 
         if (!validation.ok) {
           setValidationState({
@@ -944,24 +1084,26 @@ const HubUploadScreen = () => {
   );
 
   const handleDrop = useCallback(
-    (event) => {
+    async (event) => {
       event.preventDefault();
       event.stopPropagation();
       setDragActive(false);
-      if (event.dataTransfer?.files?.[0]) {
-        processFile(event.dataTransfer.files[0]);
+      const droppedFiles = await collectDroppedFiles(event.dataTransfer);
+      if (droppedFiles.length) {
+        processFiles(droppedFiles);
       }
     },
-    [processFile],
+    [processFiles],
   );
 
   const handleFileSelect = useCallback(
     (event) => {
-      if (event.target.files?.[0]) {
-        processFile(event.target.files[0]);
+      if (event.target.files?.length) {
+        processFiles(event.target.files);
       }
+      event.target.value = "";
     },
-    [processFile],
+    [processFiles],
   );
 
   if (!hubConfig) {
@@ -1106,7 +1248,7 @@ const HubUploadScreen = () => {
             }}
             onDrop={handleDrop}
             onClick={() =>
-              document.getElementById("myrespi-hubverse-input")?.click()
+              document.getElementById("myrespi-hubverse-files-input")?.click()
             }
             style={{
               cursor: "pointer",
@@ -1130,7 +1272,7 @@ const HubUploadScreen = () => {
                 <IconUpload size={40} />
               </ThemeIcon>
               <Stack gap="xs" ta="center">
-                <Title order={2}>Drop your Hubverse CSV here</Title>
+                <Title order={2}>Drop your Hubverse CSV or folder here</Title>
                 <Text c="dimmed">
                   Required columns include <code>location</code>,{" "}
                   <code>reference_date</code>, <code>target</code>,{" "}
@@ -1142,21 +1284,54 @@ const HubUploadScreen = () => {
                 </Text>
               </Stack>
               <Text size="sm" fw={600} c="blue">
-                Hubverse forecast-style `.csv` files only
+                Upload one `.csv`, several `.csv` files, or a folder that
+                contains Hubverse forecast `.csv` files
               </Text>
+              <Group gap="sm">
+                <Button
+                  variant="light"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    document
+                      .getElementById("myrespi-hubverse-files-input")
+                      ?.click();
+                  }}
+                >
+                  Choose file(s)
+                </Button>
+                <Button
+                  variant="subtle"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    folderInputRef.current?.click();
+                  }}
+                >
+                  Choose folder
+                </Button>
+              </Group>
               <input
-                id="myrespi-hubverse-input"
+                id="myrespi-hubverse-files-input"
                 type="file"
                 accept=".csv,text/csv"
+                multiple
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+              />
+              <input
+                {...folderInputAttributes}
+                ref={folderInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                multiple
                 style={{ display: "none" }}
                 onChange={handleFileSelect}
               />
             </Stack>
           </Paper>
 
-          {uploadedFileName && (
+          {uploadedSourceSummary && (
             <Text size="sm" c="dimmed">
-              Current file: {uploadedFileName}
+              Current upload: {uploadedSourceSummary}
             </Text>
           )}
 
@@ -1166,8 +1341,9 @@ const HubUploadScreen = () => {
               title="Validating file"
               icon={<IconInfoCircle size={16} />}
             >
-              Checking the CSV structure and applying the same preprocessing
-              rules used by the Python conversion pipeline.
+              Checking the combined CSV data, filtering duplicates, and applying
+              the same preprocessing rules used by the Python conversion
+              pipeline.
             </Alert>
           )}
 
@@ -1180,10 +1356,8 @@ const HubUploadScreen = () => {
             >
               <Stack gap="sm">
                 <Text>
-                  Your Hubverse CSV passed the current MyRespiLens checks for{" "}
-                  <strong>{hubConfig.label}</strong>. We can use this file in
-                  the next conversion step once the JSON-building logic is
-                  added.
+                  Your Hubverse upload passed the current MyRespiLens checks for{" "}
+                  <strong>{hubConfig.label}</strong>.
                 </Text>
                 <ValidationSummary summary={validationState.summary} />
               </Stack>
@@ -1201,7 +1375,7 @@ const HubUploadScreen = () => {
                 <Text>
                   MyRespiLens successfully combined your Hubverse CSV with the
                   hub's <code>locations.csv</code> and <code>time-series</code>{" "}
-                  reference data.
+                  reference data after deduplicating the combined forecast rows.
                 </Text>
                 <Text>
                   Created{" "}
