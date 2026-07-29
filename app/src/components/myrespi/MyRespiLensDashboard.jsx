@@ -859,6 +859,7 @@ const HubUploadScreen = () => {
     outputs: null,
     error: null,
   });
+  const [pendingProjectionInput, setPendingProjectionInput] = useState(null);
   const [referenceDataState, setReferenceDataState] = useState({
     status: "idle",
     data: null,
@@ -875,6 +876,7 @@ const HubUploadScreen = () => {
       outputs: null,
       error: null,
     });
+    setPendingProjectionInput(null);
     setReferenceDataState({
       status: "idle",
       data: null,
@@ -926,6 +928,52 @@ const HubUploadScreen = () => {
     };
   }, [hubConfig]);
 
+  useEffect(() => {
+    if (
+      !pendingProjectionInput ||
+      !hubConfig ||
+      hubConfig.slug === "flumetrocast" ||
+      referenceDataState.status !== "success"
+    ) {
+      return;
+    }
+
+    try {
+      if (!referenceDataState.data.timeSeries.records) {
+        setProjectionBuildState({
+          status: "error",
+          outputs: null,
+          error:
+            "This hub's time-series file was found, but it is not currently in a CSV format the frontend can process.",
+        });
+        return;
+      }
+
+      const outputs = buildProjectionOutputs({
+        hubConfig,
+        forecastRows: pendingProjectionInput.forecastRows,
+        locationsRows: referenceDataState.data.locations.records,
+        targetRows: referenceDataState.data.timeSeries.records,
+      });
+
+      setProjectionBuildState({
+        status: "success",
+        outputs,
+        error: null,
+      });
+      setPendingProjectionInput(null);
+    } catch (error) {
+      setProjectionBuildState({
+        status: "error",
+        outputs: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "The projections JSON could not be produced.",
+      });
+    }
+  }, [hubConfig, pendingProjectionInput, referenceDataState]);
+
   const processFiles = useCallback(
     async (incomingFiles) => {
       if (!hubConfig) {
@@ -964,6 +1012,7 @@ const HubUploadScreen = () => {
         outputs: null,
         error: null,
       });
+      setPendingProjectionInput(null);
 
       try {
         const parsedFiles = await Promise.all(
@@ -1024,13 +1073,11 @@ const HubUploadScreen = () => {
           return;
         }
 
+        setPendingProjectionInput({
+          forecastRows: validation.usableRows,
+        });
+
         if (referenceDataState.status !== "success") {
-          setProjectionBuildState({
-            status: "error",
-            outputs: null,
-            error:
-              "The hub reference files are not ready yet. Wait for them to load, then try the upload again.",
-          });
           return;
         }
 
@@ -1056,12 +1103,14 @@ const HubUploadScreen = () => {
           outputs,
           error: null,
         });
+        setPendingProjectionInput(null);
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : "The file could not be processed.";
 
+        setPendingProjectionInput(null);
         setProjectionBuildState({
           status: "error",
           outputs: null,
