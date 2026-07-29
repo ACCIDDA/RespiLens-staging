@@ -8,11 +8,13 @@ import {
   Group,
   List,
   Paper,
+  Select,
   SimpleGrid,
   Stack,
   Text,
   ThemeIcon,
   Title,
+  useMantineColorScheme,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useNavigate, useParams } from "react-router-dom";
@@ -24,7 +26,19 @@ import {
   IconInfoCircle,
   IconUpload,
 } from "@tabler/icons-react";
+import Plot from "react-plotly.js";
+import Plotly from "plotly.js/dist/plotly";
+import DateSelector from "../DateSelector";
+import ModelSelector from "../ModelSelector";
+import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
+import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
+import { CHART_CONSTANTS } from "../../constants/chart";
+import { buildSqrtTicks } from "../../utils/scaleUtils";
+import {
+  targetDisplayNameMap,
+  targetYAxisLabelMap,
+} from "../../utils/mapUtils";
 
 const HUB_OPTIONS = [
   {
@@ -753,6 +767,493 @@ const ValidationSummary = ({ summary }) => (
   </Group>
 );
 
+const buildLocationOptions = (projectionOutputs) =>
+  Object.entries(projectionOutputs)
+    .filter(([fileName]) => fileName !== "metadata.json")
+    .map(([fileName, payload]) => ({
+      value: fileName,
+      label:
+        payload?.metadata?.location_name && payload?.metadata?.abbreviation
+          ? `${payload.metadata.location_name} (${payload.metadata.abbreviation})`
+          : fileName,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+
+const getAllForecastDates = (projectionOutputs) => {
+  const dateSet = new Set();
+  Object.entries(projectionOutputs).forEach(([fileName, payload]) => {
+    if (fileName === "metadata.json") return;
+    Object.keys(payload?.forecasts || {}).forEach((date) => dateSet.add(date));
+  });
+  return [...dateSet].sort((left, right) => new Date(left) - new Date(right));
+};
+
+const getTargetOptions = (locationData) =>
+  Object.keys(locationData?.ground_truth || {})
+    .filter((key) => key !== "dates")
+    .map((target) => ({
+      value: target,
+      label: targetDisplayNameMap[target] || target,
+    }));
+
+const getModelsForTarget = (locationData, target) => {
+  if (!locationData?.forecasts || !target) return [];
+  const modelSet = new Set();
+  Object.values(locationData.forecasts).forEach((dateData) => {
+    const targetData = dateData?.[target];
+    if (!targetData) return;
+    Object.keys(targetData).forEach((model) => modelSet.add(model));
+  });
+  return [...modelSet].sort();
+};
+
+const getDefaultViewerRange = (
+  groundTruthDates,
+  selectedDates,
+  forRangeslider = false,
+) => {
+  if (!groundTruthDates?.length || !selectedDates?.length) {
+    return undefined;
+  }
+
+  const firstGroundTruthDate = new Date(groundTruthDates[0]);
+  const lastGroundTruthDate = new Date(
+    groundTruthDates[groundTruthDates.length - 1],
+  );
+
+  if (forRangeslider) {
+    const sliderEnd = new Date(lastGroundTruthDate);
+    sliderEnd.setDate(
+      sliderEnd.getDate() + CHART_CONSTANTS.RANGESLIDER_WEEKS_AFTER * 7,
+    );
+    return [
+      firstGroundTruthDate.toISOString().split("T")[0],
+      sliderEnd.toISOString().split("T")[0],
+    ];
+  }
+
+  const firstSelectedDate = new Date(selectedDates[0]);
+  const lastSelectedDate = new Date(selectedDates[selectedDates.length - 1]);
+  const rangeStart = new Date(firstSelectedDate);
+  const rangeEnd = new Date(lastSelectedDate);
+  rangeStart.setDate(
+    rangeStart.getDate() - CHART_CONSTANTS.DEFAULT_WEEKS_BEFORE * 7,
+  );
+  rangeEnd.setDate(
+    rangeEnd.getDate() + CHART_CONSTANTS.DEFAULT_WEEKS_AFTER * 7,
+  );
+
+  return [
+    rangeStart.toISOString().split("T")[0],
+    rangeEnd.toISOString().split("T")[0],
+  ];
+};
+
+const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
+  const { colorScheme } = useMantineColorScheme();
+  const [selectedLocationFile, setSelectedLocationFile] = useState(null);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [selectedModels, setSelectedModels] = useState([]);
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [activeDate, setActiveDate] = useState(null);
+  const [chartScale, setChartScale] = useState("linear");
+  const [intervalVisibility, setIntervalVisibility] = useState({
+    median: true,
+    ci50: true,
+    ci95: true,
+  });
+  const [showLegend, setShowLegend] = useState(true);
+  const [xAxisRange, setXAxisRange] = useState(null);
+  const [yAxisRange, setYAxisRange] = useState(null);
+  const plotRef = useRef(null);
+  const isResettingRef = useRef(false);
+
+  const locationOptions = useMemo(
+    () => buildLocationOptions(projectionOutputs),
+    [projectionOutputs],
+  );
+
+  useEffect(() => {
+    if (!locationOptions.length) {
+      setSelectedLocationFile(null);
+      return;
+    }
+    setSelectedLocationFile((current) =>
+      current && locationOptions.some((option) => option.value === current)
+        ? current
+        : locationOptions[0].value,
+    );
+  }, [locationOptions]);
+
+  const locationData = selectedLocationFile
+    ? projectionOutputs[selectedLocationFile]
+    : null;
+
+  const targetOptions = useMemo(
+    () => getTargetOptions(locationData),
+    [locationData],
+  );
+
+  useEffect(() => {
+    if (!targetOptions.length) {
+      setSelectedTarget(null);
+      return;
+    }
+    setSelectedTarget((current) =>
+      current && targetOptions.some((option) => option.value === current)
+        ? current
+        : targetOptions[0].value,
+    );
+  }, [targetOptions]);
+
+  const models = useMemo(
+    () => getModelsForTarget(locationData, selectedTarget),
+    [locationData, selectedTarget],
+  );
+
+  useEffect(() => {
+    if (!models.length) {
+      setSelectedModels([]);
+      return;
+    }
+    setSelectedModels((current) => {
+      const stillValid = current.filter((model) => models.includes(model));
+      return stillValid.length ? stillValid : [models[0]];
+    });
+  }, [models]);
+
+  const availableDates = useMemo(
+    () => getAllForecastDates(projectionOutputs),
+    [projectionOutputs],
+  );
+
+  useEffect(() => {
+    if (!availableDates.length) {
+      setSelectedDates([]);
+      setActiveDate(null);
+      return;
+    }
+    const latestDate = availableDates[availableDates.length - 1];
+    setSelectedDates((current) =>
+      current.length
+        ? current.filter((date) => availableDates.includes(date))
+        : [latestDate],
+    );
+    setActiveDate((current) =>
+      current && availableDates.includes(current) ? current : latestDate,
+    );
+  }, [availableDates]);
+
+  const activeModels = useMemo(() => {
+    const activeModelSet = new Set();
+    if (!locationData?.forecasts || !selectedTarget || !selectedDates.length) {
+      return activeModelSet;
+    }
+
+    selectedDates.forEach((date) => {
+      const targetData = locationData.forecasts?.[date]?.[selectedTarget];
+      if (!targetData) return;
+      Object.keys(targetData).forEach((model) => activeModelSet.add(model));
+    });
+
+    return activeModelSet;
+  }, [locationData, selectedTarget, selectedDates]);
+
+  const sqrtTransform = useMemo(() => {
+    if (chartScale !== "sqrt") return null;
+    return (value) => Math.sqrt(Math.max(0, value));
+  }, [chartScale]);
+
+  const { traces, rawYRange } = useQuantileForecastTraces({
+    groundTruth: locationData?.ground_truth,
+    forecasts: locationData?.forecasts,
+    selectedDates,
+    selectedModels,
+    target: selectedTarget,
+    showLegendForFirstDate: showLegend,
+    showMedian: intervalVisibility.median,
+    show50: intervalVisibility.ci50,
+    show95: intervalVisibility.ci95,
+    fillMissingQuantiles: false,
+    transformY: sqrtTransform,
+  });
+
+  const calculateYRange = useCallback((chartData, currentXRange) => {
+    if (
+      !chartData ||
+      !currentXRange ||
+      !Array.isArray(chartData) ||
+      chartData.length === 0
+    ) {
+      return null;
+    }
+
+    const [startX, endX] = currentXRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    chartData.forEach((trace) => {
+      if (!trace?.x || !trace?.y) return;
+      trace.x.forEach((xValue, index) => {
+        const pointDate = new Date(xValue);
+        const yValue = Number(trace.y[index]);
+        if (
+          pointDate >= startDate &&
+          pointDate <= endDate &&
+          !Number.isNaN(yValue)
+        ) {
+          minY = Math.min(minY, yValue);
+          maxY = Math.max(maxY, yValue);
+        }
+      });
+    });
+
+    if (minY === Infinity || maxY === -Infinity) return null;
+    const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
+    return [Math.max(0, minY - padding), maxY + padding];
+  }, []);
+
+  const defaultRange = useMemo(
+    () =>
+      getDefaultViewerRange(
+        locationData?.ground_truth?.dates,
+        selectedDates,
+        false,
+      ),
+    [locationData, selectedDates],
+  );
+
+  useEffect(() => {
+    setXAxisRange(null);
+  }, [selectedLocationFile, selectedTarget]);
+
+  useEffect(() => {
+    if (chartScale === "log") {
+      setYAxisRange(null);
+      return;
+    }
+    const currentRange = xAxisRange || defaultRange;
+    if (traces.length > 0 && currentRange) {
+      setYAxisRange(calculateYRange(traces, currentRange));
+    } else {
+      setYAxisRange(null);
+    }
+  }, [traces, xAxisRange, defaultRange, calculateYRange, chartScale]);
+
+  const sqrtTicks = useMemo(() => {
+    if (chartScale !== "sqrt") return null;
+    return buildSqrtTicks({ rawRange: rawYRange });
+  }, [chartScale, rawYRange]);
+
+  const handlePlotUpdate = useCallback((figure) => {
+    if (isResettingRef.current) {
+      isResettingRef.current = false;
+      return;
+    }
+    if (figure?.["xaxis.range"]) {
+      setXAxisRange(figure["xaxis.range"]);
+    }
+  }, []);
+
+  const layout = useMemo(
+    () => ({
+      autosize: true,
+      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
+      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+      showlegend: showLegend,
+      legend: {
+        x: 0,
+        y: 1,
+        bgcolor:
+          colorScheme === "dark"
+            ? "rgba(26, 27, 30, 0.8)"
+            : "rgba(255,255,255,0.8)",
+        font: { size: 10 },
+      },
+      hovermode: "closest",
+      dragmode: false,
+      margin: { l: 60, r: 30, t: 30, b: 30 },
+      xaxis: {
+        rangeslider: {
+          range: getDefaultViewerRange(
+            locationData?.ground_truth?.dates,
+            selectedDates,
+            true,
+          ),
+        },
+        range: xAxisRange || defaultRange,
+      },
+      yaxis: {
+        title:
+          targetYAxisLabelMap[targetDisplayNameMap[selectedTarget]] ||
+          targetDisplayNameMap[selectedTarget] ||
+          selectedTarget ||
+          "Value",
+        range: chartScale === "log" ? undefined : yAxisRange,
+        autorange: chartScale === "log" ? true : yAxisRange === null,
+        type: chartScale === "log" ? "log" : "linear",
+        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        tickvals:
+          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+        ticktext:
+          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+      },
+      shapes: selectedDates.map((date) => ({
+        type: "line",
+        x0: date,
+        x1: date,
+        y0: 0,
+        y1: 1,
+        yref: "paper",
+        line: { color: "red", width: 1, dash: "dash" },
+      })),
+    }),
+    [
+      colorScheme,
+      showLegend,
+      locationData,
+      selectedDates,
+      xAxisRange,
+      defaultRange,
+      selectedTarget,
+      chartScale,
+      yAxisRange,
+      sqrtTicks,
+    ],
+  );
+
+  const config = useMemo(
+    () => ({
+      responsive: true,
+      displayModeBar: true,
+      displaylogo: false,
+      showSendToCloud: false,
+      scrollZoom: false,
+      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
+      modeBarButtonsToAdd: [
+        {
+          name: "Reset view",
+          icon: Plotly.Icons.home,
+          click: (gd) => {
+            const range = getDefaultViewerRange(
+              locationData?.ground_truth?.dates,
+              selectedDates,
+              false,
+            );
+            const nextYRange =
+              chartScale === "log" || !range
+                ? null
+                : calculateYRange(traces, range);
+            isResettingRef.current = true;
+            setXAxisRange(null);
+            setYAxisRange(nextYRange);
+            Plotly.relayout(gd, {
+              "xaxis.range": range,
+              "yaxis.range": nextYRange,
+              "yaxis.autorange": chartScale === "log" || nextYRange === null,
+            });
+          },
+        },
+      ],
+    }),
+    [locationData, selectedDates, chartScale, calculateYRange, traces],
+  );
+
+  if (!locationOptions.length || !locationData) {
+    return null;
+  }
+
+  return (
+    <Paper withBorder radius="lg" p="lg">
+      <Stack gap="lg">
+        <Group justify="space-between" align="flex-start">
+          <Stack gap={2}>
+            <Title order={3}>Interactive Forecast Viewer</Title>
+            <Text c="dimmed" size="sm">
+              Explore the generated MyRespiLens projections by location, target,
+              model, and forecast date.
+            </Text>
+          </Stack>
+          <Badge color="green" variant="light">
+            {hubConfig.label}
+          </Badge>
+        </Group>
+
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+          <Select
+            label="Location"
+            data={locationOptions}
+            value={selectedLocationFile}
+            onChange={setSelectedLocationFile}
+            allowDeselect={false}
+          />
+          <Select
+            label="Target"
+            data={targetOptions}
+            value={selectedTarget}
+            onChange={setSelectedTarget}
+            allowDeselect={false}
+            disabled={!targetOptions.length}
+          />
+        </SimpleGrid>
+
+        <Paper withBorder radius="md" p="sm">
+          <Stack gap="sm">
+            <Text fw={600} size="sm">
+              Advanced controls
+            </Text>
+            <ForecastChartControls
+              chartScale={chartScale}
+              setChartScale={setChartScale}
+              intervalVisibility={intervalVisibility}
+              setIntervalVisibility={setIntervalVisibility}
+              showLegend={showLegend}
+              setShowLegend={setShowLegend}
+            />
+          </Stack>
+        </Paper>
+
+        <DateSelector
+          availableDates={availableDates}
+          selectedDates={selectedDates}
+          setSelectedDates={setSelectedDates}
+          activeDate={activeDate}
+          setActiveDate={setActiveDate}
+        />
+
+        <div
+          style={{
+            width: "100%",
+            height: "min(800px, 60vh)",
+            minHeight: 320,
+          }}
+        >
+          <Plot
+            ref={plotRef}
+            useResizeHandler
+            style={{ width: "100%", height: "100%" }}
+            data={traces}
+            layout={layout}
+            config={config}
+            onRelayout={handlePlotUpdate}
+          />
+        </div>
+
+        <ModelSelector
+          models={models}
+          selectedModels={selectedModels}
+          setSelectedModels={setSelectedModels}
+          activeModels={activeModels}
+        />
+      </Stack>
+    </Paper>
+  );
+};
+
 const HubSelectionScreen = () => {
   const navigate = useNavigate();
   const [opened, { toggle }] = useDisclosure(false);
@@ -1414,40 +1915,48 @@ const HubUploadScreen = () => {
           )}
 
           {projectionBuildState.status === "success" && (
-            <Alert
-              color="green"
-              radius="lg"
-              title="RespiLens projections JSON created"
-              icon={<IconCheck size={16} />}
-            >
-              <Stack gap="sm">
-                <Text>
-                  MyRespiLens successfully combined your Hubverse CSV with the
-                  hub's <code>locations.csv</code> and <code>time-series</code>{" "}
-                  reference data after deduplicating the combined forecast rows.
-                </Text>
-                <Text>
-                  Created{" "}
-                  <strong>
-                    {
-                      Object.keys(projectionBuildState.outputs).filter(
-                        (fileName) => fileName !== "metadata.json",
-                      ).length
-                    }
-                  </strong>{" "}
-                  location JSON files plus <code>metadata.json</code>.
-                </Text>
-                <List spacing="xs">
-                  {Object.keys(projectionBuildState.outputs)
-                    .slice(0, 5)
-                    .map((fileName) => (
-                      <List.Item key={fileName}>
-                        <code>{fileName}</code>
-                      </List.Item>
-                    ))}
-                </List>
-              </Stack>
-            </Alert>
+            <>
+              <Alert
+                color="green"
+                radius="lg"
+                title="RespiLens projections JSON created"
+                icon={<IconCheck size={16} />}
+              >
+                <Stack gap="sm">
+                  <Text>
+                    MyRespiLens successfully combined your Hubverse CSV with the
+                    hub&apos;s <code>locations.csv</code> and{" "}
+                    <code>time-series</code> reference data after deduplicating
+                    the combined forecast rows.
+                  </Text>
+                  <Text>
+                    Created{" "}
+                    <strong>
+                      {
+                        Object.keys(projectionBuildState.outputs).filter(
+                          (fileName) => fileName !== "metadata.json",
+                        ).length
+                      }
+                    </strong>{" "}
+                    location JSON files plus <code>metadata.json</code>.
+                  </Text>
+                  <List spacing="xs">
+                    {Object.keys(projectionBuildState.outputs)
+                      .slice(0, 5)
+                      .map((fileName) => (
+                        <List.Item key={fileName}>
+                          <code>{fileName}</code>
+                        </List.Item>
+                      ))}
+                  </List>
+                </Stack>
+              </Alert>
+
+              <MyRespiVisualizationPanel
+                projectionOutputs={projectionBuildState.outputs}
+                hubConfig={hubConfig}
+              />
+            </>
           )}
 
           {projectionBuildState.status === "error" && (
