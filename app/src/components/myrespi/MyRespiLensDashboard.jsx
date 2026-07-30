@@ -104,6 +104,12 @@ const CATEGORICAL_OUTPUT_TYPE_IDS = new Set([
 ]);
 const NUMERIC_OUTPUT_TYPE_IDS = new Set([0.025, 0.25, 0.5, 0.75, 0.975]);
 const DEFAULT_MODEL_ID = "user-uploaded-model";
+const HUB_PATHOGEN_KEYWORDS = {
+  flusight: "flu",
+  flumetrocast: "flu",
+  covid19forecasthub: "covid",
+  rsvforecasthub: "rsv",
+};
 
 const csvDateLikeRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -480,6 +486,26 @@ const validateHubverseCsv = (records, hubConfig) => {
     summary,
     usableRows: deduplicatedRows,
   };
+};
+
+const buildHubPathogenWarning = (forecastRows, hubConfig) => {
+  const expectedKeyword = HUB_PATHOGEN_KEYWORDS[hubConfig?.slug];
+
+  if (!expectedKeyword || !forecastRows?.length) {
+    return null;
+  }
+
+  const hasExpectedPathogen = forecastRows.some((row) =>
+    String(row.target ?? "")
+      .toLowerCase()
+      .includes(expectedKeyword),
+  );
+
+  if (hasExpectedPathogen) {
+    return null;
+  }
+
+  return `Your uploaded target names do not appear to mention "${expectedKeyword}". Please double-check your hub selection.`;
 };
 
 const buildGroundTruthOutput = (targetRows, hubConfig) => {
@@ -1347,6 +1373,7 @@ const HubUploadScreen = () => {
   const [dragActive, setDragActive] = useState(false);
   const [isUploadProcessing, setIsUploadProcessing] = useState(false);
   const [validationState, setValidationState] = useState(null);
+  const [pathogenWarning, setPathogenWarning] = useState(null);
   const [projectionBuildState, setProjectionBuildState] = useState({
     status: "idle",
     outputs: null,
@@ -1362,6 +1389,7 @@ const HubUploadScreen = () => {
     setDragActive(false);
     setIsUploadProcessing(false);
     setValidationState(null);
+    setPathogenWarning(null);
     setProjectionBuildState({
       status: "idle",
       outputs: null,
@@ -1455,11 +1483,13 @@ const HubUploadScreen = () => {
           outputs: null,
           error: null,
         });
+        setPathogenWarning(null);
         setIsUploadProcessing(false);
         return;
       }
 
       setValidationState(null);
+      setPathogenWarning(null);
       setProjectionBuildState({
         status: "idle",
         outputs: null,
@@ -1522,6 +1552,9 @@ const HubUploadScreen = () => {
           status: "success",
           summary: validation.summary,
         });
+        setPathogenWarning(
+          buildHubPathogenWarning(validation.usableRows, hubConfig),
+        );
 
         if (hubConfig.slug === "flumetrocast") {
           setIsUploadProcessing(false);
@@ -1614,6 +1647,7 @@ const HubUploadScreen = () => {
     setDragActive(false);
     setIsUploadProcessing(false);
     setValidationState(null);
+    setPathogenWarning(null);
     setProjectionBuildState({
       status: "idle",
       outputs: null,
@@ -1702,6 +1736,17 @@ const HubUploadScreen = () => {
 
           {projectionBuildState.status === "success" && (
             <>
+              {pathogenWarning && (
+                <Alert
+                  color="red"
+                  variant="light"
+                  radius="lg"
+                  icon={<IconInfoCircle size={16} />}
+                  title="Possible hub mismatch"
+                >
+                  {pathogenWarning}
+                </Alert>
+              )}
               <Button
                 variant="subtle"
                 onClick={handleResetUpload}
