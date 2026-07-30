@@ -422,7 +422,7 @@ const validateHubverseCsv = (records, hubConfig) => {
     const isValidPeakWeekDate =
       isPeakWeekTarget && isDateLikeValue(outputTypeId);
 
-    if (!(isCategorical || isNumeric || isValidPeakWeekDate)) {
+    if (isCategorical || !(isNumeric || isValidPeakWeekDate)) {
       summary.rowsFilteredByOutputTypeId += 1;
       return [];
     }
