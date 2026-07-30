@@ -1300,7 +1300,7 @@ const HubSelectionScreen = () => {
           <Group justify="center">
             <Button
               variant="light"
-              color="red"
+              color="blue"
               leftSection={<IconInfoCircle size={16} />}
               onClick={toggle}
             >
@@ -1338,6 +1338,7 @@ const HubUploadScreen = () => {
   const navigate = useNavigate();
   const { hub } = useParams();
   const hubConfig = useMemo(() => getHubConfig(hub), [hub]);
+  const referenceDataPromiseRef = useRef(null);
 
   const [dragActive, setDragActive] = useState(false);
   const [isUploadProcessing, setIsUploadProcessing] = useState(false);
@@ -1347,7 +1348,6 @@ const HubUploadScreen = () => {
     outputs: null,
     error: null,
   });
-  const [pendingProjectionInput, setPendingProjectionInput] = useState(null);
   const [referenceDataState, setReferenceDataState] = useState({
     status: "idle",
     data: null,
@@ -1363,7 +1363,7 @@ const HubUploadScreen = () => {
       outputs: null,
       error: null,
     });
-    setPendingProjectionInput(null);
+    referenceDataPromiseRef.current = null;
     setReferenceDataState({
       status: "idle",
       data: null,
@@ -1372,103 +1372,59 @@ const HubUploadScreen = () => {
   }, [hub]);
 
   useEffect(() => {
-    if (!hubConfig) {
-      return undefined;
-    }
-
-    let isCancelled = false;
-
-    const loadReferences = async () => {
-      setReferenceDataState({
-        status: "loading",
-        data: null,
-        error: null,
-      });
-
-      try {
-        const data = await loadHubReferenceData(hubConfig);
-        if (!isCancelled) {
-          setReferenceDataState({
-            status: "success",
-            data,
-            error: null,
-          });
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setReferenceDataState({
-            status: "error",
-            data: null,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Could not load the hub reference files.",
-          });
-        }
-      }
-    };
-
-    loadReferences();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [hubConfig]);
-
-  useEffect(() => {
-    if (
-      !pendingProjectionInput ||
-      !hubConfig ||
-      hubConfig.slug === "flumetrocast" ||
-      referenceDataState.status !== "success"
-    ) {
-      return;
-    }
-
-    try {
-      if (!referenceDataState.data.timeSeries.records) {
-        setIsUploadProcessing(false);
-        setProjectionBuildState({
-          status: "error",
-          outputs: null,
-          error:
-            "This hub's time-series file was found, but it is not currently in a CSV format the frontend can process.",
-        });
-        return;
-      }
-
-      const outputs = buildProjectionOutputs({
-        hubConfig,
-        forecastRows: pendingProjectionInput.forecastRows,
-        locationsRows: referenceDataState.data.locations.records,
-        targetRows: referenceDataState.data.timeSeries.records,
-      });
-
-      setProjectionBuildState({
-        status: "success",
-        outputs,
-        error: null,
-      });
-      setIsUploadProcessing(false);
-      setPendingProjectionInput(null);
-    } catch (error) {
-      setIsUploadProcessing(false);
-      setProjectionBuildState({
-        status: "error",
-        outputs: null,
-        error:
-          error instanceof Error
-            ? error.message
-            : "The projections JSON could not be produced.",
-      });
-    }
-  }, [hubConfig, pendingProjectionInput, referenceDataState]);
-
-  useEffect(() => {
     if (referenceDataState.status === "error") {
       setIsUploadProcessing(false);
     }
   }, [referenceDataState.status]);
+
+  const ensureReferenceDataLoaded = useCallback(async () => {
+    if (!hubConfig) {
+      throw new Error("This hub is not configured.");
+    }
+
+    if (referenceDataState.status === "success" && referenceDataState.data) {
+      return referenceDataState.data;
+    }
+
+    if (referenceDataPromiseRef.current) {
+      return referenceDataPromiseRef.current;
+    }
+
+    setReferenceDataState({
+      status: "loading",
+      data: null,
+      error: null,
+    });
+
+    const loadPromise = loadHubReferenceData(hubConfig)
+      .then((data) => {
+        setReferenceDataState({
+          status: "success",
+          data,
+          error: null,
+        });
+        return data;
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not load the hub reference files.";
+
+        setReferenceDataState({
+          status: "error",
+          data: null,
+          error: message,
+        });
+        throw new Error(message);
+      })
+      .finally(() => {
+        referenceDataPromiseRef.current = null;
+      });
+
+    referenceDataPromiseRef.current = loadPromise;
+    return loadPromise;
+  }, [hubConfig, referenceDataState.data, referenceDataState.status]);
 
   const processFiles = useCallback(
     async (incomingFiles) => {
@@ -1505,7 +1461,6 @@ const HubUploadScreen = () => {
         outputs: null,
         error: null,
       });
-      setPendingProjectionInput(null);
 
       try {
         const parsedFiles = await Promise.all(
@@ -1569,15 +1524,9 @@ const HubUploadScreen = () => {
           return;
         }
 
-        setPendingProjectionInput({
-          forecastRows: validation.usableRows,
-        });
+        const referenceData = await ensureReferenceDataLoaded();
 
-        if (referenceDataState.status !== "success") {
-          return;
-        }
-
-        if (!referenceDataState.data.timeSeries.records) {
+        if (!referenceData.timeSeries.records) {
           setIsUploadProcessing(false);
           setProjectionBuildState({
             status: "error",
@@ -1591,8 +1540,8 @@ const HubUploadScreen = () => {
         const outputs = buildProjectionOutputs({
           hubConfig,
           forecastRows: validation.usableRows,
-          locationsRows: referenceDataState.data.locations.records,
-          targetRows: referenceDataState.data.timeSeries.records,
+          locationsRows: referenceData.locations.records,
+          targetRows: referenceData.timeSeries.records,
         });
 
         setProjectionBuildState({
@@ -1601,7 +1550,6 @@ const HubUploadScreen = () => {
           error: null,
         });
         setIsUploadProcessing(false);
-        setPendingProjectionInput(null);
       } catch (error) {
         const message =
           error instanceof Error
@@ -1609,7 +1557,6 @@ const HubUploadScreen = () => {
             : "The file could not be processed.";
 
         setIsUploadProcessing(false);
-        setPendingProjectionInput(null);
         setProjectionBuildState({
           status: "error",
           outputs: null,
@@ -1626,7 +1573,7 @@ const HubUploadScreen = () => {
         );
       }
     },
-    [hubConfig, referenceDataState],
+    [ensureReferenceDataLoaded, hubConfig],
   );
 
   const handleDrop = useCallback(
@@ -1668,7 +1615,6 @@ const HubUploadScreen = () => {
       outputs: null,
       error: null,
     });
-    setPendingProjectionInput(null);
   }, []);
 
   if (!hubConfig) {
