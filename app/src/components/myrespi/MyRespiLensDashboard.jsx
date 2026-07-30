@@ -21,8 +21,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   IconAlertCircle,
   IconArrowLeft,
-  IconCheck,
   IconFileText,
+  IconBrandGithub,
   IconInfoCircle,
   IconUpload,
 } from "@tabler/icons-react";
@@ -43,7 +43,7 @@ import {
 const HUB_OPTIONS = [
   {
     slug: "flusight",
-    label: "FluSight forecast hub",
+    label: "FluSight Forecast Hub",
     pathogenKey: "flu",
     processedDataPath: "processed_data/myrespi/flusight",
     fileSuffix: "flu",
@@ -52,7 +52,7 @@ const HUB_OPTIONS = [
   },
   {
     slug: "covid19forecasthub",
-    label: "covid19 forecast hub",
+    label: "COVID-19 Forecast Hub",
     pathogenKey: "covid19forecasthub",
     processedDataPath: "processed_data/myrespi/covid19forecasthub",
     fileSuffix: "covid19",
@@ -61,7 +61,7 @@ const HUB_OPTIONS = [
   },
   {
     slug: "rsvforecasthub",
-    label: "rsv forecast hub",
+    label: "RSV Forecast Hub",
     pathogenKey: "rsvforecasthub",
     processedDataPath: "processed_data/myrespi/rsvforecasthub",
     fileSuffix: "rsv",
@@ -70,7 +70,7 @@ const HUB_OPTIONS = [
   },
   {
     slug: "flumetrocast",
-    label: "flu metrocast",
+    label: "Flu Metrocast Hub",
     pathogenKey: "flumetrocast",
     processedDataPath: "processed_data/myrespi/flumetrocast",
   },
@@ -105,16 +105,6 @@ const countCsvDataRows = (text) => {
   return Math.max(0, rows.length - 1);
 };
 
-const formatFileSize = (sizeInBytes) => {
-  if (sizeInBytes < 1024) {
-    return `${sizeInBytes} B`;
-  }
-  if (sizeInBytes < 1024 * 1024) {
-    return `${(sizeInBytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const normalizeDateString = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -127,10 +117,6 @@ const buildRequiredColumnError = (fileLabel, missingColumns) =>
   `${fileLabel} is missing required columns: ${missingColumns.join(", ")}.`;
 
 const uniqueValuesInOrder = (values) => Array.from(new Set(values));
-const folderInputAttributes = {
-  webkitdirectory: "",
-  directory: "",
-};
 
 const getFileRelativePath = (file) => file.webkitRelativePath || file.name;
 
@@ -1270,9 +1256,8 @@ const HubSelectionScreen = () => {
           <Stack gap="sm" ta="center">
             <Title order={1}>MyRespiLens</Title>
             <Text size="lg">
-              Visualize your own forecast data by dragging and dropping.
+              Select your hub and drop your data for instant visualization!
             </Text>
-            <Text c="dimmed">Select the hub your forecasts belong to:</Text>
           </Stack>
 
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
@@ -1295,7 +1280,7 @@ const HubSelectionScreen = () => {
               >
                 <Stack align="center" gap="sm">
                   <ThemeIcon size={56} radius="xl" variant="light" color="blue">
-                    <IconFileText size={28} />
+                    <IconBrandGithub size={28} />
                   </ThemeIcon>
                   <Text fw={700} size="lg" tt="none">
                     {hub.label}
@@ -1333,10 +1318,7 @@ const HubSelectionScreen = () => {
               color="blue"
               radius="lg"
             >
-              MyRespiLens lets users validate and visualize their own forecast
-              data locally in the browser. In this updated flow, users first
-              choose a supported hub and then upload a Hubverse-style forecast
-              CSV for validation before conversion.
+              write
             </Alert>
           )}
         </Stack>
@@ -1349,11 +1331,8 @@ const HubUploadScreen = () => {
   const navigate = useNavigate();
   const { hub } = useParams();
   const hubConfig = useMemo(() => getHubConfig(hub), [hub]);
-  const folderInputRef = useRef(null);
 
   const [dragActive, setDragActive] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadedSourceSummary, setUploadedSourceSummary] = useState("");
   const [validationState, setValidationState] = useState(null);
   const [projectionBuildState, setProjectionBuildState] = useState({
     status: "idle",
@@ -1369,8 +1348,6 @@ const HubUploadScreen = () => {
 
   useEffect(() => {
     setDragActive(false);
-    setIsProcessing(false);
-    setUploadedSourceSummary("");
     setValidationState(null);
     setProjectionBuildState({
       status: "idle",
@@ -1501,12 +1478,6 @@ const HubUploadScreen = () => {
         return;
       }
 
-      setUploadedSourceSummary(
-        csvFiles.length === 1
-          ? getFileRelativePath(csvFiles[0])
-          : `${csvFiles.length} CSV files selected`,
-      );
-      setIsProcessing(true);
       setValidationState(null);
       setProjectionBuildState({
         status: "idle",
@@ -1626,8 +1597,6 @@ const HubUploadScreen = () => {
                 errors: [message],
               },
         );
-      } finally {
-        setIsProcessing(false);
       }
     },
     [hubConfig, referenceDataState],
@@ -1655,6 +1624,17 @@ const HubUploadScreen = () => {
     },
     [processFiles],
   );
+
+  const handleResetUpload = useCallback(() => {
+    setDragActive(false);
+    setValidationState(null);
+    setProjectionBuildState({
+      status: "idle",
+      outputs: null,
+      error: null,
+    });
+    setPendingProjectionInput(null);
+  }, []);
 
   if (!hubConfig) {
     return (
@@ -1690,26 +1670,11 @@ const HubUploadScreen = () => {
                 Back to hub selection
               </Button>
               <Title order={1}>{hubConfig.label}</Title>
-              <Text c="dimmed">
-                Drag and drop your Hubverse forecast CSV to validate it before
-                conversion.
-              </Text>
             </Stack>
             <Badge color="blue" variant="light" size="lg">
               {hubConfig.pathogenKey}
             </Badge>
           </Group>
-
-          <Alert
-            color="blue"
-            radius="lg"
-            icon={<IconInfoCircle size={16} />}
-            title="Stored reference data"
-          >
-            This hub will later use reference files already stored in{" "}
-            <code>{hubConfig.processedDataPath}</code>, so users only need to
-            provide the Hubverse forecast CSV here.
-          </Alert>
 
           {hubConfig.slug === "flumetrocast" && (
             <Alert
@@ -1724,49 +1689,6 @@ const HubUploadScreen = () => {
             </Alert>
           )}
 
-          {referenceDataState.status === "loading" && (
-            <Alert
-              color="blue"
-              radius="lg"
-              icon={<IconInfoCircle size={16} />}
-              title="Loading hub reference files"
-            >
-              Fetching <code>locations.csv</code> and the hub's{" "}
-              <code>time-series</code> file for{" "}
-              <strong>{hubConfig.label}</strong>.
-            </Alert>
-          )}
-
-          {referenceDataState.status === "success" && (
-            <Alert
-              color="green"
-              radius="lg"
-              icon={<IconCheck size={16} />}
-              title="Hub reference files loaded"
-            >
-              <Stack gap="sm">
-                <Text>
-                  MyRespiLens successfully loaded the reference files for{" "}
-                  <strong>{hubConfig.label}</strong>.
-                </Text>
-                <List spacing="xs">
-                  <List.Item>
-                    <code>{referenceDataState.data.locations.fileName}</code>:{" "}
-                    {referenceDataState.data.locations.rowCount} data rows,{" "}
-                    {formatFileSize(referenceDataState.data.locations.size)}
-                  </List.Item>
-                  <List.Item>
-                    <code>{referenceDataState.data.timeSeries.fileName}</code>:{" "}
-                    {referenceDataState.data.timeSeries.rowCount !== null
-                      ? `${referenceDataState.data.timeSeries.rowCount} data rows, `
-                      : ""}
-                    {formatFileSize(referenceDataState.data.timeSeries.size)}
-                  </List.Item>
-                </List>
-              </Stack>
-            </Alert>
-          )}
-
           {referenceDataState.status === "error" && (
             <Alert
               color="red"
@@ -1778,185 +1700,95 @@ const HubUploadScreen = () => {
             </Alert>
           )}
 
-          <Paper
-            withBorder
-            radius="xl"
-            p="xl"
-            onDragEnter={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setDragActive(true);
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setDragActive(false);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onDrop={handleDrop}
-            onClick={() =>
-              document.getElementById("myrespi-hubverse-files-input")?.click()
-            }
-            style={{
-              cursor: "pointer",
-              border: dragActive
-                ? "2px dashed var(--mantine-color-blue-6)"
-                : "2px dashed var(--mantine-color-gray-4)",
-              backgroundColor: dragActive
-                ? "var(--mantine-color-blue-light)"
-                : "transparent",
-              transition:
-                "border-color 160ms ease, background-color 160ms ease",
-            }}
-          >
-            <Stack align="center" gap="lg" py="xl">
-              <ThemeIcon
-                size={84}
-                radius="xl"
-                variant="light"
-                color={dragActive ? "blue" : "gray"}
-              >
-                <IconUpload size={40} />
-              </ThemeIcon>
-              <Stack gap="xs" ta="center">
-                <Title order={2}>Drop your Hubverse CSV or folder here</Title>
-                <Text c="dimmed">
-                  Required columns include <code>location</code>,{" "}
-                  <code>reference_date</code>, <code>target</code>,{" "}
-                  <code>horizon</code>, <code>output_type</code>,{" "}
-                  <code>output_type_id</code>, <code>value</code>, and{" "}
-                  <code>target_end_date</code>. If <code>model_id</code> is
-                  missing, MyRespiLens will assign a default model name
-                  automatically.
-                </Text>
-              </Stack>
-              <Text size="sm" fw={600} c="blue">
-                Upload one `.csv`, several `.csv` files, or a folder that
-                contains Hubverse forecast `.csv` files
-              </Text>
-              <Group gap="sm">
-                <Button
-                  variant="light"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    document
-                      .getElementById("myrespi-hubverse-files-input")
-                      ?.click();
-                  }}
-                >
-                  Choose file(s)
-                </Button>
-                <Button
-                  variant="subtle"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    folderInputRef.current?.click();
-                  }}
-                >
-                  Choose folder
-                </Button>
-              </Group>
-              <input
-                id="myrespi-hubverse-files-input"
-                type="file"
-                accept=".csv,text/csv"
-                multiple
-                style={{ display: "none" }}
-                onChange={handleFileSelect}
-              />
-              <input
-                {...folderInputAttributes}
-                ref={folderInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                multiple
-                style={{ display: "none" }}
-                onChange={handleFileSelect}
-              />
-            </Stack>
-          </Paper>
-
-          {uploadedSourceSummary && (
-            <Text size="sm" c="dimmed">
-              Current upload: {uploadedSourceSummary}
-            </Text>
-          )}
-
-          {isProcessing && (
-            <Alert
-              color="blue"
-              title="Validating file"
-              icon={<IconInfoCircle size={16} />}
-            >
-              Checking the combined CSV data, filtering duplicates, and applying
-              the same preprocessing rules used by the Python conversion
-              pipeline.
-            </Alert>
-          )}
-
-          {validationState?.status === "success" && (
-            <Alert
-              color="green"
-              radius="lg"
-              title="Validation passed"
-              icon={<IconCheck size={16} />}
-            >
-              <Stack gap="sm">
-                <Text>
-                  Your Hubverse upload passed the current MyRespiLens checks for{" "}
-                  <strong>{hubConfig.label}</strong>.
-                </Text>
-                <ValidationSummary summary={validationState.summary} />
-              </Stack>
-            </Alert>
-          )}
-
           {projectionBuildState.status === "success" && (
             <>
-              <Alert
-                color="green"
-                radius="lg"
-                title="RespiLens projections JSON created"
-                icon={<IconCheck size={16} />}
+              <Button
+                variant="subtle"
+                leftSection={<IconArrowLeft size={16} />}
+                onClick={handleResetUpload}
+                px={0}
+                w="fit-content"
               >
-                <Stack gap="sm">
-                  <Text>
-                    MyRespiLens successfully combined your Hubverse CSV with the
-                    hub&apos;s <code>locations.csv</code> and{" "}
-                    <code>time-series</code> reference data after deduplicating
-                    the combined forecast rows.
-                  </Text>
-                  <Text>
-                    Created{" "}
-                    <strong>
-                      {
-                        Object.keys(projectionBuildState.outputs).filter(
-                          (fileName) => fileName !== "metadata.json",
-                        ).length
-                      }
-                    </strong>{" "}
-                    location JSON files plus <code>metadata.json</code>.
-                  </Text>
-                  <List spacing="xs">
-                    {Object.keys(projectionBuildState.outputs)
-                      .slice(0, 5)
-                      .map((fileName) => (
-                        <List.Item key={fileName}>
-                          <code>{fileName}</code>
-                        </List.Item>
-                      ))}
-                  </List>
-                </Stack>
-              </Alert>
-
+                Upload different file(s)
+              </Button>
               <MyRespiVisualizationPanel
                 projectionOutputs={projectionBuildState.outputs}
                 hubConfig={hubConfig}
               />
             </>
+          )}
+
+          {projectionBuildState.status !== "success" && (
+            <Paper
+              withBorder
+              radius="xl"
+              p="xl"
+              onDragEnter={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDragActive(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDragActive(false);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onDrop={handleDrop}
+              onClick={() =>
+                document.getElementById("myrespi-hubverse-files-input")?.click()
+              }
+              style={{
+                cursor: "pointer",
+                border: dragActive
+                  ? "2px dashed var(--mantine-color-blue-6)"
+                  : "2px dashed var(--mantine-color-gray-4)",
+                backgroundColor: dragActive
+                  ? "var(--mantine-color-blue-light)"
+                  : "transparent",
+                transition:
+                  "border-color 160ms ease, background-color 160ms ease",
+              }}
+            >
+              <Stack align="center" gap="lg" py="xl">
+                <ThemeIcon
+                  size={84}
+                  radius="xl"
+                  variant="light"
+                  color={dragActive ? "blue" : "gray"}
+                >
+                  <IconUpload size={40} />
+                </ThemeIcon>
+                <Stack gap="xs" ta="center">
+                  <Title order={2}>
+                    Drop your Hubverse-style CSV file(s) here
+                  </Title>
+                  <Text c="dimmed">
+                    Visit the MyRespiLens{" "}
+                    <Anchor
+                      href="/documentation"
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      documentation
+                    </Anchor>{" "}
+                    page to learn more about what makes your data valid.
+                  </Text>
+                </Stack>
+                <input
+                  id="myrespi-hubverse-files-input"
+                  type="file"
+                  accept=".csv,text/csv"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={handleFileSelect}
+                />
+              </Stack>
+            </Paper>
           )}
 
           {projectionBuildState.status === "error" && (
