@@ -92,10 +92,12 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       active: location.pathname.startsWith("/myrespilens"),
     },
     {
-      href: "/documentation",
+      href: "/myrespilens/documentation",
       label: "Documentation",
       icon: IconClipboard,
-      active: location.pathname.startsWith("/documentation"),
+      active:
+        location.pathname.startsWith("/myrespilens/documentation") ||
+        location.pathname.startsWith("/documentation"),
     },
     {
       href: "/myplots",

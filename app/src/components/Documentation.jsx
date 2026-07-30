@@ -255,7 +255,7 @@ const Documentation = () => {
       <Seo
         title="MyRespiLens Documentation | RespiLens"
         description="Learn how to prepare, convert, and upload respiratory disease forecast data for use with MyRespiLens visualizations."
-        canonicalPath="/documentation"
+        canonicalPath="/myrespilens/documentation"
       />
       <Container size="xl" py="xl" style={{ maxWidth: "1100px" }}>
         <Stack gap="lg">

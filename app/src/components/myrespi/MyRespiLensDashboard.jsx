@@ -1338,7 +1338,7 @@ const HubSelectionScreen = () => {
             </Button>
             <Button
               component="a"
-              href="/documentation"
+              href="/myrespilens/documentation"
               target="_blank"
               variant="light"
               color="blue"
@@ -1355,7 +1355,15 @@ const HubSelectionScreen = () => {
               color="blue"
               radius="lg"
             >
-              write
+              MyRespiLens is a tool that allows you to visualize your own
+              respiratory disease forecast data <b>instantly</b> and{" "}
+              <b>privately.</b> Simply <b>select the hub</b> your data
+              corresponds to, <b>drag 'n drop your forecast data</b>, and then{" "}
+              <b>interact with your personalized visualization dashboard</b>.
+              Your data will not leave your machine, which means that your
+              visualizations are not shareable via URL. User-provided model data
+              must be in the Hubverse <code>.csv</code> format in order to be
+              visualized with MyRespiLens.
             </Alert>
           )}
         </Stack>
@@ -1830,7 +1838,7 @@ const HubUploadScreen = () => {
                       <>
                         Visit the MyRespiLens{" "}
                         <Anchor
-                          href="/documentation"
+                          href="/myrespilens/documentation"
                           target="_blank"
                           rel="noreferrer"
                           onClick={(event) => event.stopPropagation()}
