@@ -47,6 +47,7 @@ const HUB_OPTIONS = [
   {
     slug: "flusight",
     label: "FluSight Forecast Hub",
+    githubUrl: "https://github.com/cdcepi/fluSight-forecast-hub",
     pathogenKey: "flu",
     processedDataPath: "processed_data/myrespi/flusight",
     fileSuffix: "flu",
@@ -56,6 +57,7 @@ const HUB_OPTIONS = [
   {
     slug: "covid19forecasthub",
     label: "COVID-19 Forecast Hub",
+    githubUrl: "https://github.com/CDCgov/covid19-forecast-hub",
     pathogenKey: "covid19forecasthub",
     processedDataPath: "processed_data/myrespi/covid19forecasthub",
     fileSuffix: "covid19",
@@ -65,6 +67,7 @@ const HUB_OPTIONS = [
   {
     slug: "rsvforecasthub",
     label: "RSV Forecast Hub",
+    githubUrl: "https://github.com/CDCgov/rsv-forecast-hub",
     pathogenKey: "rsvforecasthub",
     processedDataPath: "processed_data/myrespi/rsvforecasthub",
     fileSuffix: "rsv",
@@ -74,6 +77,7 @@ const HUB_OPTIONS = [
   {
     slug: "flumetrocast",
     label: "Flu Metrocast Hub",
+    githubUrl: "https://github.com/reichlab/flu-metrocast",
     pathogenKey: "flumetrocast",
     processedDataPath: "processed_data/myrespi/flumetrocast",
   },
@@ -1656,6 +1660,20 @@ const HubUploadScreen = () => {
                   </ActionIcon>
                 </Tooltip>
                 <Title order={1}>{hubConfig.label}</Title>
+                <Tooltip label="Open hub GitHub" withArrow>
+                  <ActionIcon
+                    component="a"
+                    href={hubConfig.githubUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    variant="subtle"
+                    color="blue"
+                    radius="xl"
+                    aria-label={`Open ${hubConfig.label} GitHub`}
+                  >
+                    <IconBrandGithub size={20} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             </Stack>
           </Group>
