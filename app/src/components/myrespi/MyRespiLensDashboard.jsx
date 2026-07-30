@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Badge,
   Button,
   Container,
   Group,
+  Loader,
   List,
   Paper,
   Select,
@@ -13,6 +15,7 @@ import {
   Stack,
   Text,
   ThemeIcon,
+  Tooltip,
   Title,
   useMantineColorScheme,
 } from "@mantine/core";
@@ -835,7 +838,7 @@ const getDefaultViewerRange = (
   ];
 };
 
-const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
+const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
   const { colorScheme } = useMantineColorScheme();
   const [selectedLocationFile, setSelectedLocationFile] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
@@ -1156,19 +1159,6 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
   return (
     <Paper withBorder radius="lg" p="lg">
       <Stack gap="lg">
-        <Group justify="space-between" align="flex-start">
-          <Stack gap={2}>
-            <Title order={3}>Interactive Forecast Viewer</Title>
-            <Text c="dimmed" size="sm">
-              Explore the generated MyRespiLens projections by location, target,
-              model, and forecast date.
-            </Text>
-          </Stack>
-          <Badge color="green" variant="light">
-            {hubConfig.label}
-          </Badge>
-        </Group>
-
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
           <Select
             label="Location"
@@ -1243,6 +1233,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
 const HubSelectionScreen = () => {
   const navigate = useNavigate();
   const [opened, { toggle }] = useDisclosure(false);
+  const [hoveredHub, setHoveredHub] = useState(null);
 
   return (
     <>
@@ -1254,7 +1245,9 @@ const HubSelectionScreen = () => {
       <Container size="lg" py="xl">
         <Stack gap="xl" maw={900} mx="auto">
           <Stack gap="sm" ta="center">
-            <Title order={1}>MyRespiLens</Title>
+            <Title order={1} c="blue">
+              MyRespiLens
+            </Title>
             <Text size="lg">
               Select your hub and drop your data for instant visualization!
             </Text>
@@ -1267,6 +1260,8 @@ const HubSelectionScreen = () => {
                 withBorder
                 radius="xl"
                 p="xl"
+                onMouseEnter={() => setHoveredHub(hub.slug)}
+                onMouseLeave={() => setHoveredHub(null)}
                 onClick={() => navigate(`/myrespilens/${hub.slug}`)}
                 style={{
                   aspectRatio: "1 / 1",
@@ -1275,6 +1270,18 @@ const HubSelectionScreen = () => {
                   alignItems: "center",
                   justifyContent: "center",
                   textAlign: "center",
+                  transform:
+                    hoveredHub === hub.slug
+                      ? "translateY(-6px)"
+                      : "translateY(0)",
+                  boxShadow:
+                    hoveredHub === hub.slug
+                      ? "0 14px 30px rgba(37, 99, 235, 0.18)"
+                      : "0 4px 12px rgba(15, 23, 42, 0.06)",
+                  borderColor:
+                    hoveredHub === hub.slug
+                      ? "var(--mantine-color-blue-4)"
+                      : undefined,
                   transition: "transform 160ms ease, box-shadow 160ms ease",
                 }}
               >
@@ -1333,6 +1340,7 @@ const HubUploadScreen = () => {
   const hubConfig = useMemo(() => getHubConfig(hub), [hub]);
 
   const [dragActive, setDragActive] = useState(false);
+  const [isUploadProcessing, setIsUploadProcessing] = useState(false);
   const [validationState, setValidationState] = useState(null);
   const [projectionBuildState, setProjectionBuildState] = useState({
     status: "idle",
@@ -1348,6 +1356,7 @@ const HubUploadScreen = () => {
 
   useEffect(() => {
     setDragActive(false);
+    setIsUploadProcessing(false);
     setValidationState(null);
     setProjectionBuildState({
       status: "idle",
@@ -1418,6 +1427,7 @@ const HubUploadScreen = () => {
 
     try {
       if (!referenceDataState.data.timeSeries.records) {
+        setIsUploadProcessing(false);
         setProjectionBuildState({
           status: "error",
           outputs: null,
@@ -1439,8 +1449,10 @@ const HubUploadScreen = () => {
         outputs,
         error: null,
       });
+      setIsUploadProcessing(false);
       setPendingProjectionInput(null);
     } catch (error) {
+      setIsUploadProcessing(false);
       setProjectionBuildState({
         status: "error",
         outputs: null,
@@ -1452,11 +1464,19 @@ const HubUploadScreen = () => {
     }
   }, [hubConfig, pendingProjectionInput, referenceDataState]);
 
+  useEffect(() => {
+    if (referenceDataState.status === "error") {
+      setIsUploadProcessing(false);
+    }
+  }, [referenceDataState.status]);
+
   const processFiles = useCallback(
     async (incomingFiles) => {
       if (!hubConfig) {
         return;
       }
+
+      setIsUploadProcessing(true);
 
       const files = Array.from(incomingFiles ?? []);
       const csvFiles = files.filter((file) =>
@@ -1475,6 +1495,7 @@ const HubUploadScreen = () => {
           outputs: null,
           error: null,
         });
+        setIsUploadProcessing(false);
         return;
       }
 
@@ -1519,6 +1540,7 @@ const HubUploadScreen = () => {
                   `${entry.fileName} is missing required forecast columns: ${entry.missingColumns.join(", ")}.`,
               ),
           });
+          setIsUploadProcessing(false);
           return;
         }
 
@@ -1533,6 +1555,7 @@ const HubUploadScreen = () => {
             errors: validation.errors,
             summary: validation.summary,
           });
+          setIsUploadProcessing(false);
           return;
         }
 
@@ -1542,6 +1565,7 @@ const HubUploadScreen = () => {
         });
 
         if (hubConfig.slug === "flumetrocast") {
+          setIsUploadProcessing(false);
           return;
         }
 
@@ -1554,6 +1578,7 @@ const HubUploadScreen = () => {
         }
 
         if (!referenceDataState.data.timeSeries.records) {
+          setIsUploadProcessing(false);
           setProjectionBuildState({
             status: "error",
             outputs: null,
@@ -1575,6 +1600,7 @@ const HubUploadScreen = () => {
           outputs,
           error: null,
         });
+        setIsUploadProcessing(false);
         setPendingProjectionInput(null);
       } catch (error) {
         const message =
@@ -1582,6 +1608,7 @@ const HubUploadScreen = () => {
             ? error.message
             : "The file could not be processed.";
 
+        setIsUploadProcessing(false);
         setPendingProjectionInput(null);
         setProjectionBuildState({
           status: "error",
@@ -1606,27 +1633,35 @@ const HubUploadScreen = () => {
     async (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (isUploadProcessing) {
+        return;
+      }
       setDragActive(false);
       const droppedFiles = await collectDroppedFiles(event.dataTransfer);
       if (droppedFiles.length) {
         processFiles(droppedFiles);
       }
     },
-    [processFiles],
+    [isUploadProcessing, processFiles],
   );
 
   const handleFileSelect = useCallback(
     (event) => {
+      if (isUploadProcessing) {
+        event.target.value = "";
+        return;
+      }
       if (event.target.files?.length) {
         processFiles(event.target.files);
       }
       event.target.value = "";
     },
-    [processFiles],
+    [isUploadProcessing, processFiles],
   );
 
   const handleResetUpload = useCallback(() => {
     setDragActive(false);
+    setIsUploadProcessing(false);
     setValidationState(null);
     setProjectionBuildState({
       status: "idle",
@@ -1659,21 +1694,24 @@ const HubUploadScreen = () => {
       />
       <Container size="md" py="xl">
         <Stack gap="lg">
-          <Group justify="space-between" align="flex-start">
+          <Group justify="space-between" align="center">
             <Stack gap={4}>
-              <Button
-                variant="subtle"
-                leftSection={<IconArrowLeft size={16} />}
-                onClick={() => navigate("/myrespilens")}
-                px={0}
-              >
-                Back to hub selection
-              </Button>
-              <Title order={1}>{hubConfig.label}</Title>
+              <Group gap="xs" align="center">
+                <Tooltip label="Back to hub selection" withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    color="blue"
+                    size="xl"
+                    radius="xl"
+                    onClick={() => navigate("/myrespilens")}
+                    aria-label="Back to hub selection"
+                  >
+                    <IconArrowLeft size={24} stroke={2.25} />
+                  </ActionIcon>
+                </Tooltip>
+                <Title order={1}>{hubConfig.label}</Title>
+              </Group>
             </Stack>
-            <Badge color="blue" variant="light" size="lg">
-              {hubConfig.pathogenKey}
-            </Badge>
           </Group>
 
           {hubConfig.slug === "flumetrocast" && (
@@ -1681,11 +1719,9 @@ const HubUploadScreen = () => {
               color="yellow"
               radius="lg"
               icon={<IconInfoCircle size={16} />}
-              title="Please don't use this yet"
+              title="Under construction"
             >
-              Flu Metrocast support will follow a somewhat different workflow.
-              The checks on this page are still active, but this hub is not
-              ready for real use yet.
+              TODO! not active yet
             </Alert>
           )}
 
@@ -1704,7 +1740,6 @@ const HubUploadScreen = () => {
             <>
               <Button
                 variant="subtle"
-                leftSection={<IconArrowLeft size={16} />}
                 onClick={handleResetUpload}
                 px={0}
                 w="fit-content"
@@ -1713,7 +1748,6 @@ const HubUploadScreen = () => {
               </Button>
               <MyRespiVisualizationPanel
                 projectionOutputs={projectionBuildState.outputs}
-                hubConfig={hubConfig}
               />
             </>
           )}
@@ -1726,6 +1760,9 @@ const HubUploadScreen = () => {
               onDragEnter={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (isUploadProcessing) {
+                  return;
+                }
                 setDragActive(true);
               }}
               onDragLeave={(event) => {
@@ -1738,11 +1775,16 @@ const HubUploadScreen = () => {
                 event.stopPropagation();
               }}
               onDrop={handleDrop}
-              onClick={() =>
-                document.getElementById("myrespi-hubverse-files-input")?.click()
-              }
+              onClick={() => {
+                if (isUploadProcessing) {
+                  return;
+                }
+                document
+                  .getElementById("myrespi-hubverse-files-input")
+                  ?.click();
+              }}
               style={{
-                cursor: "pointer",
+                cursor: isUploadProcessing ? "progress" : "pointer",
                 border: dragActive
                   ? "2px dashed var(--mantine-color-blue-6)"
                   : "2px dashed var(--mantine-color-gray-4)",
@@ -1754,29 +1796,41 @@ const HubUploadScreen = () => {
               }}
             >
               <Stack align="center" gap="lg" py="xl">
-                <ThemeIcon
-                  size={84}
-                  radius="xl"
-                  variant="light"
-                  color={dragActive ? "blue" : "gray"}
-                >
-                  <IconUpload size={40} />
-                </ThemeIcon>
+                {isUploadProcessing ? (
+                  <Loader color="blue" size="xl" />
+                ) : (
+                  <ThemeIcon
+                    size={84}
+                    radius="xl"
+                    variant="light"
+                    color={dragActive ? "blue" : "gray"}
+                  >
+                    <IconUpload size={40} />
+                  </ThemeIcon>
+                )}
                 <Stack gap="xs" ta="center">
                   <Title order={2}>
-                    Drop your Hubverse-style CSV file(s) here
+                    {isUploadProcessing
+                      ? "Processing your uploaded data"
+                      : "Drop your Hubverse-style CSV file(s) here"}
                   </Title>
                   <Text c="dimmed">
-                    Visit the MyRespiLens{" "}
-                    <Anchor
-                      href="/documentation"
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      documentation
-                    </Anchor>{" "}
-                    page to learn more about what makes your data valid.
+                    {isUploadProcessing ? (
+                      "This could take a moment..."
+                    ) : (
+                      <>
+                        Visit the MyRespiLens{" "}
+                        <Anchor
+                          href="/documentation"
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          documentation
+                        </Anchor>{" "}
+                        page to learn more about what makes your data valid.
+                      </>
+                    )}
                   </Text>
                 </Stack>
                 <input
