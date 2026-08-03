@@ -4,6 +4,8 @@ import logging
 import shutil
 from pathlib import Path
 
+import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,8 +37,20 @@ def myrespi_fetch(hub_path: str, folder_name: str, output_path: str) -> None:
 
     # prepare safe landing at destination
     destination_dir.mkdir(parents=True, exist_ok=True)
-    # send files to destination
+    # send locations.csv to destination
     shutil.copy2(locations_file, destination_dir / locations_file.name)
+
+    # send time-series data to destination.
+    # MyRespiLens consumes CSV records in the browser, so when a hub stores
+    # time-series as parquet we also materialize a CSV copy at the generic
+    # `time-series.csv` path that the frontend already expects.
     shutil.copy2(time_series_file, destination_dir / time_series_file.name)
+    if time_series_file.suffix == ".parquet":
+        pd.read_parquet(time_series_file).to_csv(
+            destination_dir / "time-series.csv",
+            index=False,
+        )
+    else:
+        shutil.copy2(time_series_file, destination_dir / "time-series.csv")
 
     logger.info(f"Success ✅")
