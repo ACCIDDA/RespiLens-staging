@@ -22,7 +22,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas pytest jsonschema requests
+          pip install pandas pyarrow pytest jsonschema requests
 
       - name: Run processor unit tests
         run: python -m pytest tests/test_processors.py
+
+      - name: Run MyRespiLens reference file tests
+        run: python tests/myrespi_tests.py
