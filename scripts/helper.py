@@ -9,6 +9,7 @@ import time
 import logging 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

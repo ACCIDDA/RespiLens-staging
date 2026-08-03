@@ -80,6 +80,9 @@ const HUB_OPTIONS = [
     githubUrl: "https://github.com/reichlab/flu-metrocast",
     pathogenKey: "flumetrocast",
     processedDataPath: "processed_data/myrespi/flumetrocast",
+    fileSuffix: "flu_metrocast",
+    datasetLabel: "flu metrocast forecasts",
+    groundTruthMinDate: "2024-08-01",
   },
 ];
 
@@ -643,12 +646,17 @@ const buildProjectionOutputs = ({
     throw new Error("Reference data did not include parsed CSV records.");
   }
 
-  const requiredLocationColumns = [
-    "location",
-    "abbreviation",
-    "location_name",
-    "population",
-  ];
+  const requiredLocationColumns =
+    hubConfig.slug === "flumetrocast"
+      ? [
+          "location",
+          "original_location_code",
+          "state",
+          "state_abb",
+          "location_name",
+          "population",
+        ]
+      : ["location", "abbreviation", "location_name", "population"];
   const missingLocationColumns = requiredLocationColumns.filter(
     (column) => !(locationsRows[0] ? column in locationsRows[0] : true),
   );
@@ -688,8 +696,14 @@ const buildProjectionOutputs = ({
     );
 
     const metadata = {
-      location: locationId,
-      abbreviation: String(locationInfo.abbreviation),
+      location:
+        hubConfig.slug === "flumetrocast"
+          ? String(locationInfo.original_location_code)
+          : locationId,
+      abbreviation:
+        hubConfig.slug === "flumetrocast"
+          ? String(locationInfo.location)
+          : String(locationInfo.abbreviation),
       location_name: String(locationInfo.location_name),
       population: Number(locationInfo.population),
       dataset: hubConfig.datasetLabel,
@@ -710,9 +724,18 @@ const buildProjectionOutputs = ({
       },
     };
 
+    if (hubConfig.slug === "flumetrocast") {
+      metadata.state = String(locationInfo.state);
+      metadata.state_abb = String(locationInfo.state_abb);
+      metadata.location_type = String(locationInfo.location_type ?? "");
+    }
+
     const groundTruth = buildGroundTruthOutput(locationTargetRows, hubConfig);
     const forecasts = buildForecastOutput(locationForecastRows);
-    const fileName = `${metadata.abbreviation}_${hubConfig.fileSuffix}.json`;
+    const fileName =
+      hubConfig.slug === "flumetrocast"
+        ? `${String(locationInfo.location)}_${hubConfig.fileSuffix}.json`
+        : `${metadata.abbreviation}_${hubConfig.fileSuffix}.json`;
 
     outputs[fileName] = {
       metadata,
@@ -728,6 +751,18 @@ const buildProjectionOutputs = ({
     ].sort(),
     locations: locationIds.map((locationId) => {
       const row = locationMap.get(locationId);
+      if (hubConfig.slug === "flumetrocast") {
+        return {
+          location: String(row.original_location_code),
+          abbreviation: String(row.location),
+          location_name: String(row.location_name),
+          population: Number(row.population),
+          state: String(row.state),
+          state_abb: String(row.state_abb),
+          location_type: String(row.location_type ?? ""),
+        };
+      }
+
       return {
         location: String(row.location),
         abbreviation: String(row.abbreviation),
@@ -797,6 +832,67 @@ const buildLocationOptions = (projectionOutputs) =>
           : fileName,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
+
+const buildMetroHierarchy = (projectionOutputs) => {
+  const metadataLocations =
+    projectionOutputs?.["metadata.json"]?.locations ?? [];
+  const statesByAbbreviation = new Map();
+
+  metadataLocations.forEach((location) => {
+    const stateAbbreviation = String(location.state_abb ?? "");
+    const stateName = String(location.state ?? "");
+    if (!stateAbbreviation || !stateName) {
+      return;
+    }
+    if (!statesByAbbreviation.has(stateAbbreviation)) {
+      statesByAbbreviation.set(stateAbbreviation, {
+        value: stateAbbreviation,
+        label: stateName,
+      });
+    }
+  });
+
+  const stateOptions = [...statesByAbbreviation.values()].sort((left, right) =>
+    left.label.localeCompare(right.label),
+  );
+
+  const locationsByState = {};
+
+  stateOptions.forEach((state) => {
+    const stateLocations = metadataLocations
+      .filter((location) => location.state_abb === state.value)
+      .sort((left, right) =>
+        left.location_name.localeCompare(right.location_name),
+      );
+
+    const topLevelLocation = stateLocations.find(
+      (location) => String(location.location_name ?? "") === state.label,
+    );
+    const childLocations = stateLocations.filter(
+      (location) => location.abbreviation !== topLevelLocation?.abbreviation,
+    );
+
+    locationsByState[state.value] = [
+      ...(topLevelLocation
+        ? [
+            {
+              value: `${topLevelLocation.abbreviation}_flu_metrocast.json`,
+              label: `${topLevelLocation.location_name} (statewide)`,
+            },
+          ]
+        : []),
+      ...childLocations.map((location) => ({
+        value: `${location.abbreviation}_flu_metrocast.json`,
+        label: location.location_name,
+      })),
+    ];
+  });
+
+  return {
+    stateOptions,
+    locationsByState,
+  };
+};
 
 const getAllForecastDates = (projectionOutputs) => {
   const dateSet = new Set();
@@ -868,8 +964,10 @@ const getDefaultViewerRange = (
   ];
 };
 
-const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
+const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
   const { colorScheme } = useMantineColorScheme();
+  const isMetrocast = hubConfig?.slug === "flumetrocast";
+  const [selectedMetroState, setSelectedMetroState] = useState(null);
   const [selectedLocationFile, setSelectedLocationFile] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [selectedModels, setSelectedModels] = useState([]);
@@ -891,8 +989,46 @@ const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
     () => buildLocationOptions(projectionOutputs),
     [projectionOutputs],
   );
+  const metroHierarchy = useMemo(
+    () => (isMetrocast ? buildMetroHierarchy(projectionOutputs) : null),
+    [isMetrocast, projectionOutputs],
+  );
 
   useEffect(() => {
+    if (!isMetrocast) {
+      setSelectedMetroState(null);
+      return;
+    }
+
+    const stateOptions = metroHierarchy?.stateOptions ?? [];
+    if (!stateOptions.length) {
+      setSelectedMetroState(null);
+      return;
+    }
+
+    setSelectedMetroState((current) =>
+      current && stateOptions.some((option) => option.value === current)
+        ? current
+        : stateOptions[0].value,
+    );
+  }, [isMetrocast, metroHierarchy]);
+
+  useEffect(() => {
+    if (isMetrocast) {
+      const scopedOptions =
+        metroHierarchy?.locationsByState?.[selectedMetroState] ?? [];
+      if (!scopedOptions.length) {
+        setSelectedLocationFile(null);
+        return;
+      }
+      setSelectedLocationFile((current) =>
+        current && scopedOptions.some((option) => option.value === current)
+          ? current
+          : scopedOptions[0].value,
+      );
+      return;
+    }
+
     if (!locationOptions.length) {
       setSelectedLocationFile(null);
       return;
@@ -902,11 +1038,15 @@ const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
         ? current
         : locationOptions[0].value,
     );
-  }, [locationOptions]);
+  }, [isMetrocast, locationOptions, metroHierarchy, selectedMetroState]);
 
   const locationData = selectedLocationFile
     ? projectionOutputs[selectedLocationFile]
     : null;
+  const scopedMetroLocationOptions = useMemo(
+    () => metroHierarchy?.locationsByState?.[selectedMetroState] ?? [],
+    [metroHierarchy, selectedMetroState],
+  );
 
   const targetOptions = useMemo(
     () => getTargetOptions(locationData),
@@ -1182,7 +1322,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
     [locationData, selectedDates, chartScale, calculateYRange, traces],
   );
 
-  if (!locationOptions.length || !locationData) {
+  if ((!isMetrocast && !locationOptions.length) || !locationData) {
     return null;
   }
 
@@ -1190,13 +1330,45 @@ const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
     <Paper withBorder radius="lg" p="lg">
       <Stack gap="lg">
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-          <Select
-            label="Location"
-            data={locationOptions}
-            value={selectedLocationFile}
-            onChange={setSelectedLocationFile}
-            allowDeselect={false}
-          />
+          {isMetrocast ? (
+            <Select
+              label="State"
+              data={metroHierarchy?.stateOptions ?? []}
+              value={selectedMetroState}
+              onChange={setSelectedMetroState}
+              allowDeselect={false}
+            />
+          ) : (
+            <Select
+              label="Location"
+              data={locationOptions}
+              value={selectedLocationFile}
+              onChange={setSelectedLocationFile}
+              allowDeselect={false}
+            />
+          )}
+          {isMetrocast ? (
+            <Select
+              label="Location"
+              data={scopedMetroLocationOptions}
+              value={selectedLocationFile}
+              onChange={setSelectedLocationFile}
+              allowDeselect={false}
+              disabled={!scopedMetroLocationOptions.length}
+            />
+          ) : (
+            <Select
+              label="Target"
+              data={targetOptions}
+              value={selectedTarget}
+              onChange={setSelectedTarget}
+              allowDeselect={false}
+              disabled={!targetOptions.length}
+            />
+          )}
+        </SimpleGrid>
+
+        {isMetrocast && (
           <Select
             label="Target"
             data={targetOptions}
@@ -1205,7 +1377,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs }) => {
             allowDeselect={false}
             disabled={!targetOptions.length}
           />
-        </SimpleGrid>
+        )}
 
         <Paper withBorder radius="md" p="sm">
           <Stack gap="sm">
@@ -1564,11 +1736,6 @@ const HubUploadScreen = () => {
           buildHubPathogenWarning(validation.usableRows, hubConfig),
         );
 
-        if (hubConfig.slug === "flumetrocast") {
-          setIsUploadProcessing(false);
-          return;
-        }
-
         const referenceData = await ensureReferenceDataLoaded();
 
         if (!referenceData.timeSeries.records) {
@@ -1720,17 +1887,6 @@ const HubUploadScreen = () => {
             </Stack>
           </Group>
 
-          {hubConfig.slug === "flumetrocast" && (
-            <Alert
-              color="yellow"
-              radius="lg"
-              icon={<IconInfoCircle size={16} />}
-              title="Under construction"
-            >
-              TODO! not active yet
-            </Alert>
-          )}
-
           {referenceDataState.status === "error" && (
             <Alert
               color="red"
@@ -1765,6 +1921,7 @@ const HubUploadScreen = () => {
               </Button>
               <MyRespiVisualizationPanel
                 projectionOutputs={projectionBuildState.outputs}
+                hubConfig={hubConfig}
               />
             </>
           )}

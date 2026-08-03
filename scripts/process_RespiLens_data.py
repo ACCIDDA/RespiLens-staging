@@ -121,7 +121,7 @@ def main():
                 overwrite=True
             )
         logger.info("Fetching documents for MyRespiLens...")
-        myrespi_fetch(hub_path=args.flusight_hub_path, folder_name="rsvforecasthub", output_path=args.output_path)
+        myrespi_fetch(hub_path=args.rsv_hub_path, folder_name="rsvforecasthub", output_path=args.output_path)
         logger.info("Success ✅")
     
     if args.covid_hub_path:
@@ -150,7 +150,7 @@ def main():
                 overwrite=True
             )
         logger.info("Fetching documents for MyRespiLens...")
-        myrespi_fetch(hub_path=args.flusight_hub_path, folder_name="covid19forecasthub", output_path=args.output_path)
+        myrespi_fetch(hub_path=args.covid_hub_path, folder_name="covid19forecasthub", output_path=args.output_path)
         logger.info("Success ✅")
     
     if args.flu_metrocast_hub_path:
@@ -180,7 +180,7 @@ def main():
                 overwrite=True
             )
         logger.info("Fetching documents for MyRespiLens...")
-        myrespi_fetch(hub_path=args.flusight_hub_path, folder_name="flumetrocast", output_path=args.output_path)
+        myrespi_fetch(hub_path=args.flu_metrocast_hub_path, folder_name="flumetrocast", output_path=args.output_path)
         logger.info("Success ✅")
 
     if args.NHSN:
