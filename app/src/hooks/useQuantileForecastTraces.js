@@ -4,30 +4,41 @@ import { MODEL_COLORS } from "../config/datasets";
 const defaultFormatValue = (value) =>
   value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
+const DEFAULT_INTERVAL_DEFINITIONS = [
+  {
+    key: "ci50",
+    label: "50% interval",
+    lowerQuantile: 0.25,
+    upperQuantile: 0.75,
+  },
+  {
+    key: "ci95",
+    label: "95% interval",
+    lowerQuantile: 0.025,
+    upperQuantile: 0.975,
+  },
+];
+
 const buildDefaultModelHoverText = ({
   model,
   pointDate,
   formattedMedian,
-  formatted50,
-  formatted95,
+  formattedIntervals,
   issuedDate,
   valueSuffix,
-  show50,
-  show95,
+  showMedian,
 }) => {
-  const rows = [
-    `<b>${model}</b><br>` +
-      `Date: ${pointDate}<br>` +
-      `Median: <b>${formattedMedian}${valueSuffix}</b><br>`,
-  ];
+  const rows = [`<b>${model}</b><br>Date: ${pointDate}<br>`];
 
-  if (show50) {
-    rows.push(`50% CI: [${formatted50}${valueSuffix}]<br>`);
+  if (showMedian && formattedMedian !== null) {
+    rows.push(`Median: <b>${formattedMedian}${valueSuffix}</b><br>`);
   }
 
-  if (show95) {
-    rows.push(`95% CI: [${formatted95}${valueSuffix}]<br>`);
-  }
+  formattedIntervals.forEach((interval) => {
+    rows.push(
+      `${interval.label}: [${interval.formattedRange}${valueSuffix}]<br>`,
+    );
+  });
 
   rows.push(
     `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${issuedDate}</span>` +
@@ -40,6 +51,27 @@ const buildDefaultModelHoverText = ({
 const resolveModelColor = (selectedModels, model) => {
   const index = selectedModels.indexOf(model);
   return MODEL_COLORS[index % MODEL_COLORS.length];
+};
+
+const findQuantileValue = (quantiles, values, requestedQuantile) => {
+  const index = quantiles.findIndex(
+    (quantile) => Number(quantile) === requestedQuantile,
+  );
+  return index !== -1 ? values[index] : null;
+};
+
+const buildIntervalFillColor = (modelColor, intervalIndex, intervalCount) => {
+  const alphaStart = 0.1;
+  const alphaEnd = 0.34;
+  const denominator = Math.max(1, intervalCount - 1);
+  const alpha =
+    intervalCount === 1
+      ? alphaEnd
+      : alphaStart + ((alphaEnd - alphaStart) * intervalIndex) / denominator;
+  const alphaHex = Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `${modelColor}${alphaHex}`;
 };
 
 const useQuantileForecastTraces = ({
@@ -63,6 +95,8 @@ const useQuantileForecastTraces = ({
   showMedian = true,
   show50 = true,
   show95 = true,
+  intervalDefinitions = null,
+  intervalVisibility = null,
   transformY = null,
   groundTruthHoverFormatter = null,
 }) =>
@@ -120,11 +154,34 @@ const useQuantileForecastTraces = ({
 
         const forecastDates = [];
         const medianValues = [];
-        const ci95Upper = [];
-        const ci95Lower = [];
-        const ci50Upper = [];
-        const ci50Lower = [];
         const hoverTexts = [];
+        const resolvedIntervalDefinitions =
+          intervalDefinitions ??
+          DEFAULT_INTERVAL_DEFINITIONS.filter((definition) => {
+            if (definition.key === "ci50") return show50;
+            if (definition.key === "ci95") return show95;
+            return true;
+          });
+        const activeIntervalDefinitions = resolvedIntervalDefinitions.filter(
+          (definition) =>
+            intervalVisibility?.[definition.key] ??
+            (definition.key === "ci50"
+              ? show50
+              : definition.key === "ci95"
+                ? show95
+                : true),
+        );
+        const intervalSeries = Object.fromEntries(
+          activeIntervalDefinitions.map((definition) => [
+            definition.key,
+            {
+              definition,
+              dates: [],
+              lower: [],
+              upper: [],
+            },
+          ]),
+        );
 
         const sortedPredictions = Object.values(
           forecast.predictions || {},
@@ -133,66 +190,77 @@ const useQuantileForecastTraces = ({
         sortedPredictions.forEach((pred) => {
           const pointDate = pred.date;
           const { quantiles = [], values = [] } = pred;
+          const normalizedQuantiles = quantiles.map((quantile) =>
+            Number(quantile),
+          );
+          const val_50 = findQuantileValue(normalizedQuantiles, values, 0.5);
+          const resolvedMedian =
+            val_50 === null || val_50 === undefined ? null : val_50;
+          const formattedIntervals = [];
 
-          const findValue = (q) => {
-            const index = quantiles.indexOf(q);
-            return index !== -1 ? values[index] : null;
-          };
+          activeIntervalDefinitions.forEach((definition) => {
+            const lowerValue = findQuantileValue(
+              normalizedQuantiles,
+              values,
+              definition.lowerQuantile,
+            );
+            const upperValue = findQuantileValue(
+              normalizedQuantiles,
+              values,
+              definition.upperQuantile,
+            );
+            const resolvedLower =
+              lowerValue ?? (fillMissingQuantiles ? resolvedMedian : null);
+            const resolvedUpper =
+              upperValue ?? (fillMissingQuantiles ? resolvedMedian : null);
 
-          const val_50 = findValue(0.5);
-          if (val_50 === null || val_50 === undefined) {
+            if (
+              resolvedLower === null ||
+              resolvedUpper === null ||
+              resolvedLower === undefined ||
+              resolvedUpper === undefined
+            ) {
+              return;
+            }
+
+            intervalSeries[definition.key].dates.push(pointDate);
+            intervalSeries[definition.key].lower.push(
+              transformY ? transformY(resolvedLower) : resolvedLower,
+            );
+            intervalSeries[definition.key].upper.push(
+              transformY ? transformY(resolvedUpper) : resolvedUpper,
+            );
+            updateRange(resolvedLower);
+            updateRange(resolvedUpper);
+            formattedIntervals.push({
+              label: definition.label,
+              formattedRange: `${formatValue(resolvedLower)} - ${formatValue(resolvedUpper)}`,
+            });
+          });
+
+          if (resolvedMedian === null && formattedIntervals.length === 0) {
             return;
           }
 
-          const val_025 = findValue(0.025);
-          const val_25 = findValue(0.25);
-          const val_75 = findValue(0.75);
-          const val_975 = findValue(0.975);
-
-          const resolved025 = val_025 ?? (fillMissingQuantiles ? val_50 : null);
-          const resolved25 = val_25 ?? (fillMissingQuantiles ? val_50 : null);
-          const resolved75 = val_75 ?? (fillMissingQuantiles ? val_50 : null);
-          const resolved975 = val_975 ?? (fillMissingQuantiles ? val_50 : null);
-
-          if (
-            resolved025 === null ||
-            resolved25 === null ||
-            resolved75 === null ||
-            resolved975 === null
-          ) {
-            return;
+          if (resolvedMedian !== null) {
+            forecastDates.push(pointDate);
+            if (showMedian) {
+              medianValues.push(
+                transformY ? transformY(resolvedMedian) : resolvedMedian,
+              );
+              updateRange(resolvedMedian);
+            }
           }
 
-          forecastDates.push(pointDate);
-
-          if (showMedian) {
-            medianValues.push(transformY ? transformY(val_50) : val_50);
-            updateRange(val_50);
-          }
-          if (show50) {
-            ci50Lower.push(transformY ? transformY(resolved25) : resolved25);
-            ci50Upper.push(transformY ? transformY(resolved75) : resolved75);
-            updateRange(resolved25);
-            updateRange(resolved75);
-          }
-          if (show95) {
-            ci95Lower.push(transformY ? transformY(resolved025) : resolved025);
-            ci95Upper.push(transformY ? transformY(resolved975) : resolved975);
-            updateRange(resolved025);
-            updateRange(resolved975);
-          }
-
-          const formattedMedian = formatValue(val_50);
-          const formatted50 = `${formatValue(resolved25)} - ${formatValue(resolved75)}`;
-          const formatted95 = `${formatValue(resolved025)} - ${formatValue(resolved975)}`;
+          const formattedMedian =
+            resolvedMedian === null ? null : formatValue(resolvedMedian);
 
           const hoverText = modelHoverBuilder
             ? modelHoverBuilder({
                 model,
                 pointDate,
                 formattedMedian,
-                formatted50,
-                formatted95,
+                formattedIntervals,
                 issuedDate: date,
                 valueSuffix,
               })
@@ -200,18 +268,21 @@ const useQuantileForecastTraces = ({
                 model,
                 pointDate,
                 formattedMedian,
-                formatted50,
-                formatted95,
+                formattedIntervals,
                 issuedDate: date,
                 valueSuffix,
-                show50,
-                show95,
+                showMedian,
               });
 
-          hoverTexts.push(hoverText);
+          if (resolvedMedian !== null) {
+            hoverTexts.push(hoverText);
+          }
         });
 
-        if (forecastDates.length === 0) return [];
+        const hasIntervalSeries = Object.values(intervalSeries).some(
+          (series) => series.dates.length > 0,
+        );
+        if (forecastDates.length === 0 && !hasIntervalSeries) return [];
 
         const modelColor = modelColorFn
           ? modelColorFn(model, selectedModels)
@@ -220,37 +291,30 @@ const useQuantileForecastTraces = ({
 
         const traces = [];
 
-        if (show95) {
+        activeIntervalDefinitions.forEach((definition, intervalIndex) => {
+          const series = intervalSeries[definition.key];
+          if (!series || series.dates.length === 0) {
+            return;
+          }
           traces.push({
-            x: [...forecastDates, ...forecastDates.slice().reverse()],
-            y: [...ci95Upper, ...ci95Lower.slice().reverse()],
+            x: [...series.dates, ...series.dates.slice().reverse()],
+            y: [...series.upper, ...series.lower.slice().reverse()],
             fill: "toself",
-            fillcolor: `${modelColor}10`,
+            fillcolor: buildIntervalFillColor(
+              modelColor,
+              intervalIndex,
+              activeIntervalDefinitions.length,
+            ),
             line: { color: "transparent" },
             showlegend: false,
             type: "scatter",
-            name: `${model} 95% CI`,
+            name: `${model} ${definition.label}`,
             hoverinfo: "none",
             legendgroup: model,
           });
-        }
+        });
 
-        if (show50) {
-          traces.push({
-            x: [...forecastDates, ...forecastDates.slice().reverse()],
-            y: [...ci50Upper, ...ci50Lower.slice().reverse()],
-            fill: "toself",
-            fillcolor: `${modelColor}30`,
-            line: { color: "transparent" },
-            showlegend: false,
-            type: "scatter",
-            name: `${model} 50% CI`,
-            hoverinfo: "none",
-            legendgroup: model,
-          });
-        }
-
-        if (showMedian) {
+        if (showMedian && forecastDates.length > 0) {
           traces.push({
             x: forecastDates,
             y: medianValues,
@@ -271,7 +335,10 @@ const useQuantileForecastTraces = ({
           });
         }
 
-        if (!showMedian && (show50 || show95)) {
+        if (
+          (showMedian && forecastDates.length === 0 && hasIntervalSeries) ||
+          (!showMedian && hasIntervalSeries)
+        ) {
           traces.push({
             x: [null],
             y: [null],
@@ -314,6 +381,8 @@ const useQuantileForecastTraces = ({
     showMedian,
     show50,
     show95,
+    intervalDefinitions,
+    intervalVisibility,
     transformY,
     groundTruthHoverFormatter,
   ]);

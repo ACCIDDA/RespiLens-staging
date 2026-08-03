@@ -105,7 +105,6 @@ const CATEGORICAL_OUTPUT_TYPE_IDS = new Set([
   "large_increase",
   "stable",
 ]);
-const NUMERIC_OUTPUT_TYPE_IDS = new Set([0.025, 0.25, 0.5, 0.75, 0.975]);
 const DEFAULT_MODEL_ID = "user-uploaded-model";
 const HUB_PATHOGEN_KEYWORDS = {
   flusight: "flu",
@@ -342,6 +341,83 @@ const normalizeOutputTypeId = (value) => {
   return value;
 };
 
+const isSupportedQuantileOutputTypeId = (outputType, outputTypeId) =>
+  outputType === "quantile" &&
+  typeof outputTypeId === "number" &&
+  outputTypeId >= 0 &&
+  outputTypeId <= 1;
+
+const buildQuantileIntervalKey = (lowerQuantile, upperQuantile) =>
+  `${lowerQuantile}_${upperQuantile}`;
+
+const formatIntervalPercentage = (value) => {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+};
+
+const getPredictionIntervalDefinitions = (locationData, target) => {
+  if (!locationData?.forecasts || !target) {
+    return { hasMedian: false, intervalDefinitions: [] };
+  }
+
+  const intervalMap = new Map();
+  let hasMedian = false;
+
+  Object.values(locationData.forecasts).forEach((dateData) => {
+    const targetData = dateData?.[target];
+    if (!targetData) {
+      return;
+    }
+
+    Object.values(targetData).forEach((modelData) => {
+      Object.values(modelData?.predictions || {}).forEach((prediction) => {
+        const quantiles = (prediction.quantiles || []).map((value) =>
+          Number(value),
+        );
+        const quantileSet = new Set(
+          quantiles.filter((value) => !Number.isNaN(value)),
+        );
+
+        if (quantileSet.has(0.5)) {
+          hasMedian = true;
+        }
+
+        quantileSet.forEach((quantile) => {
+          if (quantile >= 0.5) {
+            return;
+          }
+
+          const pairedQuantile = Number((1 - quantile).toFixed(10));
+          if (!quantileSet.has(pairedQuantile)) {
+            return;
+          }
+
+          const key = buildQuantileIntervalKey(quantile, pairedQuantile);
+          if (!intervalMap.has(key)) {
+            intervalMap.set(key, {
+              key: `interval_${String(quantile).replace(".", "p")}_${String(
+                pairedQuantile,
+              ).replace(".", "p")}`,
+              label: `${formatIntervalPercentage(
+                (pairedQuantile - quantile) * 100,
+              )}% interval`,
+              lowerQuantile: quantile,
+              upperQuantile: pairedQuantile,
+            });
+          }
+        });
+      });
+    });
+  });
+
+  return {
+    hasMedian,
+    intervalDefinitions: [...intervalMap.values()].sort(
+      (left, right) => left.lowerQuantile - right.lowerQuantile,
+    ),
+  };
+};
+
 const validateHubverseCsv = (records, hubConfig) => {
   const summary = {
     totalRows: records.length,
@@ -420,12 +496,15 @@ const validateHubverseCsv = (records, hubConfig) => {
 
     const normalizedOutputTypeId = normalizeOutputTypeId(outputTypeId);
     const isCategorical = CATEGORICAL_OUTPUT_TYPE_IDS.has(outputTypeId);
-    const isNumeric = NUMERIC_OUTPUT_TYPE_IDS.has(normalizedOutputTypeId);
     const isPeakWeekTarget = target.includes("peak week inc flu hosp");
     const isValidPeakWeekDate =
       isPeakWeekTarget && isDateLikeValue(outputTypeId);
+    const isSupportedQuantile = isSupportedQuantileOutputTypeId(
+      outputType,
+      normalizedOutputTypeId,
+    );
 
-    if (isCategorical || !(isNumeric || isValidPeakWeekDate)) {
+    if (isCategorical || !(isSupportedQuantile || isValidPeakWeekDate)) {
       summary.rowsFilteredByOutputTypeId += 1;
       return [];
     }
@@ -974,11 +1053,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
   const [chartScale, setChartScale] = useState("linear");
-  const [intervalVisibility, setIntervalVisibility] = useState({
-    median: true,
-    ci50: true,
-    ci95: true,
-  });
+  const [intervalVisibility, setIntervalVisibility] = useState({});
   const [showLegend, setShowLegend] = useState(true);
   const [xAxisRange, setXAxisRange] = useState(null);
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -1052,6 +1127,20 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
     () => getTargetOptions(locationData),
     [locationData],
   );
+  const { hasMedian, intervalDefinitions } = useMemo(
+    () => getPredictionIntervalDefinitions(locationData, selectedTarget),
+    [locationData, selectedTarget],
+  );
+  const intervalOptions = useMemo(
+    () => [
+      ...(hasMedian ? [{ value: "median", label: "Median" }] : []),
+      ...intervalDefinitions.map((definition) => ({
+        value: definition.key,
+        label: definition.label,
+      })),
+    ],
+    [hasMedian, intervalDefinitions],
+  );
 
   useEffect(() => {
     if (!targetOptions.length) {
@@ -1064,6 +1153,22 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
         : targetOptions[0].value,
     );
   }, [targetOptions]);
+
+  useEffect(() => {
+    if (!intervalOptions.length) {
+      setIntervalVisibility({});
+      return;
+    }
+
+    setIntervalVisibility((current) => {
+      const nextVisibility = {};
+      intervalOptions.forEach((option) => {
+        nextVisibility[option.value] =
+          current?.[option.value] === undefined ? true : current[option.value];
+      });
+      return nextVisibility;
+    });
+  }, [intervalOptions]);
 
   const models = useMemo(
     () => getModelsForTarget(locationData, selectedTarget),
@@ -1130,10 +1235,10 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
     selectedModels,
     target: selectedTarget,
     showLegendForFirstDate: showLegend,
-    showMedian: intervalVisibility.median,
-    show50: intervalVisibility.ci50,
-    show95: intervalVisibility.ci95,
+    showMedian: intervalVisibility.median ?? hasMedian,
     fillMissingQuantiles: false,
+    intervalDefinitions,
+    intervalVisibility,
     transformY: sqrtTransform,
   });
 
@@ -1391,6 +1496,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
               setIntervalVisibility={setIntervalVisibility}
               showLegend={showLegend}
               setShowLegend={setShowLegend}
+              intervalOptions={intervalOptions}
             />
           </Stack>
         </Paper>

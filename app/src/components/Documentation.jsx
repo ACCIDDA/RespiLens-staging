@@ -203,17 +203,24 @@ const Documentation = () => {
                 <code>sample</code>.
               </List.Item>
               <List.Item>
-                Rows where the <code>output_type_id</code> column contains an
-                unsupported value. At present, MyRespiLens keeps only the
-                quantile values <code>0.025</code>, <code>0.25</code>,{" "}
-                <code>0.5</code>, <code>0.75</code>, and <code>0.975</code>.
-                Other <code>output_type_id</code> values are filtered out.
+                Rows where the <code>output_type</code> column is{" "}
+                <code>quantile</code> but the <code>output_type_id</code> column
+                is not a valid numeric quantile between <code>0</code> and{" "}
+                <code>1</code>.
               </List.Item>
               <List.Item>
-                Rows where the <code>output_type_id</code> column contains
-                qualitative category values such as <code>decrease</code>,{" "}
-                <code>increase</code>, <code>large_decrease</code>,{" "}
-                <code>large_increase</code>, and <code>stable</code>.
+                Quantile rows whose <code>output_type_id</code> values do not
+                have the matching upper or lower partner needed to form a
+                prediction interval. Unpaired quantiles are filtered out, while
+                paired quantiles are kept and used to build interval shading in
+                the dashboard.
+              </List.Item>
+              <List.Item>
+                Rows where the <code>output_type_id</code> column contains one
+                of the currently unsupported qualitative values{" "}
+                <code>decrease</code>, <code>increase</code>,{" "}
+                <code>large_decrease</code>, <code>large_increase</code>, or{" "}
+                <code>stable</code>.
               </List.Item>
               <List.Item>
                 Rows where the <code>target</code> column is a flu peak target,
