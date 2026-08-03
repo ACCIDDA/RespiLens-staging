@@ -20,7 +20,6 @@ import {
   IconChevronUp,
   IconFileDescription,
   IconFilter,
-  IconInfoCircle,
   IconUpload,
 } from "@tabler/icons-react";
 import Seo from "./Seo";
