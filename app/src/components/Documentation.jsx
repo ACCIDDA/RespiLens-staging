@@ -188,29 +188,36 @@ const Documentation = () => {
             </Text>
             <List spacing="sm">
               <List.Item>
-                Duplicate rows, using the composite key of{" "}
+                Duplicate rows, using the combined values from the{" "}
                 <code>reference_date</code>, <code>target_end_date</code>,{" "}
                 <code>location</code>, <code>horizon</code>, <code>target</code>
-                , <code>output_type</code>, <code>output_type_id</code>, and{" "}
-                <code>model_id</code> when present.
+                , <code>output_type</code>, <code>output_type_id</code>, and
+                optional <code>model_id</code> columns.
               </List.Item>
               <List.Item>
-                Nowcasts, meaning rows with negative <code>horizon</code>.
+                Rows where the <code>horizon</code> column is negative
+                (nowcasts).
               </List.Item>
               <List.Item>
-                <code>sample</code> output rows.
+                Rows where the <code>output_type</code> column is{" "}
+                <code>sample</code>.
               </List.Item>
               <List.Item>
-                Unsupported <code>output_type_id</code> values.
+                Rows where the <code>output_type_id</code> column contains an
+                unsupported value. At present, MyRespiLens keeps only the
+                quantile values <code>0.025</code>, <code>0.25</code>,{" "}
+                <code>0.5</code>, <code>0.75</code>, and <code>0.975</code>.
+                Other <code>output_type_id</code> values are filtered out.
               </List.Item>
               <List.Item>
-                Qualitative category values such as <code>decrease</code>,{" "}
+                Rows where the <code>output_type_id</code> column contains
+                qualitative category values such as <code>decrease</code>,{" "}
                 <code>increase</code>, <code>large_decrease</code>,{" "}
                 <code>large_increase</code>, and <code>stable</code>.
               </List.Item>
               <List.Item>
-                Flu peak targets, which are currently excluded from this
-                MyRespiLens workflow.
+                Rows where the <code>target</code> column is a flu peak target,
+                which is currently excluded from this MyRespiLens workflow.
               </List.Item>
             </List>
             <Alert
