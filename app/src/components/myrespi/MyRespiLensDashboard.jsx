@@ -1595,7 +1595,7 @@ const HubSelectionScreen = () => {
               MyRespiLens
             </Title>
             <Text size="lg">
-              Select your hub and drop your data for instant visualization!
+              Select a hub and drop your data for instant visualization!
             </Text>
           </Stack>
 
