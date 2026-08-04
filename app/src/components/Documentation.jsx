@@ -260,6 +260,11 @@ const Documentation = () => {
                 <code>horizon</code> is missing or not an integer.
               </List.Item>
               <List.Item>
+                For Flu Metrocast uploads, one or more{" "}
+                <code>target_end_date</code> values are before{" "}
+                <code>2025-11-22</code>.
+              </List.Item>
+              <List.Item>
                 After preprocessing and filtering, no usable rows remain.
               </List.Item>
               <List.Item>

@@ -106,6 +106,7 @@ const CATEGORICAL_OUTPUT_TYPE_IDS = new Set([
   "stable",
 ]);
 const DEFAULT_MODEL_ID = "user-uploaded-model";
+const FLU_METROCAST_MIN_TARGET_END_DATE = "2025-11-22";
 const HUB_PATHOGEN_KEYWORDS = {
   flusight: "flu",
   flumetrocast: "flu",
@@ -432,6 +433,7 @@ const validateHubverseCsv = (records, hubConfig) => {
 
   const errors = [];
   const sampleProblems = [];
+  let hasFluMetrocastEarlyDate = false;
 
   if (records.length === 0) {
     errors.push("The CSV has headers but no forecast rows.");
@@ -456,6 +458,14 @@ const validateHubverseCsv = (records, hubConfig) => {
       sampleProblems.push(
         `Row ${index + 2} has an invalid target_end_date of "${record.target_end_date}".`,
       );
+      return [];
+    }
+
+    if (
+      hubConfig?.slug === "flumetrocast" &&
+      normalizedTargetEndDate < FLU_METROCAST_MIN_TARGET_END_DATE
+    ) {
+      hasFluMetrocastEarlyDate = true;
       return [];
     }
 
@@ -530,6 +540,12 @@ const validateHubverseCsv = (records, hubConfig) => {
 
   if (sampleProblems.length > 0) {
     errors.push(...sampleProblems.slice(0, 5));
+  }
+
+  if (hasFluMetrocastEarlyDate) {
+    errors.push(
+      "Your upload contains dates before 2025-11-22 (MyRespiLens flu-metrocast can only process target_end_dates after this day)",
+    );
   }
 
   const seenCompositeKeys = new Set();
@@ -2168,29 +2184,23 @@ const HubUploadScreen = () => {
               icon={<IconAlertCircle size={16} />}
             >
               <Stack gap="sm">
-                <Text>
-                  The uploaded CSV could not be validated yet. Please fix the
-                  issues below and try again.
-                </Text>
-                {validationState.summary && (
-                  <ValidationSummary summary={validationState.summary} />
-                )}
+                <Text>CSV validation failed:</Text>
+
                 <List spacing="xs">
                   {validationState.errors.map((error) => (
                     <List.Item key={error}>{error}</List.Item>
                   ))}
                 </List>
                 <Text size="sm" c="dimmed">
-                  If you want a reference for the expected Hubverse format, see
-                  the{" "}
+                  Check the MyRespiLens{" "}
                   <Anchor
-                    href="https://docs.hubverse.io/en/latest/user-guide/model-output.html"
+                    href="/myrespilens/documentation"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Hubverse model output guide
-                  </Anchor>
-                  .
+                    documentation
+                  </Anchor>{" "}
+                  for the expected upload format and validation rules.
                 </Text>
               </Stack>
             </Alert>
