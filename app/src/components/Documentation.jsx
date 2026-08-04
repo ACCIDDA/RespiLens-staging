@@ -62,7 +62,7 @@ const Documentation = () => {
     <>
       <Seo
         title="MyRespiLens Documentation | RespiLens"
-        description="Learn what MyRespiLens does, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
+        description="Learn how to visualize your data with MyRespiLens, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
         canonicalPath="/myrespilens/documentation"
       />
       <Container size="lg" py="xl">
@@ -78,34 +78,34 @@ const Documentation = () => {
             icon={<IconUpload size={20} />}
             defaultOpened={true}
           >
-            <Text>The current MyRespiLens workflow is:</Text>
-            <List spacing="sm">
-              <List.Item>
-                You choose one of four supported hubs: FluSight, COVID-19
-                Forecast Hub, RSV Forecast Hub, or Flu Metrocast.
-              </List.Item>
-              <List.Item>
-                You drag and drop one or more Hubverse-style forecast{" "}
-                <code>.csv</code> files.
-              </List.Item>
-              <List.Item>
-                MyRespiLens validates and preprocesses the uploaded forecast
-                rows.
-              </List.Item>
-              <List.Item>
-                The site loads the correct hub-specific reference files
-                automatically. You do not need to upload{" "}
-                <code>locations.csv</code> or time-series data yourself.
-              </List.Item>
-              <List.Item>
-                RespiLens builds projections JSON in the browser and immediately
-                renders an interactive visualization dashboard.
-              </List.Item>
-            </List>
-            <Text size="sm" c="dimmed">
-              If your uploaded targets do not appear to match the hub you
-              selected, MyRespiLens may still render the dashboard but will show
-              a warning.
+            <Text>
+              MyRespiLens allows users to quickly visualize their forecast data
+              simply by dragging and dropping CSV file(s). From the user's data
+              (and location and ground truth data stored internally), a
+              visualization dashboard will be built. All targets, locations,
+              dates, and models found in the user's data will be available for
+              selection. Additionally, a control panel is provided to modulate
+              between linear, log, and square root y-axis scales, and to toggle
+              which prediction intervals are visible on the plot.{" "}
+            </Text>
+            <Text>
+              Before uploading, you will be prompted to select which hub your
+              data "belongs" to.{" "}
+              <b>
+                You do not have to have a submitting model in order to visualize
+                your data, but your data must use the same target data streams
+                as the selected hub
+              </b>{" "}
+              (e.g., you are predicting "weekly incidence of influenza
+              hospitalization" when you select FluSight). Your data must also
+              comply with the MyRespiLens validation requirements, which are
+              listed below.
+            </Text>
+            <Text>
+              When you use MyRespiLens, the data does not leave your device (it
+              is a private display). That is, if you navigate away from your
+              visualization, you will have to re-upload your data to view it
+              again.
             </Text>
           </SectionCard>
 
@@ -117,7 +117,7 @@ const Documentation = () => {
               Your uploaded data must be a Hubverse-style forecast CSV.
               MyRespiLens can accept one file or multiple CSV files at once.
             </Text>
-            <Text fw={600}>Required columns</Text>
+            <Text fw={600}>Required columns:</Text>
             <List spacing="sm">
               <List.Item>
                 <code>location</code>
@@ -146,7 +146,8 @@ const Documentation = () => {
             </List>
             <Text>
               <code>model_id</code> is optional. If it is missing, MyRespiLens
-              assigns the fallback model name <code>user-uploaded-model</code>.
+              assigns the fallback model name <code>user-uploaded-model</code>{" "}
+              and assumes all data belongs to a single model.
             </Text>
             <Text fw={600}>Expected value patterns</Text>
             <List spacing="sm">
@@ -157,7 +158,7 @@ const Documentation = () => {
                 <code>target_end_date</code> must be parseable as a date.
               </List.Item>
               <List.Item>
-                <code>horizon</code> must be an integer.
+                <code>horizon</code> must be parseable as an integer.
               </List.Item>
               <List.Item>
                 The currently supported forecast outputs are quantitative
@@ -165,7 +166,7 @@ const Documentation = () => {
               </List.Item>
             </List>
             <Text size="sm" c="dimmed">
-              Hubverse formatting details are documented in the{" "}
+              For more information on the Hubverse format, visit the{" "}
               <Anchor
                 href="https://docs.hubverse.io/en/latest/user-guide/model-output.html"
                 target="_blank"
@@ -182,9 +183,10 @@ const Documentation = () => {
             icon={<IconFilter size={20} />}
           >
             <Text>
-              Some uploaded rows are not treated as fatal errors. Instead,
-              MyRespiLens filters them out during preprocessing and continues
-              with the remaining usable rows.
+              Some stipulations of user-uploaded data are not enforced with
+              fatal errors. Instead, MyRespiLens filters them out during
+              preprocessing and continues with the remaining usable rows. A list
+              of things that will be filtered out of your data, if found:
             </Text>
             <List spacing="sm">
               <List.Item>
@@ -199,8 +201,8 @@ const Documentation = () => {
                 (nowcasts).
               </List.Item>
               <List.Item>
-                Rows where the <code>output_type</code> column is{" "}
-                <code>sample</code>.
+                Rows where the <code>output_type</code> column value is NOT{" "}
+                <code>quantile</code>.
               </List.Item>
               <List.Item>
                 Rows where the <code>output_type</code> column is{" "}
@@ -216,11 +218,9 @@ const Documentation = () => {
                 the dashboard.
               </List.Item>
               <List.Item>
-                Rows where the <code>output_type_id</code> column contains one
-                of the currently unsupported qualitative values{" "}
-                <code>decrease</code>, <code>increase</code>,{" "}
-                <code>large_decrease</code>, <code>large_increase</code>, or{" "}
-                <code>stable</code>.
+                When Flu Metrocast Hub has been selected, rows where the{" "}
+                <code>target_end_date</code> column is before{" "}
+                <code>2025-11-22</code>.
               </List.Item>
               <List.Item>
                 Rows where the <code>target</code> column is a flu peak target,
@@ -243,13 +243,16 @@ const Documentation = () => {
             icon={<IconAlertCircle size={20} />}
           >
             <Text>
-              MyRespiLens will stop and show an error when it cannot safely
-              continue. Common failure cases include:
+              MyRespiLens will stop and show an error when it cannot resolve
+              issues with the data. Common failure cases include:
             </Text>
             <List spacing="sm">
               <List.Item>No uploaded files are CSVs.</List.Item>
               <List.Item>Required columns are missing.</List.Item>
-              <List.Item>The file has headers but no forecast rows.</List.Item>
+              <List.Item>
+                The file has headers but no forecast rows. Or, no forecast rows
+                were left after filtering described above.
+              </List.Item>
               <List.Item>
                 <code>target_end_date</code> cannot be parsed.
               </List.Item>
@@ -257,7 +260,7 @@ const Documentation = () => {
                 <code>value</code> is not numeric.
               </List.Item>
               <List.Item>
-                <code>horizon</code> is missing or not an integer.
+                <code>horizon</code> is missing or not parseable as an integer.
               </List.Item>
               <List.Item>
                 For Flu Metrocast uploads, one or more{" "}
@@ -265,23 +268,17 @@ const Documentation = () => {
                 <code>2025-11-22</code>.
               </List.Item>
               <List.Item>
-                After preprocessing and filtering, no usable rows remain.
-              </List.Item>
-              <List.Item>
                 A location in the uploaded forecast data is not present in the
-                hub’s reference <code>locations.csv</code>.
+                hub’s reference <code>locations.csv</code> file.
               </List.Item>
               <List.Item>
                 The site cannot load the hub reference files it needs
                 internally.
               </List.Item>
-              <List.Item>
-                The projections JSON cannot be built from the uploaded rows and
-                the hub reference data.
-              </List.Item>
             </List>
             <Text>
-              MyRespiLens may also show a non-fatal warning if the uploaded{" "}
+              In attempt to prevent misleading visualization displays,
+              MyRespiLens will also show a non-fatal warning if the uploaded{" "}
               <code>target</code> names do not appear to match the pathogen
               implied by the hub you selected.
             </Text>

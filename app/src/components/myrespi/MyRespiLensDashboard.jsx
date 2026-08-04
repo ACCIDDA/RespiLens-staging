@@ -573,9 +573,7 @@ const validateHubverseCsv = (records, hubConfig) => {
   summary.usableRows = deduplicatedRows.length;
 
   if (deduplicatedRows.length === 0) {
-    errors.push(
-      "No usable forecast rows remain after duplicate filtering and Hubverse preprocessing.",
-    );
+    errors.push("No usable forecast rows remain after preprocessing.");
   }
 
   return {
@@ -2185,6 +2183,9 @@ const HubUploadScreen = () => {
             >
               <Stack gap="sm">
                 <Text>CSV validation failed:</Text>
+                {validationState.summary && (
+                  <ValidationSummary summary={validationState.summary} />
+                )}
 
                 <List spacing="xs">
                   {validationState.errors.map((error) => (
