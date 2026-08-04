@@ -590,7 +590,11 @@ const buildHubPathogenWarning = (forecastRows, hubConfig) => {
   return `Your uploaded target names do not appear to mention "${expectedKeyword}". Please double-check your hub selection.`;
 };
 
-const buildGroundTruthOutput = (targetRows, hubConfig) => {
+const buildGroundTruthOutput = (
+  targetRows,
+  hubConfig,
+  allowedTargets = null,
+) => {
   const requiredColumns = [
     "as_of",
     "target_end_date",
@@ -609,13 +613,19 @@ const buildGroundTruthOutput = (targetRows, hubConfig) => {
 
   const minDate = new Date(hubConfig.groundTruthMinDate);
   const latestByKey = new Map();
+  const allowedTargetSet =
+    allowedTargets && allowedTargets.length > 0
+      ? new Set(allowedTargets)
+      : null;
 
   targetRows.forEach((row) => {
     const normalizedTargetEndDate = normalizeDateString(row.target_end_date);
     const normalizedAsOf = normalizeDateString(row.as_of);
     const observation = Number(row.observation);
+    const target = String(row.target);
 
     if (
+      (allowedTargetSet && !allowedTargetSet.has(target)) ||
       !normalizedTargetEndDate ||
       !normalizedAsOf ||
       Number.isNaN(observation) ||
@@ -624,11 +634,11 @@ const buildGroundTruthOutput = (targetRows, hubConfig) => {
       return;
     }
 
-    const dedupeKey = `${row.target}__${normalizedTargetEndDate}`;
+    const dedupeKey = `${target}__${normalizedTargetEndDate}`;
     const existing = latestByKey.get(dedupeKey);
     if (!existing || normalizedAsOf >= existing.as_of) {
       latestByKey.set(dedupeKey, {
-        target: String(row.target),
+        target,
         target_end_date: normalizedTargetEndDate,
         as_of: normalizedAsOf,
         observation,
@@ -809,7 +819,14 @@ const buildProjectionOutputs = ({
       metadata.location_type = String(locationInfo.location_type ?? "");
     }
 
-    const groundTruth = buildGroundTruthOutput(locationTargetRows, hubConfig);
+    const forecastTargets = uniqueValuesInOrder(
+      locationForecastRows.map((row) => String(row.target)),
+    );
+    const groundTruth = buildGroundTruthOutput(
+      locationTargetRows,
+      hubConfig,
+      forecastTargets,
+    );
     const forecasts = buildForecastOutput(locationForecastRows);
     const fileName =
       hubConfig.slug === "flumetrocast"
@@ -982,13 +999,20 @@ const getAllForecastDates = (projectionOutputs) => {
   return [...dateSet].sort((left, right) => new Date(left) - new Date(right));
 };
 
-const getTargetOptions = (locationData) =>
-  Object.keys(locationData?.ground_truth || {})
-    .filter((key) => key !== "dates")
+const getTargetOptions = (locationData) => {
+  const targetSet = new Set();
+
+  Object.values(locationData?.forecasts || {}).forEach((dateData) => {
+    Object.keys(dateData || {}).forEach((target) => targetSet.add(target));
+  });
+
+  return [...targetSet]
     .map((target) => ({
       value: target,
       label: targetDisplayNameMap[target] || target,
-    }));
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+};
 
 const getModelsForTarget = (locationData, target) => {
   if (!locationData?.forecasts || !target) return [];
