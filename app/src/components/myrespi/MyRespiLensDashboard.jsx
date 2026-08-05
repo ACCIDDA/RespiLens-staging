@@ -38,10 +38,7 @@ import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { CHART_CONSTANTS } from "../../constants/chart";
 import { buildSqrtTicks } from "../../utils/scaleUtils";
-import {
-  targetDisplayNameMap,
-  targetYAxisLabelMap,
-} from "../../utils/mapUtils";
+import {} from "../../utils/mapUtils";
 
 const HUB_OPTIONS = [
   {
@@ -1023,7 +1020,7 @@ const getTargetOptions = (locationData) => {
   return [...targetSet]
     .map((target) => ({
       value: target,
-      label: targetDisplayNameMap[target] || target,
+      label: target,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
 };
@@ -1390,11 +1387,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
         range: xAxisRange || defaultRange,
       },
       yaxis: {
-        title:
-          targetYAxisLabelMap[targetDisplayNameMap[selectedTarget]] ||
-          targetDisplayNameMap[selectedTarget] ||
-          selectedTarget ||
-          "Value",
+        title: selectedTarget || "Value",
         range: chartScale === "log" ? undefined : yAxisRange,
         autorange: chartScale === "log" ? true : yAxisRange === null,
         type: chartScale === "log" ? "log" : "linear",
