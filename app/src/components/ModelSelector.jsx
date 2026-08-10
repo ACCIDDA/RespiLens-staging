@@ -29,6 +29,7 @@ const ModelSelector = ({
   activeModels = null,
   allowMultiple = true,
   disabled = false,
+  modelColorFn = null,
 }) => {
   const [showAllAvailable, setShowAllAvailable] = useState(false);
   const [search, setSearch] = useState("");
@@ -50,7 +51,10 @@ const ModelSelector = ({
   };
 
   const getModelColorByIndex = (model) => {
-    // Only color selected models to avoid mismatched palette hints
+    if (modelColorFn) {
+      return modelColorFn(model, selectedModels);
+    }
+
     const index = selectedModels.indexOf(model);
     return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : undefined;
   };

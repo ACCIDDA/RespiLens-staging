@@ -13,6 +13,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Text,
   ThemeIcon,
   Tooltip,
@@ -36,9 +37,9 @@ import ModelSelector from "../ModelSelector";
 import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
+import { MODEL_COLORS } from "../../config/datasets";
 import { CHART_CONSTANTS } from "../../constants/chart";
 import { buildSqrtTicks } from "../../utils/scaleUtils";
-import {} from "../../utils/mapUtils";
 
 const HUB_OPTIONS = [
   {
@@ -125,6 +126,8 @@ const normalizeDateString = (value) => {
   }
   return date.toISOString().slice(0, 10);
 };
+
+const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
 const buildRequiredColumnError = (fileLabel, missingColumns) =>
   `${fileLabel} is missing required columns: ${missingColumns.join(", ")}.`;
@@ -250,6 +253,15 @@ const loadHubReferenceData = async (hubConfig) => {
     );
     return { locations, timeSeries };
   }
+};
+
+const fetchProjectionJson = async (path) => {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Could not load projections JSON from ${path}.`);
+  }
+
+  return response.json();
 };
 
 const parseCsv = (text) => {
@@ -599,6 +611,26 @@ const buildHubPathogenWarning = (forecastRows, hubConfig) => {
   }
 
   return `Your uploaded target names do not appear to mention "${expectedKeyword}". Please double-check your hub selection.`;
+};
+
+const buildComparisonEligibility = (forecastRows) => {
+  const today = getTodayDateString();
+  const hasPresentOrFutureTargets = forecastRows.some(
+    (row) => String(row.target_end_date) >= today,
+  );
+
+  if (hasPresentOrFutureTargets) {
+    return {
+      isEligible: false,
+      reason:
+        "You can only compare with submitting models when your model data is for the past.",
+    };
+  }
+
+  return {
+    isEligible: true,
+    reason: null,
+  };
 };
 
 const buildGroundTruthOutput = (
@@ -1036,6 +1068,92 @@ const getModelsForTarget = (locationData, target) => {
   return [...modelSet].sort();
 };
 
+const buildComparisonHoverText = ({
+  model,
+  pointDate,
+  formattedMedian,
+  formattedIntervals,
+  issuedDate,
+}) => {
+  const rows = [`<b>Submitted model: ${model}</b><br>Date: ${pointDate}<br>`];
+
+  if (formattedMedian !== null) {
+    rows.push(`Median: <b>${formattedMedian}</b><br>`);
+  }
+
+  formattedIntervals.forEach((interval) => {
+    rows.push(`${interval.label}: [${interval.formattedRange}]<br>`);
+  });
+
+  rows.push(
+    `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">submitted as of ${issuedDate}</span><extra></extra>`,
+  );
+
+  return rows.join("");
+};
+
+const lightenHexColor = (hexColor, factor = 0.4) => {
+  if (!/^#[0-9a-f]{6}$/i.test(hexColor)) {
+    return hexColor;
+  }
+
+  const red = Number.parseInt(hexColor.slice(1, 3), 16);
+  const green = Number.parseInt(hexColor.slice(3, 5), 16);
+  const blue = Number.parseInt(hexColor.slice(5, 7), 16);
+
+  const lightenChannel = (channel) =>
+    Math.round(channel + (255 - channel) * factor)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${lightenChannel(red)}${lightenChannel(green)}${lightenChannel(blue)}`;
+};
+
+const getSubmittedModelColor = (model, selectedModels) => {
+  const index = selectedModels.indexOf(model);
+  if (index < 0) {
+    return null;
+  }
+
+  const offsetIndex =
+    (index + Math.ceil(MODEL_COLORS.length / 2)) % MODEL_COLORS.length;
+  const baseColor = MODEL_COLORS[offsetIndex];
+  return lightenHexColor(baseColor, 0.2);
+};
+
+const filterComparisonLocationData = (
+  comparisonLocationData,
+  userLocationData,
+) => {
+  if (!comparisonLocationData?.forecasts || !userLocationData?.forecasts) {
+    return comparisonLocationData;
+  }
+
+  const filteredForecasts = {};
+
+  Object.entries(userLocationData.forecasts).forEach(([date, targetData]) => {
+    const comparisonDateData = comparisonLocationData.forecasts?.[date];
+    if (!comparisonDateData) {
+      return;
+    }
+
+    Object.keys(targetData || {}).forEach((target) => {
+      const comparisonTargetData = comparisonDateData[target];
+      if (!comparisonTargetData) {
+        return;
+      }
+
+      filteredForecasts[date] ??= {};
+      filteredForecasts[date][target] = comparisonTargetData;
+    });
+  });
+
+  return {
+    ...comparisonLocationData,
+    forecasts: filteredForecasts,
+  };
+};
+
 const getDefaultViewerRange = (
   groundTruthDates,
   selectedDates,
@@ -1078,7 +1196,11 @@ const getDefaultViewerRange = (
   ];
 };
 
-const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
+const MyRespiVisualizationPanel = ({
+  projectionOutputs,
+  hubConfig,
+  comparisonEligibility,
+}) => {
   const { colorScheme } = useMantineColorScheme();
   const isMetrocast = hubConfig?.slug === "flumetrocast";
   const [selectedMetroState, setSelectedMetroState] = useState(null);
@@ -1092,8 +1214,18 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
   const [showLegend, setShowLegend] = useState(true);
   const [xAxisRange, setXAxisRange] = useState(null);
   const [yAxisRange, setYAxisRange] = useState(null);
+  const [compareWithSubmittingModels, setCompareWithSubmittingModels] =
+    useState(false);
+  const [comparisonDataState, setComparisonDataState] = useState({
+    status: "idle",
+    data: null,
+    error: null,
+    locationFile: null,
+  });
+  const [selectedSubmittedModels, setSelectedSubmittedModels] = useState([]);
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
+  const comparisonCacheRef = useRef(new Map());
 
   const locationOptions = useMemo(
     () => buildLocationOptions(projectionOutputs),
@@ -1158,6 +1290,90 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
     [metroHierarchy, selectedMetroState],
   );
 
+  useEffect(() => {
+    if (!comparisonEligibility?.isEligible) {
+      setCompareWithSubmittingModels(false);
+    }
+  }, [comparisonEligibility]);
+
+  useEffect(() => {
+    if (!compareWithSubmittingModels || !selectedLocationFile) {
+      setComparisonDataState({
+        status: "idle",
+        data: null,
+        error: null,
+        locationFile: selectedLocationFile,
+      });
+      return;
+    }
+
+    const cachedData = comparisonCacheRef.current.get(selectedLocationFile);
+    if (cachedData) {
+      setComparisonDataState({
+        status: "success",
+        data: cachedData,
+        error: null,
+        locationFile: selectedLocationFile,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    const comparisonPath = `/processed_data/${hubConfig.slug}/${selectedLocationFile}`;
+
+    setComparisonDataState({
+      status: "loading",
+      data: null,
+      error: null,
+      locationFile: selectedLocationFile,
+    });
+
+    fetchProjectionJson(comparisonPath)
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+
+        comparisonCacheRef.current.set(selectedLocationFile, data);
+        setComparisonDataState({
+          status: "success",
+          data,
+          error: null,
+          locationFile: selectedLocationFile,
+        });
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setComparisonDataState({
+          status: "error",
+          data: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not load submitted model comparison data.",
+          locationFile: selectedLocationFile,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [compareWithSubmittingModels, hubConfig.slug, selectedLocationFile]);
+
+  const comparisonLocationData =
+    compareWithSubmittingModels &&
+    comparisonDataState.status === "success" &&
+    comparisonDataState.locationFile === selectedLocationFile
+      ? comparisonDataState.data
+      : null;
+  const filteredComparisonLocationData = useMemo(
+    () => filterComparisonLocationData(comparisonLocationData, locationData),
+    [comparisonLocationData, locationData],
+  );
+
   const targetOptions = useMemo(
     () => getTargetOptions(locationData),
     [locationData],
@@ -1209,6 +1425,10 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
     () => getModelsForTarget(locationData, selectedTarget),
     [locationData, selectedTarget],
   );
+  const submittedModels = useMemo(
+    () => getModelsForTarget(filteredComparisonLocationData, selectedTarget),
+    [filteredComparisonLocationData, selectedTarget],
+  );
 
   useEffect(() => {
     if (!models.length) {
@@ -1220,6 +1440,19 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
       return stillValid.length ? stillValid : [models[0]];
     });
   }, [models]);
+
+  useEffect(() => {
+    if (!submittedModels.length) {
+      setSelectedSubmittedModels([]);
+      return;
+    }
+    setSelectedSubmittedModels((current) => {
+      const stillValid = current.filter((model) =>
+        submittedModels.includes(model),
+      );
+      return stillValid.length ? stillValid : [submittedModels[0]];
+    });
+  }, [submittedModels]);
 
   const availableDates = useMemo(
     () => getAllForecastDates(projectionOutputs),
@@ -1257,6 +1490,25 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
 
     return activeModelSet;
   }, [locationData, selectedTarget, selectedDates]);
+  const activeSubmittedModels = useMemo(() => {
+    const activeModelSet = new Set();
+    if (
+      !filteredComparisonLocationData?.forecasts ||
+      !selectedTarget ||
+      !selectedDates.length
+    ) {
+      return activeModelSet;
+    }
+
+    selectedDates.forEach((date) => {
+      const targetData =
+        filteredComparisonLocationData.forecasts?.[date]?.[selectedTarget];
+      if (!targetData) return;
+      Object.keys(targetData).forEach((model) => activeModelSet.add(model));
+    });
+
+    return activeModelSet;
+  }, [filteredComparisonLocationData, selectedTarget, selectedDates]);
 
   const sqrtTransform = useMemo(() => {
     if (chartScale !== "sqrt") return null;
@@ -1276,6 +1528,42 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
     intervalVisibility,
     transformY: sqrtTransform,
   });
+  const {
+    traces: submittedModelTraceBundle,
+    rawYRange: submittedModelRawYRange,
+  } = useQuantileForecastTraces({
+    groundTruth: locationData?.ground_truth,
+    forecasts: filteredComparisonLocationData?.forecasts,
+    selectedDates,
+    selectedModels: selectedSubmittedModels,
+    target: selectedTarget,
+    showLegendForFirstDate: showLegend,
+    showMedian: true,
+    show50: true,
+    show95: true,
+    modelColorFn: getSubmittedModelColor,
+    modelHoverBuilder: buildComparisonHoverText,
+    transformY: sqrtTransform,
+  });
+  const submittedModelTraces = useMemo(
+    () => submittedModelTraceBundle.slice(1),
+    [submittedModelTraceBundle],
+  );
+  const allTraces = useMemo(
+    () => [...traces, ...submittedModelTraces],
+    [submittedModelTraces, traces],
+  );
+  const combinedRawYRange = useMemo(() => {
+    const ranges = [rawYRange, submittedModelRawYRange].filter(Boolean);
+    if (!ranges.length) {
+      return null;
+    }
+
+    return [
+      Math.min(...ranges.map((range) => range[0])),
+      Math.max(...ranges.map((range) => range[1])),
+    ];
+  }, [rawYRange, submittedModelRawYRange]);
 
   const calculateYRange = useCallback((chartData, currentXRange) => {
     if (
@@ -1334,17 +1622,17 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
       return;
     }
     const currentRange = xAxisRange || defaultRange;
-    if (traces.length > 0 && currentRange) {
-      setYAxisRange(calculateYRange(traces, currentRange));
+    if (allTraces.length > 0 && currentRange) {
+      setYAxisRange(calculateYRange(allTraces, currentRange));
     } else {
       setYAxisRange(null);
     }
-  }, [traces, xAxisRange, defaultRange, calculateYRange, chartScale]);
+  }, [allTraces, xAxisRange, defaultRange, calculateYRange, chartScale]);
 
   const sqrtTicks = useMemo(() => {
     if (chartScale !== "sqrt") return null;
-    return buildSqrtTicks({ rawRange: rawYRange });
-  }, [chartScale, rawYRange]);
+    return buildSqrtTicks({ rawRange: combinedRawYRange });
+  }, [chartScale, combinedRawYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
     if (isResettingRef.current) {
@@ -1442,7 +1730,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
             const nextYRange =
               chartScale === "log" || !range
                 ? null
-                : calculateYRange(traces, range);
+                : calculateYRange(allTraces, range);
             isResettingRef.current = true;
             setXAxisRange(null);
             setYAxisRange(nextYRange);
@@ -1455,7 +1743,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
         },
       ],
     }),
-    [locationData, selectedDates, chartScale, calculateYRange, traces],
+    [allTraces, locationData, selectedDates, chartScale, calculateYRange],
   );
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {
@@ -1518,7 +1806,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
         <Paper withBorder radius="md" p="sm">
           <Stack gap="sm">
             <Text fw={600} size="sm">
-              Advanced controls
+              Advanced controls (your model(s))
             </Text>
             <ForecastChartControls
               chartScale={chartScale}
@@ -1529,6 +1817,49 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
               setShowLegend={setShowLegend}
               intervalOptions={intervalOptions}
             />
+          </Stack>
+        </Paper>
+
+        <Paper withBorder radius="md" p="sm">
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text fw={600} size="sm">
+                Compare with submitting models
+              </Text>
+              <Switch
+                checked={compareWithSubmittingModels}
+                onChange={(event) =>
+                  setCompareWithSubmittingModels(event.currentTarget.checked)
+                }
+                disabled={!comparisonEligibility?.isEligible}
+                size="sm"
+              />
+            </Group>
+            <Text size="sm" c="dimmed">
+              {comparisonEligibility?.isEligible
+                ? "Load submitted model forecasts for the same past issue dates and location."
+                : comparisonEligibility?.reason}
+            </Text>
+            {compareWithSubmittingModels &&
+              comparisonDataState.status === "loading" && (
+                <Group gap="xs">
+                  <Loader size="sm" color="blue" />
+                  <Text size="sm" c="dimmed">
+                    Loading submitted model data for this location...
+                  </Text>
+                </Group>
+              )}
+            {compareWithSubmittingModels &&
+              comparisonDataState.status === "error" && (
+                <Alert
+                  color="red"
+                  variant="light"
+                  radius="md"
+                  icon={<IconAlertCircle size={16} />}
+                >
+                  {comparisonDataState.error}
+                </Alert>
+              )}
           </Stack>
         </Paper>
 
@@ -1551,7 +1882,7 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
             ref={plotRef}
             useResizeHandler
             style={{ width: "100%", height: "100%" }}
-            data={traces}
+            data={allTraces}
             layout={layout}
             config={config}
             onRelayout={handlePlotUpdate}
@@ -1564,6 +1895,22 @@ const MyRespiVisualizationPanel = ({ projectionOutputs, hubConfig }) => {
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
         />
+
+        {compareWithSubmittingModels &&
+          comparisonDataState.status === "success" && (
+            <Stack gap="xs">
+              <Text fw={600} size="sm">
+                Submitted models
+              </Text>
+              <ModelSelector
+                models={submittedModels}
+                selectedModels={selectedSubmittedModels}
+                setSelectedModels={setSelectedSubmittedModels}
+                activeModels={activeSubmittedModels}
+                modelColorFn={getSubmittedModelColor}
+              />
+            </Stack>
+          )}
       </Stack>
     </Paper>
   );
@@ -1695,6 +2042,7 @@ const HubUploadScreen = () => {
     status: "idle",
     outputs: null,
     error: null,
+    comparisonEligibility: null,
   });
   const [referenceDataState, setReferenceDataState] = useState({
     status: "idle",
@@ -1711,6 +2059,7 @@ const HubUploadScreen = () => {
       status: "idle",
       outputs: null,
       error: null,
+      comparisonEligibility: null,
     });
     referenceDataPromiseRef.current = null;
     setReferenceDataState({
@@ -1799,6 +2148,7 @@ const HubUploadScreen = () => {
           status: "idle",
           outputs: null,
           error: null,
+          comparisonEligibility: null,
         });
         setPathogenWarning(null);
         setIsUploadProcessing(false);
@@ -1811,6 +2161,7 @@ const HubUploadScreen = () => {
         status: "idle",
         outputs: null,
         error: null,
+        comparisonEligibility: null,
       });
 
       try {
@@ -1882,6 +2233,7 @@ const HubUploadScreen = () => {
             outputs: null,
             error:
               "This hub's time-series file was found, but it is not currently in a CSV format the frontend can process.",
+            comparisonEligibility: null,
           });
           return;
         }
@@ -1897,6 +2249,9 @@ const HubUploadScreen = () => {
           status: "success",
           outputs,
           error: null,
+          comparisonEligibility: buildComparisonEligibility(
+            validation.usableRows,
+          ),
         });
         setIsUploadProcessing(false);
       } catch (error) {
@@ -1910,6 +2265,7 @@ const HubUploadScreen = () => {
           status: "error",
           outputs: null,
           error: message,
+          comparisonEligibility: null,
         });
 
         setValidationState((previousState) =>
@@ -1964,6 +2320,7 @@ const HubUploadScreen = () => {
       status: "idle",
       outputs: null,
       error: null,
+      comparisonEligibility: null,
     });
   }, []);
 
@@ -2059,6 +2416,9 @@ const HubUploadScreen = () => {
               <MyRespiVisualizationPanel
                 projectionOutputs={projectionBuildState.outputs}
                 hubConfig={hubConfig}
+                comparisonEligibility={
+                  projectionBuildState.comparisonEligibility
+                }
               />
             </>
           )}
