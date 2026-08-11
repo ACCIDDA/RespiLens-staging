@@ -1,5 +1,6 @@
-import { useMemo } from "react";
-import { MODEL_COLORS } from "../config/datasets";
+import { useMemo, useRef } from "react";
+import { MODEL_COLORS, getModelColor } from "../config/datasets";
+import { extendStableModelOrder } from "../utils/modelColorUtils";
 
 const defaultFormatValue = (value) =>
   value.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -48,11 +49,6 @@ const buildDefaultModelHoverText = ({
   return rows.join("");
 };
 
-const resolveModelColor = (selectedModels, model) => {
-  const index = selectedModels.indexOf(model);
-  return MODEL_COLORS[index % MODEL_COLORS.length];
-};
-
 const findQuantileValue = (quantiles, values, requestedQuantile) => {
   const index = quantiles.findIndex(
     (quantile) => Number(quantile) === requestedQuantile,
@@ -86,6 +82,7 @@ const useQuantileForecastTraces = ({
   formatValue = defaultFormatValue,
   modelHoverBuilder = null,
   modelColorFn = null,
+  modelOrder = null,
   modelLineWidth = 2,
   modelMarkerSize = 6,
   groundTruthLineWidth = 2,
@@ -99,8 +96,18 @@ const useQuantileForecastTraces = ({
   intervalVisibility = null,
   transformY = null,
   groundTruthHoverFormatter = null,
-}) =>
-  useMemo(() => {
+}) => {
+  const stableModelOrderRef = useRef([]);
+  const stableModelOrder = useMemo(() => {
+    const nextOrder = extendStableModelOrder(
+      stableModelOrderRef.current,
+      selectedModels,
+    );
+    stableModelOrderRef.current = nextOrder;
+    return nextOrder;
+  }, [selectedModels]);
+
+  return useMemo(() => {
     if (!groundTruth || !forecasts || selectedDates.length === 0 || !target) {
       return { traces: [], rawYRange: null };
     }
@@ -285,8 +292,9 @@ const useQuantileForecastTraces = ({
         if (forecastDates.length === 0 && !hasIntervalSeries) return [];
 
         const modelColor = modelColorFn
-          ? modelColorFn(model, selectedModels)
-          : resolveModelColor(selectedModels, model);
+          ? modelColorFn(model, selectedModels, modelOrder ?? stableModelOrder)
+          : (getModelColor(model, modelOrder ?? stableModelOrder) ??
+            MODEL_COLORS[0]);
         const isFirstDate = dateIndex === 0;
 
         const traces = [];
@@ -372,6 +380,7 @@ const useQuantileForecastTraces = ({
     formatValue,
     modelHoverBuilder,
     modelColorFn,
+    modelOrder,
     modelLineWidth,
     modelMarkerSize,
     groundTruthLineWidth,
@@ -385,6 +394,8 @@ const useQuantileForecastTraces = ({
     intervalVisibility,
     transformY,
     groundTruthHoverFormatter,
+    stableModelOrder,
   ]);
+};
 
 export default useQuantileForecastTraces;

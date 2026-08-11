@@ -14,7 +14,6 @@ import Plot from "react-plotly.js";
 import ModelSelector from "../ModelSelector";
 import TitleRow from "../TitleRow";
 import { useView } from "../../hooks/useView";
-import { MODEL_COLORS } from "../../config/datasets";
 import { CHART_CONSTANTS } from "../../constants/chart";
 import {
   targetDisplayNameMap,
@@ -483,9 +482,6 @@ const MetroCastView = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
-          getModelColor={(m, sel) =>
-            MODEL_COLORS[sel.indexOf(m) % MODEL_COLORS.length]
-          }
         />
       </Stack>
     </Stack>

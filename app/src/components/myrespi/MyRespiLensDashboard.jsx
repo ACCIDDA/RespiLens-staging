@@ -39,6 +39,7 @@ import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
 import { CHART_CONSTANTS } from "../../constants/chart";
+import { extendStableModelOrder } from "../../utils/modelColorUtils";
 import { buildSqrtTicks } from "../../utils/scaleUtils";
 
 const HUB_OPTIONS = [
@@ -1092,35 +1093,6 @@ const buildComparisonHoverText = ({
   return rows.join("");
 };
 
-const lightenHexColor = (hexColor, factor = 0.4) => {
-  if (!/^#[0-9a-f]{6}$/i.test(hexColor)) {
-    return hexColor;
-  }
-
-  const red = Number.parseInt(hexColor.slice(1, 3), 16);
-  const green = Number.parseInt(hexColor.slice(3, 5), 16);
-  const blue = Number.parseInt(hexColor.slice(5, 7), 16);
-
-  const lightenChannel = (channel) =>
-    Math.round(channel + (255 - channel) * factor)
-      .toString(16)
-      .padStart(2, "0");
-
-  return `#${lightenChannel(red)}${lightenChannel(green)}${lightenChannel(blue)}`;
-};
-
-const getSubmittedModelColor = (model, selectedModels) => {
-  const index = selectedModels.indexOf(model);
-  if (index < 0) {
-    return null;
-  }
-
-  const offsetIndex =
-    (index + Math.ceil(MODEL_COLORS.length / 2)) % MODEL_COLORS.length;
-  const baseColor = MODEL_COLORS[offsetIndex];
-  return lightenHexColor(baseColor, 0.2);
-};
-
 const filterComparisonLocationData = (
   comparisonLocationData,
   userLocationData,
@@ -1226,6 +1198,7 @@ const MyRespiVisualizationPanel = ({
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
   const comparisonCacheRef = useRef(new Map());
+  const userModelOrderRef = useRef([]);
 
   const locationOptions = useMemo(
     () => buildLocationOptions(projectionOutputs),
@@ -1454,6 +1427,48 @@ const MyRespiVisualizationPanel = ({
     });
   }, [submittedModels]);
 
+  const stableUserModelOrder = useMemo(() => {
+    const nextOrder = extendStableModelOrder(
+      userModelOrderRef.current,
+      selectedModels,
+    );
+    userModelOrderRef.current = nextOrder;
+    return nextOrder;
+  }, [selectedModels]);
+
+  const submittedModelPalette = useMemo(() => {
+    const reservedColors = new Set(
+      selectedModels
+        .map((model) => {
+          const index = stableUserModelOrder.indexOf(model);
+          if (index < 0) {
+            return null;
+          }
+
+          return MODEL_COLORS[index % MODEL_COLORS.length];
+        })
+        .filter(Boolean),
+    );
+
+    const availableColors = MODEL_COLORS.filter(
+      (color) => !reservedColors.has(color),
+    );
+
+    return availableColors.length ? availableColors : MODEL_COLORS;
+  }, [selectedModels, stableUserModelOrder]);
+
+  const submittedModelColorFn = useCallback(
+    (model, submittedSelection, submittedModelOrder = submittedSelection) => {
+      const index = submittedModelOrder.indexOf(model);
+      if (index < 0) {
+        return null;
+      }
+
+      return submittedModelPalette[index % submittedModelPalette.length];
+    },
+    [submittedModelPalette],
+  );
+
   const availableDates = useMemo(
     () => getAllForecastDates(projectionOutputs),
     [projectionOutputs],
@@ -1541,7 +1556,7 @@ const MyRespiVisualizationPanel = ({
     showMedian: true,
     show50: true,
     show95: true,
-    modelColorFn: getSubmittedModelColor,
+    modelColorFn: submittedModelColorFn,
     modelHoverBuilder: buildComparisonHoverText,
     transformY: sqrtTransform,
   });
@@ -1820,49 +1835,6 @@ const MyRespiVisualizationPanel = ({
           </Stack>
         </Paper>
 
-        <Paper withBorder radius="md" p="sm">
-          <Stack gap="xs">
-            <Group justify="space-between" align="center">
-              <Text fw={600} size="sm">
-                Compare with submitting models
-              </Text>
-              <Switch
-                checked={compareWithSubmittingModels}
-                onChange={(event) =>
-                  setCompareWithSubmittingModels(event.currentTarget.checked)
-                }
-                disabled={!comparisonEligibility?.isEligible}
-                size="sm"
-              />
-            </Group>
-            <Text size="sm" c="dimmed">
-              {comparisonEligibility?.isEligible
-                ? "Load submitted model forecasts for the same past issue dates and location."
-                : comparisonEligibility?.reason}
-            </Text>
-            {compareWithSubmittingModels &&
-              comparisonDataState.status === "loading" && (
-                <Group gap="xs">
-                  <Loader size="sm" color="blue" />
-                  <Text size="sm" c="dimmed">
-                    Loading submitted model data for this location...
-                  </Text>
-                </Group>
-              )}
-            {compareWithSubmittingModels &&
-              comparisonDataState.status === "error" && (
-                <Alert
-                  color="red"
-                  variant="light"
-                  radius="md"
-                  icon={<IconAlertCircle size={16} />}
-                >
-                  {comparisonDataState.error}
-                </Alert>
-              )}
-          </Stack>
-        </Paper>
-
         <DateSelector
           availableDates={availableDates}
           selectedDates={selectedDates}
@@ -1896,18 +1868,53 @@ const MyRespiVisualizationPanel = ({
           activeModels={activeModels}
         />
 
+        <Paper withBorder radius="md" p="sm">
+          <Stack gap="xs">
+            <Group justify="space-between" align="center">
+              <Text fw={600} size="sm">
+                Compare with submitting models
+              </Text>
+              <Switch
+                checked={compareWithSubmittingModels}
+                onChange={(event) =>
+                  setCompareWithSubmittingModels(event.currentTarget.checked)
+                }
+                disabled={!comparisonEligibility?.isEligible}
+                size="sm"
+              />
+            </Group>
+            {compareWithSubmittingModels &&
+              comparisonDataState.status === "loading" && (
+                <Group gap="xs">
+                  <Loader size="sm" color="blue" />
+                  <Text size="sm" c="dimmed">
+                    Loading submitted model data for this location...
+                  </Text>
+                </Group>
+              )}
+            {compareWithSubmittingModels &&
+              comparisonDataState.status === "error" && (
+                <Alert
+                  color="red"
+                  variant="light"
+                  radius="md"
+                  icon={<IconAlertCircle size={16} />}
+                >
+                  {comparisonDataState.error}
+                </Alert>
+              )}
+          </Stack>
+        </Paper>
+
         {compareWithSubmittingModels &&
           comparisonDataState.status === "success" && (
             <Stack gap="xs">
-              <Text fw={600} size="sm">
-                Submitted models
-              </Text>
               <ModelSelector
                 models={submittedModels}
                 selectedModels={selectedSubmittedModels}
                 setSelectedModels={setSelectedSubmittedModels}
                 activeModels={activeSubmittedModels}
-                modelColorFn={getSubmittedModelColor}
+                modelColorFn={submittedModelColorFn}
               />
             </Stack>
           )}

@@ -4,7 +4,6 @@ import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import TitleRow from "./TitleRow";
-import { MODEL_COLORS } from "../config/datasets";
 import { CHART_CONSTANTS } from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
@@ -433,10 +432,6 @@ const ForecastPlotView = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
-          getModelColor={(model, currentSelected) => {
-            const index = currentSelected.indexOf(model);
-            return MODEL_COLORS[index % MODEL_COLORS.length];
-          }}
         />
       </Stack>
     </Stack>
