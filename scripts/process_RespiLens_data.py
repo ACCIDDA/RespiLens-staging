@@ -13,6 +13,7 @@ from hubdata.create_target_data_schema import TargetType
 from processors import FlusightDataProcessor, RSVDataProcessor, COVIDDataProcessor, FluMetrocastDataProcessor
 from nhsn_data_processor import NHSNDataProcessor
 from nssp_data_processor import NSSPDataProcessor
+from myrespi_fetch import myrespi_fetch
 from helper import save_json_file, hubverse_df_preprocessor, clean_nan_values
 
 logging.basicConfig(level=logging.INFO)
@@ -58,8 +59,8 @@ def main():
     args = parser.parse_args()
 
     if not (args.flusight_hub_path or args.rsv_hub_path or args.covid_hub_path or args.NHSN or args.flu_metrocast_hub_path or args.NSSP):
-        print("🛑 No hub paths or NHSN flag provided 🛑, so no data will be fetched.")
-        print("Please re-run script with hub path(s) specified or NHSN flag set.")
+        print("🛑 No hub paths, NSSP or NHSN flag provided 🛑, so no data will be fetched.")
+        print("Please re-run script with hub path(s) specified or other flag set.")
         sys.exit(1)
 
     logger.info("Beginning conversion process...")
@@ -89,6 +90,8 @@ def main():
                 file_contents=contents,
                 overwrite=True
             )
+        logger.info("Fetching documents for MyRespiLens...")
+        myrespi_fetch(hub_path=args.flusight_hub_path, folder_name="flusight", output_path=args.output_path)
         logger.info("Success ✅")
 
     
@@ -117,6 +120,8 @@ def main():
                 file_contents=contents,
                 overwrite=True
             )
+        logger.info("Fetching documents for MyRespiLens...")
+        myrespi_fetch(hub_path=args.rsv_hub_path, folder_name="rsvforecasthub", output_path=args.output_path)
         logger.info("Success ✅")
     
     if args.covid_hub_path:
@@ -144,6 +149,8 @@ def main():
                 file_contents=contents,
                 overwrite=True
             )
+        logger.info("Fetching documents for MyRespiLens...")
+        myrespi_fetch(hub_path=args.covid_hub_path, folder_name="covid19forecasthub", output_path=args.output_path)
         logger.info("Success ✅")
     
     if args.flu_metrocast_hub_path:
@@ -172,6 +179,8 @@ def main():
                 file_contents=contents,
                 overwrite=True
             )
+        logger.info("Fetching documents for MyRespiLens...")
+        myrespi_fetch(hub_path=args.flu_metrocast_hub_path, folder_name="flumetrocast", output_path=args.output_path)
         logger.info("Success ✅")
 
     if args.NHSN:

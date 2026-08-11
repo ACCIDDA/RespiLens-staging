@@ -27,17 +27,18 @@ const ForecastChartControls = ({
   showLegend,
   setShowLegend,
   showIntervals = true,
+  intervalOptions = INTERVAL_OPTIONS,
 }) => {
-  const selectedIntervals = INTERVAL_OPTIONS.filter(
-    (option) => intervalVisibility?.[option.value],
-  ).map((option) => option.value);
+  const selectedIntervals = intervalOptions
+    .filter((option) => intervalVisibility?.[option.value])
+    .map((option) => option.value);
 
   const handleIntervalChange = (values) => {
-    setIntervalVisibility({
-      median: values.includes("median"),
-      ci50: values.includes("ci50"),
-      ci95: values.includes("ci95"),
+    const nextVisibility = {};
+    intervalOptions.forEach((option) => {
+      nextVisibility[option.value] = values.includes(option.value);
     });
+    setIntervalVisibility(nextVisibility);
   };
 
   return (
@@ -63,7 +64,7 @@ const ForecastChartControls = ({
             onChange={handleIntervalChange}
           >
             <Group gap="sm">
-              {INTERVAL_OPTIONS.map((option) => (
+              {intervalOptions.map((option) => (
                 <Checkbox
                   key={option.value}
                   value={option.value}

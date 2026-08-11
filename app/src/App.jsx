@@ -2,6 +2,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useNavigate,
   useLocation,
 } from "react-router-dom";
@@ -68,9 +69,14 @@ const AppLayout = () => {
         ))}
         <Route path="/myplots" element={<MyPlots />} />
         <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
+        <Route path="/myrespilens/documentation" element={<Documentation />} />
+        <Route path="/myrespilens/:hub" element={<MyRespiLensDashboard />} />
         <Route path="/toolbox" element={<ToolsPage />} />
         <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
-        <Route path="/documentation" element={<Documentation />} />
+        <Route
+          path="/documentation"
+          element={<Navigate to="/myrespilens/documentation" replace />}
+        />
       </Routes>
     </UnifiedAppShell>
   );

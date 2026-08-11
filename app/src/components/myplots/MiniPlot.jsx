@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import Plot from "react-plotly.js";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
-import { MODEL_COLORS } from "../../config/datasets";
+import { getModelColor } from "../../config/datasets";
 import { nhsnSlugToNameMap, targetDisplayNameMap } from "../../utils/mapUtils";
 import { buildSqrtTicks, getYRangeFromTraces } from "../../utils/scaleUtils";
 
@@ -75,6 +75,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     forecasts: isSeriesView || isFluPeak ? null : data?.forecasts,
     selectedDates: plot.settings.dates || [],
     selectedModels: plot.settings.models || [],
+    modelOrder: plot.settings.models || [],
     target: plot.settings.target,
     showMedian: plot.settings.intervals?.includes("median") ?? true,
     show50: plot.settings.intervals?.includes("ci50") ?? true,
@@ -91,7 +92,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     const applySqrt = plot.settings.scale === "sqrt";
 
     return (plot.settings.columns || [])
-      .map((slug, index) => {
+      .map((slug) => {
         const longformName = nhsnSlugToNameMap[slug] || slug;
         const rawY = data.series[longformName] || [];
         const yValues = applySqrt
@@ -107,7 +108,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
           type: "scatter",
           mode: "lines",
           line: {
-            color: MODEL_COLORS[index % MODEL_COLORS.length],
+            color: getModelColor(slug, plot.settings.columns || []),
             width: 2,
           },
         };
@@ -122,7 +123,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     const applySqrt = plot.settings.scale === "sqrt";
 
     return (plot.settings.columns || [])
-      .map((column, index) => {
+      .map((column) => {
         const rawY = data.series[column] || [];
         const yValues = applySqrt
           ? rawY.map((value) =>
@@ -137,7 +138,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
           type: "scatter",
           mode: "lines+markers",
           line: {
-            color: MODEL_COLORS[index % MODEL_COLORS.length],
+            color: getModelColor(column, plot.settings.columns || []),
             width: 2,
           },
           marker: { size: 4 },
@@ -196,8 +197,8 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
       }
     }
 
-    selectedModels.forEach((model, modelIndex) => {
-      const baseColor = MODEL_COLORS[modelIndex % MODEL_COLORS.length];
+    selectedModels.forEach((model) => {
+      const baseColor = getModelColor(model, plot.settings.models || []);
 
       selectedDates.forEach((referenceDate, dateIndex) => {
         const dateData = peaks?.[referenceDate];
