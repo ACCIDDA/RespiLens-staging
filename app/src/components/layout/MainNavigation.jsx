@@ -41,7 +41,7 @@ const MainNavigation = () => {
     },
     {
       href: "/myplots",
-      label: "My Plots (α)",
+      label: "My Plots",
       icon: IconChartScatter,
       active: isActive("/myplots"),
     },
