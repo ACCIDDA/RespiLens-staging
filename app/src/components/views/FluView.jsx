@@ -1,11 +1,12 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import ForecastPlotView from "../ForecastPlotView";
 import FluPeak from "../FluPeak";
 import TitleRow from "../TitleRow";
-import { MODEL_COLORS } from "../../config/datasets";
+import { getModelColor } from "../../config/datasets";
 import { RATE_CHANGE_CATEGORIES } from "../../constants/chart";
 import { useView } from "../../hooks/useView";
 import { getDatasetTitleFromView } from "../../utils/datasetUtils";
+import { extendStableModelOrder } from "../../utils/modelColorUtils";
 
 const FluView = ({
   data,
@@ -25,6 +26,15 @@ const FluView = ({
 }) => {
   const { chartScale, intervalVisibility, showLegend } = useView();
   const forecasts = data?.forecasts;
+  const stableModelOrderRef = useRef([]);
+  const stableModelOrder = useMemo(() => {
+    const nextOrder = extendStableModelOrder(
+      stableModelOrderRef.current,
+      selectedModels,
+    );
+    stableModelOrderRef.current = nextOrder;
+    return nextOrder;
+  }, [selectedModels]);
 
   const lastSelectedDate = useMemo(() => {
     if (selectedDates.length === 0) return null;
@@ -41,8 +51,7 @@ const FluView = ({
         if (!forecast) return null;
         const horizon0 = forecast.predictions["0"];
         if (!horizon0) return null;
-        const modelColor =
-          MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        const modelColor = getModelColor(model, stableModelOrder);
         const orderedData = categoryOrder.map((cat) => ({
           category: cat.replace("_", "<br>"),
           value:
@@ -65,7 +74,13 @@ const FluView = ({
         };
       })
       .filter(Boolean);
-  }, [forecasts, selectedDates, selectedModels, lastSelectedDate]);
+  }, [
+    forecasts,
+    selectedDates,
+    selectedModels,
+    lastSelectedDate,
+    stableModelOrder,
+  ]);
 
   const extraTraces = useMemo(() => {
     if (viewType !== "fludetailed") return [];

@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Stack, useMantineColorScheme } from "@mantine/core";
 import Plot from "react-plotly.js";
 import ModelSelector from "./ModelSelector";
-import { MODEL_COLORS } from "../config/datasets";
+import { getModelColor } from "../config/datasets";
 import { CHART_CONSTANTS } from "../constants/chart";
 import { getDataPath } from "../utils/paths";
 import { buildSqrtTicks, getYRangeFromTraces } from "../utils/scaleUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
+import { extendStableModelOrder } from "../utils/modelColorUtils";
 
 // helper to convert Hex to RGBA for opacity control
 const hexToRgba = (hex, alpha) => {
@@ -48,6 +49,15 @@ const FluPeak = ({
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
+  const stableModelOrderRef = useRef([]);
+  const stableModelOrder = useMemo(() => {
+    const nextOrder = extendStableModelOrder(
+      stableModelOrderRef.current,
+      selectedModels,
+    );
+    stableModelOrderRef.current = nextOrder;
+    return nextOrder;
+  }, [selectedModels]);
 
   const getNormalizedDate = (dateStr) => {
     const d = new Date(dateStr);
@@ -202,8 +212,7 @@ const FluPeak = ({
         const pointColors = [];
 
         // Base color for this model (Solid, used for Legend)
-        const baseColorHex =
-          MODEL_COLORS[selectedModels.indexOf(model) % MODEL_COLORS.length];
+        const baseColorHex = getModelColor(model, stableModelOrder);
 
         datesToCheck.forEach((refDate, index) => {
           const dateData = peaks[refDate];
@@ -489,6 +498,7 @@ const FluPeak = ({
     show50,
     show95,
     chartScale,
+    stableModelOrder,
   ]);
 
   const sqrtTicks = useMemo(() => {
@@ -641,10 +651,6 @@ const FluPeak = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activePeakModels}
-          getModelColor={(model, currentSelected) => {
-            const index = currentSelected.indexOf(model);
-            return MODEL_COLORS[index % MODEL_COLORS.length];
-          }}
         />
       </Stack>
     </Stack>
