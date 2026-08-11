@@ -1194,11 +1194,12 @@ const MyRespiVisualizationPanel = ({
     error: null,
     locationFile: null,
   });
-  const [selectedSubmittedModels, setSelectedSubmittedModels] = useState([]);
+  const [preferredSubmittedModels, setPreferredSubmittedModels] = useState([]);
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
   const comparisonCacheRef = useRef(new Map());
   const userModelOrderRef = useRef([]);
+  const submittedModelOrderRef = useRef([]);
 
   const locationOptions = useMemo(
     () => buildLocationOptions(projectionOutputs),
@@ -1414,18 +1415,30 @@ const MyRespiVisualizationPanel = ({
     });
   }, [models]);
 
-  useEffect(() => {
+  const selectedSubmittedModels = useMemo(() => {
     if (!submittedModels.length) {
-      setSelectedSubmittedModels([]);
-      return;
+      return [];
     }
-    setSelectedSubmittedModels((current) => {
-      const stillValid = current.filter((model) =>
-        submittedModels.includes(model),
-      );
-      return stillValid.length ? stillValid : [submittedModels[0]];
-    });
-  }, [submittedModels]);
+
+    const stillValid = preferredSubmittedModels.filter((model) =>
+      submittedModels.includes(model),
+    );
+
+    return stillValid.length ? stillValid : [submittedModels[0]];
+  }, [preferredSubmittedModels, submittedModels]);
+
+  const handleSubmittedModelSelectionChange = useCallback((nextModels) => {
+    setPreferredSubmittedModels(nextModels);
+  }, []);
+
+  const stableSubmittedModelOrder = useMemo(() => {
+    const nextOrder = extendStableModelOrder(
+      submittedModelOrderRef.current,
+      selectedSubmittedModels,
+    );
+    submittedModelOrderRef.current = nextOrder;
+    return nextOrder;
+  }, [selectedSubmittedModels]);
 
   const stableUserModelOrder = useMemo(() => {
     const nextOrder = extendStableModelOrder(
@@ -1458,15 +1471,15 @@ const MyRespiVisualizationPanel = ({
   }, [selectedModels, stableUserModelOrder]);
 
   const submittedModelColorFn = useCallback(
-    (model, submittedSelection, submittedModelOrder = submittedSelection) => {
-      const index = submittedModelOrder.indexOf(model);
+    (model) => {
+      const index = stableSubmittedModelOrder.indexOf(model);
       if (index < 0) {
         return null;
       }
 
       return submittedModelPalette[index % submittedModelPalette.length];
     },
-    [submittedModelPalette],
+    [stableSubmittedModelOrder, submittedModelPalette],
   );
 
   const availableDates = useMemo(
@@ -1557,6 +1570,7 @@ const MyRespiVisualizationPanel = ({
     show50: true,
     show95: true,
     modelColorFn: submittedModelColorFn,
+    modelOrder: stableSubmittedModelOrder,
     modelHoverBuilder: buildComparisonHoverText,
     transformY: sqrtTransform,
   });
@@ -1912,7 +1926,7 @@ const MyRespiVisualizationPanel = ({
               <ModelSelector
                 models={submittedModels}
                 selectedModels={selectedSubmittedModels}
-                setSelectedModels={setSelectedSubmittedModels}
+                setSelectedModels={handleSubmittedModelSelectionChange}
                 activeModels={activeSubmittedModels}
                 modelColorFn={submittedModelColorFn}
               />
