@@ -39,12 +39,141 @@ const SURVEILLANCE_SOURCE_TO_VIEW = {
 
 const RESERVED_VARIANTS = new Set(["detailed", "peak", "metrocast"]);
 
+const METROCAST_STATE_URL_TO_LOCATION = {
+  CO: "colorado",
+  GA: "georgia",
+  IN: "indiana",
+  ME: "maine",
+  MD: "maryland",
+  MA: "massachusetts",
+  MN: "minnesota",
+  NC: "north-carolina",
+  OR: "oregon",
+  SC: "south-carolina",
+  TX: "texas",
+  UT: "utah",
+  VA: "virginia",
+};
+
+const METROCAST_LOCATION_TO_STATE_URL = Object.fromEntries(
+  Object.entries(METROCAST_STATE_URL_TO_LOCATION).map(
+    ([stateCode, location]) => [location, stateCode],
+  ),
+);
+
+const METROCAST_SUBLOCATION_TO_STATE_URL = {
+  denver: "CO",
+  mesa: "CO",
+  "colorado-springs": "CO",
+  weld: "CO",
+  boulder: "CO",
+  larimer: "CO",
+  savannah: "GA",
+  floyd: "GA",
+  hall: "GA",
+  marietta: "GA",
+  macon: "GA",
+  henry: "GA",
+  cherokee: "GA",
+  athens: "GA",
+  "south-augusta": "GA",
+  columbus: "GA",
+  "la-grange": "GA",
+  indianapolis: "IN",
+  bangor: "ME",
+  portland: "ME",
+  baltimore: "MD",
+  frederick: "MD",
+  montgomery: "MD",
+  harford: "MD",
+  worcester: "MA",
+  pittsfield: "MA",
+  boston: "MA",
+  springfield: "MA",
+  "new-bedford": "MA",
+  lynn: "MA",
+  "st-paul": "MN",
+  duluth: "MN",
+  minneapolis: "MN",
+  "st-cloud": "MN",
+  rochester: "MN",
+  nenc: "NC",
+  senc: "NC",
+  "fay-area": "NC",
+  "rtp-area": "NC",
+  "triad-area": "NC",
+  wnc: "NC",
+  "clt-area": "NC",
+  "portland-or": "OR",
+  salem: "OR",
+  deschutes: "OR",
+  eugene: "OR",
+  medford: "OR",
+  columbia: "SC",
+  greenville: "SC",
+  florence: "SC",
+  charleston: "SC",
+  "rock-hill": "SC",
+  horry: "SC",
+  houston: "TX",
+  "san-antonio": "TX",
+  beaumont: "TX",
+  "el-paso": "TX",
+  austin: "TX",
+  dallas: "TX",
+  provo: "UT",
+  "salt-lake-city": "UT",
+  ogden: "UT",
+  roanoke: "VA",
+  nyc: "NY",
+};
+
 const sanitizeLocationSegment = (location) => {
   if (!location) {
     return null;
   }
 
   return String(location).trim();
+};
+
+const serializeMetrocastLocationForPath = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  const stateCode = METROCAST_LOCATION_TO_STATE_URL[location];
+  if (stateCode) {
+    return stateCode;
+  }
+
+  const parentStateCode = METROCAST_SUBLOCATION_TO_STATE_URL[location];
+  if (parentStateCode) {
+    return `${parentStateCode}_${location}`;
+  }
+
+  return location;
+};
+
+const deserializeMetrocastLocationFromPath = (locationSegment) => {
+  const sanitizedLocation = sanitizeLocationSegment(locationSegment);
+  if (!sanitizedLocation) {
+    return null;
+  }
+
+  if (METROCAST_STATE_URL_TO_LOCATION[sanitizedLocation]) {
+    return METROCAST_STATE_URL_TO_LOCATION[sanitizedLocation];
+  }
+
+  const [stateCode, subLocation] = sanitizedLocation.split(/_(.+)/);
+  if (
+    stateCode &&
+    subLocation &&
+    METROCAST_SUBLOCATION_TO_STATE_URL[subLocation] === stateCode
+  ) {
+    return subLocation;
+  }
+
+  return sanitizedLocation;
 };
 
 export const isPathBasedForecastView = (viewType) =>
@@ -89,7 +218,11 @@ export const buildForecastPath = (viewType, location) => {
   }
 
   if (location && location !== defaultLocation) {
-    segments.push(encodeURIComponent(location));
+    const serializedLocation =
+      viewType === "metrocast_forecasts"
+        ? serializeMetrocastLocationForPath(location)
+        : location;
+    segments.push(encodeURIComponent(serializedLocation));
   }
 
   return segments.join("/");
@@ -152,10 +285,13 @@ const parsePathBasedForecastState = (pathname) => {
     RESERVED_VARIANTS.has(secondSegment)
   ) {
     viewType = pathogenConfig[secondSegment] || pathogenConfig.default;
-    location = sanitizeLocationSegment(thirdSegment);
+    location =
+      viewType === "metrocast_forecasts"
+        ? deserializeMetrocastLocationFromPath(thirdSegment)
+        : sanitizeLocationSegment(thirdSegment);
   } else if (pathogen === "metrocast") {
     viewType = "metrocast_forecasts";
-    location = sanitizeLocationSegment(secondSegment);
+    location = deserializeMetrocastLocationFromPath(secondSegment);
   } else if (secondSegment) {
     location = sanitizeLocationSegment(secondSegment);
   }
