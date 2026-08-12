@@ -1,5 +1,6 @@
 import { savePlot } from "../utils/plotStorage";
 import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
+import { parseForecastUrlState } from "../utils/forecastRoutes";
 
 const NSSP_COLUMN_LABELS = {
   percent_visits_covid: "COVID-19",
@@ -19,6 +20,7 @@ const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
 export const extractPlotData = (viewType, href, data) => {
   const url = new URL(href);
   const params = url.searchParams;
+  const urlState = parseForecastUrlState(url.pathname, params);
   const id = crypto.randomUUID();
   const currentDate = new Date().toISOString().split("T")[0];
   let dataSuffix = "";
@@ -40,7 +42,7 @@ export const extractPlotData = (viewType, href, data) => {
   switch (viewType) {
     case "covid_forecasts": {
       dataSuffix = "covid19";
-      location = params.has("location") ? params.get("location") : "US";
+      location = urlState.location || "US";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `covid19forecasthub/${fileName}`;
       target = params.has("covid_target")
@@ -76,7 +78,7 @@ export const extractPlotData = (viewType, href, data) => {
     case "flu_forecasts":
     case "fludetailed": {
       dataSuffix = "flu";
-      location = params.has("location") ? params.get("location") : "US";
+      location = urlState.location || "US";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `flusight/${fileName}`;
       target = params.has("flu_target")
@@ -111,7 +113,7 @@ export const extractPlotData = (viewType, href, data) => {
 
     case "flu_peak": {
       dataSuffix = "flu";
-      location = params.has("location") ? params.get("location") : "US";
+      location = urlState.location || "US";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `flusight/${fileName}`;
       target = "Peak flu hospitalizations";
@@ -159,7 +161,7 @@ export const extractPlotData = (viewType, href, data) => {
 
     case "rsv_forecasts": {
       dataSuffix = "rsv";
-      location = params.has("location") ? params.get("location") : "US";
+      location = urlState.location || "US";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `rsvforecasthub/${fileName}`;
       target = params.has("rsv_target")
@@ -194,7 +196,7 @@ export const extractPlotData = (viewType, href, data) => {
 
     case "metrocast_forecasts": {
       dataSuffix = "flu_metrocast";
-      location = params.has("location") ? params.get("location") : "colorado";
+      location = urlState.location || "colorado";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `flumetrocast/${fileName}`;
       target = "Flu ED visits pct";
@@ -227,7 +229,7 @@ export const extractPlotData = (viewType, href, data) => {
 
     case "nhsnall": {
       dataSuffix = "nhsn";
-      location = params.has("location") ? params.get("location") : "US";
+      location = urlState.location || "US";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `nhsn/${fileName}`;
       target = params.has("nhsn_target")
@@ -267,7 +269,7 @@ export const extractPlotData = (viewType, href, data) => {
 
     case "nsspall": {
       dataSuffix = "nssp";
-      location = params.has("location") ? params.get("location") : "US_All";
+      location = urlState.location || "US_All";
       fileName = `${location}_${dataSuffix}.json`;
       fullDataPath = `nssp/${fileName}`;
       target = "Percent of visits";

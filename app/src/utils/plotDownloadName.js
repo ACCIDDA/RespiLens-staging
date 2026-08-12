@@ -1,3 +1,5 @@
+import { parseForecastUrlState } from "./forecastRoutes";
+
 const DEFAULT_PREFIX = "respilens";
 const MAX_FILENAME_LENGTH = 120;
 
@@ -21,14 +23,12 @@ export const buildPlotDownloadName = (fallback = "plot") => {
 
   const { pathname, search } = window.location;
   const params = new URLSearchParams(search);
+  const { viewType, location } = parseForecastUrlState(pathname, params);
 
-  const rawView = params.get("view");
-  const rawLocation = params.get("location");
-
-  const viewPart = rawView
-    ? rawView.replace(/_/g, "-")
+  const viewPart = viewType
+    ? viewType.replace(/_/g, "-")
     : pathname.replace(/\/+$/g, "").replace(/^\/+/g, "") || "home";
-  const locationPart = rawLocation ? rawLocation.toLowerCase() : "";
+  const locationPart = location ? location.toLowerCase() : "";
 
   const combined = [DEFAULT_PREFIX, viewPart, locationPart]
     .filter(Boolean)
