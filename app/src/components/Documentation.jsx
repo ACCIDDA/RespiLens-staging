@@ -120,7 +120,7 @@ const Documentation = () => {
             <Text fw={600}>Required columns:</Text>
             <List spacing="sm">
               <List.Item>
-                <code>location</code>
+                <code>location</code> (FIPS code encoded as a string)
               </List.Item>
               <List.Item>
                 <code>reference_date</code>
