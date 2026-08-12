@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { MODEL_COLORS, getModelColor } from "../config/datasets";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
+import { calculateRelativeWIS, calculateWIS } from "../utils/forecastleScoring";
 
 const defaultFormatValue = (value) =>
   value.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -26,6 +27,7 @@ const buildDefaultModelHoverText = ({
   formattedMedian,
   formattedIntervals,
   issuedDate,
+  formattedRelativeWis,
   valueSuffix,
   showMedian,
 }) => {
@@ -41,6 +43,10 @@ const buildDefaultModelHoverText = ({
     );
   });
 
+  if (formattedRelativeWis !== null) {
+    rows.push(`rWIS: <b>${formattedRelativeWis}</b><br>`);
+  }
+
   rows.push(
     `<span style="color: rgba(255,255,255,0.8); font-size: 0.8em">predicted as of ${issuedDate}</span>` +
       `<extra></extra>`,
@@ -54,6 +60,50 @@ const findQuantileValue = (quantiles, values, requestedQuantile) => {
     (quantile) => Number(quantile) === requestedQuantile,
   );
   return index !== -1 ? values[index] : null;
+};
+
+const extractPredictionSummary = (prediction, fillMissingQuantiles = false) => {
+  if (!prediction) return null;
+
+  const { quantiles = [], values = [] } = prediction;
+  const normalizedQuantiles = quantiles.map((quantile) => Number(quantile));
+  const median = findQuantileValue(normalizedQuantiles, values, 0.5);
+
+  if (!Number.isFinite(median)) {
+    return null;
+  }
+
+  const lower50 =
+    findQuantileValue(normalizedQuantiles, values, 0.25) ??
+    (fillMissingQuantiles ? median : null);
+  const upper50 =
+    findQuantileValue(normalizedQuantiles, values, 0.75) ??
+    (fillMissingQuantiles ? median : null);
+  const lower95 =
+    findQuantileValue(normalizedQuantiles, values, 0.025) ??
+    (fillMissingQuantiles ? median : null);
+  const upper95 =
+    findQuantileValue(normalizedQuantiles, values, 0.975) ??
+    (fillMissingQuantiles ? median : null);
+
+  if (
+    !Number.isFinite(lower50) ||
+    !Number.isFinite(upper50) ||
+    !Number.isFinite(lower95) ||
+    !Number.isFinite(upper95)
+  ) {
+    return null;
+  }
+
+  return {
+    quantiles: normalizedQuantiles,
+    values,
+    median,
+    lower50,
+    upper50,
+    lower95,
+    upper95,
+  };
 };
 
 const buildIntervalFillColor = (modelColor, intervalIndex, intervalCount) => {
@@ -96,6 +146,7 @@ const useQuantileForecastTraces = ({
   intervalVisibility = null,
   transformY = null,
   groundTruthHoverFormatter = null,
+  baselineModelName = null,
 }) => {
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
@@ -129,6 +180,12 @@ const useQuantileForecastTraces = ({
     };
 
     groundTruthValues.forEach((value) => updateRange(value));
+    const observedValueByDate = new Map(
+      (groundTruth.dates || []).map((date, index) => [
+        date,
+        groundTruthValues[index],
+      ]),
+    );
 
     const groundTruthY = transformY
       ? groundTruthValues.map((value) => transformY(value))
@@ -158,6 +215,15 @@ const useQuantileForecastTraces = ({
         const forecastsForDate = forecasts[date] || {};
         const forecast = forecastsForDate[target]?.[model];
         if (!forecast || forecast.type !== "quantile") return [];
+        const baselineForecast =
+          baselineModelName && forecastsForDate[target]
+            ? forecastsForDate[target][baselineModelName]
+            : null;
+        const baselinePredictionsByDate = new Map(
+          Object.values(baselineForecast?.predictions || {}).map(
+            (prediction) => [prediction.date, prediction],
+          ),
+        );
 
         const forecastDates = [];
         const medianValues = [];
@@ -196,13 +262,13 @@ const useQuantileForecastTraces = ({
 
         sortedPredictions.forEach((pred) => {
           const pointDate = pred.date;
-          const { quantiles = [], values = [] } = pred;
-          const normalizedQuantiles = quantiles.map((quantile) =>
-            Number(quantile),
+          const predictionSummary = extractPredictionSummary(
+            pred,
+            fillMissingQuantiles,
           );
-          const val_50 = findQuantileValue(normalizedQuantiles, values, 0.5);
-          const resolvedMedian =
-            val_50 === null || val_50 === undefined ? null : val_50;
+          const normalizedQuantiles = predictionSummary?.quantiles ?? [];
+          const values = predictionSummary?.values ?? [];
+          const resolvedMedian = predictionSummary?.median ?? null;
           const formattedIntervals = [];
 
           activeIntervalDefinitions.forEach((definition) => {
@@ -261,6 +327,41 @@ const useQuantileForecastTraces = ({
 
           const formattedMedian =
             resolvedMedian === null ? null : formatValue(resolvedMedian);
+          const observedValue = observedValueByDate.get(pointDate);
+          let formattedRelativeWis = null;
+
+          if (predictionSummary && Number.isFinite(observedValue)) {
+            const pointWis = calculateWIS(
+              observedValue,
+              predictionSummary.median,
+              predictionSummary.lower50,
+              predictionSummary.upper50,
+              predictionSummary.lower95,
+              predictionSummary.upper95,
+            );
+            const baselinePredictionSummary = extractPredictionSummary(
+              baselinePredictionsByDate.get(pointDate),
+              fillMissingQuantiles,
+            );
+            const baselineWis = baselinePredictionSummary
+              ? calculateWIS(
+                  observedValue,
+                  baselinePredictionSummary.median,
+                  baselinePredictionSummary.lower50,
+                  baselinePredictionSummary.upper50,
+                  baselinePredictionSummary.lower95,
+                  baselinePredictionSummary.upper95,
+                )
+              : null;
+            const relativeWis = calculateRelativeWIS(
+              pointWis?.wis ?? null,
+              baselineWis?.wis ?? null,
+            );
+
+            if (Number.isFinite(relativeWis)) {
+              formattedRelativeWis = relativeWis.toFixed(3);
+            }
+          }
 
           const hoverText = modelHoverBuilder
             ? modelHoverBuilder({
@@ -269,6 +370,7 @@ const useQuantileForecastTraces = ({
                 formattedMedian,
                 formattedIntervals,
                 issuedDate: date,
+                formattedRelativeWis,
                 valueSuffix,
               })
             : buildDefaultModelHoverText({
@@ -277,6 +379,7 @@ const useQuantileForecastTraces = ({
                 formattedMedian,
                 formattedIntervals,
                 issuedDate: date,
+                formattedRelativeWis,
                 valueSuffix,
                 showMedian,
               });
