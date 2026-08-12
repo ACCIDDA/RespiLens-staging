@@ -11,6 +11,14 @@ import { buildSqrtTicks } from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
+import { getOfficialModels } from "../utils/forecastleScoring";
+
+const FORECAST_DATASET_KEYS_BY_VIEW = {
+  fludetailed: "flusight",
+  flu_forecasts: "flusight",
+  rsv_forecasts: "rsv",
+  covid_forecasts: "covid19",
+};
 
 const ForecastPlotView = ({
   data,
@@ -50,6 +58,8 @@ const ForecastPlotView = ({
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
+  const baselineModelName =
+    getOfficialModels(FORECAST_DATASET_KEYS_BY_VIEW[viewType]).baseline || null;
 
   const sqrtTransform = useMemo(() => {
     if (chartScale !== "sqrt") return null;
@@ -115,6 +125,7 @@ const ForecastPlotView = ({
     show50,
     show95,
     transformY: sqrtTransform,
+    baselineModelName,
     groundTruthHoverFormatter: sqrtTransform
       ? (value) =>
           groundTruthValueFormat.includes(":.2f")
