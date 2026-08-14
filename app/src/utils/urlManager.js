@@ -1,4 +1,5 @@
 import { DATASETS, APP_CONFIG } from "../config";
+import { parseForecastUrlState } from "./forecastRoutes";
 
 const DEFAULT_CHART_SCALE = "linear";
 const DEFAULT_INTERVAL_VISIBILITY = {
@@ -9,9 +10,16 @@ const DEFAULT_INTERVAL_VISIBILITY = {
 const DEFAULT_SHOW_LEGEND = true;
 
 export class URLParameterManager {
-  constructor(searchParams, setSearchParams) {
+  constructor(
+    searchParams,
+    setSearchParams,
+    pathname = window.location?.pathname,
+    navigate = null,
+  ) {
     this.searchParams = searchParams;
     this.setSearchParams = setSearchParams;
+    this.pathname = pathname;
+    this.navigate = navigate;
   }
 
   // Get dataset from view type
@@ -228,28 +236,12 @@ export class URLParameterManager {
 
   // Get current location from URL
   getLocation() {
-    return this.searchParams.get("location") || APP_CONFIG.defaultLocation;
+    return parseForecastUrlState(this.pathname, this.searchParams).location;
   }
 
   // Get current view from URL
   getView() {
-    const viewParam = this.searchParams.get("view");
-    const allViews = Object.values(DATASETS).flatMap((ds) =>
-      ds.views.map((v) => v.value),
-    );
-    if (viewParam) {
-      if (viewParam === APP_CONFIG.defaultView) {
-        return viewParam;
-      }
-      if (allViews.includes(viewParam)) {
-        return viewParam;
-      }
-    }
-    if (APP_CONFIG.defaultView) {
-      return APP_CONFIG.defaultView;
-    }
-    const defaultDatasetKey = APP_CONFIG.defaultDataset;
-    return DATASETS[defaultDatasetKey]?.defaultView;
+    return parseForecastUrlState(this.pathname, this.searchParams).viewType;
   }
   initializeDefaults() {}
 }

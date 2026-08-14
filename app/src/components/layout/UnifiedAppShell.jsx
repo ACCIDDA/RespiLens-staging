@@ -22,7 +22,11 @@ import StateSelector from "../StateSelector";
 
 const getShellConfig = (pathname) => {
   // For forecast view (main page), show navbar with StateSelector
-  if (pathname === "/") {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/forecasts") ||
+    pathname.startsWith("/surveillance")
+  ) {
     return {
       type: "forecast",
       header: { height: 60 },
@@ -71,7 +75,10 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       href: "/",
       label: "Forecasts",
       icon: IconChartLine,
-      active: location.pathname === "/",
+      active:
+        location.pathname === "/" ||
+        location.pathname.startsWith("/forecasts") ||
+        location.pathname.startsWith("/surveillance"),
     },
     {
       href: "/forecastle",

@@ -50,6 +50,13 @@ const AppLayout = () => {
     <UnifiedAppShell>
       <Routes>
         <Route path="/" element={<ForecastApp />} />
+        <Route path="/forecasts" element={<Navigate to="/" replace />} />
+        <Route path="/forecasts/*" element={<ForecastApp />} />
+        <Route
+          path="/surveillance"
+          element={<Navigate to="/surveillance/nhsn" replace />}
+        />
+        <Route path="/surveillance/*" element={<ForecastApp />} />
         <Route
           path="/narratives"
           element={

@@ -1,0 +1,370 @@
+import { APP_CONFIG, DATASETS } from "../config";
+
+const FORECAST_ROOT = "/forecasts";
+const SURVEILLANCE_ROOT = "/surveillance";
+
+const PATH_VIEW_CONFIG = {
+  covid_forecasts: { pathogen: "covid" },
+  flu_forecasts: { pathogen: "flusight" },
+  fludetailed: { pathogen: "flusight", variant: "detailed" },
+  flu_peak: { pathogen: "flusight", variant: "peak" },
+  rsv_forecasts: { pathogen: "rsv" },
+  metrocast_forecasts: { pathogen: "flu-metrocast" },
+  nhsnall: { section: "surveillance", source: "nhsn" },
+  nsspall: { section: "surveillance", source: "nssp" },
+};
+
+const PATHOGEN_VARIANT_TO_VIEW = {
+  covid: {
+    default: "covid_forecasts",
+  },
+  flusight: {
+    default: "flu_forecasts",
+    detailed: "fludetailed",
+    peak: "flu_peak",
+  },
+  "flu-metrocast": {
+    default: "metrocast_forecasts",
+  },
+  rsv: {
+    default: "rsv_forecasts",
+  },
+};
+
+const SURVEILLANCE_SOURCE_TO_VIEW = {
+  nhsn: "nhsnall",
+  nssp: "nsspall",
+};
+
+const RESERVED_VARIANTS = new Set(["detailed", "peak", "metrocast"]);
+
+const METROCAST_STATE_URL_TO_LOCATION = {
+  CO: "colorado",
+  GA: "georgia",
+  IN: "indiana",
+  ME: "maine",
+  MD: "maryland",
+  MA: "massachusetts",
+  MN: "minnesota",
+  NC: "north-carolina",
+  OR: "oregon",
+  SC: "south-carolina",
+  TX: "texas",
+  UT: "utah",
+  VA: "virginia",
+};
+
+const METROCAST_LOCATION_TO_STATE_URL = Object.fromEntries(
+  Object.entries(METROCAST_STATE_URL_TO_LOCATION).map(
+    ([stateCode, location]) => [location, stateCode],
+  ),
+);
+
+const METROCAST_SUBLOCATION_TO_STATE_URL = {
+  denver: "CO",
+  mesa: "CO",
+  "colorado-springs": "CO",
+  weld: "CO",
+  boulder: "CO",
+  larimer: "CO",
+  savannah: "GA",
+  floyd: "GA",
+  hall: "GA",
+  marietta: "GA",
+  macon: "GA",
+  henry: "GA",
+  cherokee: "GA",
+  athens: "GA",
+  "south-augusta": "GA",
+  columbus: "GA",
+  "la-grange": "GA",
+  indianapolis: "IN",
+  bangor: "ME",
+  portland: "ME",
+  baltimore: "MD",
+  frederick: "MD",
+  montgomery: "MD",
+  harford: "MD",
+  worcester: "MA",
+  pittsfield: "MA",
+  boston: "MA",
+  springfield: "MA",
+  "new-bedford": "MA",
+  lynn: "MA",
+  "st-paul": "MN",
+  duluth: "MN",
+  minneapolis: "MN",
+  "st-cloud": "MN",
+  rochester: "MN",
+  nenc: "NC",
+  senc: "NC",
+  "fay-area": "NC",
+  "rtp-area": "NC",
+  "triad-area": "NC",
+  wnc: "NC",
+  "clt-area": "NC",
+  "portland-or": "OR",
+  salem: "OR",
+  deschutes: "OR",
+  eugene: "OR",
+  medford: "OR",
+  columbia: "SC",
+  greenville: "SC",
+  florence: "SC",
+  charleston: "SC",
+  "rock-hill": "SC",
+  horry: "SC",
+  houston: "TX",
+  "san-antonio": "TX",
+  beaumont: "TX",
+  "el-paso": "TX",
+  austin: "TX",
+  dallas: "TX",
+  provo: "UT",
+  "salt-lake-city": "UT",
+  ogden: "UT",
+  roanoke: "VA",
+  nyc: "NY",
+};
+
+const sanitizeLocationSegment = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  return String(location).trim();
+};
+
+const serializeMetrocastLocationForPath = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  const stateCode = METROCAST_LOCATION_TO_STATE_URL[location];
+  if (stateCode) {
+    return stateCode;
+  }
+
+  const parentStateCode = METROCAST_SUBLOCATION_TO_STATE_URL[location];
+  if (parentStateCode) {
+    return `${parentStateCode}_${location}`;
+  }
+
+  return location;
+};
+
+const deserializeMetrocastLocationFromPath = (locationSegment) => {
+  const sanitizedLocation = sanitizeLocationSegment(locationSegment);
+  if (!sanitizedLocation) {
+    return null;
+  }
+
+  if (METROCAST_STATE_URL_TO_LOCATION[sanitizedLocation]) {
+    return METROCAST_STATE_URL_TO_LOCATION[sanitizedLocation];
+  }
+
+  const [stateCode, subLocation] = sanitizedLocation.split(/_(.+)/);
+  if (
+    stateCode &&
+    subLocation &&
+    METROCAST_SUBLOCATION_TO_STATE_URL[subLocation] === stateCode
+  ) {
+    return subLocation;
+  }
+
+  return sanitizedLocation;
+};
+
+export const isPathBasedForecastView = (viewType) =>
+  Object.prototype.hasOwnProperty.call(PATH_VIEW_CONFIG, viewType);
+
+export const isForecastPathname = (pathname = "") =>
+  pathname === "/" ||
+  pathname === FORECAST_ROOT ||
+  pathname.startsWith(`${FORECAST_ROOT}/`) ||
+  pathname === SURVEILLANCE_ROOT ||
+  pathname.startsWith(`${SURVEILLANCE_ROOT}/`);
+
+export const getDefaultLocationForView = (viewType) => {
+  const dataset =
+    Object.values(DATASETS).find((entry) =>
+      entry.views.some((view) => view.value === viewType),
+    ) || null;
+
+  return dataset?.defaultLocation || APP_CONFIG.defaultLocation;
+};
+
+export const buildForecastPath = (viewType, location) => {
+  if (!isPathBasedForecastView(viewType)) {
+    return "/";
+  }
+
+  const config = PATH_VIEW_CONFIG[viewType];
+  const defaultLocation = getDefaultLocationForView(viewType);
+
+  if (config.section === "surveillance") {
+    const segments = [SURVEILLANCE_ROOT, config.source];
+    if (location && location !== defaultLocation) {
+      segments.push(encodeURIComponent(location));
+    }
+    return segments.join("/");
+  }
+
+  const segments = [FORECAST_ROOT, config.pathogen];
+
+  if (config.variant) {
+    segments.push(config.variant);
+  }
+
+  if (location && location !== defaultLocation) {
+    const serializedLocation =
+      viewType === "metrocast_forecasts"
+        ? serializeMetrocastLocationForPath(location)
+        : location;
+    segments.push(encodeURIComponent(serializedLocation));
+  }
+
+  return segments.join("/");
+};
+
+const parsePathBasedForecastState = (pathname) => {
+  if (pathname.startsWith(SURVEILLANCE_ROOT)) {
+    const trimmedPath = pathname.replace(/\/+$/g, "");
+    const relativePath = trimmedPath
+      .slice(SURVEILLANCE_ROOT.length)
+      .replace(/^\/+/g, "");
+    const segments = relativePath ? relativePath.split("/") : [];
+
+    if (segments.length === 0) {
+      return null;
+    }
+
+    const [source, locationSegment] = segments.map((segment) =>
+      decodeURIComponent(segment),
+    );
+    const viewType = SURVEILLANCE_SOURCE_TO_VIEW[source];
+
+    if (!viewType) {
+      return null;
+    }
+
+    return {
+      viewType,
+      location:
+        sanitizeLocationSegment(locationSegment) ||
+        getDefaultLocationForView(viewType),
+    };
+  }
+
+  const trimmedPath = pathname.replace(/\/+$/g, "");
+  const relativePath = trimmedPath
+    .slice(FORECAST_ROOT.length)
+    .replace(/^\/+/g, "");
+  const segments = relativePath ? relativePath.split("/") : [];
+
+  if (segments.length === 0) {
+    return null;
+  }
+
+  const [pathogen, secondSegment, thirdSegment] = segments.map((segment) =>
+    decodeURIComponent(segment),
+  );
+  const pathogenConfig = PATHOGEN_VARIANT_TO_VIEW[pathogen];
+
+  if (!pathogenConfig) {
+    return null;
+  }
+
+  let viewType = pathogenConfig.default;
+  let location = null;
+
+  if (
+    pathogen === "flusight" &&
+    secondSegment &&
+    RESERVED_VARIANTS.has(secondSegment)
+  ) {
+    viewType = pathogenConfig[secondSegment] || pathogenConfig.default;
+    location =
+      viewType === "metrocast_forecasts"
+        ? deserializeMetrocastLocationFromPath(thirdSegment)
+        : sanitizeLocationSegment(thirdSegment);
+  } else if (pathogen === "flu-metrocast") {
+    viewType = "metrocast_forecasts";
+    location = deserializeMetrocastLocationFromPath(secondSegment);
+  } else if (secondSegment) {
+    location = sanitizeLocationSegment(secondSegment);
+  }
+
+  return {
+    viewType,
+    location: location || getDefaultLocationForView(viewType),
+  };
+};
+
+export const parseForecastUrlState = (pathname, searchParams) => {
+  if (
+    pathname &&
+    (pathname.startsWith(FORECAST_ROOT) ||
+      pathname.startsWith(SURVEILLANCE_ROOT))
+  ) {
+    const pathState = parsePathBasedForecastState(pathname);
+    if (pathState) {
+      return {
+        ...pathState,
+        source: "path",
+      };
+    }
+  }
+
+  const allViews = Object.values(DATASETS).flatMap((dataset) =>
+    dataset.views.map((view) => view.value),
+  );
+  const queryView = searchParams.get("view");
+  const viewType = allViews.includes(queryView)
+    ? queryView
+    : APP_CONFIG.defaultView;
+  const location =
+    searchParams.get("location") || getDefaultLocationForView(viewType);
+
+  return {
+    viewType,
+    location,
+    source: "query",
+  };
+};
+
+export const buildForecastUrl = ({ viewType, location, searchParams }) => {
+  const nextParams = new URLSearchParams(searchParams);
+  nextParams.delete("view");
+  nextParams.delete("location");
+
+  if (viewType === "frontpage") {
+    if (location && location !== APP_CONFIG.defaultLocation) {
+      nextParams.set("location", location);
+    }
+    const search = nextParams.toString();
+    return {
+      pathname: "/",
+      search: search ? `?${search}` : "",
+    };
+  }
+
+  if (isPathBasedForecastView(viewType)) {
+    const search = nextParams.toString();
+    return {
+      pathname: buildForecastPath(viewType, location),
+      search: search ? `?${search}` : "",
+    };
+  }
+
+  const defaultLocation = getDefaultLocationForView(viewType);
+  nextParams.set("view", viewType);
+  if (location && location !== defaultLocation) {
+    nextParams.set("location", location);
+  }
+  const search = nextParams.toString();
+  return {
+    pathname: "/",
+    search: search ? `?${search}` : "",
+  };
+};

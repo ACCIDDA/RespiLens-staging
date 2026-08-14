@@ -24,7 +24,10 @@ const MainNavigation = () => {
       href: "/",
       label: "Forecasts",
       icon: IconChartLine,
-      active: location.pathname === "/",
+      active:
+        location.pathname === "/" ||
+        location.pathname.startsWith("/forecasts") ||
+        location.pathname.startsWith("/surveillance"),
     },
     // { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },   disable narratives for now
     {
