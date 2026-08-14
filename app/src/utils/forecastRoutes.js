@@ -5,11 +5,11 @@ const SURVEILLANCE_ROOT = "/surveillance";
 
 const PATH_VIEW_CONFIG = {
   covid_forecasts: { pathogen: "covid" },
-  flu_forecasts: { pathogen: "flu" },
-  fludetailed: { pathogen: "flu", variant: "detailed" },
-  flu_peak: { pathogen: "flu", variant: "peak" },
+  flu_forecasts: { pathogen: "flusight" },
+  fludetailed: { pathogen: "flusight", variant: "detailed" },
+  flu_peak: { pathogen: "flusight", variant: "peak" },
   rsv_forecasts: { pathogen: "rsv" },
-  metrocast_forecasts: { pathogen: "flu", variant: "metrocast" },
+  metrocast_forecasts: { pathogen: "flu-metrocast" },
   nhsnall: { section: "surveillance", source: "nhsn" },
   nsspall: { section: "surveillance", source: "nssp" },
 };
@@ -18,17 +18,16 @@ const PATHOGEN_VARIANT_TO_VIEW = {
   covid: {
     default: "covid_forecasts",
   },
-  flu: {
+  flusight: {
     default: "flu_forecasts",
     detailed: "fludetailed",
     peak: "flu_peak",
-    metrocast: "metrocast_forecasts",
+  },
+  "flu-metrocast": {
+    default: "metrocast_forecasts",
   },
   rsv: {
     default: "rsv_forecasts",
-  },
-  metrocast: {
-    default: "metrocast_forecasts",
   },
 };
 
@@ -280,7 +279,7 @@ const parsePathBasedForecastState = (pathname) => {
   let location = null;
 
   if (
-    pathogen === "flu" &&
+    pathogen === "flusight" &&
     secondSegment &&
     RESERVED_VARIANTS.has(secondSegment)
   ) {
@@ -289,7 +288,7 @@ const parsePathBasedForecastState = (pathname) => {
       viewType === "metrocast_forecasts"
         ? deserializeMetrocastLocationFromPath(thirdSegment)
         : sanitizeLocationSegment(thirdSegment);
-  } else if (pathogen === "metrocast") {
+  } else if (pathogen === "flu-metrocast") {
     viewType = "metrocast_forecasts";
     location = deserializeMetrocastLocationFromPath(secondSegment);
   } else if (secondSegment) {
