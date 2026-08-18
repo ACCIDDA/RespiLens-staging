@@ -4,8 +4,11 @@ import {
   Alert,
   Anchor,
   Badge,
+  Box,
   Button,
+  Checkbox,
   Container,
+  Grid,
   Group,
   Loader,
   List,
@@ -126,6 +129,12 @@ const normalizeDateString = (value) => {
     return null;
   }
   return date.toISOString().slice(0, 10);
+};
+
+const shiftDateStringByDays = (dateString, days) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
+  return shiftedDate.toISOString().slice(0, 10);
 };
 
 const getTodayDateString = () => new Date().toISOString().slice(0, 10);
@@ -1168,6 +1177,12 @@ const getDefaultViewerRange = (
   ];
 };
 
+const SUBMITTED_INTERVAL_OPTIONS = [
+  { value: "median", label: "Median" },
+  { value: "ci50", label: "50% interval" },
+  { value: "ci95", label: "95% interval" },
+];
+
 const MyRespiVisualizationPanel = ({
   projectionOutputs,
   hubConfig,
@@ -1183,6 +1198,12 @@ const MyRespiVisualizationPanel = ({
   const [activeDate, setActiveDate] = useState(null);
   const [chartScale, setChartScale] = useState("linear");
   const [intervalVisibility, setIntervalVisibility] = useState({});
+  const [submittedIntervalVisibility, setSubmittedIntervalVisibility] =
+    useState({
+      median: true,
+      ci50: true,
+      ci95: true,
+    });
   const [showLegend, setShowLegend] = useState(true);
   const [xAxisRange, setXAxisRange] = useState(null);
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -1403,6 +1424,13 @@ const MyRespiVisualizationPanel = ({
     () => getModelsForTarget(filteredComparisonLocationData, selectedTarget),
     [filteredComparisonLocationData, selectedTarget],
   );
+  const selectedSubmittedIntervals = useMemo(
+    () =>
+      SUBMITTED_INTERVAL_OPTIONS.filter(
+        (option) => submittedIntervalVisibility?.[option.value],
+      ).map((option) => option.value),
+    [submittedIntervalVisibility],
+  );
 
   useEffect(() => {
     if (!models.length) {
@@ -1566,9 +1594,10 @@ const MyRespiVisualizationPanel = ({
     selectedModels: selectedSubmittedModels,
     target: selectedTarget,
     showLegendForFirstDate: showLegend,
-    showMedian: true,
-    show50: true,
-    show95: true,
+    showMedian: submittedIntervalVisibility.median,
+    show50: submittedIntervalVisibility.ci50,
+    show95: submittedIntervalVisibility.ci95,
+    intervalVisibility: submittedIntervalVisibility,
     modelColorFn: submittedModelColorFn,
     modelOrder: stableSubmittedModelOrder,
     modelHoverBuilder: buildComparisonHoverText,
@@ -1714,15 +1743,18 @@ const MyRespiVisualizationPanel = ({
         ticktext:
           chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
       },
-      shapes: selectedDates.map((date) => ({
-        type: "line",
-        x0: date,
-        x1: date,
-        y0: 0,
-        y1: 1,
-        yref: "paper",
-        line: { color: "red", width: 1, dash: "dash" },
-      })),
+      shapes: selectedDates.map((date) => {
+        const shiftedDate = shiftDateStringByDays(date, -3);
+        return {
+          type: "line",
+          x0: shiftedDate,
+          x1: shiftedDate,
+          y0: 0,
+          y1: 1,
+          yref: "paper",
+          line: { color: "red", width: 1, dash: "dash" },
+        };
+      }),
     }),
     [
       colorScheme,
@@ -1780,160 +1812,208 @@ const MyRespiVisualizationPanel = ({
   }
 
   return (
-    <Paper withBorder radius="lg" p="lg">
-      <Stack gap="lg">
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-          {isMetrocast ? (
-            <Select
-              label="State"
-              data={metroHierarchy?.stateOptions ?? []}
-              value={selectedMetroState}
-              onChange={setSelectedMetroState}
-              allowDeselect={false}
-            />
-          ) : (
-            <Select
-              label="Location"
-              data={locationOptions}
-              value={selectedLocationFile}
-              onChange={setSelectedLocationFile}
-              allowDeselect={false}
-            />
-          )}
-          {isMetrocast ? (
-            <Select
-              label="Location"
-              data={scopedMetroLocationOptions}
-              value={selectedLocationFile}
-              onChange={setSelectedLocationFile}
-              allowDeselect={false}
-              disabled={!scopedMetroLocationOptions.length}
-            />
-          ) : (
-            <Select
-              label="Target"
-              data={targetOptions}
-              value={selectedTarget}
-              onChange={setSelectedTarget}
-              allowDeselect={false}
-              disabled={!targetOptions.length}
-            />
-          )}
-        </SimpleGrid>
+    <Grid gutter="lg" align="flex-start">
+      <Grid.Col span={{ base: 12, lg: 4 }}>
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="md">
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 1 }} spacing="md">
+              {isMetrocast ? (
+                <Select
+                  label="State"
+                  data={metroHierarchy?.stateOptions ?? []}
+                  value={selectedMetroState}
+                  onChange={setSelectedMetroState}
+                  allowDeselect={false}
+                />
+              ) : (
+                <Select
+                  label="Location"
+                  data={locationOptions}
+                  value={selectedLocationFile}
+                  onChange={setSelectedLocationFile}
+                  allowDeselect={false}
+                />
+              )}
+              {isMetrocast ? (
+                <Select
+                  label="Location"
+                  data={scopedMetroLocationOptions}
+                  value={selectedLocationFile}
+                  onChange={setSelectedLocationFile}
+                  allowDeselect={false}
+                  disabled={!scopedMetroLocationOptions.length}
+                />
+              ) : (
+                <Select
+                  label="Target"
+                  data={targetOptions}
+                  value={selectedTarget}
+                  onChange={setSelectedTarget}
+                  allowDeselect={false}
+                  disabled={!targetOptions.length}
+                />
+              )}
+            </SimpleGrid>
 
-        {isMetrocast && (
-          <Select
-            label="Target"
-            data={targetOptions}
-            value={selectedTarget}
-            onChange={setSelectedTarget}
-            allowDeselect={false}
-            disabled={!targetOptions.length}
-          />
-        )}
-
-        <Paper withBorder radius="md" p="sm">
-          <Stack gap="sm">
-            <Text fw={600} size="sm">
-              Advanced controls (your model(s))
-            </Text>
-            <ForecastChartControls
-              chartScale={chartScale}
-              setChartScale={setChartScale}
-              intervalVisibility={intervalVisibility}
-              setIntervalVisibility={setIntervalVisibility}
-              showLegend={showLegend}
-              setShowLegend={setShowLegend}
-              intervalOptions={intervalOptions}
-            />
-          </Stack>
-        </Paper>
-
-        <DateSelector
-          availableDates={availableDates}
-          selectedDates={selectedDates}
-          setSelectedDates={setSelectedDates}
-          activeDate={activeDate}
-          setActiveDate={setActiveDate}
-        />
-
-        <div
-          style={{
-            width: "100%",
-            height: "min(800px, 60vh)",
-            minHeight: 320,
-          }}
-        >
-          <Plot
-            ref={plotRef}
-            useResizeHandler
-            style={{ width: "100%", height: "100%" }}
-            data={allTraces}
-            layout={layout}
-            config={config}
-            onRelayout={handlePlotUpdate}
-          />
-        </div>
-
-        <ModelSelector
-          models={models}
-          selectedModels={selectedModels}
-          setSelectedModels={setSelectedModels}
-          activeModels={activeModels}
-        />
-
-        <Paper withBorder radius="md" p="sm">
-          <Stack gap="xs">
-            <Group justify="space-between" align="center">
-              <Text fw={600} size="sm">
-                Compare with submitting models
-              </Text>
-              <Switch
-                checked={compareWithSubmittingModels}
-                onChange={(event) =>
-                  setCompareWithSubmittingModels(event.currentTarget.checked)
-                }
-                disabled={!comparisonEligibility?.isEligible}
-                size="sm"
+            {isMetrocast && (
+              <Select
+                label="Target"
+                data={targetOptions}
+                value={selectedTarget}
+                onChange={setSelectedTarget}
+                allowDeselect={false}
+                disabled={!targetOptions.length}
               />
-            </Group>
-            {compareWithSubmittingModels &&
-              comparisonDataState.status === "loading" && (
-                <Group gap="xs">
-                  <Loader size="sm" color="blue" />
-                  <Text size="sm" c="dimmed">
-                    Loading submitted model data for this location...
+            )}
+
+            <Paper withBorder radius="md" p="sm">
+              <Stack gap="sm">
+                <Text fw={600} size="sm">
+                  Advanced controls (your model(s))
+                </Text>
+                <ForecastChartControls
+                  chartScale={chartScale}
+                  setChartScale={setChartScale}
+                  intervalVisibility={intervalVisibility}
+                  setIntervalVisibility={setIntervalVisibility}
+                  showLegend={showLegend}
+                  setShowLegend={setShowLegend}
+                  intervalOptions={intervalOptions}
+                />
+              </Stack>
+            </Paper>
+
+            <Paper withBorder radius="md" p="sm">
+              <Stack gap="xs">
+                <Group justify="space-between" align="center">
+                  <Text fw={600} size="sm">
+                    Compare with submitting models
                   </Text>
+                  <Switch
+                    checked={compareWithSubmittingModels}
+                    onChange={(event) =>
+                      setCompareWithSubmittingModels(
+                        event.currentTarget.checked,
+                      )
+                    }
+                    disabled={!comparisonEligibility?.isEligible}
+                    size="sm"
+                  />
                 </Group>
-              )}
+                {compareWithSubmittingModels &&
+                  comparisonDataState.status === "loading" && (
+                    <Group gap="xs">
+                      <Loader size="sm" color="blue" />
+                      <Text size="sm" c="dimmed">
+                        Loading submitted model data for this location...
+                      </Text>
+                    </Group>
+                  )}
+                {compareWithSubmittingModels &&
+                  comparisonDataState.status === "error" && (
+                    <Alert
+                      color="red"
+                      variant="light"
+                      radius="md"
+                      icon={<IconAlertCircle size={16} />}
+                    >
+                      {comparisonDataState.error}
+                    </Alert>
+                  )}
+              </Stack>
+            </Paper>
+
             {compareWithSubmittingModels &&
-              comparisonDataState.status === "error" && (
-                <Alert
-                  color="red"
-                  variant="light"
-                  radius="md"
-                  icon={<IconAlertCircle size={16} />}
-                >
-                  {comparisonDataState.error}
-                </Alert>
+              comparisonDataState.status === "success" && (
+                <>
+                  <Paper withBorder radius="md" p="sm">
+                    <Stack gap="sm">
+                      <Text fw={600} size="sm">
+                        Submitting models display
+                      </Text>
+                      <Group align="center" gap="md" wrap="wrap">
+                        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
+                          Intervals
+                        </Text>
+                        <Checkbox.Group
+                          value={selectedSubmittedIntervals}
+                          onChange={(values) => {
+                            const nextVisibility = {};
+                            SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                              nextVisibility[option.value] = values.includes(
+                                option.value,
+                              );
+                            });
+                            setSubmittedIntervalVisibility(nextVisibility);
+                          }}
+                        >
+                          <Group gap="sm" wrap="wrap">
+                            {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                              <Checkbox
+                                key={option.value}
+                                value={option.value}
+                                label={option.label}
+                                size="xs"
+                              />
+                            ))}
+                          </Group>
+                        </Checkbox.Group>
+                      </Group>
+                    </Stack>
+                  </Paper>
+
+                  <ModelSelector
+                    models={submittedModels}
+                    selectedModels={selectedSubmittedModels}
+                    setSelectedModels={handleSubmittedModelSelectionChange}
+                    activeModels={activeSubmittedModels}
+                    modelColorFn={submittedModelColorFn}
+                  />
+                </>
               )}
           </Stack>
         </Paper>
+      </Grid.Col>
 
-        {compareWithSubmittingModels &&
-          comparisonDataState.status === "success" && (
-            <Stack gap="xs">
-              <ModelSelector
-                models={submittedModels}
-                selectedModels={selectedSubmittedModels}
-                setSelectedModels={handleSubmittedModelSelectionChange}
-                activeModels={activeSubmittedModels}
-                modelColorFn={submittedModelColorFn}
+      <Grid.Col span={{ base: 12, lg: 8 }}>
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="lg">
+            <DateSelector
+              availableDates={availableDates}
+              selectedDates={selectedDates}
+              setSelectedDates={setSelectedDates}
+              activeDate={activeDate}
+              setActiveDate={setActiveDate}
+            />
+
+            <div
+              style={{
+                width: "100%",
+                height: "min(800px, 60vh)",
+                minHeight: 320,
+              }}
+            >
+              <Plot
+                ref={plotRef}
+                useResizeHandler
+                style={{ width: "100%", height: "100%" }}
+                data={allTraces}
+                layout={layout}
+                config={config}
+                onRelayout={handlePlotUpdate}
               />
-            </Stack>
-          )}
-      </Stack>
-    </Paper>
+            </div>
+
+            <ModelSelector
+              models={models}
+              selectedModels={selectedModels}
+              setSelectedModels={setSelectedModels}
+              activeModels={activeModels}
+            />
+          </Stack>
+        </Paper>
+      </Grid.Col>
+    </Grid>
   );
 };
 
@@ -2344,6 +2424,13 @@ const HubUploadScreen = () => {
       comparisonEligibility: null,
     });
   }, []);
+  const isShowingVisualization = projectionBuildState.status === "success";
+  const backArrowLabel = isShowingVisualization
+    ? "Back to hub upload"
+    : "Back to hub selection";
+  const handleBackArrowClick = isShowingVisualization
+    ? handleResetUpload
+    : () => navigate("/myrespilens");
 
   if (!hubConfig) {
     return (
@@ -2366,41 +2453,81 @@ const HubUploadScreen = () => {
         description={`Validate Hubverse CSV data for ${hubConfig.label} before MyRespiLens conversion.`}
         canonicalPath={`/myrespilens/${hubConfig.slug}`}
       />
-      <Container size="md" py="xl">
+      <Container size="xl" py="xl" fluid>
         <Stack gap="lg">
-          <Group justify="space-between" align="center">
-            <Stack gap={4}>
-              <Group gap="xs" align="center">
-                <Tooltip label="Back to hub selection" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="blue"
-                    size="xl"
-                    radius="xl"
-                    onClick={() => navigate("/myrespilens")}
-                    aria-label="Back to hub selection"
-                  >
-                    <IconArrowLeft size={24} stroke={2.25} />
-                  </ActionIcon>
-                </Tooltip>
-                <Title order={1}>{hubConfig.label}</Title>
-                <Tooltip label="Open hub GitHub" withArrow>
-                  <ActionIcon
-                    component="a"
-                    href={hubConfig.githubUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    variant="subtle"
-                    color="blue"
-                    radius="xl"
-                    aria-label={`Open ${hubConfig.label} GitHub`}
-                  >
-                    <IconBrandGithub size={20} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            </Stack>
-          </Group>
+          {isShowingVisualization ? (
+            <Group justify="space-between" align="center">
+              <Stack gap={4}>
+                <Group gap="xs" align="center">
+                  <Tooltip label={backArrowLabel} withArrow>
+                    <ActionIcon
+                      variant="subtle"
+                      color="blue"
+                      size="xl"
+                      radius="xl"
+                      onClick={handleBackArrowClick}
+                      aria-label={backArrowLabel}
+                    >
+                      <IconArrowLeft size={24} stroke={2.25} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Title order={1}>{hubConfig.label}</Title>
+                  <Tooltip label="Open hub GitHub" withArrow>
+                    <ActionIcon
+                      component="a"
+                      href={hubConfig.githubUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      variant="subtle"
+                      color="blue"
+                      radius="xl"
+                      aria-label={`Open ${hubConfig.label} GitHub`}
+                    >
+                      <IconBrandGithub size={20} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Stack>
+            </Group>
+          ) : (
+            <Group justify="center">
+              <Box w="100%" maw={860}>
+                <Group justify="space-between" align="center">
+                  <Stack gap={4}>
+                    <Group gap="xs" align="center">
+                      <Tooltip label={backArrowLabel} withArrow>
+                        <ActionIcon
+                          variant="subtle"
+                          color="blue"
+                          size="xl"
+                          radius="xl"
+                          onClick={handleBackArrowClick}
+                          aria-label={backArrowLabel}
+                        >
+                          <IconArrowLeft size={24} stroke={2.25} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Title order={1}>{hubConfig.label}</Title>
+                      <Tooltip label="Open hub GitHub" withArrow>
+                        <ActionIcon
+                          component="a"
+                          href={hubConfig.githubUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          variant="subtle"
+                          color="blue"
+                          radius="xl"
+                          aria-label={`Open ${hubConfig.label} GitHub`}
+                        >
+                          <IconBrandGithub size={20} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Stack>
+                </Group>
+              </Box>
+            </Group>
+          )}
 
           {referenceDataState.status === "error" && (
             <Alert
@@ -2413,7 +2540,7 @@ const HubUploadScreen = () => {
             </Alert>
           )}
 
-          {projectionBuildState.status === "success" && (
+          {isShowingVisualization && (
             <>
               {pathogenWarning && (
                 <Alert
@@ -2426,14 +2553,6 @@ const HubUploadScreen = () => {
                   {pathogenWarning}
                 </Alert>
               )}
-              <Button
-                variant="subtle"
-                onClick={handleResetUpload}
-                px={0}
-                w="fit-content"
-              >
-                Upload different file(s)
-              </Button>
               <MyRespiVisualizationPanel
                 projectionOutputs={projectionBuildState.outputs}
                 hubConfig={hubConfig}
@@ -2445,96 +2564,100 @@ const HubUploadScreen = () => {
           )}
 
           {projectionBuildState.status !== "success" && (
-            <Paper
-              withBorder
-              radius="xl"
-              p="xl"
-              onDragEnter={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (isUploadProcessing) {
-                  return;
-                }
-                setDragActive(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setDragActive(false);
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onDrop={handleDrop}
-              onClick={() => {
-                if (isUploadProcessing) {
-                  return;
-                }
-                document
-                  .getElementById("myrespi-hubverse-files-input")
-                  ?.click();
-              }}
-              style={{
-                cursor: isUploadProcessing ? "progress" : "pointer",
-                border: dragActive
-                  ? "2px dashed var(--mantine-color-blue-6)"
-                  : "2px dashed var(--mantine-color-gray-4)",
-                backgroundColor: dragActive
-                  ? "var(--mantine-color-blue-light)"
-                  : "transparent",
-                transition:
-                  "border-color 160ms ease, background-color 160ms ease",
-              }}
-            >
-              <Stack align="center" gap="lg" py="xl">
-                {isUploadProcessing ? (
-                  <Loader color="blue" size="xl" />
-                ) : (
-                  <ThemeIcon
-                    size={84}
-                    radius="xl"
-                    variant="light"
-                    color={dragActive ? "blue" : "gray"}
-                  >
-                    <IconUpload size={40} />
-                  </ThemeIcon>
-                )}
-                <Stack gap="xs" ta="center">
-                  <Title order={2}>
-                    {isUploadProcessing
-                      ? "Processing your uploaded data"
-                      : "Drop your Hubverse-style CSV file(s) here"}
-                  </Title>
-                  <Text c="dimmed">
+            <Group justify="center">
+              <Box w="100%" maw={860}>
+                <Paper
+                  withBorder
+                  radius="xl"
+                  p="xl"
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (isUploadProcessing) {
+                      return;
+                    }
+                    setDragActive(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setDragActive(false);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onDrop={handleDrop}
+                  onClick={() => {
+                    if (isUploadProcessing) {
+                      return;
+                    }
+                    document
+                      .getElementById("myrespi-hubverse-files-input")
+                      ?.click();
+                  }}
+                  style={{
+                    cursor: isUploadProcessing ? "progress" : "pointer",
+                    border: dragActive
+                      ? "2px dashed var(--mantine-color-blue-6)"
+                      : "2px dashed var(--mantine-color-gray-4)",
+                    backgroundColor: dragActive
+                      ? "var(--mantine-color-blue-light)"
+                      : "transparent",
+                    transition:
+                      "border-color 160ms ease, background-color 160ms ease",
+                  }}
+                >
+                  <Stack align="center" gap="lg" py="xl">
                     {isUploadProcessing ? (
-                      "This could take a moment..."
+                      <Loader color="blue" size="xl" />
                     ) : (
-                      <>
-                        Visit the MyRespiLens{" "}
-                        <Anchor
-                          href="/myrespilens/documentation"
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          documentation
-                        </Anchor>{" "}
-                        page to learn more about what makes your data valid.
-                      </>
+                      <ThemeIcon
+                        size={84}
+                        radius="xl"
+                        variant="light"
+                        color={dragActive ? "blue" : "gray"}
+                      >
+                        <IconUpload size={40} />
+                      </ThemeIcon>
                     )}
-                  </Text>
-                </Stack>
-                <input
-                  id="myrespi-hubverse-files-input"
-                  type="file"
-                  accept=".csv,text/csv"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={handleFileSelect}
-                />
-              </Stack>
-            </Paper>
+                    <Stack gap="xs" ta="center">
+                      <Title order={2}>
+                        {isUploadProcessing
+                          ? "Processing your uploaded data"
+                          : "Drop your Hubverse-style CSV file(s) here"}
+                      </Title>
+                      <Text c="dimmed">
+                        {isUploadProcessing ? (
+                          "This could take a moment..."
+                        ) : (
+                          <>
+                            Visit the MyRespiLens{" "}
+                            <Anchor
+                              href="/myrespilens/documentation"
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              documentation
+                            </Anchor>{" "}
+                            page to learn more about what makes your data valid.
+                          </>
+                        )}
+                      </Text>
+                    </Stack>
+                    <input
+                      id="myrespi-hubverse-files-input"
+                      type="file"
+                      accept=".csv,text/csv"
+                      multiple
+                      style={{ display: "none" }}
+                      onChange={handleFileSelect}
+                    />
+                  </Stack>
+                </Paper>
+              </Box>
+            </Group>
           )}
 
           {projectionBuildState.status === "error" && (
