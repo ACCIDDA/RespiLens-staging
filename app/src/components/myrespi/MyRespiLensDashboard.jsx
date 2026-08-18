@@ -2415,6 +2415,13 @@ const HubUploadScreen = () => {
       comparisonEligibility: null,
     });
   }, []);
+  const isShowingVisualization = projectionBuildState.status === "success";
+  const backArrowLabel = isShowingVisualization
+    ? "Back to hub upload"
+    : "Back to hub selection";
+  const handleBackArrowClick = isShowingVisualization
+    ? handleResetUpload
+    : () => navigate("/myrespilens");
 
   if (!hubConfig) {
     return (
@@ -2439,18 +2446,18 @@ const HubUploadScreen = () => {
       />
       <Container size="xl" py="xl" fluid>
         <Stack gap="lg">
-          {projectionBuildState.status === "success" ? (
+          {isShowingVisualization ? (
             <Group justify="space-between" align="center">
               <Stack gap={4}>
                 <Group gap="xs" align="center">
-                  <Tooltip label="Back to hub selection" withArrow>
+                  <Tooltip label={backArrowLabel} withArrow>
                     <ActionIcon
                       variant="subtle"
                       color="blue"
                       size="xl"
                       radius="xl"
-                      onClick={() => navigate("/myrespilens")}
-                      aria-label="Back to hub selection"
+                      onClick={handleBackArrowClick}
+                      aria-label={backArrowLabel}
                     >
                       <IconArrowLeft size={24} stroke={2.25} />
                     </ActionIcon>
@@ -2479,14 +2486,14 @@ const HubUploadScreen = () => {
                 <Group justify="space-between" align="center">
                   <Stack gap={4}>
                     <Group gap="xs" align="center">
-                      <Tooltip label="Back to hub selection" withArrow>
+                      <Tooltip label={backArrowLabel} withArrow>
                         <ActionIcon
                           variant="subtle"
                           color="blue"
                           size="xl"
                           radius="xl"
-                          onClick={() => navigate("/myrespilens")}
-                          aria-label="Back to hub selection"
+                          onClick={handleBackArrowClick}
+                          aria-label={backArrowLabel}
                         >
                           <IconArrowLeft size={24} stroke={2.25} />
                         </ActionIcon>
@@ -2524,7 +2531,7 @@ const HubUploadScreen = () => {
             </Alert>
           )}
 
-          {projectionBuildState.status === "success" && (
+          {isShowingVisualization && (
             <>
               {pathogenWarning && (
                 <Alert
@@ -2537,14 +2544,6 @@ const HubUploadScreen = () => {
                   {pathogenWarning}
                 </Alert>
               )}
-              <Button
-                variant="subtle"
-                onClick={handleResetUpload}
-                px={0}
-                w="fit-content"
-              >
-                Upload different file(s)
-              </Button>
               <MyRespiVisualizationPanel
                 projectionOutputs={projectionBuildState.outputs}
                 hubConfig={hubConfig}
