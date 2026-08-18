@@ -20,6 +20,12 @@ const FORECAST_DATASET_KEYS_BY_VIEW = {
   covid_forecasts: "covid19",
 };
 
+const shiftDateStringByDays = (dateString, days) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
+  return shiftedDate.toISOString().slice(0, 10);
+};
+
 const ForecastPlotView = ({
   data,
   metadata,
@@ -282,10 +288,11 @@ const ForecastPlotView = ({
           chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
       },
       shapes: selectedDates.map((date) => {
+        const shiftedDate = shiftDateStringByDays(date, -3);
         return {
           type: "line",
-          x0: date,
-          x1: date,
+          x0: shiftedDate,
+          x1: shiftedDate,
           y0: 0,
           y1: 1,
           yref: "paper",

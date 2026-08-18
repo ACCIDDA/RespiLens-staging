@@ -131,6 +131,12 @@ const normalizeDateString = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
+const shiftDateStringByDays = (dateString, days) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
+  return shiftedDate.toISOString().slice(0, 10);
+};
+
 const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
 const buildRequiredColumnError = (fileLabel, missingColumns) =>
@@ -1737,15 +1743,18 @@ const MyRespiVisualizationPanel = ({
         ticktext:
           chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
       },
-      shapes: selectedDates.map((date) => ({
-        type: "line",
-        x0: date,
-        x1: date,
-        y0: 0,
-        y1: 1,
-        yref: "paper",
-        line: { color: "red", width: 1, dash: "dash" },
-      })),
+      shapes: selectedDates.map((date) => {
+        const shiftedDate = shiftDateStringByDays(date, -3);
+        return {
+          type: "line",
+          x0: shiftedDate,
+          x1: shiftedDate,
+          y0: 0,
+          y1: 1,
+          yref: "paper",
+          line: { color: "red", width: 1, dash: "dash" },
+        };
+      }),
     }),
     [
       colorScheme,
