@@ -5,6 +5,7 @@ import {
   Anchor,
   Badge,
   Button,
+  Checkbox,
   Container,
   Group,
   Loader,
@@ -1168,6 +1169,12 @@ const getDefaultViewerRange = (
   ];
 };
 
+const SUBMITTED_INTERVAL_OPTIONS = [
+  { value: "median", label: "Median" },
+  { value: "ci50", label: "50% interval" },
+  { value: "ci95", label: "95% interval" },
+];
+
 const MyRespiVisualizationPanel = ({
   projectionOutputs,
   hubConfig,
@@ -1183,6 +1190,12 @@ const MyRespiVisualizationPanel = ({
   const [activeDate, setActiveDate] = useState(null);
   const [chartScale, setChartScale] = useState("linear");
   const [intervalVisibility, setIntervalVisibility] = useState({});
+  const [submittedIntervalVisibility, setSubmittedIntervalVisibility] =
+    useState({
+      median: true,
+      ci50: true,
+      ci95: true,
+    });
   const [showLegend, setShowLegend] = useState(true);
   const [xAxisRange, setXAxisRange] = useState(null);
   const [yAxisRange, setYAxisRange] = useState(null);
@@ -1403,6 +1416,13 @@ const MyRespiVisualizationPanel = ({
     () => getModelsForTarget(filteredComparisonLocationData, selectedTarget),
     [filteredComparisonLocationData, selectedTarget],
   );
+  const selectedSubmittedIntervals = useMemo(
+    () =>
+      SUBMITTED_INTERVAL_OPTIONS.filter(
+        (option) => submittedIntervalVisibility?.[option.value],
+      ).map((option) => option.value),
+    [submittedIntervalVisibility],
+  );
 
   useEffect(() => {
     if (!models.length) {
@@ -1566,9 +1586,10 @@ const MyRespiVisualizationPanel = ({
     selectedModels: selectedSubmittedModels,
     target: selectedTarget,
     showLegendForFirstDate: showLegend,
-    showMedian: true,
-    show50: true,
-    show95: true,
+    showMedian: submittedIntervalVisibility.median,
+    show50: submittedIntervalVisibility.ci50,
+    show95: submittedIntervalVisibility.ci95,
+    intervalVisibility: submittedIntervalVisibility,
     modelColorFn: submittedModelColorFn,
     modelOrder: stableSubmittedModelOrder,
     modelHoverBuilder: buildComparisonHoverText,
@@ -1848,6 +1869,45 @@ const MyRespiVisualizationPanel = ({
             />
           </Stack>
         </Paper>
+
+        {compareWithSubmittingModels &&
+          comparisonDataState.status === "success" && (
+            <Paper withBorder radius="md" p="sm">
+              <Stack gap="sm">
+                <Text fw={600} size="sm">
+                  Submitting models display
+                </Text>
+                <Group align="center" gap="md">
+                  <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
+                    Intervals
+                  </Text>
+                  <Checkbox.Group
+                    value={selectedSubmittedIntervals}
+                    onChange={(values) => {
+                      const nextVisibility = {};
+                      SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                        nextVisibility[option.value] = values.includes(
+                          option.value,
+                        );
+                      });
+                      setSubmittedIntervalVisibility(nextVisibility);
+                    }}
+                  >
+                    <Group gap="sm">
+                      {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          value={option.value}
+                          label={option.label}
+                          size="xs"
+                        />
+                      ))}
+                    </Group>
+                  </Checkbox.Group>
+                </Group>
+              </Stack>
+            </Paper>
+          )}
 
         <DateSelector
           availableDates={availableDates}
