@@ -196,7 +196,7 @@ const useQuantileForecastTraces = ({
       y: groundTruthY,
       name: groundTruthLabel,
       type: "scatter",
-      mode: showMedian ? "lines+markers" : "lines",
+      mode: "lines+markers",
       line: { color: "black", width: groundTruthLineWidth, dash: "dash" },
       marker: { size: groundTruthMarkerSize, color: "black" },
     };
