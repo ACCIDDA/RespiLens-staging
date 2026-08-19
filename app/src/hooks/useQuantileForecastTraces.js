@@ -135,7 +135,7 @@ const useQuantileForecastTraces = ({
   modelOrder = null,
   modelLineWidth = 2,
   modelMarkerSize = 6,
-  groundTruthLineWidth = 2,
+  groundTruthLineWidth = 1.5,
   groundTruthMarkerSize = 4,
   showLegendForFirstDate = true,
   fillMissingQuantiles = false,
@@ -197,7 +197,7 @@ const useQuantileForecastTraces = ({
       name: groundTruthLabel,
       type: "scatter",
       mode: "lines+markers",
-      line: { color: "black", width: groundTruthLineWidth, dash: "dash" },
+      line: { color: "black", width: groundTruthLineWidth, dash: "solid" },
       marker: { size: groundTruthMarkerSize, color: "black" },
     };
 

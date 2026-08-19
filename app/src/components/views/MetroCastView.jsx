@@ -108,7 +108,7 @@ const MetroPlotCard = ({
     formatValue: (value) => value.toFixed(2),
     modelLineWidth: isSmall ? 1 : 2,
     modelMarkerSize: isSmall ? 3 : 6,
-    groundTruthLineWidth: isSmall ? 1 : 2,
+    groundTruthLineWidth: 1.5,
     groundTruthMarkerSize: isSmall ? 2 : 4,
     showLegendForFirstDate: showLegend && !isSmall,
     fillMissingQuantiles: true,

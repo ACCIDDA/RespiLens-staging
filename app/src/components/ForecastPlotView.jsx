@@ -123,7 +123,7 @@ const ForecastPlotView = ({
     valueSuffix: "",
     modelLineWidth: 2,
     modelMarkerSize: 6,
-    groundTruthLineWidth: 2,
+    groundTruthLineWidth: 1.5,
     groundTruthMarkerSize: 4,
     showLegendForFirstDate: showLegend,
     fillMissingQuantiles: false,
