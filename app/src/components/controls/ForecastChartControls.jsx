@@ -104,7 +104,6 @@ const ForecastChartControls = ({
             size="sm"
             onLabel="On"
             offLabel="Off"
-            label="Show other seasons"
           />
         </Group>
       )}

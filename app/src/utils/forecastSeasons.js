@@ -1,5 +1,6 @@
 const SEASON_START_MONTH_INDEX = 8;
 const SEASON_START_DAY = 1;
+const PEAK_SEASON_START_MONTH_INDEX = 7;
 
 const HUB_SEASON_START_BY_VIEW = {
   flu_forecasts: "2022-09-01",
@@ -8,6 +9,10 @@ const HUB_SEASON_START_BY_VIEW = {
   covid_forecasts: "2022-09-01",
   metrocast_forecasts: "2022-09-01",
 };
+
+export const FLU_PEAK_AVAILABLE_DATE_START = "2025-11-01";
+export const FLU_PEAK_GROUND_TRUTH_START = "2025-08-01";
+export const FLU_PEAK_NORMALIZED_X_RANGE = ["2000-08-01", "2001-05-31"];
 
 const padNumber = (value) => String(value).padStart(2, "0");
 
@@ -43,6 +48,14 @@ export const alignDateToSeason = (dateString, anchorSeasonStartYear) => {
       : anchorSeasonStartYear + 1;
 
   return new Date(Date.UTC(alignedYear, month, day)).toISOString().slice(0, 10);
+};
+
+export const getNormalizedPeakDate = (dateString) => {
+  const date = toUtcDate(dateString);
+  const baseYear =
+    date.getUTCMonth() >= PEAK_SEASON_START_MONTH_INDEX ? 2000 : 2001;
+  date.setUTCFullYear(baseYear);
+  return date;
 };
 
 export const buildHistoricalGroundTruthTraces = ({

@@ -236,12 +236,12 @@ const ensureValidScenario = async (rng, datasetMeta) => {
       FORECASTLE_CONFIG.historyDisplay.default;
 
     if (historyConfig === "seasonStart") {
-      // Show since start of season (approximately July 1st)
+      // Show since start of season (September 1st)
       const forecastDateObj = new Date(forecastDate);
       const year = forecastDateObj.getFullYear();
-      // If we're in Jan-Jun, season started previous year
-      const seasonStartYear = forecastDateObj.getMonth() < 6 ? year - 1 : year;
-      const seasonStart = new Date(`${seasonStartYear}-07-01`).getTime();
+      // If we're before September, season started the previous year
+      const seasonStartYear = forecastDateObj.getMonth() < 8 ? year - 1 : year;
+      const seasonStart = new Date(`${seasonStartYear}-09-01`).getTime();
 
       recentSeries = historicalSeries.filter((entry) => {
         const entryTime = new Date(entry.date).getTime();

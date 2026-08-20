@@ -12,6 +12,7 @@ import {
   isPathBasedForecastView,
   parseForecastUrlState,
 } from "../utils/forecastRoutes";
+import { FLU_PEAK_AVAILABLE_DATE_START } from "../utils/forecastSeasons";
 
 const METRO_STATE_MAP = {
   Colorado: "CO",
@@ -390,7 +391,6 @@ export const ViewProvider = ({ children }) => {
   );
   const [showOtherGroundTruthSeasons, setShowOtherGroundTruthSeasons] =
     useState(() => urlManager.getAdvancedParams().showOtherGroundTruthSeasons);
-  const CURRENT_FLU_SEASON_START = "2025-11-01"; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
 
   const {
     data,
@@ -468,7 +468,7 @@ export const ViewProvider = ({ children }) => {
   const availableDatesToExpose = useMemo(() => {
     if (viewType === "flu_peak") {
       return (availablePeakDates || []).filter(
-        (date) => date >= CURRENT_FLU_SEASON_START,
+        (date) => date >= FLU_PEAK_AVAILABLE_DATE_START,
       );
     }
     return availableDates || [];
@@ -951,7 +951,7 @@ export const ViewProvider = ({ children }) => {
     handleTargetSelect,
     peaks,
     availablePeakDates: (availablePeakDates || []).filter(
-      (date) => date >= CURRENT_FLU_SEASON_START,
+      (date) => date >= FLU_PEAK_AVAILABLE_DATE_START,
     ),
     availablePeakModels,
     chartScale,
