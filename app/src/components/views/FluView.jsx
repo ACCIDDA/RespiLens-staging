@@ -22,9 +22,13 @@ const FluView = ({
   peaks,
   availablePeakDates,
   availablePeakModels,
-  peakLocation,
 }) => {
-  const { chartScale, intervalVisibility, showLegend } = useView();
+  const {
+    chartScale,
+    intervalVisibility,
+    showLegend,
+    showOtherGroundTruthSeasons,
+  } = useView();
   const forecasts = data?.forecasts;
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
@@ -224,10 +228,10 @@ const FluView = ({
           setSelectedModels={setSelectedModels}
           selectedDates={selectedDates}
           windowSize={windowSize}
-          peakLocation={peakLocation}
           chartScale={chartScale}
           intervalVisibility={intervalVisibility}
           showLegend={showLegend}
+          showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
         />
       </>
     );
