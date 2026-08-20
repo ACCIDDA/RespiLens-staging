@@ -27,6 +27,8 @@ const ForecastChartControls = ({
   setIntervalVisibility,
   showLegend,
   setShowLegend,
+  showOtherGroundTruthSeasons = false,
+  setShowOtherGroundTruthSeasons = null,
   showIntervals = true,
   intervalOptions = INTERVAL_OPTIONS,
 }) => {
@@ -89,6 +91,23 @@ const ForecastChartControls = ({
           offLabel="Off"
         />
       </Group>
+      {typeof setShowOtherGroundTruthSeasons === "function" && (
+        <Group align="center" gap="md">
+          <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
+            Other GT
+          </Text>
+          <Switch
+            checked={showOtherGroundTruthSeasons}
+            onChange={(event) =>
+              setShowOtherGroundTruthSeasons(event.currentTarget.checked)
+            }
+            size="sm"
+            onLabel="On"
+            offLabel="Off"
+            label="Show other seasons"
+          />
+        </Group>
+      )}
     </Stack>
   );
 };

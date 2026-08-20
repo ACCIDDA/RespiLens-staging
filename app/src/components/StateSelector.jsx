@@ -88,6 +88,8 @@ const StateSelector = () => {
     setIntervalVisibility,
     showLegend,
     setShowLegend,
+    showOtherGroundTruthSeasons,
+    setShowOtherGroundTruthSeasons,
   } = useView();
 
   const [states, setStates] = useState([]);
@@ -301,6 +303,8 @@ const StateSelector = () => {
                 setIntervalVisibility={setIntervalVisibility}
                 showLegend={showLegend}
                 setShowLegend={setShowLegend}
+                showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
+                setShowOtherGroundTruthSeasons={setShowOtherGroundTruthSeasons}
                 showIntervals={viewType !== "nhsnall" && viewType !== "nsspall"}
               />
             </Accordion.Panel>

@@ -61,6 +61,7 @@ const MetroPlotCard = ({
   chartScale,
   intervalVisibility,
   showLegend = true,
+  showOtherGroundTruthSeasons = false,
 }) => {
   const groundTruth = locationData?.ground_truth;
   const forecasts = locationData?.forecasts;
@@ -106,7 +107,11 @@ const MetroPlotCard = ({
     return (value) => transformValueForScale(value, normalizedChartScale);
   }, [normalizedChartScale]);
 
-  const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
+  const {
+    traces: projectionsData,
+    rawYRange,
+    hasForecastTraces,
+  } = useQuantileForecastTraces({
     groundTruth,
     forecasts,
     selectedDates,
@@ -125,6 +130,8 @@ const MetroPlotCard = ({
     showMedian,
     show50,
     show95,
+    showOtherGroundTruthSeasons,
+    viewType: "metrocast_forecasts",
     transformY: manualScaleTransform,
     groundTruthHoverFormatter: manualScaleTransform
       ? (value) => Number(value).toFixed(2)
@@ -154,7 +161,7 @@ const MetroPlotCard = ({
     });
   }, [normalizedChartScale, rawYRange]);
 
-  const hasForecasts = projectionsData.length > 1;
+  const hasForecasts = hasForecastTraces;
 
   const PlotContent = (
     <>
@@ -366,6 +373,7 @@ const MetroCastView = ({
     chartScale,
     intervalVisibility,
     showLegend,
+    showOtherGroundTruthSeasons,
     viewType,
   } = useView();
   const [childData, setChildData] = useState({});
@@ -459,6 +467,7 @@ const MetroCastView = ({
         chartScale={chartScale}
         intervalVisibility={intervalVisibility}
         showLegend={showLegend}
+        showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
       />
       {stateCode && (
         <Stack gap="md">
@@ -490,6 +499,7 @@ const MetroCastView = ({
                       chartScale={chartScale}
                       intervalVisibility={intervalVisibility}
                       showLegend={showLegend}
+                      showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
                     />
                   </UnstyledButton>
                 ))}

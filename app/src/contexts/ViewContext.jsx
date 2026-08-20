@@ -388,6 +388,8 @@ export const ViewProvider = ({ children }) => {
   const [showLegend, setShowLegend] = useState(
     () => urlManager.getAdvancedParams().showLegend,
   );
+  const [showOtherGroundTruthSeasons, setShowOtherGroundTruthSeasons] =
+    useState(() => urlManager.getAdvancedParams().showOtherGroundTruthSeasons);
   const CURRENT_FLU_SEASON_START = "2025-11-01"; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
 
   const {
@@ -807,6 +809,7 @@ export const ViewProvider = ({ children }) => {
       chartScale: urlScale,
       intervalVisibility: urlIntervals,
       showLegend: urlLegend,
+      showOtherGroundTruthSeasons: urlShowOtherGroundTruthSeasons,
     } = urlManager.getAdvancedParams();
     if (urlScale !== chartScale) {
       setChartScale(urlScale);
@@ -817,6 +820,9 @@ export const ViewProvider = ({ children }) => {
     if (urlLegend !== showLegend) {
       setShowLegend(urlLegend);
     }
+    if (urlShowOtherGroundTruthSeasons !== showOtherGroundTruthSeasons) {
+      setShowOtherGroundTruthSeasons(urlShowOtherGroundTruthSeasons);
+    }
   }, [
     searchParams,
     location.pathname,
@@ -825,6 +831,7 @@ export const ViewProvider = ({ children }) => {
     chartScale,
     intervalVisibility,
     showLegend,
+    showOtherGroundTruthSeasons,
   ]);
 
   useEffect(() => {
@@ -879,6 +886,18 @@ export const ViewProvider = ({ children }) => {
       setShowLegend(nextShowLegend);
       if (isForecastPage) {
         urlManager.updateAdvancedParams({ showLegend: nextShowLegend });
+      }
+    },
+    [urlManager, isForecastPage],
+  );
+
+  const setShowOtherGroundTruthSeasonsWithUrl = useCallback(
+    (nextValue) => {
+      setShowOtherGroundTruthSeasons(nextValue);
+      if (isForecastPage) {
+        urlManager.updateAdvancedParams({
+          showOtherGroundTruthSeasons: nextValue,
+        });
       }
     },
     [urlManager, isForecastPage],
@@ -941,6 +960,8 @@ export const ViewProvider = ({ children }) => {
     setIntervalVisibility: setIntervalVisibilityWithUrl,
     showLegend,
     setShowLegend: setShowLegendWithUrl,
+    showOtherGroundTruthSeasons,
+    setShowOtherGroundTruthSeasons: setShowOtherGroundTruthSeasonsWithUrl,
   };
 
   return (

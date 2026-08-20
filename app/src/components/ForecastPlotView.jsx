@@ -19,6 +19,11 @@ import { useView } from "../hooks/useView";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
 import { getOfficialModels } from "../utils/forecastleScoring";
+import {
+  getHubSeasonStartDate,
+  getSeasonDateRange,
+  getSeasonStartYear,
+} from "../utils/forecastSeasons";
 
 const FORECAST_DATASET_KEYS_BY_VIEW = {
   fludetailed: "flusight",
@@ -56,7 +61,13 @@ const ForecastPlotView = ({
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
   const { colorScheme } = useMantineColorScheme();
-  const { chartScale, intervalVisibility, showLegend, viewType } = useView();
+  const {
+    chartScale,
+    intervalVisibility,
+    showLegend,
+    showOtherGroundTruthSeasons,
+    viewType,
+  } = useView();
   const stateName = data?.metadata?.location_name;
   const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
 
@@ -122,7 +133,11 @@ const ForecastPlotView = ({
     [resolvedForecastTarget],
   );
 
-  const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
+  const {
+    traces: projectionsData,
+    rawYRange,
+    hasForecastTraces,
+  } = useQuantileForecastTraces({
     groundTruth,
     forecasts,
     selectedDates,
@@ -140,6 +155,8 @@ const ForecastPlotView = ({
     showMedian,
     show50,
     show95,
+    showOtherGroundTruthSeasons,
+    viewType,
     transformY: manualScaleTransform,
     baselineModelName,
     groundTruthHoverFormatter: manualScaleTransform
@@ -236,6 +253,43 @@ const ForecastPlotView = ({
     return buildLog2Ticks({ rawRange: rawYRange });
   }, [normalizedChartScale, rawYRange]);
 
+  const seasonDividerShapes = useMemo(() => {
+    if (!showOtherGroundTruthSeasons || !groundTruth?.dates?.length) {
+      return [];
+    }
+
+    const hubSeasonStartDate = getHubSeasonStartDate(viewType);
+    const dividerYears = Array.from(
+      new Set(
+        groundTruth.dates
+          .filter((dateString) =>
+            hubSeasonStartDate ? dateString >= hubSeasonStartDate : true,
+          )
+          .map((dateString) => getSeasonStartYear(dateString)),
+      ),
+    )
+      .sort((a, b) => a - b)
+      .slice(1);
+
+    return dividerYears.map((seasonStartYear) => {
+      const { start } = getSeasonDateRange(seasonStartYear);
+      return {
+        type: "line",
+        x0: start,
+        x1: start,
+        y0: 0,
+        y1: 1,
+        yref: "paper",
+        line: {
+          color: colorScheme === "dark" ? "#495057" : "#ced4da",
+          width: 1,
+          dash: "dot",
+        },
+        layer: "below",
+      };
+    });
+  }, [colorScheme, groundTruth, showOtherGroundTruthSeasons, viewType]);
+
   const layout = useMemo(() => {
     const baseLayout = {
       autosize: true,
@@ -314,22 +368,25 @@ const ForecastPlotView = ({
               ? log2Ticks.ticktext
               : undefined,
       },
-      shapes: selectedDates.map((date) => {
-        const shiftedDate = shiftDateStringByDays(date, -3);
-        return {
-          type: "line",
-          x0: shiftedDate,
-          x1: shiftedDate,
-          y0: 0,
-          y1: 1,
-          yref: "paper",
-          line: {
-            color: "red",
-            width: 1,
-            dash: "dash",
-          },
-        };
-      }),
+      shapes: [
+        ...seasonDividerShapes,
+        ...selectedDates.map((date) => {
+          const shiftedDate = shiftDateStringByDays(date, -3);
+          return {
+            type: "line",
+            x0: shiftedDate,
+            x1: shiftedDate,
+            y0: 0,
+            y1: 1,
+            yref: "paper",
+            line: {
+              color: "red",
+              width: 1,
+              dash: "dash",
+            },
+          };
+        }),
+      ],
     };
 
     if (layoutOverrides) {
@@ -350,6 +407,7 @@ const ForecastPlotView = ({
     sqrtTicks,
     log2Ticks,
     showLegend,
+    seasonDividerShapes,
   ]);
 
   const config = useMemo(() => {
@@ -404,7 +462,7 @@ const ForecastPlotView = ({
     return baseConfig;
   }, [calculateYRange, configOverrides]);
 
-  const hasForecasts = projectionsData.length > 1;
+  const hasForecasts = hasForecastTraces;
   if (requireTarget && !selectedTarget) {
     return (
       <Stack align="center" justify="center" style={{ height: "300px" }}>
