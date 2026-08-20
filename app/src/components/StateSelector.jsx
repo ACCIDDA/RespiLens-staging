@@ -305,6 +305,9 @@ const StateSelector = () => {
                 setShowLegend={setShowLegend}
                 showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
                 setShowOtherGroundTruthSeasons={setShowOtherGroundTruthSeasons}
+                disableOtherGroundTruthSeasons={
+                  viewType === "nhsnall" || viewType === "nsspall"
+                }
                 showIntervals={viewType !== "nhsnall" && viewType !== "nsspall"}
               />
             </Accordion.Panel>

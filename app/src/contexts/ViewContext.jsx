@@ -802,12 +802,25 @@ export const ViewProvider = ({ children }) => {
     if (!isForecastPage) {
       return;
     }
+
+    const isSurveillanceView = viewType === "nhsnall" || viewType === "nsspall";
     const {
       chartScale: urlScale,
       intervalVisibility: urlIntervals,
       showLegend: urlLegend,
       showOtherGroundTruthSeasons: urlShowOtherGroundTruthSeasons,
     } = urlManager.getAdvancedParams();
+
+    if (isSurveillanceView && urlShowOtherGroundTruthSeasons) {
+      if (showOtherGroundTruthSeasons) {
+        setShowOtherGroundTruthSeasons(false);
+      }
+      urlManager.updateAdvancedParams({
+        showOtherGroundTruthSeasons: false,
+      });
+      return;
+    }
+
     if (urlScale !== chartScale) {
       setChartScale(urlScale);
     }
@@ -825,6 +838,7 @@ export const ViewProvider = ({ children }) => {
     location.pathname,
     urlManager,
     isForecastPage,
+    viewType,
     chartScale,
     intervalVisibility,
     showLegend,
