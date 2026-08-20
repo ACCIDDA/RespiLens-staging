@@ -22,21 +22,16 @@ import {
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
+import {
+  FLU_PEAK_GROUND_TRUTH_START,
+  FLU_PEAK_NORMALIZED_X_RANGE,
+  getNormalizedPeakDate,
+} from "../../utils/forecastSeasons";
 
 const NSSP_COLUMN_LABELS = {
   percent_visits_covid: "COVID-19",
   percent_visits_influenza: "Influenza",
   percent_visits_rsv: "RSV",
-};
-
-const CURRENT_FLU_SEASON_START = "2025-08-01";
-
-const getNormalizedPeakDate = (dateStr) => {
-  const date = new Date(dateStr);
-  const month = date.getUTCMonth();
-  const baseYear = month >= 7 ? 2000 : 2001;
-  date.setUTCFullYear(baseYear);
-  return date;
 };
 
 const toRgba = (hex, alpha) => {
@@ -173,7 +168,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     if (groundTruth?.["wk inc flu hosp"] && groundTruth?.dates) {
       const currentSeason = groundTruth.dates.reduce(
         (accumulator, date, index) => {
-          if (date >= CURRENT_FLU_SEASON_START) {
+          if (date >= FLU_PEAK_GROUND_TRUTH_START) {
             const rawValue = groundTruth["wk inc flu hosp"][index];
             accumulator.x.push(getNormalizedPeakDate(date));
             accumulator.y.push(transformY(rawValue));
@@ -341,7 +336,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
             : data.series.dates[data.series.dates.length - 1],
         ];
       } else if (isFluPeak) {
-        xRange = ["2000-08-01", "2001-05-31"];
+        xRange = FLU_PEAK_NORMALIZED_X_RANGE;
       } else if (plot.settings.dates?.length > 0) {
         const sortedDates = [...plot.settings.dates].sort();
         const earliestDate = new Date(sortedDates[0]);

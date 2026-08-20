@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { MODEL_COLORS, getModelColor } from "../config/datasets";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
 import { calculateRelativeWIS, calculateWIS } from "../utils/forecastleScoring";
+import { buildHistoricalGroundTruthTraces } from "../utils/forecastSeasons";
 
 const defaultFormatValue = (value) =>
   value.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -147,6 +148,7 @@ const useQuantileForecastTraces = ({
   transformY = null,
   groundTruthHoverFormatter = null,
   baselineModelName = null,
+  showOtherGroundTruthSeasons = false,
 }) => {
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
@@ -160,13 +162,13 @@ const useQuantileForecastTraces = ({
 
   return useMemo(() => {
     if (!groundTruth || !forecasts || selectedDates.length === 0 || !target) {
-      return { traces: [], rawYRange: null };
+      return { traces: [], rawYRange: null, hasForecastTraces: false };
     }
 
     const groundTruthValues = groundTruth[target];
     if (!groundTruthValues) {
       console.warn(`Ground truth data not found for target: ${target}`);
-      return { traces: [], rawYRange: null };
+      return { traces: [], rawYRange: null, hasForecastTraces: false };
     }
 
     let rawMin = Infinity;
@@ -467,10 +469,29 @@ const useQuantileForecastTraces = ({
       }),
     );
 
+    const historicalGroundTruthTraces = showOtherGroundTruthSeasons
+      ? buildHistoricalGroundTruthTraces({
+          groundTruth,
+          target,
+          transformY,
+          groundTruthLineWidth,
+          groundTruthHoverFormatter,
+          valueSuffix,
+        })
+      : [];
+
     const rawYRange =
       rawMin === Infinity || rawMax === -Infinity ? null : [rawMin, rawMax];
 
-    return { traces: [groundTruthTrace, ...modelTraces], rawYRange };
+    return {
+      traces: [
+        groundTruthTrace,
+        ...historicalGroundTruthTraces,
+        ...modelTraces,
+      ],
+      rawYRange,
+      hasForecastTraces: modelTraces.length > 0,
+    };
   }, [
     groundTruth,
     forecasts,
@@ -497,7 +518,9 @@ const useQuantileForecastTraces = ({
     intervalVisibility,
     transformY,
     groundTruthHoverFormatter,
+    baselineModelName,
     stableModelOrder,
+    showOtherGroundTruthSeasons,
   ]);
 };
 

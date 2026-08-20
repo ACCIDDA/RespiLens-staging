@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Stack, useMantineColorScheme } from "@mantine/core";
 import Plot from "react-plotly.js";
+import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
 import { CHART_CONSTANTS } from "../constants/chart";
-import { getDataPath } from "../utils/paths";
 import {
   buildLog2Ticks,
   buildSqrtTicks,
@@ -16,6 +16,120 @@ import {
 } from "../utils/scaleUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
+
+const FLU_PEAK_SEASON_START_MONTH_INDEX = 7;
+const FLU_PEAK_SEASON_START_MONTH = 8;
+const FLU_PEAK_SEASON_START_DAY = 1;
+
+const toUtcDate = (dateString) => {
+  const [year, month, day] = String(dateString).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+const toIsoDate = (date) => date.toISOString().slice(0, 10);
+
+const shiftUtcDateByMonths = (dateString, months) => {
+  const date = toUtcDate(dateString);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return toIsoDate(date);
+};
+
+const padNumber = (value) => String(value).padStart(2, "0");
+
+const getFluPeakSeasonStartYear = (dateString) => {
+  const date = toUtcDate(dateString);
+  const year = date.getUTCFullYear();
+  return date.getUTCMonth() >= FLU_PEAK_SEASON_START_MONTH_INDEX
+    ? year
+    : year - 1;
+};
+
+const getFluPeakSeasonStartDate = (dateString) => {
+  const seasonStartYear = getFluPeakSeasonStartYear(dateString);
+  return `${seasonStartYear}-${padNumber(FLU_PEAK_SEASON_START_MONTH)}-${padNumber(FLU_PEAK_SEASON_START_DAY)}`;
+};
+
+const alignDateToFluPeakSeason = (dateString, anchorSeasonStartYear) => {
+  const date = toUtcDate(dateString);
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  const alignedYear =
+    month >= FLU_PEAK_SEASON_START_MONTH_INDEX
+      ? anchorSeasonStartYear
+      : anchorSeasonStartYear + 1;
+
+  return new Date(Date.UTC(alignedYear, month, day)).toISOString().slice(0, 10);
+};
+
+const buildHistoricalPeakGroundTruthTraces = ({
+  groundTruth,
+  showOtherGroundTruthSeasons,
+}) => {
+  if (!showOtherGroundTruthSeasons || !groundTruth?.["wk inc flu hosp"]) {
+    return [];
+  }
+
+  const seasons = new Map();
+  (groundTruth.dates || []).forEach((dateString, index) => {
+    const value = groundTruth["wk inc flu hosp"][index];
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+      return;
+    }
+
+    const seasonStartYear = getFluPeakSeasonStartYear(dateString);
+    if (!seasons.has(seasonStartYear)) {
+      seasons.set(seasonStartYear, []);
+    }
+
+    seasons.get(seasonStartYear).push({
+      actualDate: dateString,
+      value,
+    });
+  });
+
+  const seasonStartYears = Array.from(seasons.keys()).sort((a, b) => a - b);
+  if (seasonStartYears.length <= 1) {
+    return [];
+  }
+
+  const traces = [];
+  let showLegend = true;
+
+  seasonStartYears.forEach((anchorSeasonStartYear) => {
+    seasonStartYears.forEach((sourceSeasonStartYear) => {
+      if (anchorSeasonStartYear === sourceSeasonStartYear) {
+        return;
+      }
+
+      const sourcePoints = seasons.get(sourceSeasonStartYear) || [];
+      traces.push({
+        x: sourcePoints.map((point) =>
+          alignDateToFluPeakSeason(point.actualDate, anchorSeasonStartYear),
+        ),
+        y: sourcePoints.map((point) => point.value),
+        type: "scatter",
+        mode: "lines",
+        name: "Historical Seasons",
+        legendgroup: "history",
+        showlegend: showLegend,
+        line: { color: "#d3d3d3", width: 1.5 },
+        customdata: sourcePoints.map((point) => [
+          point.actualDate,
+          `${sourceSeasonStartYear}-${sourceSeasonStartYear + 1}`,
+          point.value,
+        ]),
+        hovertemplate:
+          "<b>Historical season</b><br>" +
+          "Source season: %{customdata[1]}<br>" +
+          "Original date: %{customdata[0]}<br>" +
+          "Hospitalizations: %{customdata[2]}<extra></extra>",
+      });
+      showLegend = false;
+    });
+  });
+
+  return traces;
+};
 
 // helper to convert Hex to RGBA for opacity control
 const hexToRgba = (hex, alpha) => {
@@ -42,7 +156,6 @@ const FluPeak = ({
   peaks,
   peakDates,
   peakModels,
-  peakLocation,
   windowSize,
   selectedModels,
   setSelectedModels,
@@ -50,10 +163,15 @@ const FluPeak = ({
   chartScale = "linear",
   intervalVisibility = { median: true, ci50: true, ci95: true },
   showLegend = true,
+  showOtherGroundTruthSeasons = false,
 }) => {
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
-  const [nhsnData, setNhsnData] = useState(null);
+  const [xAxisRange, setXAxisRange] = useState(null);
+  const plotRef = useRef(null);
+  const getDefaultRangeRef = useRef(() => null);
+  const plotDataRef = useRef([]);
+  const isResettingRef = useRef(false);
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
@@ -67,38 +185,6 @@ const FluPeak = ({
     stableModelOrderRef.current = nextOrder;
     return nextOrder;
   }, [selectedModels]);
-
-  const getNormalizedDate = (dateStr) => {
-    const d = new Date(dateStr);
-    const month = d.getUTCMonth();
-    const baseYear = month >= 7 ? 2000 : 2001;
-    d.setUTCFullYear(baseYear);
-    return d;
-  };
-
-  useEffect(() => {
-    if (!peakLocation) return;
-    const fetchNhsnData = async () => {
-      try {
-        const dataUrl = getDataPath(`nhsn/${peakLocation}_nhsn.json`);
-        const response = await fetch(dataUrl);
-        if (!response.ok) {
-          setNhsnData(null);
-          return;
-        }
-        const json = await response.json();
-        const dates = json.series?.dates || [];
-        const admissions = json.series?.["Total Influenza Admissions"] || [];
-
-        if (dates.length > 0 && admissions.length > 0) {
-          setNhsnData({ dates, admissions });
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchNhsnData();
-  }, [peakLocation]);
 
   const activePeakModels = useMemo(() => {
     const activeModelSet = new Set();
@@ -120,88 +206,99 @@ const FluPeak = ({
     return activeModelSet;
   }, [peaks, selectedDates, peakDates]);
 
+  const fullDataRange = useMemo(() => {
+    const dateCandidates = [
+      ...(groundTruth?.dates || []),
+      ...(peakDates || []),
+    ].sort();
+
+    if (!dateCandidates.length) {
+      return null;
+    }
+
+    return [dateCandidates[0], dateCandidates[dateCandidates.length - 1]];
+  }, [groundTruth, peakDates]);
+
+  const defaultRange = useMemo(() => {
+    if (!fullDataRange) {
+      return null;
+    }
+
+    const end = fullDataRange[1];
+    const start = shiftUtcDateByMonths(end, -9);
+
+    return [start < fullDataRange[0] ? fullDataRange[0] : start, end];
+  }, [fullDataRange]);
+
+  const rangesliderRange = useMemo(() => fullDataRange, [fullDataRange]);
+
+  const calculateYRange = useCallback((chartData, xRange) => {
+    if (!chartData?.length || !xRange) {
+      return null;
+    }
+
+    let minY = Infinity;
+    let maxY = -Infinity;
+    const [startX, endX] = xRange;
+    const startDate = new Date(startX);
+    const endDate = new Date(endX);
+
+    chartData.forEach((trace) => {
+      if (!trace.x || !trace.y) return;
+
+      for (let index = 0; index < trace.x.length; index += 1) {
+        const pointDate = new Date(trace.x[index]);
+        if (pointDate < startDate || pointDate > endDate) {
+          continue;
+        }
+
+        const value = Number(trace.y[index]);
+        if (Number.isNaN(value)) {
+          continue;
+        }
+
+        minY = Math.min(minY, value);
+        maxY = Math.max(maxY, value);
+      }
+    });
+
+    if (minY === Infinity || maxY === -Infinity) {
+      return null;
+    }
+
+    const padding = maxY * (CHART_CONSTANTS.Y_AXIS_PADDING_PERCENT / 100);
+    return [Math.max(0, minY - padding), maxY + padding];
+  }, []);
+
   const { plotData, rawYRange } = useMemo(() => {
     const traces = [];
 
-    // Historic data (NHSN)
-    if (nhsnData && nhsnData.dates && nhsnData.admissions) {
-      const seasons = {};
-      nhsnData.dates.forEach((dateStr, index) => {
-        const date = new Date(dateStr);
-        const year = date.getUTCFullYear();
-        const month = date.getUTCMonth() + 1;
-        const seasonStartYear = month >= 8 ? year : year - 1;
-        const seasonKey = `${seasonStartYear}-${seasonStartYear + 1}`;
+    traces.push(
+      ...buildHistoricalPeakGroundTruthTraces({
+        groundTruth,
+        showOtherGroundTruthSeasons,
+      }),
+    );
 
-        if (!seasons[seasonKey]) seasons[seasonKey] = { x: [], y: [] };
-        seasons[seasonKey].x.push(getNormalizedDate(dateStr));
-        seasons[seasonKey].y.push(nhsnData.admissions[index]);
-      });
-      const currentSeasonKey = "2025-2026";
-      const sortedKeys = Object.keys(seasons)
-        .filter((key) => key !== currentSeasonKey)
-        .sort();
-
-      // Dummy data for legend
-      if (sortedKeys.length > 0) {
-        const firstKey = sortedKeys[0];
-        traces.push({
-          x: [seasons[firstKey].x[0]],
-          y: [seasons[firstKey].y[0]],
-          name: "Historical Seasons",
-          legendgroup: "history",
-          showlegend: true,
-          mode: "lines",
-          line: { color: "#d3d3d3", width: 1.5 },
-          hoverinfo: "skip",
-        });
-      }
-
-      sortedKeys.forEach((seasonKey) => {
-        traces.push({
-          x: seasons[seasonKey].x,
-          y: seasons[seasonKey].y,
-          name: `${seasonKey} Season`,
-          legendgroup: "history",
-          type: "scatter",
-          mode: "lines",
-          line: { color: "#d3d3d3", width: 1.5 },
-          connectgaps: true,
-          showlegend: false,
-          hoverinfo: "name+y",
-        });
-      });
-    }
-
-    // Current season (gt data)
+    // Continuous ground truth data
     const targetKey = "wk inc flu hosp";
-    const SEASON_START_DATE = "2025-08-01";
     if (groundTruth && groundTruth[targetKey] && groundTruth.dates) {
-      const { dates, values } = groundTruth.dates.reduce(
-        (acc, date, index) => {
-          if (date >= SEASON_START_DATE) {
-            acc.dates.push(getNormalizedDate(date));
-            acc.values.push(groundTruth[targetKey][index]);
-          }
-          return acc;
-        },
-        { dates: [], values: [] },
-      );
-
+      const dates = [...groundTruth.dates];
+      const values = [...groundTruth[targetKey]];
       if (dates.length > 0) {
         traces.push({
           x: dates,
           y: values,
-          name: "Current season",
+          name: "Observed",
           type: "scatter",
           mode: "lines+markers",
           line: { color: "black", width: 2, dash: "dash" },
           showlegend: true,
           marker: { size: 4, color: "black" },
           hovertemplate:
-            "<b>Current Season</b><br>" +
+            "<b>Observed</b><br>" +
             "Hospitalizations: %{y}<br>" +
-            "Date: %{x|%b %d}<extra></extra>",
+            "Date: %{x}<extra></extra>",
         });
       }
     }
@@ -288,7 +385,7 @@ const FluPeak = ({
           }
           if (!bestDateStr) return;
 
-          const normalizedDate = getNormalizedDate(bestDateStr);
+          const normalizedDate = bestDateStr;
           // Gradient Opacity Calculation
           const minOpacity = 0.4;
           const alpha =
@@ -346,10 +443,7 @@ const FluPeak = ({
             // 95% horizontal whisker (dates)
             if (show95 && lowDate95 && highDate95) {
               traces.push({
-                x: [
-                  getNormalizedDate(lowDate95),
-                  getNormalizedDate(highDate95),
-                ],
+                x: [lowDate95, highDate95],
                 y: [medianVal, medianVal],
                 mode: "lines+markers",
                 line: {
@@ -372,10 +466,7 @@ const FluPeak = ({
             // 50% horizontal whisker (dates)
             if (show50 && lowDate50 && highDate50) {
               traces.push({
-                x: [
-                  getNormalizedDate(lowDate50),
-                  getNormalizedDate(highDate50),
-                ],
+                x: [lowDate50, highDate50],
                 y: [medianVal, medianVal],
                 mode: "lines",
                 line: {
@@ -390,7 +481,7 @@ const FluPeak = ({
             }
           }
           if (showMedian) {
-            xValues.push(getNormalizedDate(bestDateStr));
+            xValues.push(bestDateStr);
             yValues.push(medianVal);
             pointColors.push(dynamicColor);
           }
@@ -500,7 +591,6 @@ const FluPeak = ({
     return { plotData: scaledTraces, rawYRange: rawRange };
   }, [
     groundTruth,
-    nhsnData,
     peaks,
     selectedModels,
     selectedDates,
@@ -508,9 +598,41 @@ const FluPeak = ({
     showMedian,
     show50,
     show95,
+    showOtherGroundTruthSeasons,
     normalizedChartScale,
     stableModelOrder,
   ]);
+
+  useEffect(() => {
+    getDefaultRangeRef.current = () => defaultRange;
+    plotDataRef.current = plotData;
+  }, [defaultRange, plotData]);
+
+  const displayedYRange = useMemo(() => {
+    const currentRange = xAxisRange || defaultRange;
+    if (!plotData.length || !currentRange) {
+      return null;
+    }
+
+    return calculateYRange(plotData, currentRange);
+  }, [plotData, xAxisRange, defaultRange, calculateYRange]);
+
+  const handlePlotUpdate = useCallback(
+    (figure) => {
+      if (isResettingRef.current) {
+        isResettingRef.current = false;
+        return;
+      }
+
+      if (figure && figure["xaxis.range"]) {
+        const nextXRange = figure["xaxis.range"];
+        if (JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)) {
+          setXAxisRange(nextXRange);
+        }
+      }
+    },
+    [xAxisRange],
+  );
 
   const sqrtTicks = useMemo(() => {
     if (normalizedChartScale !== "sqrt") return null;
@@ -563,14 +685,30 @@ const FluPeak = ({
       hoverlabel: { namelength: -1 },
       dragmode: false,
       xaxis: {
-        tickformat: "%b",
+        range: xAxisRange || defaultRange,
+        rangeslider: rangesliderRange ? { range: rangesliderRange } : undefined,
+        rangeselector: {
+          buttons: [
+            { count: 1, label: "1m", step: "month", stepmode: "backward" },
+            { count: 6, label: "6m", step: "month", stepmode: "backward" },
+            { step: "all", label: "all" },
+          ],
+        },
+        showline: true,
+        linewidth: 1,
+        linecolor: colorScheme === "dark" ? "#aaa" : "#444",
       },
       yaxis: {
         title: (() => {
           const baseTitle = "Flu Hospitalizations";
           return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
         })(),
-        rangemode: "tozero",
+        range: isPlotlyLogScale(normalizedChartScale)
+          ? undefined
+          : displayedYRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : displayedYRange === null,
         type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
         tickmode:
           (normalizedChartScale === "sqrt" && sqrtTicks) ||
@@ -593,15 +731,14 @@ const FluPeak = ({
 
       // dynamic gray shading section
       shapes: selectedDates.flatMap((dateStr) => {
-        const normalizedRefDate = getNormalizedDate(dateStr);
-        const seasonStart = new Date("2000-08-01");
+        const seasonStart = getFluPeakSeasonStartDate(dateStr);
         return [
           {
             type: "rect",
             xref: "x",
             yref: "paper",
             x0: seasonStart,
-            x1: normalizedRefDate,
+            x1: dateStr,
             y0: 0,
             y1: 1,
             fillcolor:
@@ -613,8 +750,8 @@ const FluPeak = ({
           },
           {
             type: "line",
-            x0: normalizedRefDate,
-            x1: normalizedRefDate,
+            x0: dateStr,
+            x1: dateStr,
             y0: 0,
             y1: 1,
             yref: "paper",
@@ -630,6 +767,10 @@ const FluPeak = ({
       colorScheme,
       windowSize,
       selectedDates,
+      defaultRange,
+      rangesliderRange,
+      xAxisRange,
+      displayedYRange,
       normalizedChartScale,
       sqrtTicks,
       log2Ticks,
@@ -645,13 +786,38 @@ const FluPeak = ({
       modeBarPosition: "left",
       scrollZoom: false,
       doubleClick: "reset",
-      modeBarButtonsToRemove: ["select2d", "lasso2d"],
+      modeBarButtonsToRemove: ["select2d", "lasso2d", "resetScale2d"],
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("peak-plot"),
       },
+      modeBarButtonsToAdd: [
+        {
+          name: "Reset view",
+          icon: Plotly.Icons.home,
+          click: function (gd) {
+            const currentDefaultRange = getDefaultRangeRef.current();
+            const currentPlotData = plotDataRef.current;
+
+            if (!currentDefaultRange) return;
+
+            const nextYRange = calculateYRange(
+              currentPlotData,
+              currentDefaultRange,
+            );
+            isResettingRef.current = true;
+            setXAxisRange(null);
+
+            Plotly.relayout(gd, {
+              "xaxis.range": currentDefaultRange,
+              "yaxis.range": nextYRange,
+              "yaxis.autorange": nextYRange === null,
+            });
+          },
+        },
+      ],
     }),
-    [],
+    [calculateYRange],
   );
 
   return (
@@ -663,11 +829,13 @@ const FluPeak = ({
             `}</style>
       <div style={{ width: "100%", minHeight: "400px" }}>
         <Plot
+          ref={plotRef}
           data={plotData}
           layout={layout}
           config={config}
           style={{ width: "100%", height: "100%" }}
           useResizeHandler={true}
+          onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
       <Stack gap={2}>

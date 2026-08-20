@@ -388,7 +388,8 @@ export const ViewProvider = ({ children }) => {
   const [showLegend, setShowLegend] = useState(
     () => urlManager.getAdvancedParams().showLegend,
   );
-  const CURRENT_FLU_SEASON_START = "2025-11-01"; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
+  const [showOtherGroundTruthSeasons, setShowOtherGroundTruthSeasons] =
+    useState(() => urlManager.getAdvancedParams().showOtherGroundTruthSeasons);
 
   const {
     data,
@@ -465,9 +466,7 @@ export const ViewProvider = ({ children }) => {
   // filter flu_peak dates based on current season
   const availableDatesToExpose = useMemo(() => {
     if (viewType === "flu_peak") {
-      return (availablePeakDates || []).filter(
-        (date) => date >= CURRENT_FLU_SEASON_START,
-      );
+      return availablePeakDates || [];
     }
     return availableDates || [];
   }, [viewType, availablePeakDates, availableDates]);
@@ -803,11 +802,25 @@ export const ViewProvider = ({ children }) => {
     if (!isForecastPage) {
       return;
     }
+
+    const isSurveillanceView = viewType === "nhsnall" || viewType === "nsspall";
     const {
       chartScale: urlScale,
       intervalVisibility: urlIntervals,
       showLegend: urlLegend,
+      showOtherGroundTruthSeasons: urlShowOtherGroundTruthSeasons,
     } = urlManager.getAdvancedParams();
+
+    if (isSurveillanceView && urlShowOtherGroundTruthSeasons) {
+      if (showOtherGroundTruthSeasons) {
+        setShowOtherGroundTruthSeasons(false);
+      }
+      urlManager.updateAdvancedParams({
+        showOtherGroundTruthSeasons: false,
+      });
+      return;
+    }
+
     if (urlScale !== chartScale) {
       setChartScale(urlScale);
     }
@@ -817,14 +830,19 @@ export const ViewProvider = ({ children }) => {
     if (urlLegend !== showLegend) {
       setShowLegend(urlLegend);
     }
+    if (urlShowOtherGroundTruthSeasons !== showOtherGroundTruthSeasons) {
+      setShowOtherGroundTruthSeasons(urlShowOtherGroundTruthSeasons);
+    }
   }, [
     searchParams,
     location.pathname,
     urlManager,
     isForecastPage,
+    viewType,
     chartScale,
     intervalVisibility,
     showLegend,
+    showOtherGroundTruthSeasons,
   ]);
 
   useEffect(() => {
@@ -884,6 +902,18 @@ export const ViewProvider = ({ children }) => {
     [urlManager, isForecastPage],
   );
 
+  const setShowOtherGroundTruthSeasonsWithUrl = useCallback(
+    (nextValue) => {
+      setShowOtherGroundTruthSeasons(nextValue);
+      if (isForecastPage) {
+        urlManager.updateAdvancedParams({
+          showOtherGroundTruthSeasons: nextValue,
+        });
+      }
+    },
+    [urlManager, isForecastPage],
+  );
+
   const contextValue = {
     selectedLocation,
     locationMessage,
@@ -931,9 +961,7 @@ export const ViewProvider = ({ children }) => {
     selectedTarget,
     handleTargetSelect,
     peaks,
-    availablePeakDates: (availablePeakDates || []).filter(
-      (date) => date >= CURRENT_FLU_SEASON_START,
-    ),
+    availablePeakDates: availablePeakDates || [],
     availablePeakModels,
     chartScale,
     setChartScale: setChartScaleWithUrl,
@@ -941,6 +969,8 @@ export const ViewProvider = ({ children }) => {
     setIntervalVisibility: setIntervalVisibilityWithUrl,
     showLegend,
     setShowLegend: setShowLegendWithUrl,
+    showOtherGroundTruthSeasons,
+    setShowOtherGroundTruthSeasons: setShowOtherGroundTruthSeasonsWithUrl,
   };
 
   return (
