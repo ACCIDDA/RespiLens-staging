@@ -15,7 +15,8 @@ const INTERVAL_OPTIONS = [
 
 const SCALE_OPTIONS = [
   { value: "linear", label: "Linear" },
-  { value: "log", label: "Log" },
+  { value: "log10", label: "Log10" },
+  { value: "log2", label: "Log2" },
   { value: "sqrt", label: "Sqrt" },
 ];
 

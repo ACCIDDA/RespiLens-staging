@@ -21,7 +21,14 @@ import {
 } from "../../utils/mapUtils";
 import { getDataPath } from "../../utils/paths";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
-import { buildSqrtTicks } from "../../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../../utils/scaleUtils";
 import { getDatasetTitleFromView } from "../../utils/datasetUtils";
 
 const METRO_STATE_MAP = {
@@ -90,11 +97,14 @@ const MetroPlotCard = ({
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
+  const normalizedChartScale = normalizeChartScale(chartScale);
 
-  const sqrtTransform = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
-    return (value) => Math.sqrt(Math.max(0, value));
-  }, [chartScale]);
+  const manualScaleTransform = useMemo(() => {
+    if (normalizedChartScale !== "sqrt" && normalizedChartScale !== "log2") {
+      return null;
+    }
+    return (value) => transformValueForScale(value, normalizedChartScale);
+  }, [normalizedChartScale]);
 
   const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
     groundTruth,
@@ -108,15 +118,15 @@ const MetroPlotCard = ({
     formatValue: (value) => value.toFixed(2),
     modelLineWidth: isSmall ? 1 : 2,
     modelMarkerSize: isSmall ? 3 : 6,
-    groundTruthLineWidth: isSmall ? 1 : 2,
+    groundTruthLineWidth: 1.5,
     groundTruthMarkerSize: isSmall ? 2 : 4,
     showLegendForFirstDate: showLegend && !isSmall,
     fillMissingQuantiles: true,
     showMedian,
     show50,
     show95,
-    transformY: sqrtTransform,
-    groundTruthHoverFormatter: sqrtTransform
+    transformY: manualScaleTransform,
+    groundTruthHoverFormatter: manualScaleTransform
       ? (value) => Number(value).toFixed(2)
       : null,
   });
@@ -129,12 +139,20 @@ const MetroPlotCard = ({
   }, [projectionsData, xAxisRange, defRange, calculateYRange]);
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({
       rawRange: rawYRange,
       formatValue: (value) => `${value.toFixed(2)}%`,
     });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({
+      rawRange: rawYRange,
+      formatValue: (value) => `${value.toFixed(2)}%`,
+    });
+  }, [normalizedChartScale, rawYRange]);
 
   const hasForecasts = projectionsData.length > 1;
 
@@ -211,9 +229,7 @@ const MetroPlotCard = ({
                       longName ||
                       selectedTarget ||
                       "Value";
-                    if (chartScale === "log") return `${baseTitle} (log)`;
-                    if (chartScale === "sqrt") return `${baseTitle} (sqrt)`;
-                    return baseTitle;
+                    return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
                   })(),
                   font: {
                     color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
@@ -221,24 +237,42 @@ const MetroPlotCard = ({
                   },
                 }
               : undefined,
-            range: chartScale === "log" ? undefined : yAxisRange,
-            autorange: chartScale === "log" ? true : yAxisRange === null,
-            type: chartScale === "log" ? "log" : "linear",
+            range: isPlotlyLogScale(normalizedChartScale)
+              ? undefined
+              : yAxisRange,
+            autorange: isPlotlyLogScale(normalizedChartScale)
+              ? true
+              : yAxisRange === null,
+            type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
             tickfont: {
               size: 9,
               color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
             },
-            tickformat: chartScale === "sqrt" ? undefined : ".2f",
-            ticksuffix: chartScale === "sqrt" ? undefined : "%",
-            tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+            tickformat:
+              normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
+                ? undefined
+                : ".2f",
+            ticksuffix:
+              normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
+                ? undefined
+                : "%",
+            tickmode:
+              (normalizedChartScale === "sqrt" && sqrtTicks) ||
+              (normalizedChartScale === "log2" && log2Ticks)
+                ? "array"
+                : undefined,
             tickvals:
-              chartScale === "sqrt" && sqrtTicks
+              normalizedChartScale === "sqrt" && sqrtTicks
                 ? sqrtTicks.tickvals
-                : undefined,
+                : normalizedChartScale === "log2" && log2Ticks
+                  ? log2Ticks.tickvals
+                  : undefined,
             ticktext:
-              chartScale === "sqrt" && sqrtTicks
+              normalizedChartScale === "sqrt" && sqrtTicks
                 ? sqrtTicks.ticktext
-                : undefined,
+                : normalizedChartScale === "log2" && log2Ticks
+                  ? log2Ticks.ticktext
+                  : undefined,
           },
           hovermode: isSmall ? false : "closest",
           hoverlabel: {

@@ -5,7 +5,15 @@ import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
 import { CHART_CONSTANTS } from "../constants/chart";
 import { getDataPath } from "../utils/paths";
-import { buildSqrtTicks, getYRangeFromTraces } from "../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  getYRangeFromTraces,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../utils/scaleUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
 
@@ -49,6 +57,7 @@ const FluPeak = ({
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
+  const normalizedChartScale = normalizeChartScale(chartScale);
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
     const nextOrder = extendStableModelOrder(
@@ -458,14 +467,16 @@ const FluPeak = ({
 
     const rawRange = getYRangeFromTraces(traces);
 
-    if (chartScale !== "sqrt") {
+    if (normalizedChartScale !== "sqrt" && normalizedChartScale !== "log2") {
       return { plotData: traces, rawYRange: rawRange };
     }
 
     const scaledTraces = traces.map((trace) => {
       if (!Array.isArray(trace.y)) return trace;
       const originalY = trace.y;
-      const scaledY = originalY.map((value) => Math.sqrt(Math.max(0, value)));
+      const scaledY = originalY.map((value) =>
+        transformValueForScale(value, normalizedChartScale),
+      );
       const nextTrace = { ...trace, y: scaledY };
 
       if (trace.hovertemplate && trace.hovertemplate.includes("%{y}")) {
@@ -497,17 +508,25 @@ const FluPeak = ({
     showMedian,
     show50,
     show95,
-    chartScale,
+    normalizedChartScale,
     stableModelOrder,
   ]);
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({
       rawRange: rawYRange,
       formatValue: (value) => Number(value).toLocaleString(),
     });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({
+      rawRange: rawYRange,
+      formatValue: (value) => Number(value).toLocaleString(),
+    });
+  }, [normalizedChartScale, rawYRange]);
 
   const layout = useMemo(
     () => ({
@@ -549,17 +568,27 @@ const FluPeak = ({
       yaxis: {
         title: (() => {
           const baseTitle = "Flu Hospitalizations";
-          if (chartScale === "log") return `${baseTitle} (log)`;
-          if (chartScale === "sqrt") return `${baseTitle} (sqrt)`;
-          return baseTitle;
+          return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
         })(),
         rangemode: "tozero",
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
       },
 
       // dynamic gray shading section
@@ -597,7 +626,15 @@ const FluPeak = ({
         ];
       }),
     }),
-    [colorScheme, windowSize, selectedDates, chartScale, sqrtTicks, showLegend],
+    [
+      colorScheme,
+      windowSize,
+      selectedDates,
+      normalizedChartScale,
+      sqrtTicks,
+      log2Ticks,
+      showLegend,
+    ],
   );
 
   const config = useMemo(

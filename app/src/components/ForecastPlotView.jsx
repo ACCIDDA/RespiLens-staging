@@ -7,7 +7,14 @@ import TitleRow from "./TitleRow";
 import { CHART_CONSTANTS } from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
-import { buildSqrtTicks } from "../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
@@ -66,11 +73,14 @@ const ForecastPlotView = ({
   const show95 = intervalVisibility?.ci95 ?? true;
   const baselineModelName =
     getOfficialModels(FORECAST_DATASET_KEYS_BY_VIEW[viewType]).baseline || null;
+  const normalizedChartScale = normalizeChartScale(chartScale);
 
-  const sqrtTransform = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
-    return (value) => Math.sqrt(Math.max(0, value));
-  }, [chartScale]);
+  const manualScaleTransform = useMemo(() => {
+    if (normalizedChartScale !== "sqrt" && normalizedChartScale !== "log2") {
+      return null;
+    }
+    return (value) => transformValueForScale(value, normalizedChartScale);
+  }, [normalizedChartScale]);
 
   const calculateYRange = useCallback(
     (chartData, xRange) => {
@@ -123,16 +133,16 @@ const ForecastPlotView = ({
     valueSuffix: "",
     modelLineWidth: 2,
     modelMarkerSize: 6,
-    groundTruthLineWidth: 2,
+    groundTruthLineWidth: 1.5,
     groundTruthMarkerSize: 4,
     showLegendForFirstDate: showLegend,
     fillMissingQuantiles: false,
     showMedian,
     show50,
     show95,
-    transformY: sqrtTransform,
+    transformY: manualScaleTransform,
     baselineModelName,
-    groundTruthHoverFormatter: sqrtTransform
+    groundTruthHoverFormatter: manualScaleTransform
       ? (value) =>
           groundTruthValueFormat.includes(":.2f")
             ? Number(value).toFixed(2)
@@ -217,9 +227,14 @@ const ForecastPlotView = ({
   );
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({ rawRange: rawYRange });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({ rawRange: rawYRange });
+  }, [normalizedChartScale, rawYRange]);
 
   const layout = useMemo(() => {
     const baseLayout = {
@@ -274,18 +289,30 @@ const ForecastPlotView = ({
             longName ||
             resolvedDisplayTarget ||
             "Value";
-          if (chartScale === "log") return `${baseTitle} (log)`;
-          if (chartScale === "sqrt") return `${baseTitle} (sqrt)`;
-          return baseTitle;
+          return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
         })(),
-        range: chartScale === "log" ? undefined : yAxisRange,
-        autorange: chartScale === "log" ? true : yAxisRange === null,
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : yAxisRange === null,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
       },
       shapes: selectedDates.map((date) => {
         const shiftedDate = shiftDateStringByDays(date, -3);
@@ -319,8 +346,9 @@ const ForecastPlotView = ({
     xAxisRange,
     getDefaultRange,
     layoutOverrides,
-    chartScale,
+    normalizedChartScale,
     sqrtTicks,
+    log2Ticks,
     showLegend,
   ]);
 

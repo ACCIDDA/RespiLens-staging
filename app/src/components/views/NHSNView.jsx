@@ -14,7 +14,15 @@ import { getDataPath } from "../../utils/paths";
 import NHSNColumnSelector from "../NHSNColumnSelector";
 import TitleRow from "../TitleRow";
 import { MODEL_COLORS } from "../../config/datasets";
-import { buildSqrtTicks, getYRangeFromTraces } from "../../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  getYRangeFromTraces,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../../utils/scaleUtils";
 import { useView } from "../../hooks/useView";
 import { getDatasetTitleFromView } from "../../utils/datasetUtils";
 import { buildPlotDownloadName } from "../../utils/plotDownloadName";
@@ -67,6 +75,7 @@ const NHSNView = ({ location }) => {
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
   const { viewType, chartScale, showLegend } = useView();
+  const normalizedChartScale = normalizeChartScale(chartScale);
   const stateName = data?.metadata?.location_name;
   const hubName = getDatasetTitleFromView(viewType) || metadata?.dataset;
 
@@ -95,12 +104,10 @@ const NHSNView = ({ location }) => {
       return rawValues.map((val) => {
         if (val === null || val === undefined) return val;
         const transformed = val;
-        return chartScale === "sqrt"
-          ? Math.sqrt(Math.max(0, transformed))
-          : transformed;
+        return transformValueForScale(transformed, normalizedChartScale);
       });
     },
-    [chartScale],
+    [normalizedChartScale],
   );
 
   useEffect(() => {
@@ -433,9 +440,14 @@ const NHSNView = ({ location }) => {
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({ rawRange: rawYRange });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({ rawRange: rawYRange });
+  }, [normalizedChartScale, rawYRange]);
 
   const traces = useMemo(() => {
     if (!data) return [];
@@ -501,18 +513,29 @@ const NHSNView = ({ location }) => {
         range: xAxisRange || defaultRange,
       },
       yaxis: {
-        title: nhsnYAxisLabelMap[selectedTarget] || "Value",
-        range: chartScale === "log" ? undefined : yAxisRange,
-        autorange:
-          chartScale === "log"
-            ? true
-            : yAxisRange === null || selectedColumns.length === 0,
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        title: `${nhsnYAxisLabelMap[selectedTarget] || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
+        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : yAxisRange === null || selectedColumns.length === 0,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
       },
       showlegend: showLegend ?? selectedColumns.length < 15,
       legend: {
@@ -552,12 +575,13 @@ const NHSNView = ({ location }) => {
       defaultRange,
       xAxisRange,
       yAxisRange,
-      chartScale,
+      normalizedChartScale,
       showLegend,
       selectedTarget,
       selectedColumns.length,
       plotRevision,
       sqrtTicks,
+      log2Ticks,
     ],
   );
 
