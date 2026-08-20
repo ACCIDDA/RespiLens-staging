@@ -43,7 +43,14 @@ import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
 import { CHART_CONSTANTS } from "../../constants/chart";
 import { extendStableModelOrder } from "../../utils/modelColorUtils";
-import { buildSqrtTicks } from "../../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../../utils/scaleUtils";
 
 const HUB_OPTIONS = [
   {
@@ -1197,6 +1204,7 @@ const MyRespiVisualizationPanel = ({
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
   const [chartScale, setChartScale] = useState("linear");
+  const normalizedChartScale = normalizeChartScale(chartScale);
   const [intervalVisibility, setIntervalVisibility] = useState({});
   const [submittedIntervalVisibility, setSubmittedIntervalVisibility] =
     useState({
@@ -1566,10 +1574,12 @@ const MyRespiVisualizationPanel = ({
     return activeModelSet;
   }, [filteredComparisonLocationData, selectedTarget, selectedDates]);
 
-  const sqrtTransform = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
-    return (value) => Math.sqrt(Math.max(0, value));
-  }, [chartScale]);
+  const manualScaleTransform = useMemo(() => {
+    if (normalizedChartScale !== "sqrt" && normalizedChartScale !== "log2") {
+      return null;
+    }
+    return (value) => transformValueForScale(value, normalizedChartScale);
+  }, [normalizedChartScale]);
 
   const { traces, rawYRange } = useQuantileForecastTraces({
     groundTruth: locationData?.ground_truth,
@@ -1582,7 +1592,7 @@ const MyRespiVisualizationPanel = ({
     fillMissingQuantiles: false,
     intervalDefinitions,
     intervalVisibility,
-    transformY: sqrtTransform,
+    transformY: manualScaleTransform,
   });
   const {
     traces: submittedModelTraceBundle,
@@ -1601,7 +1611,7 @@ const MyRespiVisualizationPanel = ({
     modelColorFn: submittedModelColorFn,
     modelOrder: stableSubmittedModelOrder,
     modelHoverBuilder: buildComparisonHoverText,
-    transformY: sqrtTransform,
+    transformY: manualScaleTransform,
   });
   const submittedModelTraces = useMemo(
     () => submittedModelTraceBundle.slice(1),
@@ -1675,7 +1685,7 @@ const MyRespiVisualizationPanel = ({
   }, [selectedLocationFile, selectedTarget]);
 
   useEffect(() => {
-    if (chartScale === "log") {
+    if (isPlotlyLogScale(normalizedChartScale)) {
       setYAxisRange(null);
       return;
     }
@@ -1685,12 +1695,23 @@ const MyRespiVisualizationPanel = ({
     } else {
       setYAxisRange(null);
     }
-  }, [allTraces, xAxisRange, defaultRange, calculateYRange, chartScale]);
+  }, [
+    allTraces,
+    xAxisRange,
+    defaultRange,
+    calculateYRange,
+    normalizedChartScale,
+  ]);
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({ rawRange: combinedRawYRange });
-  }, [chartScale, combinedRawYRange]);
+  }, [normalizedChartScale, combinedRawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({ rawRange: combinedRawYRange });
+  }, [normalizedChartScale, combinedRawYRange]);
 
   const handlePlotUpdate = useCallback((figure) => {
     if (isResettingRef.current) {
@@ -1733,15 +1754,29 @@ const MyRespiVisualizationPanel = ({
         range: xAxisRange || defaultRange,
       },
       yaxis: {
-        title: selectedTarget || "Value",
-        range: chartScale === "log" ? undefined : yAxisRange,
-        autorange: chartScale === "log" ? true : yAxisRange === null,
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        title: `${selectedTarget || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
+        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : yAxisRange === null,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
       },
       shapes: selectedDates.map((date) => {
         const shiftedDate = shiftDateStringByDays(date, -3);
@@ -1764,9 +1799,10 @@ const MyRespiVisualizationPanel = ({
       xAxisRange,
       defaultRange,
       selectedTarget,
-      chartScale,
+      normalizedChartScale,
       yAxisRange,
       sqrtTicks,
+      log2Ticks,
     ],
   );
 
@@ -1789,7 +1825,7 @@ const MyRespiVisualizationPanel = ({
               false,
             );
             const nextYRange =
-              chartScale === "log" || !range
+              isPlotlyLogScale(normalizedChartScale) || !range
                 ? null
                 : calculateYRange(allTraces, range);
             isResettingRef.current = true;
@@ -1798,13 +1834,20 @@ const MyRespiVisualizationPanel = ({
             Plotly.relayout(gd, {
               "xaxis.range": range,
               "yaxis.range": nextYRange,
-              "yaxis.autorange": chartScale === "log" || nextYRange === null,
+              "yaxis.autorange":
+                isPlotlyLogScale(normalizedChartScale) || nextYRange === null,
             });
           },
         },
       ],
     }),
-    [allTraces, locationData, selectedDates, chartScale, calculateYRange],
+    [
+      allTraces,
+      locationData,
+      selectedDates,
+      normalizedChartScale,
+      calculateYRange,
+    ],
   );
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {

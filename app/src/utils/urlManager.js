@@ -1,7 +1,6 @@
 import { DATASETS, APP_CONFIG } from "../config";
 import { parseForecastUrlState } from "./forecastRoutes";
-
-const DEFAULT_CHART_SCALE = "linear";
+import { DEFAULT_CHART_SCALE, normalizeChartScale } from "./scaleUtils";
 const DEFAULT_INTERVAL_VISIBILITY = {
   median: true,
   ci50: true,
@@ -72,7 +71,7 @@ export class URLParameterManager {
     const intervalsParam = this.searchParams.get("intervals");
     const legendParam = this.searchParams.get("legend");
 
-    const chartScale = scaleParam || DEFAULT_CHART_SCALE;
+    const chartScale = normalizeChartScale(scaleParam || DEFAULT_CHART_SCALE);
     let intervalVisibility = { ...DEFAULT_INTERVAL_VISIBILITY };
 
     if (intervalsParam === "none") {

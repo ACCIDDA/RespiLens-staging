@@ -21,7 +21,15 @@ import TitleRow from "../TitleRow";
 import { MODEL_COLORS } from "../../config/datasets";
 import { useView } from "../../hooks/useView";
 import { buildPlotDownloadName } from "../../utils/plotDownloadName";
-import { buildSqrtTicks, getYRangeFromTraces } from "../../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  getYRangeFromTraces,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../../utils/scaleUtils";
 import {
   NSSP_MAP_COLORS as MAP_COLORS,
   NSSP_MAP_HEIGHTS,
@@ -51,6 +59,7 @@ const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
 const NSSPView = ({ location, data, metadata }) => {
   const { handleLocationSelect, locationMessage, chartScale, showLegend } =
     useView();
+  const normalizedChartScale = normalizeChartScale(chartScale);
   const { colorScheme } = useMantineColorScheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const [usMapData, setUsMapData] = useState(null);
@@ -92,10 +101,10 @@ const NSSPView = ({ location, data, metadata }) => {
           return value;
         }
 
-        return chartScale === "sqrt" ? Math.sqrt(Math.max(0, value)) : value;
+        return transformValueForScale(value, normalizedChartScale);
       });
     },
-    [chartScale],
+    [normalizedChartScale],
   );
 
   const getFullXRange = useCallback(() => {
@@ -499,7 +508,7 @@ const NSSPView = ({ location, data, metadata }) => {
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") {
+    if (normalizedChartScale !== "sqrt") {
       return null;
     }
 
@@ -510,7 +519,21 @@ const NSSPView = ({ location, data, metadata }) => {
           maximumFractionDigits: 2,
         })}%`,
     });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") {
+      return null;
+    }
+
+    return buildLog2Ticks({
+      rawRange: rawYRange,
+      formatValue: (value) =>
+        `${value.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}%`,
+    });
+  }, [normalizedChartScale, rawYRange]);
 
   const plotTraces = useMemo(() => {
     if (!data?.series?.dates?.length) {
@@ -578,20 +601,37 @@ const NSSPView = ({ location, data, metadata }) => {
         range: xAxisRange || defaultRange,
       },
       yaxis: {
-        title: "Percent of visits",
-        range: chartScale === "log" ? undefined : yAxisRange,
-        autorange:
-          chartScale === "log"
-            ? true
-            : yAxisRange === null || selectedColumns.length === 0,
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        title: `Percent of visits${getScaleTitleSuffix(normalizedChartScale)}`,
+        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : yAxisRange === null || selectedColumns.length === 0,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
-        tickformat: chartScale === "sqrt" ? undefined : ".2f",
-        ticksuffix: chartScale === "sqrt" ? undefined : "%",
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
+        tickformat:
+          normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
+            ? undefined
+            : ".2f",
+        ticksuffix:
+          normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
+            ? undefined
+            : "%",
       },
       showlegend: showLegend ?? true,
       legend: {
@@ -626,7 +666,7 @@ const NSSPView = ({ location, data, metadata }) => {
           : [],
     }),
     [
-      chartScale,
+      normalizedChartScale,
       colorScheme,
       defaultRange,
       fullRange,
@@ -634,6 +674,7 @@ const NSSPView = ({ location, data, metadata }) => {
       selectedColumns.length,
       showLegend,
       sqrtTicks,
+      log2Ticks,
       xAxisRange,
       yAxisRange,
     ],
