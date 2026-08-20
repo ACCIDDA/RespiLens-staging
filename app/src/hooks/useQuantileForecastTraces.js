@@ -149,7 +149,6 @@ const useQuantileForecastTraces = ({
   groundTruthHoverFormatter = null,
   baselineModelName = null,
   showOtherGroundTruthSeasons = false,
-  viewType = null,
 }) => {
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
@@ -474,7 +473,6 @@ const useQuantileForecastTraces = ({
       ? buildHistoricalGroundTruthTraces({
           groundTruth,
           target,
-          viewType,
           transformY,
           groundTruthLineWidth,
           groundTruthHoverFormatter,
@@ -523,7 +521,6 @@ const useQuantileForecastTraces = ({
     baselineModelName,
     stableModelOrder,
     showOtherGroundTruthSeasons,
-    viewType,
   ]);
 };
 

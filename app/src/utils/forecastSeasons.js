@@ -2,14 +2,6 @@ const SEASON_START_MONTH_INDEX = 8;
 const SEASON_START_DAY = 1;
 const PEAK_SEASON_START_MONTH_INDEX = 7;
 
-const HUB_SEASON_START_BY_VIEW = {
-  flu_forecasts: "2022-09-01",
-  fludetailed: "2022-09-01",
-  rsv_forecasts: "2022-09-01",
-  covid_forecasts: "2022-09-01",
-  metrocast_forecasts: "2022-09-01",
-};
-
 export const FLU_PEAK_AVAILABLE_DATE_START = "2025-11-01";
 export const FLU_PEAK_GROUND_TRUTH_START = "2025-08-01";
 export const FLU_PEAK_NORMALIZED_X_RANGE = ["2000-08-01", "2001-05-31"];
@@ -20,9 +12,6 @@ const toUtcDate = (dateString) => {
   const [year, month, day] = String(dateString).split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 };
-
-export const getHubSeasonStartDate = (viewType) =>
-  HUB_SEASON_START_BY_VIEW[viewType] || null;
 
 export const getSeasonStartYear = (dateString) => {
   const date = toUtcDate(dateString);
@@ -37,6 +26,11 @@ export const getSeasonDateRange = (seasonStartYear) => ({
   start: `${seasonStartYear}-${padNumber(SEASON_START_MONTH_INDEX + 1)}-${padNumber(SEASON_START_DAY)}`,
   end: `${seasonStartYear + 1}-${padNumber(SEASON_START_MONTH_INDEX + 1)}-${padNumber(SEASON_START_DAY)}`,
 });
+
+export const getSeasonStartDateForDate = (dateString) => {
+  const seasonStartYear = getSeasonStartYear(dateString);
+  return `${seasonStartYear}-${padNumber(SEASON_START_MONTH_INDEX + 1)}-${padNumber(SEASON_START_DAY)}`;
+};
 
 export const alignDateToSeason = (dateString, anchorSeasonStartYear) => {
   const date = toUtcDate(dateString);
@@ -58,16 +52,35 @@ export const getNormalizedPeakDate = (dateString) => {
   return date;
 };
 
+export const getEarliestGroundTruthSeasonStartDate = ({
+  groundTruth,
+  target,
+}) => {
+  const groundTruthDates = groundTruth?.dates || [];
+  const groundTruthValues = groundTruth?.[target] || [];
+
+  const earliestDate = groundTruthDates.find((dateString, index) => {
+    const value = groundTruthValues[index];
+    return (
+      value !== null && value !== undefined && !Number.isNaN(Number(value))
+    );
+  });
+
+  return earliestDate ? getSeasonStartDateForDate(earliestDate) : null;
+};
+
 export const buildHistoricalGroundTruthTraces = ({
   groundTruth,
   target,
-  viewType,
   transformY,
   groundTruthLineWidth = 1.5,
   groundTruthHoverFormatter = null,
   valueSuffix = "",
 }) => {
-  const hubSeasonStartDate = getHubSeasonStartDate(viewType);
+  const hubSeasonStartDate = getEarliestGroundTruthSeasonStartDate({
+    groundTruth,
+    target,
+  });
   const groundTruthDates = groundTruth?.dates || [];
   const groundTruthValues = groundTruth?.[target] || [];
 

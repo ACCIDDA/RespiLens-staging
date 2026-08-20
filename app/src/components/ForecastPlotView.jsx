@@ -20,7 +20,7 @@ import { getDatasetTitleFromView } from "../utils/datasetUtils";
 import { buildPlotDownloadName } from "../utils/plotDownloadName";
 import { getOfficialModels } from "../utils/forecastleScoring";
 import {
-  getHubSeasonStartDate,
+  getEarliestGroundTruthSeasonStartDate,
   getSeasonDateRange,
   getSeasonStartYear,
 } from "../utils/forecastSeasons";
@@ -258,7 +258,10 @@ const ForecastPlotView = ({
       return [];
     }
 
-    const hubSeasonStartDate = getHubSeasonStartDate(viewType);
+    const hubSeasonStartDate = getEarliestGroundTruthSeasonStartDate({
+      groundTruth,
+      target: resolvedForecastTarget,
+    });
     const dividerYears = Array.from(
       new Set(
         groundTruth.dates
@@ -288,7 +291,12 @@ const ForecastPlotView = ({
         layer: "below",
       };
     });
-  }, [colorScheme, groundTruth, showOtherGroundTruthSeasons, viewType]);
+  }, [
+    colorScheme,
+    groundTruth,
+    resolvedForecastTarget,
+    showOtherGroundTruthSeasons,
+  ]);
 
   const layout = useMemo(() => {
     const baseLayout = {
