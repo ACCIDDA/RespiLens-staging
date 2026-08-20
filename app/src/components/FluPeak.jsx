@@ -28,12 +28,6 @@ const toUtcDate = (dateString) => {
 
 const toIsoDate = (date) => date.toISOString().slice(0, 10);
 
-const shiftUtcDateByDays = (dateString, days) => {
-  const date = toUtcDate(dateString);
-  date.setUTCDate(date.getUTCDate() + days);
-  return toIsoDate(date);
-};
-
 const shiftUtcDateByMonths = (dateString, months) => {
   const date = toUtcDate(dateString);
   date.setUTCMonth(date.getUTCMonth() + months);
@@ -174,7 +168,6 @@ const FluPeak = ({
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
   const [xAxisRange, setXAxisRange] = useState(null);
-  const [yAxisRange, setYAxisRange] = useState(null);
   const plotRef = useRef(null);
   const getDefaultRangeRef = useRef(() => null);
   const plotDataRef = useRef([]);
@@ -231,29 +224,11 @@ const FluPeak = ({
       return null;
     }
 
-    const selectedPeakDates =
-      selectedDates && selectedDates.length > 0
-        ? [...selectedDates].sort()
-        : peakDates && peakDates.length > 0
-          ? [...peakDates].sort().slice(-1)
-          : [];
+    const end = fullDataRange[1];
+    const start = shiftUtcDateByMonths(end, -9);
 
-    if (!selectedPeakDates.length) {
-      const end = fullDataRange[1];
-      return [shiftUtcDateByMonths(end, -6), shiftUtcDateByDays(end, 42)];
-    }
-
-    const initialStart = shiftUtcDateByMonths(selectedPeakDates[0], -3);
-    const initialEnd = shiftUtcDateByDays(
-      selectedPeakDates[selectedPeakDates.length - 1],
-      42,
-    );
-
-    return [
-      initialStart < fullDataRange[0] ? fullDataRange[0] : initialStart,
-      initialEnd > fullDataRange[1] ? fullDataRange[1] : initialEnd,
-    ];
-  }, [fullDataRange, peakDates, selectedDates]);
+    return [start < fullDataRange[0] ? fullDataRange[0] : start, end];
+  }, [fullDataRange]);
 
   const rangesliderRange = useMemo(() => fullDataRange, [fullDataRange]);
 
@@ -633,13 +608,13 @@ const FluPeak = ({
     plotDataRef.current = plotData;
   }, [defaultRange, plotData]);
 
-  useEffect(() => {
+  const displayedYRange = useMemo(() => {
     const currentRange = xAxisRange || defaultRange;
-    if (plotData.length > 0 && currentRange) {
-      setYAxisRange(calculateYRange(plotData, currentRange));
-    } else {
-      setYAxisRange(null);
+    if (!plotData.length || !currentRange) {
+      return null;
     }
+
+    return calculateYRange(plotData, currentRange);
   }, [plotData, xAxisRange, defaultRange, calculateYRange]);
 
   const handlePlotUpdate = useCallback(
@@ -728,10 +703,12 @@ const FluPeak = ({
           const baseTitle = "Flu Hospitalizations";
           return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
         })(),
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        range: isPlotlyLogScale(normalizedChartScale)
+          ? undefined
+          : displayedYRange,
         autorange: isPlotlyLogScale(normalizedChartScale)
           ? true
-          : yAxisRange === null,
+          : displayedYRange === null,
         type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
         tickmode:
           (normalizedChartScale === "sqrt" && sqrtTicks) ||
@@ -793,7 +770,7 @@ const FluPeak = ({
       defaultRange,
       rangesliderRange,
       xAxisRange,
-      yAxisRange,
+      displayedYRange,
       normalizedChartScale,
       sqrtTicks,
       log2Ticks,
@@ -830,7 +807,6 @@ const FluPeak = ({
             );
             isResettingRef.current = true;
             setXAxisRange(null);
-            setYAxisRange(nextYRange);
 
             Plotly.relayout(gd, {
               "xaxis.range": currentDefaultRange,
