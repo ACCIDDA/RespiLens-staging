@@ -184,7 +184,7 @@ def main():
         logger.info("Success ✅")
 
     if args.NHSN:
-        NHSN_processor_object = NHSNDataProcessor(resource_id='ua7e-t2fy', replace_column_names=True)
+        NHSN_processor_object = NHSNDataProcessor(resource_id='ua7e-t2fy', preliminary_resource_id='mpgq-jmmr', replace_column_names=True)
         logger.info("Iteratively saving NHSN JSON files...")
         for filename, contents in NHSN_processor_object.output_dict.items():
             save_json_file(
