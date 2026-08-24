@@ -97,24 +97,50 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
 
     const dateAxis = data.series.dates;
     return (plot.settings.columns || [])
-      .map((slug) => {
+      .flatMap((slug) => {
         const longformName = nhsnSlugToNameMap[slug] || slug;
-        const rawY = data.series[longformName] || [];
-        const yValues = rawY.map((value) =>
+        const officialRawY = data.series[longformName] || [];
+        const officialYValues = officialRawY.map((value) =>
+          transformValueForScale(value, normalizedScale),
+        );
+        const traces = [];
+
+        if (officialYValues.length > 0) {
+          traces.push({
+            x: dateAxis,
+            y: officialYValues,
+            name: longformName,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: getModelColor(slug, plot.settings.columns || []),
+              width: 2,
+            },
+          });
+        }
+
+        const preliminaryRawY = data.preliminary_series?.[longformName] || [];
+        const preliminaryDates = data.preliminary_series?.dates || [];
+        const preliminaryYValues = preliminaryRawY.map((value) =>
           transformValueForScale(value, normalizedScale),
         );
 
-        return {
-          x: dateAxis,
-          y: yValues,
-          name: longformName,
-          type: "scatter",
-          mode: "lines",
-          line: {
-            color: getModelColor(slug, plot.settings.columns || []),
-            width: 2,
-          },
-        };
+        if (preliminaryYValues.length > 0 && preliminaryDates.length > 0) {
+          traces.push({
+            x: preliminaryDates,
+            y: preliminaryYValues,
+            name: `${longformName} (preliminary)`,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: getModelColor(slug, plot.settings.columns || []),
+              width: 2,
+              dash: "dash",
+            },
+          });
+        }
+
+        return traces;
       })
       .filter((trace) => trace.y.length > 0);
   }, [isNHSN, data, plot.settings, normalizedScale]);

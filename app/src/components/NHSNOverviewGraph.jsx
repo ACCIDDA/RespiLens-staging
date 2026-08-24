@@ -67,23 +67,48 @@ const NHSNOverviewGraph = ({ location }) => {
     const range = [twoMonthsAgo.toISOString().split("T")[0], lastDateStr];
 
     const tracesBuilder = (snapshot) =>
-      DEFAULT_COLS.map((col) => {
-        const yData = snapshot.series?.[col];
-        if (!yData) return null;
+      DEFAULT_COLS.flatMap((col) => {
+        const label = col.replace("Total ", "").replace(" Admissions", "");
+        const officialY = snapshot.series?.[col];
+        const preliminaryY = snapshot.preliminary_series?.[col];
 
-        return {
-          x: snapshot.series.dates,
-          y: yData,
-          name: col.replace("Total ", "").replace(" Admissions", ""),
-          type: "scatter",
-          mode: "lines",
-          line: {
-            color: PATHOGEN_COLORS[col],
-            width: 2,
+        if (!officialY) return [];
+
+        const traces = [
+          {
+            x: snapshot.series.dates,
+            y: officialY,
+            name: label,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: PATHOGEN_COLORS[col],
+              width: 2,
+            },
+            legendgroup: label,
+            hovertemplate: "%{y}<extra></extra>",
           },
-          hovertemplate: "%{y}<extra></extra>",
-        };
-      }).filter(Boolean);
+        ];
+
+        if (preliminaryY && snapshot.preliminary_series?.dates) {
+          traces.push({
+            x: snapshot.preliminary_series.dates,
+            y: preliminaryY,
+            name: `${label} (preliminary)`,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: PATHOGEN_COLORS[col],
+              width: 2,
+              dash: "dash",
+            },
+            legendgroup: label,
+            hovertemplate: "%{y}<extra></extra>",
+          });
+        }
+
+        return traces;
+      });
 
     return { buildTraces: tracesBuilder, xRange: range };
   }, [data]);

@@ -110,6 +110,57 @@ const NHSNView = ({ location }) => {
     [normalizedChartScale],
   );
 
+  const buildTracesForColumn = useCallback(
+    (columnName) => {
+      if (!data?.series?.dates) return [];
+
+      const columnIndex = filteredAvailableColumns.indexOf(columnName);
+      const color = MODEL_COLORS[columnIndex % MODEL_COLORS.length];
+      const tracesForColumn = [];
+
+      tracesForColumn.push({
+        x: data.series.dates,
+        y: getProcessedYValues(columnName, data.series[columnName]),
+        name: columnName,
+        type: "scatter",
+        mode: "lines+markers",
+        line: {
+          color,
+          width: 2,
+        },
+        marker: { size: 6 },
+        legendgroup: columnName,
+        hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
+      });
+
+      if (
+        data.preliminary_series?.dates &&
+        Array.isArray(data.preliminary_series[columnName])
+      ) {
+        tracesForColumn.push({
+          x: data.preliminary_series.dates,
+          y: getProcessedYValues(
+            columnName,
+            data.preliminary_series[columnName],
+          ),
+          name: `${columnName} (preliminary)`,
+          type: "scatter",
+          mode: "lines",
+          line: {
+            color,
+            width: 2,
+            dash: "dash",
+          },
+          legendgroup: columnName,
+          hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
+        });
+      }
+
+      return tracesForColumn;
+    },
+    [data, filteredAvailableColumns, getProcessedYValues],
+  );
+
   useEffect(() => {
     const fetchData = async () => {
       if (!location) return;
@@ -388,10 +439,12 @@ const NHSNView = ({ location }) => {
       return;
     }
 
-    const currentTraces = selectedColumns.map((column) => ({
-      x: data.series.dates,
-      y: getProcessedYValues(column, data.series[column]),
-    }));
+    const currentTraces = selectedColumns.flatMap((column) =>
+      buildTracesForColumn(column).map((trace) => ({
+        x: trace.x,
+        y: trace.y,
+      })),
+    );
 
     const currentXRange = xAxisRange || defaultRange;
 
@@ -409,6 +462,7 @@ const NHSNView = ({ location }) => {
     selectedTarget,
     defaultRange,
     calculateYRange,
+    buildTracesForColumn,
     getProcessedYValues,
   ]);
 
@@ -430,12 +484,8 @@ const NHSNView = ({ location }) => {
 
   const rawTraces = useMemo(() => {
     if (!data) return [];
-    return selectedColumns.map((column) => ({
-      x: data.series.dates,
-      y: getProcessedYValues(column, data.series[column]),
-      name: column,
-    }));
-  }, [data, getProcessedYValues, selectedColumns]);
+    return selectedColumns.flatMap(buildTracesForColumn);
+  }, [data, selectedColumns, buildTracesForColumn]);
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
 
@@ -463,27 +513,12 @@ const NHSNView = ({ location }) => {
       ];
     }
 
-    return selectedColumns.map((columnName) => {
-      const columnIndex = filteredAvailableColumns.indexOf(columnName);
-      const processedY = getProcessedYValues(
-        columnName,
-        data.series[columnName],
-      );
-
-      return {
-        x: data.series.dates,
-        y: processedY,
-        name: columnName,
-        type: "scatter",
-        mode: "lines+markers",
-        line: {
-          color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
-          width: 2,
-        },
-        marker: { size: 6 },
-      };
-    });
-  }, [data, selectedColumns, filteredAvailableColumns, getProcessedYValues]);
+    return selectedColumns
+      .map((columnName) => {
+        return buildTracesForColumn(columnName);
+      })
+      .flat();
+  }, [data, selectedColumns, buildTracesForColumn]);
 
   const layout = useMemo(
     () => ({
@@ -607,10 +642,12 @@ const NHSNView = ({ location }) => {
             const newDefaultRange = getDefaultXRange();
             if (!newDefaultRange || newDefaultRange[0] === null) return;
 
-            const currentTraces = selectedColumns.map((column) => ({
-              x: data.series.dates,
-              y: getProcessedYValues(column, data.series[column]),
-            }));
+            const currentTraces = selectedColumns.flatMap((column) =>
+              buildTracesForColumn(column).map((trace) => ({
+                x: trace.x,
+                y: trace.y,
+              })),
+            );
 
             const newYRange = calculateYRange(currentTraces, newDefaultRange);
 
@@ -632,7 +669,7 @@ const NHSNView = ({ location }) => {
       selectedColumns,
       getDefaultXRange,
       calculateYRange,
-      getProcessedYValues,
+      buildTracesForColumn,
     ],
   );
 
