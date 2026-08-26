@@ -1,4 +1,4 @@
-"""Fetch the documents required for MyRespiLens data conversion."""
+"""Fetch the documents required for the Forecast Checker tool data conversion."""
 
 import logging
 import shutil
@@ -9,13 +9,13 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def myrespi_fetch(hub_path: str, folder_name: str, output_path: str) -> None:
+def forecastchecker_fetch(hub_path: str, folder_name: str, output_path: str) -> None:
     """
     Given hub path, fetch locations.csv and time-series.csv/.parquet.
-    Store in output_path/myrespi/<folder_name>
+    Store in output_path/forecastchecker/<folder_name>
     """
     hub = Path(hub_path)
-    destination_dir = Path(output_path) / "myrespi" / folder_name
+    destination_dir = Path(output_path) / "forecastchecker" / folder_name
 
     # find locations.csv; require that it is there
     locations_file = hub / "auxiliary-data" / "locations.csv"
@@ -41,7 +41,7 @@ def myrespi_fetch(hub_path: str, folder_name: str, output_path: str) -> None:
     shutil.copy2(locations_file, destination_dir / locations_file.name)
 
     # send time-series data to destination.
-    # MyRespiLens consumes CSV records in the browser, so when a hub stores
+    # Forecast Checker consumes CSV records in the browser, so when a hub stores
     # time-series as parquet we also materialize a CSV copy at the generic
     # `time-series.csv` path that the frontend already expects.
     shutil.copy2(time_series_file, destination_dir / time_series_file.name)
