@@ -32,6 +32,7 @@ import {
   IconBrandGithub,
   IconInfoCircle,
   IconUpload,
+  IconPlus,
 } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
@@ -92,6 +93,14 @@ const HUB_OPTIONS = [
     fileSuffix: "flu_metrocast",
     datasetLabel: "flu metrocast forecasts",
     groundTruthMinDate: "2024-08-01",
+  },
+];
+
+const EXTRA_HUB_OPTIONS = [
+  {
+    slug: "other-hub",
+    label: "Other hub",
+    icon: IconPlus,
   },
 ];
 
@@ -2072,8 +2081,8 @@ const HubSelectionScreen = () => {
         description="Validate and prepare Hubverse forecast CSV files for use in Forecast Checker."
         canonicalPath="/toolbox/forecast-checker"
       />
-      <Container size="lg" py="xl">
-        <Stack gap="xl" maw={900} mx="auto">
+      <Container size="xl" py="xl" style={{ maxWidth: "1500px" }}>
+        <Stack gap="xl" maw={1320} mx="auto">
           <Stack gap="sm">
             <Group justify="center" align="center" wrap="nowrap">
               <Tooltip label="Back to toolbox" withArrow>
@@ -2097,50 +2106,59 @@ const HubSelectionScreen = () => {
             </Text>
           </Stack>
 
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-            {HUB_OPTIONS.map((hub) => (
-              <Paper
-                key={hub.slug}
-                withBorder
-                radius="xl"
-                p="xl"
-                onMouseEnter={() => setHoveredHub(hub.slug)}
-                onMouseLeave={() => setHoveredHub(null)}
-                onClick={() =>
-                  navigate(`/toolbox/forecast-checker/${hub.slug}`)
-                }
-                style={{
-                  aspectRatio: "1 / 1",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  transform:
-                    hoveredHub === hub.slug
-                      ? "translateY(-6px)"
-                      : "translateY(0)",
-                  boxShadow:
-                    hoveredHub === hub.slug
-                      ? "0 14px 30px rgba(37, 99, 235, 0.18)"
-                      : "0 4px 12px rgba(15, 23, 42, 0.06)",
-                  borderColor:
-                    hoveredHub === hub.slug
-                      ? "var(--mantine-color-blue-4)"
-                      : undefined,
-                  transition: "transform 160ms ease, box-shadow 160ms ease",
-                }}
-              >
-                <Stack align="center" gap="sm">
-                  <ThemeIcon size={56} radius="xl" variant="light" color="blue">
-                    <IconBrandGithub size={28} />
-                  </ThemeIcon>
-                  <Text fw={700} size="lg" tt="none">
-                    {hub.label}
-                  </Text>
-                </Stack>
-              </Paper>
-            ))}
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} spacing="lg">
+            {[...HUB_OPTIONS, ...EXTRA_HUB_OPTIONS].map((hub) => {
+              const HubIcon = hub.icon ?? IconBrandGithub;
+
+              return (
+                <Paper
+                  key={hub.slug}
+                  withBorder
+                  radius="xl"
+                  p="xl"
+                  onMouseEnter={() => setHoveredHub(hub.slug)}
+                  onMouseLeave={() => setHoveredHub(null)}
+                  onClick={() =>
+                    navigate(`/toolbox/forecast-checker/${hub.slug}`)
+                  }
+                  style={{
+                    aspectRatio: "1 / 1",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    transform:
+                      hoveredHub === hub.slug
+                        ? "translateY(-6px)"
+                        : "translateY(0)",
+                    boxShadow:
+                      hoveredHub === hub.slug
+                        ? "0 14px 30px rgba(37, 99, 235, 0.18)"
+                        : "0 4px 12px rgba(15, 23, 42, 0.06)",
+                    borderColor:
+                      hoveredHub === hub.slug
+                        ? "var(--mantine-color-blue-4)"
+                        : undefined,
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                  }}
+                >
+                  <Stack align="center" gap="sm">
+                    <ThemeIcon
+                      size={56}
+                      radius="xl"
+                      variant="light"
+                      color="blue"
+                    >
+                      <HubIcon size={28} />
+                    </ThemeIcon>
+                    <Text fw={700} size="lg" tt="none">
+                      {hub.label}
+                    </Text>
+                  </Stack>
+                </Paper>
+              );
+            })}
           </SimpleGrid>
 
           <Group justify="center">
@@ -2182,6 +2200,156 @@ const HubSelectionScreen = () => {
               visualized with Forecast Checker.
             </Alert>
           )}
+        </Stack>
+      </Container>
+    </>
+  );
+};
+
+const OtherHubScreen = () => {
+  const navigate = useNavigate();
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedGroundTruthFile, setSelectedGroundTruthFile] = useState(null);
+
+  const handleGroundTruthSelection = useCallback((files) => {
+    const nextFile = files?.[0] ?? null;
+    setSelectedGroundTruthFile(nextFile);
+  }, []);
+
+  const handleDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setDragActive(false);
+      const droppedFiles = await collectDroppedFiles(event.dataTransfer);
+      if (droppedFiles.length > 0) {
+        handleGroundTruthSelection(droppedFiles);
+      }
+    },
+    [handleGroundTruthSelection],
+  );
+
+  const handleFileSelect = useCallback(
+    (event) => {
+      handleGroundTruthSelection(event.target.files);
+      event.target.value = "";
+    },
+    [handleGroundTruthSelection],
+  );
+
+  return (
+    <>
+      <Seo
+        title="RespiLens | Forecast Checker | Other Hub"
+        description="Provide ground truth and forecast data for a hub that is not currently listed in Forecast Checker."
+        canonicalPath="/toolbox/forecast-checker/other-hub"
+      />
+      <Container size="xl" py="xl" fluid>
+        <Stack gap="lg">
+          <Group justify="center">
+            <Box w="100%" maw={860}>
+              <Group justify="space-between" align="center">
+                <Stack gap={4}>
+                  <Group gap="xs" align="center">
+                    <Tooltip label="Back to hub selection" withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        color="blue"
+                        size="xl"
+                        radius="xl"
+                        onClick={() => navigate("/toolbox/forecast-checker")}
+                        aria-label="Back to hub selection"
+                      >
+                        <IconArrowLeft size={24} stroke={2.25} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Title order={1}>Other hub</Title>
+                  </Group>
+                </Stack>
+              </Group>
+            </Box>
+          </Group>
+
+          <Group justify="center">
+            <Box w="100%" maw={860}>
+              <Stack gap="md">
+                <Text size="lg">
+                  If you wish to check forecasts for a hub that is not listed on
+                  RespiLens, you may do so by providing 1) your corresponding
+                  ground truth data and 2) your forecast data.
+                </Text>
+
+                <Paper
+                  withBorder
+                  radius="xl"
+                  p="xl"
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setDragActive(false);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onDrop={handleDrop}
+                  onClick={() => {
+                    document
+                      .getElementById(
+                        "forecast-checker-other-ground-truth-input",
+                      )
+                      ?.click();
+                  }}
+                  style={{
+                    cursor: "pointer",
+                    border: dragActive
+                      ? "2px dashed var(--mantine-color-blue-6)"
+                      : "2px dashed var(--mantine-color-gray-4)",
+                    backgroundColor: dragActive
+                      ? "var(--mantine-color-blue-light)"
+                      : "transparent",
+                    transition:
+                      "border-color 160ms ease, background-color 160ms ease",
+                  }}
+                >
+                  <Stack align="center" gap="lg" py="xl">
+                    <ThemeIcon
+                      size={84}
+                      radius="xl"
+                      variant="light"
+                      color={dragActive ? "blue" : "gray"}
+                    >
+                      <IconUpload size={40} />
+                    </ThemeIcon>
+                    <Stack gap="xs" ta="center">
+                      <Title order={2}>
+                        Step 1: Add your ground truth data
+                      </Title>
+                      <Text c="dimmed">
+                        Drop your ground truth file here, or click to select it
+                        from your device.
+                      </Text>
+                      {selectedGroundTruthFile && (
+                        <Text fw={600}>{selectedGroundTruthFile.name}</Text>
+                      )}
+                    </Stack>
+                    <input
+                      id="forecast-checker-other-ground-truth-input"
+                      type="file"
+                      accept=".csv,.parquet,text/csv,application/octet-stream"
+                      style={{ display: "none" }}
+                      onChange={handleFileSelect}
+                    />
+                  </Stack>
+                </Paper>
+              </Stack>
+            </Box>
+          </Group>
         </Stack>
       </Container>
     </>
@@ -2771,6 +2939,10 @@ const HubUploadScreen = () => {
 
 const ForecastCheckerDashboard = () => {
   const { hub } = useParams();
+
+  if (hub === "other-hub") {
+    return <OtherHubScreen />;
+  }
 
   if (hub) {
     return <HubUploadScreen />;
