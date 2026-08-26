@@ -2074,11 +2074,25 @@ const HubSelectionScreen = () => {
       />
       <Container size="lg" py="xl">
         <Stack gap="xl" maw={900} mx="auto">
-          <Stack gap="sm" ta="center">
-            <Title order={1} c="blue">
-              Forecast Checker
-            </Title>
-            <Text size="lg">
+          <Stack gap="sm">
+            <Group justify="center" align="center" wrap="nowrap">
+              <Tooltip label="Back to toolbox" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="blue"
+                  size="xl"
+                  radius="xl"
+                  onClick={() => navigate("/toolbox")}
+                  aria-label="Back to toolbox"
+                >
+                  <IconArrowLeft size={24} stroke={2.25} />
+                </ActionIcon>
+              </Tooltip>
+              <Title order={1} c="blue" ta="center">
+                Forecast Checker
+              </Title>
+            </Group>
+            <Text size="lg" ta="center">
               Select a hub and drop your data for instant visualization!
             </Text>
           </Stack>
@@ -2518,7 +2532,7 @@ const HubUploadScreen = () => {
                     </ActionIcon>
                   </Tooltip>
                   <Title order={1}>{hubConfig.label}</Title>
-                  <Tooltip label="Open hub GitHub" withArrow>
+                  <Tooltip label="Open hub in GitHub" withArrow>
                     <ActionIcon
                       component="a"
                       href={hubConfig.githubUrl}
@@ -2554,7 +2568,7 @@ const HubUploadScreen = () => {
                         </ActionIcon>
                       </Tooltip>
                       <Title order={1}>{hubConfig.label}</Title>
-                      <Tooltip label="Open hub GitHub" withArrow>
+                      <Tooltip label="Open hub in GitHub" withArrow>
                         <ActionIcon
                           component="a"
                           href={hubConfig.githubUrl}
