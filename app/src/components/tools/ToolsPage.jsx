@@ -31,7 +31,7 @@ const tools = [
     description:
       "Do you need to nowcast? What does your reporting delay distribution look like? Securely upload your reporting data to build your reporting triangle and answer these questions.",
     icon: IconClock,
-    href: "/reporting-triangle",
+    href: "/toolbox/reporting-triangle",
     badge: "Nowcasting",
   },
 ];

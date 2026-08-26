@@ -95,7 +95,10 @@ const AppLayout = () => {
           path="/toolbox/forecast-checker/:hub"
           element={<ForecastCheckerDashboard />}
         />
-        <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
+        <Route
+          path="/toolbox/reporting-triangle"
+          element={<ReportingDelayPage />}
+        />
         <Route
           path="/myrespilens"
           element={<Navigate to="/toolbox/forecast-checker" replace />}
@@ -115,6 +118,10 @@ const AppLayout = () => {
           element={
             <Navigate to="/toolbox/forecast-checker/documentation" replace />
           }
+        />
+        <Route
+          path="/reporting-triangle"
+          element={<Navigate to="/toolbox/reporting-triangle" replace />}
         />
       </Routes>
     </UnifiedAppShell>

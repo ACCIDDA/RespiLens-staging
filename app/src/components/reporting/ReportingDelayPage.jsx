@@ -658,7 +658,7 @@ const ReportingDelayPage = () => {
       <Seo
         title="RespiLens | Reporting Delay Explorer"
         description="Upload reporting data to explore delay distributions, build reporting triangles, and assess nowcasting needs in RespiLens."
-        canonicalPath="/reporting-triangle"
+        canonicalPath="/toolbox/reporting-triangle"
       />
       <Container size="xl" py="xl">
         <Stack gap="xl">
