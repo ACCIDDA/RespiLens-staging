@@ -5,6 +5,7 @@ import {
   Navigate,
   useNavigate,
   useLocation,
+  useParams,
 } from "react-router-dom";
 import { useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
@@ -15,7 +16,7 @@ import MyPlots from "./components/myplots/MyPlots";
 import NarrativeBrowser from "./components/narratives/NarrativeBrowser";
 import SlideNarrativeViewer from "./components/narratives/SlideNarrativeViewer";
 import ForecastleGame from "./components/forecastle/ForecastleGame";
-import MyRespiLensDashboard from "./components/myrespi/MyRespiLensDashboard";
+import ForecastCheckerDashboard from "./components/forecastchecker/ForecastCheckerDashboard";
 import TournamentDashboard from "./components/tournament/TournamentDashboard";
 import UnifiedAppShell from "./components/layout/UnifiedAppShell";
 import Documentation from "./components/Documentation";
@@ -38,6 +39,12 @@ const ForecastApp = () => {
     );
   }
   return <DataVisualizationContainer />;
+};
+
+const LegacyForecastCheckerHubRedirect = () => {
+  const { hub } = useParams();
+
+  return <Navigate to={`/toolbox/forecast-checker/${hub}`} replace />;
 };
 
 // We create this new component to hold our main layout.
@@ -75,14 +82,39 @@ const AppLayout = () => {
           />
         ))}
         <Route path="/myplots" element={<MyPlots />} />
-        <Route path="/myrespilens" element={<MyRespiLensDashboard />} />
-        <Route path="/myrespilens/documentation" element={<Documentation />} />
-        <Route path="/myrespilens/:hub" element={<MyRespiLensDashboard />} />
         <Route path="/toolbox" element={<ToolsPage />} />
+        <Route
+          path="/toolbox/forecast-checker"
+          element={<ForecastCheckerDashboard />}
+        />
+        <Route
+          path="/toolbox/forecast-checker/documentation"
+          element={<Documentation />}
+        />
+        <Route
+          path="/toolbox/forecast-checker/:hub"
+          element={<ForecastCheckerDashboard />}
+        />
         <Route path="/reporting-triangle" element={<ReportingDelayPage />} />
         <Route
+          path="/myrespilens"
+          element={<Navigate to="/toolbox/forecast-checker" replace />}
+        />
+        <Route
+          path="/myrespilens/documentation"
+          element={
+            <Navigate to="/toolbox/forecast-checker/documentation" replace />
+          }
+        />
+        <Route
+          path="/myrespilens/:hub"
+          element={<LegacyForecastCheckerHubRedirect />}
+        />
+        <Route
           path="/documentation"
-          element={<Navigate to="/myrespilens/documentation" replace />}
+          element={
+            <Navigate to="/toolbox/forecast-checker/documentation" replace />
+          }
         />
       </Routes>
     </UnifiedAppShell>

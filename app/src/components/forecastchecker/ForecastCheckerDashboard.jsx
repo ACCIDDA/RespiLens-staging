@@ -570,7 +570,7 @@ const validateHubverseCsv = (records, hubConfig) => {
 
   if (hasFluMetrocastEarlyDate) {
     errors.push(
-      "Your upload contains dates before 2025-11-22 (MyRespiLens flu-metrocast can only process target_end_dates after this day)",
+      "Your upload contains dates before 2025-11-22 (Forecast Checker flu-metrocast can only process target_end_dates after this day)",
     );
   }
 
@@ -2068,15 +2068,15 @@ const HubSelectionScreen = () => {
   return (
     <>
       <Seo
-        title="RespiLens | MyRespiLens"
-        description="Validate and prepare Hubverse forecast CSV files for use in MyRespiLens."
-        canonicalPath="/myrespilens"
+        title="RespiLens | Forecast Checker"
+        description="Validate and prepare Hubverse forecast CSV files for use in Forecast Checker."
+        canonicalPath="/toolbox/forecast-checker"
       />
       <Container size="lg" py="xl">
         <Stack gap="xl" maw={900} mx="auto">
           <Stack gap="sm" ta="center">
             <Title order={1} c="blue">
-              MyRespiLens
+              Forecast Checker
             </Title>
             <Text size="lg">
               Select a hub and drop your data for instant visualization!
@@ -2092,7 +2092,9 @@ const HubSelectionScreen = () => {
                 p="xl"
                 onMouseEnter={() => setHoveredHub(hub.slug)}
                 onMouseLeave={() => setHoveredHub(null)}
-                onClick={() => navigate(`/myrespilens/${hub.slug}`)}
+                onClick={() =>
+                  navigate(`/toolbox/forecast-checker/${hub.slug}`)
+                }
                 style={{
                   aspectRatio: "1 / 1",
                   cursor: "pointer",
@@ -2134,11 +2136,11 @@ const HubSelectionScreen = () => {
               leftSection={<IconInfoCircle size={16} />}
               onClick={toggle}
             >
-              What is MyRespiLens?
+              What is Forecast Checker?
             </Button>
             <Button
               component="a"
-              href="/myrespilens/documentation"
+              href="/toolbox/forecast-checker/documentation"
               target="_blank"
               variant="light"
               color="blue"
@@ -2151,11 +2153,11 @@ const HubSelectionScreen = () => {
           {opened && (
             <Alert
               icon={<IconInfoCircle size={16} />}
-              title="About MyRespiLens"
+              title="About Forecast Checker"
               color="blue"
               radius="lg"
             >
-              MyRespiLens is a tool that allows you to visualize your own
+              Forecast Checker is a tool that allows you to visualize your own
               respiratory disease forecast data <b>instantly</b> and{" "}
               <b>privately.</b> Simply <b>select the hub</b> your data
               corresponds to, <b>drag 'n drop your forecast data</b>, and then{" "}
@@ -2163,7 +2165,7 @@ const HubSelectionScreen = () => {
               Your data will not leave your machine, which means that your
               visualizations are not shareable via URL. User-provided model data
               must be in the Hubverse <code>.csv</code> format in order to be
-              visualized with MyRespiLens.
+              visualized with Forecast Checker.
             </Alert>
           )}
         </Stack>
@@ -2473,7 +2475,7 @@ const HubUploadScreen = () => {
     : "Back to hub selection";
   const handleBackArrowClick = isShowingVisualization
     ? handleResetUpload
-    : () => navigate("/myrespilens");
+    : () => navigate("/toolbox/forecast-checker");
 
   if (!hubConfig) {
     return (
@@ -2483,7 +2485,8 @@ const HubUploadScreen = () => {
           title="Unknown hub"
           icon={<IconAlertCircle size={16} />}
         >
-          The MyRespiLens hub route <strong>{hub}</strong> is not supported.
+          The Forecast Checker hub route <strong>{hub}</strong> is not
+          supported.
         </Alert>
       </Container>
     );
@@ -2492,9 +2495,9 @@ const HubUploadScreen = () => {
   return (
     <>
       <Seo
-        title={`RespiLens | MyRespiLens | ${hubConfig.label}`}
-        description={`Validate Hubverse CSV data for ${hubConfig.label} before MyRespiLens conversion.`}
-        canonicalPath={`/myrespilens/${hubConfig.slug}`}
+        title={`RespiLens | Forecast Checker | ${hubConfig.label}`}
+        description={`Validate Hubverse CSV data for ${hubConfig.label} before Forecast Checker conversion.`}
+        canonicalPath={`/toolbox/forecast-checker/${hubConfig.slug}`}
       />
       <Container size="xl" py="xl" fluid>
         <Stack gap="lg">
@@ -2675,9 +2678,9 @@ const HubUploadScreen = () => {
                           "This could take a moment..."
                         ) : (
                           <>
-                            Visit the MyRespiLens{" "}
+                            Visit the Forecast Checker{" "}
                             <Anchor
-                              href="/myrespilens/documentation"
+                              href="/toolbox/forecast-checker/documentation"
                               target="_blank"
                               rel="noreferrer"
                               onClick={(event) => event.stopPropagation()}
@@ -2733,9 +2736,9 @@ const HubUploadScreen = () => {
                   ))}
                 </List>
                 <Text size="sm" c="dimmed">
-                  Check the MyRespiLens{" "}
+                  Check the Forecast Checker{" "}
                   <Anchor
-                    href="/myrespilens/documentation"
+                    href="/toolbox/forecast-checker/documentation"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -2752,7 +2755,7 @@ const HubUploadScreen = () => {
   );
 };
 
-const MyRespiLensDashboard = () => {
+const ForecastCheckerDashboard = () => {
   const { hub } = useParams();
 
   if (hub) {
@@ -2762,4 +2765,4 @@ const MyRespiLensDashboard = () => {
   return <HubSelectionScreen />;
 };
 
-export default MyRespiLensDashboard;
+export default ForecastCheckerDashboard;

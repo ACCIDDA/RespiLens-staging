@@ -61,27 +61,27 @@ const Documentation = () => {
   return (
     <>
       <Seo
-        title="MyRespiLens Documentation | RespiLens"
-        description="Learn how to visualize your data with MyRespiLens, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
-        canonicalPath="/myrespilens/documentation"
+        title="Forecast Checker Documentation | RespiLens"
+        description="Learn how to visualize your data with Forecast Checker, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
+        canonicalPath="/toolbox/forecast-checker/documentation"
       />
       <Container size="lg" py="xl">
         <Stack gap="lg">
           <Stack gap="sm">
             <Title order={1} c="blue">
-              MyRespiLens Documentation
+              Forecast Checker Documentation
             </Title>
           </Stack>
 
           <SectionCard
-            title="What is MyRespiLens?"
+            title="What is Forecast Checker?"
             icon={<IconUpload size={20} />}
             defaultOpened={true}
           >
             <Text>
-              MyRespiLens allows users to quickly visualize their forecast data
-              simply by dragging and dropping CSV file(s). From the user's data
-              (and location and ground truth data stored internally), a
+              Forecast Checker allows users to quickly visualize their forecast
+              data simply by dragging and dropping CSV file(s). From the user's
+              data (and location and ground truth data stored internally), a
               visualization dashboard will be built. All targets, locations,
               dates, and models found in the user's data will be available for
               selection. Additionally, a control panel is provided to modulate
@@ -98,12 +98,12 @@ const Documentation = () => {
               </b>{" "}
               (e.g., you are predicting "weekly incidence of influenza
               hospitalization" when you select FluSight). Your data must also
-              comply with the MyRespiLens validation requirements, which are
-              listed below.
+              comply with the Forecast Checker validation requirements, which
+              are listed below.
             </Text>
             <Text>
-              When you use MyRespiLens, the data does not leave your device (it
-              is a private display). That is, if you navigate away from your
+              When you use Forecast Checker, the data does not leave your device
+              (it is a private display). That is, if you navigate away from your
               visualization, you will have to re-upload your data to view it
               again.
             </Text>
@@ -114,8 +114,8 @@ const Documentation = () => {
             icon={<IconFileDescription size={20} />}
           >
             <Text>
-              Your uploaded data must be a Hubverse-style forecast CSV.
-              MyRespiLens can accept one file or multiple CSV files at once.
+              Your uploaded data must be a Hubverse-style forecast CSV. Forecast
+              Checker can accept one file or multiple CSV files at once.
             </Text>
             <Text fw={600}>Required columns:</Text>
             <List spacing="sm">
@@ -145,9 +145,10 @@ const Documentation = () => {
               </List.Item>
             </List>
             <Text>
-              <code>model_id</code> is optional. If it is missing, MyRespiLens
-              assigns the fallback model name <code>user-uploaded-model</code>{" "}
-              and assumes all data belongs to a single model.
+              <code>model_id</code> is optional. If it is missing, Forecast
+              Checker assigns the fallback model name{" "}
+              <code>user-uploaded-model</code> and assumes all data belongs to a
+              single model.
             </Text>
             <Text fw={600}>Expected value patterns</Text>
             <List spacing="sm">
@@ -184,7 +185,7 @@ const Documentation = () => {
           >
             <Text>
               Some stipulations of user-uploaded data are not enforced with
-              fatal errors. Instead, MyRespiLens filters them out during
+              fatal errors. Instead, Forecast Checker filters them out during
               preprocessing and continues with the remaining usable rows. A list
               of things that will be filtered out of your data, if found:
             </Text>
@@ -224,7 +225,7 @@ const Documentation = () => {
               </List.Item>
               <List.Item>
                 Rows where the <code>target</code> column is a flu peak target,
-                which is currently excluded from this MyRespiLens workflow.
+                which is currently excluded from this Forecast Checker workflow.
               </List.Item>
             </List>
             <Alert
@@ -233,8 +234,8 @@ const Documentation = () => {
               radius="lg"
               icon={<IconCheck size={16} />}
             >
-              If enough usable rows remain after filtering, MyRespiLens will
-              continue and build the dashboard.
+              If enough usable rows remain after filtering, Forecast Checker
+              will continue and build the dashboard.
             </Alert>
           </SectionCard>
 
@@ -243,8 +244,8 @@ const Documentation = () => {
             icon={<IconAlertCircle size={20} />}
           >
             <Text>
-              MyRespiLens will stop and show an error when it cannot resolve
-              issues with the data. Common failure cases include:
+              Forecast Checker will stop and show an error when it cannot
+              resolve issues with the data. Common failure cases include:
             </Text>
             <List spacing="sm">
               <List.Item>No uploaded files are CSVs.</List.Item>
@@ -277,8 +278,8 @@ const Documentation = () => {
               </List.Item>
             </List>
             <Text>
-              In attempt to prevent misleading visualization displays,
-              MyRespiLens will also show a non-fatal warning if the uploaded{" "}
+              In attempt to prevent misleading visualization displays, Forecast
+              Checker will also show a non-fatal warning if the uploaded{" "}
               <code>target</code> names do not appear to match the pathogen
               implied by the hub you selected.
             </Text>
