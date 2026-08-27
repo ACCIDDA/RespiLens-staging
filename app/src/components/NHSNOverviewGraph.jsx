@@ -18,13 +18,17 @@ const PATHOGEN_COLORS = {
 };
 
 const NHSNOverviewGraph = ({ location }) => {
-  const { setViewType, viewType: activeViewType } = useView();
+  const {
+    setViewAndLocation,
+    viewType: activeViewType,
+    selectedLocation,
+  } = useView();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const resolvedLocation = location || "US";
-  const isActive = activeViewType === "nhsn";
+  const isActive = activeViewType === "nhsnall";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,6 +150,8 @@ const NHSNOverviewGraph = ({ location }) => {
 
   const locationLabel =
     resolvedLocation === "US" ? "US national view" : resolvedLocation;
+  const nhsnViewLocation =
+    selectedLocation && selectedLocation !== "US_All" ? resolvedLocation : "US";
 
   return (
     <OverviewGraphCard
@@ -159,7 +165,7 @@ const NHSNOverviewGraph = ({ location }) => {
       emptyLabel={null}
       actionLabel={isActive ? "Viewing" : "View NHSN data"}
       actionActive={isActive}
-      onAction={() => setViewType("nhsn")}
+      onAction={() => setViewAndLocation("nhsnall", nhsnViewLocation)}
       actionIcon={<IconChevronRight size={14} />}
       locationLabel={locationLabel}
     />
