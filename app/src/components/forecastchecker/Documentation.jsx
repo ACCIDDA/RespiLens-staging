@@ -100,14 +100,11 @@ const Documentation = () => {
               (e.g., you are predicting "weekly incidence of influenza
               hospitalization" when you select FluSight). Your forecast data
               must also comply with the Forecast Checker validation
-              requirements, which are listed below.
-            </Text>
-            <Text>
-              If you want to view forecasts that do not belong to one of the
-              listed hubs, you may do so by first selecting <b>Other Hub</b>,
-              and then providing your own ground truth data. Once the ground
-              truth data has been validated, you may proceed with uploading your
-              forecast data.
+              requirements, which are listed below. If you want to view
+              forecasts that do not belong to one of the listed hubs, you may do
+              so by first selecting <b>Other Hub</b>, and then providing your
+              own ground truth data. Once the ground truth data has been
+              validated, you may proceed with uploading your forecast data.
             </Text>
             <Text>
               When you use Forecast Checker, the data does not leave your device

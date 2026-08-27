@@ -2454,6 +2454,10 @@ const HubSelectionScreen = () => {
 
 const OtherHubScreen = () => {
   const navigate = useNavigate();
+  const [
+    groundTruthRequirementsOpened,
+    { toggle: toggleGroundTruthRequirements },
+  ] = useDisclosure(false);
   const [groundTruthDragActive, setGroundTruthDragActive] = useState(false);
   const [forecastDragActive, setForecastDragActive] = useState(false);
   const [isGroundTruthProcessing, setIsGroundTruthProcessing] = useState(false);
@@ -2868,91 +2872,185 @@ const OtherHubScreen = () => {
                 <Stack gap="md">
                   <Text size="lg">
                     If you wish to check forecasts for a hub that is not listed
-                    on RespiLens, you may do so by providing 1) your
-                    corresponding ground truth data and 2) your forecast data.
+                    on RespiLens, you may do so by:
+                  </Text>
+                  <List type="ordered" spacing="xs">
+                    <List.Item>
+                      <b>Providing the corresponding ground truth data</b>
+                    </List.Item>
+                    <List.Item>
+                      <b>Providing your forecast data</b>
+                    </List.Item>
+                  </List>
+                  <Text size="lg">
+                    For ground truth data requirements, see below. For forecast
+                    data requirements, see the Forecast Checker{" "}
+                    <Anchor
+                      href="/toolbox/forecast-checker/documentation"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      documentation
+                    </Anchor>{" "}
+                    page.
                   </Text>
 
                   {!isOnForecastStep && (
-                    <Paper
-                      withBorder
-                      radius="xl"
-                      p="xl"
-                      onDragEnter={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (isGroundTruthProcessing) {
-                          return;
-                        }
-                        setGroundTruthDragActive(true);
-                      }}
-                      onDragLeave={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setGroundTruthDragActive(false);
-                      }}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                      }}
-                      onDrop={handleGroundTruthDrop}
-                      onClick={() => {
-                        if (isGroundTruthProcessing) {
-                          return;
-                        }
-                        document
-                          .getElementById(
-                            "forecast-checker-other-ground-truth-input",
-                          )
-                          ?.click();
-                      }}
-                      style={{
-                        cursor: isGroundTruthProcessing
-                          ? "progress"
-                          : "pointer",
-                        border: groundTruthDragActive
-                          ? "2px dashed var(--mantine-color-blue-6)"
-                          : "2px dashed var(--mantine-color-gray-4)",
-                        backgroundColor: groundTruthDragActive
-                          ? "var(--mantine-color-blue-light)"
-                          : "transparent",
-                        transition:
-                          "border-color 160ms ease, background-color 160ms ease",
-                      }}
-                    >
-                      <Stack align="center" gap="lg" py="xl">
-                        {isGroundTruthProcessing ? (
-                          <Loader color="blue" size="xl" />
-                        ) : (
-                          <ThemeIcon
-                            size={84}
-                            radius="xl"
-                            variant="light"
-                            color={groundTruthDragActive ? "blue" : "gray"}
-                          >
-                            <IconUpload size={40} />
-                          </ThemeIcon>
-                        )}
-                        <Stack gap="xs" ta="center">
-                          <Title order={2}>
-                            {isGroundTruthProcessing
-                              ? "Validating ground truth data"
-                              : "Step 1: Add your ground truth data"}
-                          </Title>
-                          <Text c="dimmed">
-                            {isGroundTruthProcessing
-                              ? "This could take a moment..."
-                              : "Drop a single ground truth CSV or parquet file here, or click to select it from your device."}
-                          </Text>
+                    <Stack gap="md">
+                      <Paper
+                        withBorder
+                        radius="xl"
+                        p="xl"
+                        onDragEnter={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          if (isGroundTruthProcessing) {
+                            return;
+                          }
+                          setGroundTruthDragActive(true);
+                        }}
+                        onDragLeave={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setGroundTruthDragActive(false);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onDrop={handleGroundTruthDrop}
+                        onClick={() => {
+                          if (isGroundTruthProcessing) {
+                            return;
+                          }
+                          document
+                            .getElementById(
+                              "forecast-checker-other-ground-truth-input",
+                            )
+                            ?.click();
+                        }}
+                        style={{
+                          cursor: isGroundTruthProcessing
+                            ? "progress"
+                            : "pointer",
+                          border: groundTruthDragActive
+                            ? "2px dashed var(--mantine-color-blue-6)"
+                            : "2px dashed var(--mantine-color-gray-4)",
+                          backgroundColor: groundTruthDragActive
+                            ? "var(--mantine-color-blue-light)"
+                            : "transparent",
+                          transition:
+                            "border-color 160ms ease, background-color 160ms ease",
+                        }}
+                      >
+                        <Stack align="center" gap="lg" py="xl">
+                          {isGroundTruthProcessing ? (
+                            <Loader color="blue" size="xl" />
+                          ) : (
+                            <ThemeIcon
+                              size={84}
+                              radius="xl"
+                              variant="light"
+                              color={groundTruthDragActive ? "blue" : "gray"}
+                            >
+                              <IconUpload size={40} />
+                            </ThemeIcon>
+                          )}
+                          <Stack gap="xs" ta="center">
+                            <Title order={2}>
+                              {isGroundTruthProcessing
+                                ? "Validating ground truth data"
+                                : "Step 1: Add your ground truth data"}
+                            </Title>
+                            <Text c="dimmed">
+                              {isGroundTruthProcessing
+                                ? "This could take a moment..."
+                                : "Drop a single ground truth CSV or parquet file here, or click to select it from your device."}
+                            </Text>
+                          </Stack>
+                          <input
+                            id="forecast-checker-other-ground-truth-input"
+                            type="file"
+                            accept=".csv,.parquet,.pq,text/csv,application/octet-stream"
+                            style={{ display: "none" }}
+                            onChange={handleGroundTruthFileSelect}
+                          />
                         </Stack>
-                        <input
-                          id="forecast-checker-other-ground-truth-input"
-                          type="file"
-                          accept=".csv,.parquet,.pq,text/csv,application/octet-stream"
-                          style={{ display: "none" }}
-                          onChange={handleGroundTruthFileSelect}
-                        />
-                      </Stack>
-                    </Paper>
+                      </Paper>
+
+                      <Group justify="center">
+                        <Button
+                          variant="light"
+                          color="blue"
+                          leftSection={<IconInfoCircle size={16} />}
+                          onClick={toggleGroundTruthRequirements}
+                        >
+                          Ground truth data requirements
+                        </Button>
+                      </Group>
+
+                      {groundTruthRequirementsOpened && (
+                        <Alert
+                          icon={<IconInfoCircle size={16} />}
+                          title="Ground truth data requirements"
+                          color="blue"
+                          radius="lg"
+                        >
+                          <Stack gap="sm">
+                            <Text>
+                              Upload exactly one ground truth file at a time.
+                              Forecast Checker currently accepts{" "}
+                              <code>.csv</code>, <code>.parquet</code>, or{" "}
+                              <code>.pq</code>.
+                            </Text>
+                            <Text fw={600}>Required columns</Text>
+                            <List spacing="xs">
+                              <List.Item>
+                                <code>target_end_date</code> (must be valid
+                                date)
+                              </List.Item>
+                              <List.Item>
+                                <code>location</code>
+                              </List.Item>
+                              <List.Item>
+                                <code>observation</code> (must be numeric)
+                              </List.Item>
+                              <List.Item>
+                                <code>target</code>
+                              </List.Item>
+                            </List>
+                            <Text>
+                              <code>as_of</code> is an optional column. If it is
+                              present, it will be used to filter duplicate rows
+                              (i.e., for each duplicate, the latest{" "}
+                              <code>as_of</code> value will be kept. In its
+                              absence, duplicate rows will cause validation
+                              failure. Must be a valid date.
+                            </Text>
+                            <Text fw={600}>Other validation behavior</Text>
+                            <List spacing="xs">
+                              <List.Item>
+                                Rows with missing or invalid required values are
+                                removed during validation.
+                              </List.Item>
+                              <List.Item>
+                                The presence of <code>NA</code> values causes
+                                validation to fail
+                              </List.Item>
+                              <List.Item>
+                                The upload fails if no usable ground truth rows
+                                remain after validation.
+                              </List.Item>
+                              <List.Item>
+                                Ground truth data may contain multiple targets,
+                                but only those found in your forecast data will
+                                be shown in the target selector.
+                              </List.Item>
+                            </List>
+                          </Stack>
+                        </Alert>
+                      )}
+                    </Stack>
                   )}
 
                   {isOnForecastStep && (
