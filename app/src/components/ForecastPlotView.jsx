@@ -17,7 +17,10 @@ import {
 } from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
-import { buildPlotDownloadName } from "../utils/plotDownloadName";
+import {
+  buildPlotDownloadName,
+  PLOT_DOWNLOAD_IMAGE_SCALE,
+} from "../utils/plotDownloadName";
 import { getOfficialModels } from "../utils/forecastleScoring";
 import {
   getEarliestGroundTruthSeasonStartDate,
@@ -430,6 +433,7 @@ const ForecastPlotView = ({
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("forecast-plot"),
+        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
       },
       modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
       modeBarButtonsToAdd: [
