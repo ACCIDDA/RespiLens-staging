@@ -1240,6 +1240,30 @@ const validateGroundTruthCsv = (records) => {
   };
 };
 
+const buildGroundTruthTargetWarning = (forecastRows, groundTruthRows) => {
+  if (!forecastRows?.length || !groundTruthRows?.length) {
+    return null;
+  }
+
+  const forecastTargets = uniqueValuesInOrder(
+    forecastRows.map((row) => String(row.target ?? "").trim()).filter(Boolean),
+  );
+  const groundTruthTargets = new Set(
+    groundTruthRows
+      .map((row) => String(row.target ?? "").trim())
+      .filter(Boolean),
+  );
+  const unmatchedTargets = forecastTargets.filter(
+    (target) => !groundTruthTargets.has(target),
+  );
+
+  if (unmatchedTargets.length === 0) {
+    return null;
+  }
+
+  return `Some forecast targets do not appear in your ground truth data: ${unmatchedTargets.join(", ")}. Please ensure your ground truth and forecast data match.`;
+};
+
 const buildMetroHierarchy = (projectionOutputs) => {
   const metadataLocations =
     projectionOutputs?.["metadata.json"]?.locations ?? [];
@@ -2476,6 +2500,8 @@ const OtherHubScreen = () => {
     error: null,
     comparisonEligibility: null,
   });
+  const [groundTruthTargetWarning, setGroundTruthTargetWarning] =
+    useState(null);
 
   const isShowingVisualization = projectionBuildState.status === "success";
   const isOnForecastStep =
@@ -2508,6 +2534,7 @@ const OtherHubScreen = () => {
       summary: null,
       error: null,
     });
+    setGroundTruthTargetWarning(null);
     handleResetForecastStep();
   }, [handleResetForecastStep]);
 
@@ -2587,6 +2614,7 @@ const OtherHubScreen = () => {
         summary: validation.summary,
         error: null,
       });
+      setGroundTruthTargetWarning(null);
       setValidationState(null);
       setProjectionBuildState({
         status: "idle",
@@ -2713,6 +2741,12 @@ const OtherHubScreen = () => {
           locationsRows: null,
           targetRows: groundTruthState.rows,
         });
+        setGroundTruthTargetWarning(
+          buildGroundTruthTargetWarning(
+            validation.usableRows,
+            groundTruthState.rows,
+          ),
+        );
 
         setProjectionBuildState({
           status: "success",
@@ -2856,6 +2890,18 @@ const OtherHubScreen = () => {
                 </Group>
               </Box>
             </Group>
+          )}
+
+          {isShowingVisualization && groundTruthTargetWarning && (
+            <Alert
+              color="red"
+              variant="light"
+              radius="lg"
+              icon={<IconInfoCircle size={16} />}
+              title="Possible target mismatch"
+            >
+              {groundTruthTargetWarning}
+            </Alert>
           )}
 
           {isShowingVisualization && (
