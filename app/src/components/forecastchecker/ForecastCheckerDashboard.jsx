@@ -128,7 +128,6 @@ const FORECAST_REQUIRED_COLUMNS = [
 ];
 
 const GROUND_TRUTH_REQUIRED_COLUMNS = [
-  "as_of",
   "target_end_date",
   "location",
   "observation",
@@ -706,13 +705,7 @@ const buildGroundTruthOutput = (
   hubConfig,
   allowedTargets = null,
 ) => {
-  const requiredColumns = [
-    "as_of",
-    "target_end_date",
-    "location",
-    "observation",
-    "target",
-  ];
+  const requiredColumns = GROUND_TRUTH_REQUIRED_COLUMNS;
   const missingColumns = requiredColumns.filter(
     (column) => !(targetRows[0] ? column in targetRows[0] : true),
   );
@@ -725,6 +718,7 @@ const buildGroundTruthOutput = (
   const minDate = hubConfig.groundTruthMinDate
     ? new Date(hubConfig.groundTruthMinDate)
     : null;
+  const hasAsOfColumn = Boolean(targetRows[0] && "as_of" in targetRows[0]);
   const latestByKey = new Map();
   const allowedTargetSet =
     allowedTargets && allowedTargets.length > 0
@@ -733,14 +727,16 @@ const buildGroundTruthOutput = (
 
   targetRows.forEach((row) => {
     const normalizedTargetEndDate = normalizeDateString(row.target_end_date);
-    const normalizedAsOf = normalizeDateString(row.as_of);
+    const normalizedAsOf = hasAsOfColumn
+      ? normalizeDateString(row.as_of)
+      : null;
     const observation = Number(row.observation);
     const target = String(row.target);
 
     if (
       (allowedTargetSet && !allowedTargetSet.has(target)) ||
       !normalizedTargetEndDate ||
-      !normalizedAsOf ||
+      (hasAsOfColumn && !normalizedAsOf) ||
       Number.isNaN(observation) ||
       (minDate && new Date(normalizedTargetEndDate) < minDate)
     ) {
@@ -749,7 +745,7 @@ const buildGroundTruthOutput = (
 
     const dedupeKey = `${target}__${normalizedTargetEndDate}`;
     const existing = latestByKey.get(dedupeKey);
-    if (!existing || normalizedAsOf >= existing.as_of) {
+    if (!existing || !hasAsOfColumn || normalizedAsOf >= existing.as_of) {
       latestByKey.set(dedupeKey, {
         target,
         target_end_date: normalizedTargetEndDate,
@@ -1121,6 +1117,7 @@ const validateGroundTruthCsv = (records) => {
     rowsDroppedMissingLocation: 0,
     rowsDroppedMissingTarget: 0,
     rowsCollapsedToLatestAsOf: 0,
+    rowsFlaggedAsDuplicatesWithoutAsOf: 0,
     usableRows: 0,
   };
 
@@ -1132,9 +1129,12 @@ const validateGroundTruthCsv = (records) => {
     return { ok: false, errors, summary };
   }
 
+  const hasAsOfColumn = Boolean(records[0] && "as_of" in records[0]);
   const usableRows = records.flatMap((record, index) => {
     const normalizedTargetEndDate = normalizeDateString(record.target_end_date);
-    const normalizedAsOf = normalizeDateString(record.as_of);
+    const normalizedAsOf = hasAsOfColumn
+      ? normalizeDateString(record.as_of)
+      : null;
     const observation = Number(record.observation);
     const location = String(record.location ?? "").trim();
     const target = String(record.target ?? "").trim();
@@ -1151,10 +1151,12 @@ const validateGroundTruthCsv = (records) => {
       return [];
     }
 
-    if (!normalizedTargetEndDate || !normalizedAsOf) {
+    if (!normalizedTargetEndDate || (hasAsOfColumn && !normalizedAsOf)) {
       summary.rowsDroppedInvalidDates += 1;
       sampleProblems.push(
-        `Row ${index + 2} has an invalid as_of or target_end_date value.`,
+        hasAsOfColumn
+          ? `Row ${index + 2} has an invalid as_of or target_end_date value.`
+          : `Row ${index + 2} has an invalid target_end_date value.`,
       );
       return [];
     }
@@ -1184,18 +1186,39 @@ const validateGroundTruthCsv = (records) => {
   }
 
   const latestByKey = new Map();
-  usableRows.forEach((row) => {
-    const dedupeKey = `${row.location}__${row.target}__${row.target_end_date}`;
-    const existing = latestByKey.get(dedupeKey);
-    if (!existing || row.as_of >= existing.as_of) {
-      latestByKey.set(dedupeKey, row);
-    }
-  });
+  if (hasAsOfColumn) {
+    usableRows.forEach((row) => {
+      const dedupeKey = `${row.location}__${row.target}__${row.target_end_date}`;
+      const existing = latestByKey.get(dedupeKey);
+      if (!existing || row.as_of >= existing.as_of) {
+        latestByKey.set(dedupeKey, row);
+      }
+    });
+    summary.rowsCollapsedToLatestAsOf = Math.max(
+      0,
+      usableRows.length - latestByKey.size,
+    );
+  } else {
+    const seenKeys = new Set();
+    const duplicateKeys = new Set();
 
-  summary.rowsCollapsedToLatestAsOf = Math.max(
-    0,
-    usableRows.length - latestByKey.size,
-  );
+    usableRows.forEach((row) => {
+      const dedupeKey = `${row.location}__${row.target}__${row.target_end_date}`;
+      if (seenKeys.has(dedupeKey)) {
+        duplicateKeys.add(dedupeKey);
+        return;
+      }
+      seenKeys.add(dedupeKey);
+      latestByKey.set(dedupeKey, row);
+    });
+
+    if (duplicateKeys.size > 0) {
+      summary.rowsFlaggedAsDuplicatesWithoutAsOf = duplicateKeys.size;
+      errors.push(
+        "Your ground truth file does not include an as_of column, so duplicate rows with the same location, target, and target_end_date are not allowed.",
+      );
+    }
+  }
   summary.usableRows = latestByKey.size;
 
   if (latestByKey.size === 0) {
