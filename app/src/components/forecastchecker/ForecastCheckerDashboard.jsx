@@ -36,6 +36,7 @@ import {
 } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
+import { parquetReadObjects } from "hyparquet";
 import DateSelector from "../DateSelector";
 import ModelSelector from "../ModelSelector";
 import ForecastChartControls from "../controls/ForecastChartControls";
@@ -104,6 +105,17 @@ const EXTRA_HUB_OPTIONS = [
   },
 ];
 
+const OTHER_HUB_CONFIG = {
+  slug: "other-hub",
+  label: "Other hub",
+  githubUrl: null,
+  pathogenKey: "other-hub",
+  processedDataPath: null,
+  fileSuffix: "other_hub",
+  datasetLabel: "user supplied forecasts",
+  groundTruthMinDate: null,
+};
+
 const FORECAST_REQUIRED_COLUMNS = [
   "location",
   "reference_date",
@@ -113,6 +125,14 @@ const FORECAST_REQUIRED_COLUMNS = [
   "output_type_id",
   "value",
   "target_end_date",
+];
+
+const GROUND_TRUTH_REQUIRED_COLUMNS = [
+  "as_of",
+  "target_end_date",
+  "location",
+  "observation",
+  "target",
 ];
 
 const PEAK_TARGETS = new Set(["peak inc flu hosp", "peak week inc flu hosp"]);
@@ -137,6 +157,28 @@ const csvDateLikeRegex = /^\d{4}-\d{2}-\d{2}$/;
 const countCsvDataRows = (text) => {
   const rows = parseCsv(text);
   return Math.max(0, rows.length - 1);
+};
+
+const readTabularUpload = async (file) => {
+  const lowerName = file.name.toLowerCase();
+
+  if (lowerName.endsWith(".csv")) {
+    const text = await file.text();
+    const rows = parseCsv(text);
+    const { headers, records } = toObjects(rows);
+    return { headers, records };
+  }
+
+  if (lowerName.endsWith(".parquet") || lowerName.endsWith(".pq")) {
+    const buffer = await file.arrayBuffer();
+    const records = await parquetReadObjects({ file: buffer });
+    const headers = records[0] ? Object.keys(records[0]) : [];
+    return { headers, records };
+  }
+
+  throw new Error(
+    `Unsupported file type "${file.name}". Please upload a .csv or .parquet file.`,
+  );
 };
 
 const normalizeDateString = (value) => {
@@ -680,7 +722,9 @@ const buildGroundTruthOutput = (
     );
   }
 
-  const minDate = new Date(hubConfig.groundTruthMinDate);
+  const minDate = hubConfig.groundTruthMinDate
+    ? new Date(hubConfig.groundTruthMinDate)
+    : null;
   const latestByKey = new Map();
   const allowedTargetSet =
     allowedTargets && allowedTargets.length > 0
@@ -698,7 +742,7 @@ const buildGroundTruthOutput = (
       !normalizedTargetEndDate ||
       !normalizedAsOf ||
       Number.isNaN(observation) ||
-      new Date(normalizedTargetEndDate) < minDate
+      (minDate && new Date(normalizedTargetEndDate) < minDate)
     ) {
       return;
     }
@@ -800,7 +844,74 @@ const buildProjectionOutputs = ({
   locationsRows,
   targetRows,
 }) => {
-  if (!locationsRows || !targetRows) {
+  if (!targetRows) {
+    throw new Error("Reference data did not include parsed CSV records.");
+  }
+
+  if (hubConfig.slug === "other-hub") {
+    const outputs = {};
+    const locationIds = uniqueValuesInOrder(
+      forecastRows.map((row) => String(row.location)),
+    );
+
+    locationIds.forEach((locationId) => {
+      const locationForecastRows = forecastRows.filter(
+        (row) => String(row.location) === locationId,
+      );
+      const locationTargetRows = targetRows.filter(
+        (row) => String(row.location) === locationId,
+      );
+      const forecastTargets = uniqueValuesInOrder(
+        locationForecastRows.map((row) => String(row.target)),
+      );
+
+      outputs[locationId] = {
+        metadata: {
+          location: locationId,
+          abbreviation: locationId,
+          location_name: locationId,
+          population: null,
+          dataset: hubConfig.datasetLabel,
+          series_type: "projection",
+          hubverse_keys: {
+            models: uniqueValuesInOrder(
+              locationForecastRows.map((row) => String(row.model_id)),
+            ),
+            targets: forecastTargets,
+            horizons: uniqueValuesInOrder(
+              locationForecastRows.map((row) => String(row.horizon)),
+            ),
+            output_types: uniqueValuesInOrder(
+              locationForecastRows.map((row) => String(row.output_type)),
+            ).filter((value) => value !== "sample"),
+          },
+        },
+        ground_truth: buildGroundTruthOutput(
+          locationTargetRows,
+          hubConfig,
+          forecastTargets,
+        ),
+        forecasts: buildForecastOutput(locationForecastRows),
+      };
+    });
+
+    outputs["metadata.json"] = {
+      last_updated: new Date().toISOString(),
+      models: [
+        ...uniqueValuesInOrder(forecastRows.map((row) => String(row.model_id))),
+      ].sort(),
+      locations: locationIds.map((locationId) => ({
+        location: locationId,
+        abbreviation: locationId,
+        location_name: locationId,
+        population: null,
+      })),
+    };
+
+    return outputs;
+  }
+
+  if (!locationsRows) {
     throw new Error("Reference data did not include parsed CSV records.");
   }
 
@@ -991,12 +1102,120 @@ const buildLocationOptions = (projectionOutputs) =>
     .filter(([fileName]) => fileName !== "metadata.json")
     .map(([fileName, payload]) => ({
       value: fileName,
-      label:
-        payload?.metadata?.location_name && payload?.metadata?.abbreviation
-          ? `${payload.metadata.location_name} (${payload.metadata.abbreviation})`
-          : fileName,
+      label: (() => {
+        const locationName = payload?.metadata?.location_name;
+        const abbreviation = payload?.metadata?.abbreviation;
+        if (locationName && abbreviation && locationName !== abbreviation) {
+          return `${locationName} (${abbreviation})`;
+        }
+        return locationName || abbreviation || fileName;
+      })(),
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
+
+const validateGroundTruthCsv = (records) => {
+  const summary = {
+    totalRows: records.length,
+    rowsDroppedInvalidDates: 0,
+    rowsDroppedInvalidObservation: 0,
+    rowsDroppedMissingLocation: 0,
+    rowsDroppedMissingTarget: 0,
+    rowsCollapsedToLatestAsOf: 0,
+    usableRows: 0,
+  };
+
+  const errors = [];
+  const sampleProblems = [];
+
+  if (records.length === 0) {
+    errors.push("The ground truth CSV has headers but no data rows.");
+    return { ok: false, errors, summary };
+  }
+
+  const usableRows = records.flatMap((record, index) => {
+    const normalizedTargetEndDate = normalizeDateString(record.target_end_date);
+    const normalizedAsOf = normalizeDateString(record.as_of);
+    const observation = Number(record.observation);
+    const location = String(record.location ?? "").trim();
+    const target = String(record.target ?? "").trim();
+
+    if (!location) {
+      summary.rowsDroppedMissingLocation += 1;
+      sampleProblems.push(`Row ${index + 2} is missing a location value.`);
+      return [];
+    }
+
+    if (!target) {
+      summary.rowsDroppedMissingTarget += 1;
+      sampleProblems.push(`Row ${index + 2} is missing a target value.`);
+      return [];
+    }
+
+    if (!normalizedTargetEndDate || !normalizedAsOf) {
+      summary.rowsDroppedInvalidDates += 1;
+      sampleProblems.push(
+        `Row ${index + 2} has an invalid as_of or target_end_date value.`,
+      );
+      return [];
+    }
+
+    if (Number.isNaN(observation)) {
+      summary.rowsDroppedInvalidObservation += 1;
+      sampleProblems.push(
+        `Row ${index + 2} has a non-numeric observation of "${record.observation}".`,
+      );
+      return [];
+    }
+
+    return [
+      {
+        ...record,
+        as_of: normalizedAsOf,
+        target_end_date: normalizedTargetEndDate,
+        observation,
+        location,
+        target,
+      },
+    ];
+  });
+
+  if (sampleProblems.length > 0) {
+    errors.push(...sampleProblems.slice(0, 5));
+  }
+
+  const latestByKey = new Map();
+  usableRows.forEach((row) => {
+    const dedupeKey = `${row.location}__${row.target}__${row.target_end_date}`;
+    const existing = latestByKey.get(dedupeKey);
+    if (!existing || row.as_of >= existing.as_of) {
+      latestByKey.set(dedupeKey, row);
+    }
+  });
+
+  summary.rowsCollapsedToLatestAsOf = Math.max(
+    0,
+    usableRows.length - latestByKey.size,
+  );
+  summary.usableRows = latestByKey.size;
+
+  if (latestByKey.size === 0) {
+    errors.push("No usable ground truth rows remain after validation.");
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    summary,
+    usableRows: Array.from(latestByKey.values()).sort((left, right) => {
+      const leftLocation = left.location.localeCompare(right.location);
+      if (leftLocation !== 0) return leftLocation;
+      const leftDate = new Date(left.target_end_date).getTime();
+      const rightDate = new Date(right.target_end_date).getTime();
+      if (leftDate !== rightDate) return leftDate - rightDate;
+      return left.target.localeCompare(right.target);
+    }),
+  };
+};
 
 const buildMetroHierarchy = (projectionOutputs) => {
   const metadataLocations =
@@ -1206,6 +1425,7 @@ const MyRespiVisualizationPanel = ({
 }) => {
   const { colorScheme } = useMantineColorScheme();
   const isMetrocast = hubConfig?.slug === "flumetrocast";
+  const comparisonEnabled = hubConfig?.slug !== "other-hub";
   const [selectedMetroState, setSelectedMetroState] = useState(null);
   const [selectedLocationFile, setSelectedLocationFile] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
@@ -1935,94 +2155,97 @@ const MyRespiVisualizationPanel = ({
               </Stack>
             </Paper>
 
-            <Paper withBorder radius="md" p="sm">
-              <Stack gap="xs">
-                <Group justify="space-between" align="center">
-                  <Text fw={600} size="sm">
-                    Compare with submitting models
-                  </Text>
-                  <Switch
-                    checked={compareWithSubmittingModels}
-                    onChange={(event) =>
-                      setCompareWithSubmittingModels(
-                        event.currentTarget.checked,
-                      )
-                    }
-                    disabled={!comparisonEligibility?.isEligible}
-                    size="sm"
-                  />
-                </Group>
-                {compareWithSubmittingModels &&
-                  comparisonDataState.status === "loading" && (
-                    <Group gap="xs">
-                      <Loader size="sm" color="blue" />
-                      <Text size="sm" c="dimmed">
-                        Loading submitted model data for this location...
-                      </Text>
-                    </Group>
-                  )}
-                {compareWithSubmittingModels &&
-                  comparisonDataState.status === "error" && (
-                    <Alert
-                      color="red"
-                      variant="light"
-                      radius="md"
-                      icon={<IconAlertCircle size={16} />}
-                    >
-                      {comparisonDataState.error}
-                    </Alert>
-                  )}
-              </Stack>
-            </Paper>
-
-            {compareWithSubmittingModels &&
-              comparisonDataState.status === "success" && (
-                <>
-                  <Paper withBorder radius="md" p="sm">
-                    <Stack gap="sm">
+            {comparisonEnabled && (
+              <>
+                <Paper withBorder radius="md" p="sm">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
                       <Text fw={600} size="sm">
-                        Submitting models display
+                        Compare with submitting models
                       </Text>
-                      <Group align="center" gap="md" wrap="wrap">
-                        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
-                          Intervals
-                        </Text>
-                        <Checkbox.Group
-                          value={selectedSubmittedIntervals}
-                          onChange={(values) => {
-                            const nextVisibility = {};
-                            SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
-                              nextVisibility[option.value] = values.includes(
-                                option.value,
-                              );
-                            });
-                            setSubmittedIntervalVisibility(nextVisibility);
-                          }}
+                      <Switch
+                        checked={compareWithSubmittingModels}
+                        onChange={(event) =>
+                          setCompareWithSubmittingModels(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        disabled={!comparisonEligibility?.isEligible}
+                        size="sm"
+                      />
+                    </Group>
+                    {compareWithSubmittingModels &&
+                      comparisonDataState.status === "loading" && (
+                        <Group gap="xs">
+                          <Loader size="sm" color="blue" />
+                          <Text size="sm" c="dimmed">
+                            Loading submitted model data for this location...
+                          </Text>
+                        </Group>
+                      )}
+                    {compareWithSubmittingModels &&
+                      comparisonDataState.status === "error" && (
+                        <Alert
+                          color="red"
+                          variant="light"
+                          radius="md"
+                          icon={<IconAlertCircle size={16} />}
                         >
-                          <Group gap="sm" wrap="wrap">
-                            {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
-                              <Checkbox
-                                key={option.value}
-                                value={option.value}
-                                label={option.label}
-                                size="xs"
-                              />
-                            ))}
-                          </Group>
-                        </Checkbox.Group>
-                      </Group>
-                    </Stack>
-                  </Paper>
+                          {comparisonDataState.error}
+                        </Alert>
+                      )}
+                  </Stack>
+                </Paper>
 
-                  <ModelSelector
-                    models={submittedModels}
-                    selectedModels={selectedSubmittedModels}
-                    setSelectedModels={handleSubmittedModelSelectionChange}
-                    activeModels={activeSubmittedModels}
-                    modelColorFn={submittedModelColorFn}
-                  />
-                </>
-              )}
+                {compareWithSubmittingModels &&
+                  comparisonDataState.status === "success" && (
+                    <>
+                      <Paper withBorder radius="md" p="sm">
+                        <Stack gap="sm">
+                          <Text fw={600} size="sm">
+                            Submitting models display
+                          </Text>
+                          <Group align="center" gap="md" wrap="wrap">
+                            <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
+                              Intervals
+                            </Text>
+                            <Checkbox.Group
+                              value={selectedSubmittedIntervals}
+                              onChange={(values) => {
+                                const nextVisibility = {};
+                                SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                                  nextVisibility[option.value] =
+                                    values.includes(option.value);
+                                });
+                                setSubmittedIntervalVisibility(nextVisibility);
+                              }}
+                            >
+                              <Group gap="sm" wrap="wrap">
+                                {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                                  <Checkbox
+                                    key={option.value}
+                                    value={option.value}
+                                    label={option.label}
+                                    size="xs"
+                                  />
+                                ))}
+                              </Group>
+                            </Checkbox.Group>
+                          </Group>
+                        </Stack>
+                      </Paper>
+
+                      <ModelSelector
+                        models={submittedModels}
+                        selectedModels={selectedSubmittedModels}
+                        setSelectedModels={handleSubmittedModelSelectionChange}
+                        activeModels={activeSubmittedModels}
+                        modelColorFn={submittedModelColorFn}
+                      />
+                    </>
+                  )}
+              </>
+            )}
           </Stack>
         </Paper>
       </Grid.Col>
@@ -2208,33 +2431,353 @@ const HubSelectionScreen = () => {
 
 const OtherHubScreen = () => {
   const navigate = useNavigate();
-  const [dragActive, setDragActive] = useState(false);
-  const [selectedGroundTruthFile, setSelectedGroundTruthFile] = useState(null);
+  const [groundTruthDragActive, setGroundTruthDragActive] = useState(false);
+  const [forecastDragActive, setForecastDragActive] = useState(false);
+  const [isGroundTruthProcessing, setIsGroundTruthProcessing] = useState(false);
+  const [isForecastProcessing, setIsForecastProcessing] = useState(false);
+  const [groundTruthState, setGroundTruthState] = useState({
+    status: "idle",
+    fileName: null,
+    rows: null,
+    summary: null,
+    error: null,
+  });
+  const [validationState, setValidationState] = useState(null);
+  const [projectionBuildState, setProjectionBuildState] = useState({
+    status: "idle",
+    outputs: null,
+    error: null,
+    comparisonEligibility: null,
+  });
 
-  const handleGroundTruthSelection = useCallback((files) => {
-    const nextFile = files?.[0] ?? null;
-    setSelectedGroundTruthFile(nextFile);
+  const isShowingVisualization = projectionBuildState.status === "success";
+  const isOnForecastStep =
+    groundTruthState.status === "success" && !isShowingVisualization;
+  const backArrowLabel = isShowingVisualization
+    ? "Back to forecast upload"
+    : isOnForecastStep
+      ? "Back to ground truth upload"
+      : "Back to hub selection";
+
+  const handleResetForecastStep = useCallback(() => {
+    setForecastDragActive(false);
+    setIsForecastProcessing(false);
+    setValidationState(null);
+    setProjectionBuildState({
+      status: "idle",
+      outputs: null,
+      error: null,
+      comparisonEligibility: null,
+    });
   }, []);
 
-  const handleDrop = useCallback(
+  const handleResetGroundTruthStep = useCallback(() => {
+    setGroundTruthDragActive(false);
+    setIsGroundTruthProcessing(false);
+    setGroundTruthState({
+      status: "idle",
+      fileName: null,
+      rows: null,
+      summary: null,
+      error: null,
+    });
+    handleResetForecastStep();
+  }, [handleResetForecastStep]);
+
+  const handleBackArrowClick = useCallback(() => {
+    if (isShowingVisualization) {
+      handleResetForecastStep();
+      return;
+    }
+
+    if (isOnForecastStep) {
+      handleResetGroundTruthStep();
+      return;
+    }
+
+    navigate("/toolbox/forecast-checker");
+  }, [
+    handleResetForecastStep,
+    handleResetGroundTruthStep,
+    isOnForecastStep,
+    isShowingVisualization,
+    navigate,
+  ]);
+
+  const processGroundTruthFiles = useCallback(async (incomingFiles) => {
+    setIsGroundTruthProcessing(true);
+    const files = Array.from(incomingFiles ?? []);
+
+    if (files.length !== 1) {
+      setGroundTruthState({
+        status: "error",
+        fileName: null,
+        rows: null,
+        summary: null,
+        error: "Please upload exactly one ground truth file at a time.",
+      });
+      setIsGroundTruthProcessing(false);
+      return;
+    }
+
+    const [file] = files;
+
+    try {
+      const { headers, records } = await readTabularUpload(file);
+      const missingColumns = GROUND_TRUTH_REQUIRED_COLUMNS.filter(
+        (column) => !headers.includes(column),
+      );
+
+      if (missingColumns.length > 0) {
+        setGroundTruthState({
+          status: "error",
+          fileName: file.name,
+          rows: null,
+          summary: null,
+          error: buildRequiredColumnError("ground truth data", missingColumns),
+        });
+        setIsGroundTruthProcessing(false);
+        return;
+      }
+
+      const validation = validateGroundTruthCsv(records);
+      if (!validation.ok) {
+        setGroundTruthState({
+          status: "error",
+          fileName: file.name,
+          rows: null,
+          summary: validation.summary,
+          error: validation.errors.join(" "),
+        });
+        setIsGroundTruthProcessing(false);
+        return;
+      }
+
+      setGroundTruthState({
+        status: "success",
+        fileName: file.name,
+        rows: validation.usableRows,
+        summary: validation.summary,
+        error: null,
+      });
+      setValidationState(null);
+      setProjectionBuildState({
+        status: "idle",
+        outputs: null,
+        error: null,
+        comparisonEligibility: null,
+      });
+    } catch (error) {
+      setGroundTruthState({
+        status: "error",
+        fileName: file.name,
+        rows: null,
+        summary: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "The ground truth file could not be processed.",
+      });
+    } finally {
+      setIsGroundTruthProcessing(false);
+    }
+  }, []);
+
+  const processForecastFiles = useCallback(
+    async (incomingFiles) => {
+      if (!groundTruthState.rows) {
+        return;
+      }
+
+      setIsForecastProcessing(true);
+      const files = Array.from(incomingFiles ?? []);
+      const csvFiles = files.filter((file) =>
+        file.name.toLowerCase().endsWith(".csv"),
+      );
+
+      if (csvFiles.length === 0) {
+        setValidationState({
+          status: "error",
+          errors: [
+            "Please upload at least one Hubverse forecast file in `.csv` format.",
+          ],
+        });
+        setProjectionBuildState({
+          status: "idle",
+          outputs: null,
+          error: null,
+          comparisonEligibility: null,
+        });
+        setIsForecastProcessing(false);
+        return;
+      }
+
+      setValidationState(null);
+      setProjectionBuildState({
+        status: "idle",
+        outputs: null,
+        error: null,
+        comparisonEligibility: null,
+      });
+
+      try {
+        const parsedFiles = await Promise.all(
+          csvFiles.map(async (file) => {
+            const text = await file.text();
+            const rows = parseCsv(text);
+            const { headers, records } = toObjects(rows);
+            return {
+              fileName: getFileRelativePath(file),
+              headers,
+              records,
+            };
+          }),
+        );
+
+        const missingColumnsByFile = parsedFiles
+          .map((parsedFile) => ({
+            fileName: parsedFile.fileName,
+            missingColumns: FORECAST_REQUIRED_COLUMNS.filter(
+              (column) => !parsedFile.headers.includes(column),
+            ),
+          }))
+          .filter((entry) => entry.missingColumns.length > 0);
+
+        if (missingColumnsByFile.length > 0) {
+          setValidationState({
+            status: "error",
+            errors: missingColumnsByFile
+              .slice(0, 5)
+              .map(
+                (entry) =>
+                  `${entry.fileName} is missing required forecast columns: ${entry.missingColumns.join(", ")}.`,
+              ),
+          });
+          setIsForecastProcessing(false);
+          return;
+        }
+
+        const concatenatedRecords = parsedFiles.flatMap(
+          (parsedFile) => parsedFile.records,
+        );
+        const validation = validateHubverseCsv(
+          concatenatedRecords,
+          OTHER_HUB_CONFIG,
+        );
+
+        if (!validation.ok) {
+          setValidationState({
+            status: "error",
+            errors: validation.errors,
+            summary: validation.summary,
+          });
+          setIsForecastProcessing(false);
+          return;
+        }
+
+        setValidationState({
+          status: "success",
+          summary: validation.summary,
+        });
+
+        const outputs = buildProjectionOutputs({
+          hubConfig: OTHER_HUB_CONFIG,
+          forecastRows: validation.usableRows,
+          locationsRows: null,
+          targetRows: groundTruthState.rows,
+        });
+
+        setProjectionBuildState({
+          status: "success",
+          outputs,
+          error: null,
+          comparisonEligibility: {
+            isEligible: false,
+            reason:
+              "Comparison with submitting models is not available for custom hubs.",
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The forecast file could not be processed.";
+
+        setProjectionBuildState({
+          status: "error",
+          outputs: null,
+          error: message,
+          comparisonEligibility: null,
+        });
+        setValidationState({
+          status: "error",
+          errors: [message],
+        });
+      } finally {
+        setIsForecastProcessing(false);
+      }
+    },
+    [groundTruthState.rows],
+  );
+
+  const handleGroundTruthDrop = useCallback(
     async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      setDragActive(false);
+      if (isGroundTruthProcessing) {
+        return;
+      }
+      setGroundTruthDragActive(false);
       const droppedFiles = await collectDroppedFiles(event.dataTransfer);
       if (droppedFiles.length > 0) {
-        handleGroundTruthSelection(droppedFiles);
+        processGroundTruthFiles(droppedFiles);
       }
     },
-    [handleGroundTruthSelection],
+    [isGroundTruthProcessing, processGroundTruthFiles],
   );
 
-  const handleFileSelect = useCallback(
+  const handleGroundTruthFileSelect = useCallback(
     (event) => {
-      handleGroundTruthSelection(event.target.files);
+      if (isGroundTruthProcessing) {
+        event.target.value = "";
+        return;
+      }
+      if (event.target.files?.length) {
+        processGroundTruthFiles(event.target.files);
+      }
       event.target.value = "";
     },
-    [handleGroundTruthSelection],
+    [isGroundTruthProcessing, processGroundTruthFiles],
+  );
+
+  const handleForecastDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isForecastProcessing) {
+        return;
+      }
+      setForecastDragActive(false);
+      const droppedFiles = await collectDroppedFiles(event.dataTransfer);
+      if (droppedFiles.length > 0) {
+        processForecastFiles(droppedFiles);
+      }
+    },
+    [isForecastProcessing, processForecastFiles],
+  );
+
+  const handleForecastFileSelect = useCallback(
+    (event) => {
+      if (isForecastProcessing) {
+        event.target.value = "";
+        return;
+      }
+      if (event.target.files?.length) {
+        processForecastFiles(event.target.files);
+      }
+      event.target.value = "";
+    },
+    [isForecastProcessing, processForecastFiles],
   );
 
   return (
@@ -2246,110 +2789,289 @@ const OtherHubScreen = () => {
       />
       <Container size="xl" py="xl" fluid>
         <Stack gap="lg">
-          <Group justify="center">
-            <Box w="100%" maw={860}>
-              <Group justify="space-between" align="center">
-                <Stack gap={4}>
+          {isShowingVisualization ? (
+            <Group justify="space-between" align="center">
+              <Group gap="xs" align="center">
+                <Tooltip label={backArrowLabel} withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    color="blue"
+                    size="xl"
+                    radius="xl"
+                    onClick={handleBackArrowClick}
+                    aria-label={backArrowLabel}
+                  >
+                    <IconArrowLeft size={24} stroke={2.25} />
+                  </ActionIcon>
+                </Tooltip>
+                <Title order={1}>Other hub</Title>
+              </Group>
+            </Group>
+          ) : (
+            <Group justify="center">
+              <Box w="100%" maw={860}>
+                <Group justify="space-between" align="center">
                   <Group gap="xs" align="center">
-                    <Tooltip label="Back to hub selection" withArrow>
+                    <Tooltip label={backArrowLabel} withArrow>
                       <ActionIcon
                         variant="subtle"
                         color="blue"
                         size="xl"
                         radius="xl"
-                        onClick={() => navigate("/toolbox/forecast-checker")}
-                        aria-label="Back to hub selection"
+                        onClick={handleBackArrowClick}
+                        aria-label={backArrowLabel}
                       >
                         <IconArrowLeft size={24} stroke={2.25} />
                       </ActionIcon>
                     </Tooltip>
                     <Title order={1}>Other hub</Title>
                   </Group>
-                </Stack>
-              </Group>
-            </Box>
-          </Group>
+                </Group>
+              </Box>
+            </Group>
+          )}
 
-          <Group justify="center">
-            <Box w="100%" maw={860}>
-              <Stack gap="md">
-                <Text size="lg">
-                  If you wish to check forecasts for a hub that is not listed on
-                  RespiLens, you may do so by providing 1) your corresponding
-                  ground truth data and 2) your forecast data.
-                </Text>
+          {isShowingVisualization && (
+            <MyRespiVisualizationPanel
+              projectionOutputs={projectionBuildState.outputs}
+              hubConfig={OTHER_HUB_CONFIG}
+              comparisonEligibility={projectionBuildState.comparisonEligibility}
+            />
+          )}
 
-                <Paper
-                  withBorder
-                  radius="xl"
-                  p="xl"
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setDragActive(true);
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setDragActive(false);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }}
-                  onDrop={handleDrop}
-                  onClick={() => {
-                    document
-                      .getElementById(
-                        "forecast-checker-other-ground-truth-input",
-                      )
-                      ?.click();
-                  }}
-                  style={{
-                    cursor: "pointer",
-                    border: dragActive
-                      ? "2px dashed var(--mantine-color-blue-6)"
-                      : "2px dashed var(--mantine-color-gray-4)",
-                    backgroundColor: dragActive
-                      ? "var(--mantine-color-blue-light)"
-                      : "transparent",
-                    transition:
-                      "border-color 160ms ease, background-color 160ms ease",
-                  }}
-                >
-                  <Stack align="center" gap="lg" py="xl">
-                    <ThemeIcon
-                      size={84}
+          {!isShowingVisualization && (
+            <Group justify="center">
+              <Box w="100%" maw={860}>
+                <Stack gap="md">
+                  <Text size="lg">
+                    If you wish to check forecasts for a hub that is not listed
+                    on RespiLens, you may do so by providing 1) your
+                    corresponding ground truth data and 2) your forecast data.
+                  </Text>
+
+                  {!isOnForecastStep && (
+                    <Paper
+                      withBorder
                       radius="xl"
-                      variant="light"
-                      color={dragActive ? "blue" : "gray"}
+                      p="xl"
+                      onDragEnter={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (isGroundTruthProcessing) {
+                          return;
+                        }
+                        setGroundTruthDragActive(true);
+                      }}
+                      onDragLeave={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setGroundTruthDragActive(false);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onDrop={handleGroundTruthDrop}
+                      onClick={() => {
+                        if (isGroundTruthProcessing) {
+                          return;
+                        }
+                        document
+                          .getElementById(
+                            "forecast-checker-other-ground-truth-input",
+                          )
+                          ?.click();
+                      }}
+                      style={{
+                        cursor: isGroundTruthProcessing
+                          ? "progress"
+                          : "pointer",
+                        border: groundTruthDragActive
+                          ? "2px dashed var(--mantine-color-blue-6)"
+                          : "2px dashed var(--mantine-color-gray-4)",
+                        backgroundColor: groundTruthDragActive
+                          ? "var(--mantine-color-blue-light)"
+                          : "transparent",
+                        transition:
+                          "border-color 160ms ease, background-color 160ms ease",
+                      }}
                     >
-                      <IconUpload size={40} />
-                    </ThemeIcon>
-                    <Stack gap="xs" ta="center">
-                      <Title order={2}>
-                        Step 1: Add your ground truth data
-                      </Title>
-                      <Text c="dimmed">
-                        Drop your ground truth file here, or click to select it
-                        from your device.
-                      </Text>
-                      {selectedGroundTruthFile && (
-                        <Text fw={600}>{selectedGroundTruthFile.name}</Text>
-                      )}
-                    </Stack>
-                    <input
-                      id="forecast-checker-other-ground-truth-input"
-                      type="file"
-                      accept=".csv,.parquet,text/csv,application/octet-stream"
-                      style={{ display: "none" }}
-                      onChange={handleFileSelect}
-                    />
-                  </Stack>
-                </Paper>
+                      <Stack align="center" gap="lg" py="xl">
+                        {isGroundTruthProcessing ? (
+                          <Loader color="blue" size="xl" />
+                        ) : (
+                          <ThemeIcon
+                            size={84}
+                            radius="xl"
+                            variant="light"
+                            color={groundTruthDragActive ? "blue" : "gray"}
+                          >
+                            <IconUpload size={40} />
+                          </ThemeIcon>
+                        )}
+                        <Stack gap="xs" ta="center">
+                          <Title order={2}>
+                            {isGroundTruthProcessing
+                              ? "Validating ground truth data"
+                              : "Step 1: Add your ground truth data"}
+                          </Title>
+                          <Text c="dimmed">
+                            {isGroundTruthProcessing
+                              ? "This could take a moment..."
+                              : "Drop a single ground truth CSV or parquet file here, or click to select it from your device."}
+                          </Text>
+                        </Stack>
+                        <input
+                          id="forecast-checker-other-ground-truth-input"
+                          type="file"
+                          accept=".csv,.parquet,.pq,text/csv,application/octet-stream"
+                          style={{ display: "none" }}
+                          onChange={handleGroundTruthFileSelect}
+                        />
+                      </Stack>
+                    </Paper>
+                  )}
+
+                  {isOnForecastStep && (
+                    <Paper
+                      withBorder
+                      radius="xl"
+                      p="xl"
+                      onDragEnter={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (isForecastProcessing) {
+                          return;
+                        }
+                        setForecastDragActive(true);
+                      }}
+                      onDragLeave={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setForecastDragActive(false);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onDrop={handleForecastDrop}
+                      onClick={() => {
+                        if (isForecastProcessing) {
+                          return;
+                        }
+                        document
+                          .getElementById(
+                            "forecast-checker-other-forecast-input",
+                          )
+                          ?.click();
+                      }}
+                      style={{
+                        cursor: isForecastProcessing ? "progress" : "pointer",
+                        border: forecastDragActive
+                          ? "2px dashed var(--mantine-color-blue-6)"
+                          : "2px dashed var(--mantine-color-gray-4)",
+                        backgroundColor: forecastDragActive
+                          ? "var(--mantine-color-blue-light)"
+                          : "transparent",
+                        transition:
+                          "border-color 160ms ease, background-color 160ms ease",
+                      }}
+                    >
+                      <Stack align="center" gap="lg" py="xl">
+                        {isForecastProcessing ? (
+                          <Loader color="blue" size="xl" />
+                        ) : (
+                          <ThemeIcon
+                            size={84}
+                            radius="xl"
+                            variant="light"
+                            color={forecastDragActive ? "blue" : "gray"}
+                          >
+                            <IconUpload size={40} />
+                          </ThemeIcon>
+                        )}
+                        <Stack gap="xs" ta="center">
+                          <Title order={2}>
+                            {isForecastProcessing
+                              ? "Processing your uploaded forecasts"
+                              : "Step 2: Add your forecast data"}
+                          </Title>
+                          <Text c="dimmed">
+                            {isForecastProcessing
+                              ? "This could take a moment..."
+                              : `Ground truth file loaded: ${groundTruthState.fileName}. Now drop your Hubverse-style forecast CSV file(s) here.`}
+                          </Text>
+                        </Stack>
+                        <input
+                          id="forecast-checker-other-forecast-input"
+                          type="file"
+                          accept=".csv,text/csv"
+                          multiple
+                          style={{ display: "none" }}
+                          onChange={handleForecastFileSelect}
+                        />
+                      </Stack>
+                    </Paper>
+                  )}
+                </Stack>
+              </Box>
+            </Group>
+          )}
+
+          {groundTruthState.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Ground truth validation failed"
+              icon={<IconAlertCircle size={16} />}
+            >
+              <Stack gap="sm">
+                <Text>{groundTruthState.error}</Text>
+                {groundTruthState.summary && (
+                  <Group gap="xs">
+                    <Badge color="blue" variant="light">
+                      {groundTruthState.summary.totalRows} rows read
+                    </Badge>
+                    <Badge color="green" variant="light">
+                      {groundTruthState.summary.usableRows} rows usable
+                    </Badge>
+                  </Group>
+                )}
               </Stack>
-            </Box>
-          </Group>
+            </Alert>
+          )}
+
+          {projectionBuildState.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Could not create projections JSON"
+              icon={<IconAlertCircle size={16} />}
+            >
+              {projectionBuildState.error}
+            </Alert>
+          )}
+
+          {validationState?.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Validation failed"
+              icon={<IconAlertCircle size={16} />}
+            >
+              <Stack gap="sm">
+                <Text>CSV validation failed:</Text>
+                {validationState.summary && (
+                  <ValidationSummary summary={validationState.summary} />
+                )}
+                <List spacing="xs">
+                  {validationState.errors.map((error) => (
+                    <List.Item key={error}>{error}</List.Item>
+                  ))}
+                </List>
+              </Stack>
+            </Alert>
+          )}
         </Stack>
       </Container>
     </>
