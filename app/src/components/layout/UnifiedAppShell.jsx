@@ -12,8 +12,7 @@ import {
   IconChartLine,
   IconTarget,
   IconTrophy,
-  IconDashboard,
-  IconClipboard,
+  IconTool,
   IconChartScatter,
 } from "@tabler/icons-react";
 import { ENABLED_TOURNAMENTS } from "../../config";
@@ -93,17 +92,13 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       active: location.pathname.startsWith(tournament.path),
     })),
     {
-      href: "/myrespilens",
-      label: "MyRespiLens",
-      icon: IconDashboard,
-      active: location.pathname.startsWith("/myrespilens"),
-    },
-    {
-      href: "/myrespilens/documentation",
-      label: "Documentation",
-      icon: IconClipboard,
+      href: "/toolbox",
+      label: "Toolbox",
+      icon: IconTool,
       active:
-        location.pathname.startsWith("/myrespilens/documentation") ||
+        location.pathname.startsWith("/toolbox") ||
+        location.pathname.startsWith("/toolbox/forecast-checker") ||
+        location.pathname.startsWith("/myrespilens") ||
         location.pathname.startsWith("/documentation"),
     },
     {

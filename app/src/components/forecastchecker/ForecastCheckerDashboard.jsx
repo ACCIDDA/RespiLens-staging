@@ -32,9 +32,11 @@ import {
   IconBrandGithub,
   IconInfoCircle,
   IconUpload,
+  IconPlus,
 } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
+import { parquetReadObjects } from "hyparquet";
 import DateSelector from "../DateSelector";
 import ModelSelector from "../ModelSelector";
 import ForecastChartControls from "../controls/ForecastChartControls";
@@ -58,7 +60,7 @@ const HUB_OPTIONS = [
     label: "FluSight Forecast Hub",
     githubUrl: "https://github.com/cdcepi/fluSight-forecast-hub",
     pathogenKey: "flu",
-    processedDataPath: "processed_data/myrespi/flusight",
+    processedDataPath: "processed_data/forecastchecker/flusight",
     fileSuffix: "flu",
     datasetLabel: "flusight forecasts",
     groundTruthMinDate: "2022-10-01",
@@ -68,7 +70,7 @@ const HUB_OPTIONS = [
     label: "COVID-19 Forecast Hub",
     githubUrl: "https://github.com/CDCgov/covid19-forecast-hub",
     pathogenKey: "covid19forecasthub",
-    processedDataPath: "processed_data/myrespi/covid19forecasthub",
+    processedDataPath: "processed_data/forecastchecker/covid19forecasthub",
     fileSuffix: "covid19",
     datasetLabel: "covid19 forecast hub",
     groundTruthMinDate: "2023-10-01",
@@ -78,7 +80,7 @@ const HUB_OPTIONS = [
     label: "RSV Forecast Hub",
     githubUrl: "https://github.com/CDCgov/rsv-forecast-hub",
     pathogenKey: "rsvforecasthub",
-    processedDataPath: "processed_data/myrespi/rsvforecasthub",
+    processedDataPath: "processed_data/forecastchecker/rsvforecasthub",
     fileSuffix: "rsv",
     datasetLabel: "rsv forecast hub",
     groundTruthMinDate: "2023-10-01",
@@ -88,12 +90,31 @@ const HUB_OPTIONS = [
     label: "Flu Metrocast Hub",
     githubUrl: "https://github.com/reichlab/flu-metrocast",
     pathogenKey: "flumetrocast",
-    processedDataPath: "processed_data/myrespi/flumetrocast",
+    processedDataPath: "processed_data/forecastchecker/flumetrocast",
     fileSuffix: "flu_metrocast",
     datasetLabel: "flu metrocast forecasts",
     groundTruthMinDate: "2024-08-01",
   },
 ];
+
+const EXTRA_HUB_OPTIONS = [
+  {
+    slug: "other-hub",
+    label: "Other hub",
+    icon: IconPlus,
+  },
+];
+
+const OTHER_HUB_CONFIG = {
+  slug: "other-hub",
+  label: "Other hub",
+  githubUrl: null,
+  pathogenKey: "other-hub",
+  processedDataPath: null,
+  fileSuffix: "other_hub",
+  datasetLabel: "user supplied forecasts",
+  groundTruthMinDate: null,
+};
 
 const FORECAST_REQUIRED_COLUMNS = [
   "location",
@@ -104,6 +125,13 @@ const FORECAST_REQUIRED_COLUMNS = [
   "output_type_id",
   "value",
   "target_end_date",
+];
+
+const GROUND_TRUTH_REQUIRED_COLUMNS = [
+  "target_end_date",
+  "location",
+  "observation",
+  "target",
 ];
 
 const PEAK_TARGETS = new Set(["peak inc flu hosp", "peak week inc flu hosp"]);
@@ -128,6 +156,28 @@ const csvDateLikeRegex = /^\d{4}-\d{2}-\d{2}$/;
 const countCsvDataRows = (text) => {
   const rows = parseCsv(text);
   return Math.max(0, rows.length - 1);
+};
+
+const readTabularUpload = async (file) => {
+  const lowerName = file.name.toLowerCase();
+
+  if (lowerName.endsWith(".csv")) {
+    const text = await file.text();
+    const rows = parseCsv(text);
+    const { headers, records } = toObjects(rows);
+    return { headers, records };
+  }
+
+  if (lowerName.endsWith(".parquet") || lowerName.endsWith(".pq")) {
+    const buffer = await file.arrayBuffer();
+    const records = await parquetReadObjects({ file: buffer });
+    const headers = records[0] ? Object.keys(records[0]) : [];
+    return { headers, records };
+  }
+
+  throw new Error(
+    `Unsupported file type "${file.name}". Please upload a .csv or .parquet file.`,
+  );
 };
 
 const normalizeDateString = (value) => {
@@ -570,7 +620,7 @@ const validateHubverseCsv = (records, hubConfig) => {
 
   if (hasFluMetrocastEarlyDate) {
     errors.push(
-      "Your upload contains dates before 2025-11-22 (MyRespiLens flu-metrocast can only process target_end_dates after this day)",
+      "Your upload contains dates before 2025-11-22 (Forecast Checker flu-metrocast can only process target_end_dates after this day)",
     );
   }
 
@@ -655,13 +705,7 @@ const buildGroundTruthOutput = (
   hubConfig,
   allowedTargets = null,
 ) => {
-  const requiredColumns = [
-    "as_of",
-    "target_end_date",
-    "location",
-    "observation",
-    "target",
-  ];
+  const requiredColumns = GROUND_TRUTH_REQUIRED_COLUMNS;
   const missingColumns = requiredColumns.filter(
     (column) => !(targetRows[0] ? column in targetRows[0] : true),
   );
@@ -671,7 +715,10 @@ const buildGroundTruthOutput = (
     );
   }
 
-  const minDate = new Date(hubConfig.groundTruthMinDate);
+  const minDate = hubConfig.groundTruthMinDate
+    ? new Date(hubConfig.groundTruthMinDate)
+    : null;
+  const hasAsOfColumn = Boolean(targetRows[0] && "as_of" in targetRows[0]);
   const latestByKey = new Map();
   const allowedTargetSet =
     allowedTargets && allowedTargets.length > 0
@@ -680,23 +727,25 @@ const buildGroundTruthOutput = (
 
   targetRows.forEach((row) => {
     const normalizedTargetEndDate = normalizeDateString(row.target_end_date);
-    const normalizedAsOf = normalizeDateString(row.as_of);
+    const normalizedAsOf = hasAsOfColumn
+      ? normalizeDateString(row.as_of)
+      : null;
     const observation = Number(row.observation);
     const target = String(row.target);
 
     if (
       (allowedTargetSet && !allowedTargetSet.has(target)) ||
       !normalizedTargetEndDate ||
-      !normalizedAsOf ||
+      (hasAsOfColumn && !normalizedAsOf) ||
       Number.isNaN(observation) ||
-      new Date(normalizedTargetEndDate) < minDate
+      (minDate && new Date(normalizedTargetEndDate) < minDate)
     ) {
       return;
     }
 
     const dedupeKey = `${target}__${normalizedTargetEndDate}`;
     const existing = latestByKey.get(dedupeKey);
-    if (!existing || normalizedAsOf >= existing.as_of) {
+    if (!existing || !hasAsOfColumn || normalizedAsOf >= existing.as_of) {
       latestByKey.set(dedupeKey, {
         target,
         target_end_date: normalizedTargetEndDate,
@@ -791,7 +840,74 @@ const buildProjectionOutputs = ({
   locationsRows,
   targetRows,
 }) => {
-  if (!locationsRows || !targetRows) {
+  if (!targetRows) {
+    throw new Error("Reference data did not include parsed CSV records.");
+  }
+
+  if (hubConfig.slug === "other-hub") {
+    const outputs = {};
+    const locationIds = uniqueValuesInOrder(
+      forecastRows.map((row) => String(row.location)),
+    );
+
+    locationIds.forEach((locationId) => {
+      const locationForecastRows = forecastRows.filter(
+        (row) => String(row.location) === locationId,
+      );
+      const locationTargetRows = targetRows.filter(
+        (row) => String(row.location) === locationId,
+      );
+      const forecastTargets = uniqueValuesInOrder(
+        locationForecastRows.map((row) => String(row.target)),
+      );
+
+      outputs[locationId] = {
+        metadata: {
+          location: locationId,
+          abbreviation: locationId,
+          location_name: locationId,
+          population: null,
+          dataset: hubConfig.datasetLabel,
+          series_type: "projection",
+          hubverse_keys: {
+            models: uniqueValuesInOrder(
+              locationForecastRows.map((row) => String(row.model_id)),
+            ),
+            targets: forecastTargets,
+            horizons: uniqueValuesInOrder(
+              locationForecastRows.map((row) => String(row.horizon)),
+            ),
+            output_types: uniqueValuesInOrder(
+              locationForecastRows.map((row) => String(row.output_type)),
+            ).filter((value) => value !== "sample"),
+          },
+        },
+        ground_truth: buildGroundTruthOutput(
+          locationTargetRows,
+          hubConfig,
+          forecastTargets,
+        ),
+        forecasts: buildForecastOutput(locationForecastRows),
+      };
+    });
+
+    outputs["metadata.json"] = {
+      last_updated: new Date().toISOString(),
+      models: [
+        ...uniqueValuesInOrder(forecastRows.map((row) => String(row.model_id))),
+      ].sort(),
+      locations: locationIds.map((locationId) => ({
+        location: locationId,
+        abbreviation: locationId,
+        location_name: locationId,
+        population: null,
+      })),
+    };
+
+    return outputs;
+  }
+
+  if (!locationsRows) {
     throw new Error("Reference data did not include parsed CSV records.");
   }
 
@@ -982,12 +1098,171 @@ const buildLocationOptions = (projectionOutputs) =>
     .filter(([fileName]) => fileName !== "metadata.json")
     .map(([fileName, payload]) => ({
       value: fileName,
-      label:
-        payload?.metadata?.location_name && payload?.metadata?.abbreviation
-          ? `${payload.metadata.location_name} (${payload.metadata.abbreviation})`
-          : fileName,
+      label: (() => {
+        const locationName = payload?.metadata?.location_name;
+        const abbreviation = payload?.metadata?.abbreviation;
+        if (locationName && abbreviation && locationName !== abbreviation) {
+          return `${locationName} (${abbreviation})`;
+        }
+        return locationName || abbreviation || fileName;
+      })(),
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
+
+const validateGroundTruthCsv = (records) => {
+  const summary = {
+    totalRows: records.length,
+    rowsDroppedInvalidDates: 0,
+    rowsDroppedInvalidObservation: 0,
+    rowsDroppedMissingLocation: 0,
+    rowsDroppedMissingTarget: 0,
+    rowsCollapsedToLatestAsOf: 0,
+    rowsFlaggedAsDuplicatesWithoutAsOf: 0,
+    usableRows: 0,
+  };
+
+  const errors = [];
+  const sampleProblems = [];
+
+  if (records.length === 0) {
+    errors.push("The ground truth CSV has headers but no data rows.");
+    return { ok: false, errors, summary };
+  }
+
+  const hasAsOfColumn = Boolean(records[0] && "as_of" in records[0]);
+  const usableRows = records.flatMap((record, index) => {
+    const normalizedTargetEndDate = normalizeDateString(record.target_end_date);
+    const normalizedAsOf = hasAsOfColumn
+      ? normalizeDateString(record.as_of)
+      : null;
+    const observation = Number(record.observation);
+    const location = String(record.location ?? "").trim();
+    const target = String(record.target ?? "").trim();
+
+    if (!location) {
+      summary.rowsDroppedMissingLocation += 1;
+      sampleProblems.push(`Row ${index + 2} is missing a location value.`);
+      return [];
+    }
+
+    if (!target) {
+      summary.rowsDroppedMissingTarget += 1;
+      sampleProblems.push(`Row ${index + 2} is missing a target value.`);
+      return [];
+    }
+
+    if (!normalizedTargetEndDate || (hasAsOfColumn && !normalizedAsOf)) {
+      summary.rowsDroppedInvalidDates += 1;
+      sampleProblems.push(
+        hasAsOfColumn
+          ? `Row ${index + 2} has an invalid as_of or target_end_date value.`
+          : `Row ${index + 2} has an invalid target_end_date value.`,
+      );
+      return [];
+    }
+
+    if (Number.isNaN(observation)) {
+      summary.rowsDroppedInvalidObservation += 1;
+      sampleProblems.push(
+        `Row ${index + 2} has a non-numeric observation of "${record.observation}".`,
+      );
+      return [];
+    }
+
+    return [
+      {
+        ...record,
+        as_of: normalizedAsOf,
+        target_end_date: normalizedTargetEndDate,
+        observation,
+        location,
+        target,
+      },
+    ];
+  });
+
+  if (sampleProblems.length > 0) {
+    errors.push(...sampleProblems.slice(0, 5));
+  }
+
+  const latestByKey = new Map();
+  if (hasAsOfColumn) {
+    usableRows.forEach((row) => {
+      const dedupeKey = `${row.location}__${row.target}__${row.target_end_date}`;
+      const existing = latestByKey.get(dedupeKey);
+      if (!existing || row.as_of >= existing.as_of) {
+        latestByKey.set(dedupeKey, row);
+      }
+    });
+    summary.rowsCollapsedToLatestAsOf = Math.max(
+      0,
+      usableRows.length - latestByKey.size,
+    );
+  } else {
+    const seenKeys = new Set();
+    const duplicateKeys = new Set();
+
+    usableRows.forEach((row) => {
+      const dedupeKey = `${row.location}__${row.target}__${row.target_end_date}`;
+      if (seenKeys.has(dedupeKey)) {
+        duplicateKeys.add(dedupeKey);
+        return;
+      }
+      seenKeys.add(dedupeKey);
+      latestByKey.set(dedupeKey, row);
+    });
+
+    if (duplicateKeys.size > 0) {
+      summary.rowsFlaggedAsDuplicatesWithoutAsOf = duplicateKeys.size;
+      errors.push(
+        "Your ground truth file does not include an as_of column, so duplicate rows with the same location, target, and target_end_date are not allowed.",
+      );
+    }
+  }
+  summary.usableRows = latestByKey.size;
+
+  if (latestByKey.size === 0) {
+    errors.push("No usable ground truth rows remain after validation.");
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    summary,
+    usableRows: Array.from(latestByKey.values()).sort((left, right) => {
+      const leftLocation = left.location.localeCompare(right.location);
+      if (leftLocation !== 0) return leftLocation;
+      const leftDate = new Date(left.target_end_date).getTime();
+      const rightDate = new Date(right.target_end_date).getTime();
+      if (leftDate !== rightDate) return leftDate - rightDate;
+      return left.target.localeCompare(right.target);
+    }),
+  };
+};
+
+const buildGroundTruthTargetWarning = (forecastRows, groundTruthRows) => {
+  if (!forecastRows?.length || !groundTruthRows?.length) {
+    return null;
+  }
+
+  const forecastTargets = uniqueValuesInOrder(
+    forecastRows.map((row) => String(row.target ?? "").trim()).filter(Boolean),
+  );
+  const groundTruthTargets = new Set(
+    groundTruthRows
+      .map((row) => String(row.target ?? "").trim())
+      .filter(Boolean),
+  );
+  const unmatchedTargets = forecastTargets.filter(
+    (target) => !groundTruthTargets.has(target),
+  );
+
+  if (unmatchedTargets.length === 0) {
+    return null;
+  }
+
+  return `Some forecast targets do not appear in your ground truth data: ${unmatchedTargets.join(", ")}. Please ensure your ground truth and forecast data match.`;
+};
 
 const buildMetroHierarchy = (projectionOutputs) => {
   const metadataLocations =
@@ -1197,6 +1472,7 @@ const MyRespiVisualizationPanel = ({
 }) => {
   const { colorScheme } = useMantineColorScheme();
   const isMetrocast = hubConfig?.slug === "flumetrocast";
+  const comparisonEnabled = hubConfig?.slug !== "other-hub";
   const [selectedMetroState, setSelectedMetroState] = useState(null);
   const [selectedLocationFile, setSelectedLocationFile] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
@@ -1926,94 +2202,97 @@ const MyRespiVisualizationPanel = ({
               </Stack>
             </Paper>
 
-            <Paper withBorder radius="md" p="sm">
-              <Stack gap="xs">
-                <Group justify="space-between" align="center">
-                  <Text fw={600} size="sm">
-                    Compare with submitting models
-                  </Text>
-                  <Switch
-                    checked={compareWithSubmittingModels}
-                    onChange={(event) =>
-                      setCompareWithSubmittingModels(
-                        event.currentTarget.checked,
-                      )
-                    }
-                    disabled={!comparisonEligibility?.isEligible}
-                    size="sm"
-                  />
-                </Group>
-                {compareWithSubmittingModels &&
-                  comparisonDataState.status === "loading" && (
-                    <Group gap="xs">
-                      <Loader size="sm" color="blue" />
-                      <Text size="sm" c="dimmed">
-                        Loading submitted model data for this location...
-                      </Text>
-                    </Group>
-                  )}
-                {compareWithSubmittingModels &&
-                  comparisonDataState.status === "error" && (
-                    <Alert
-                      color="red"
-                      variant="light"
-                      radius="md"
-                      icon={<IconAlertCircle size={16} />}
-                    >
-                      {comparisonDataState.error}
-                    </Alert>
-                  )}
-              </Stack>
-            </Paper>
-
-            {compareWithSubmittingModels &&
-              comparisonDataState.status === "success" && (
-                <>
-                  <Paper withBorder radius="md" p="sm">
-                    <Stack gap="sm">
+            {comparisonEnabled && (
+              <>
+                <Paper withBorder radius="md" p="sm">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
                       <Text fw={600} size="sm">
-                        Submitting models display
+                        Compare with submitting models
                       </Text>
-                      <Group align="center" gap="md" wrap="wrap">
-                        <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
-                          Intervals
-                        </Text>
-                        <Checkbox.Group
-                          value={selectedSubmittedIntervals}
-                          onChange={(values) => {
-                            const nextVisibility = {};
-                            SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
-                              nextVisibility[option.value] = values.includes(
-                                option.value,
-                              );
-                            });
-                            setSubmittedIntervalVisibility(nextVisibility);
-                          }}
+                      <Switch
+                        checked={compareWithSubmittingModels}
+                        onChange={(event) =>
+                          setCompareWithSubmittingModels(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        disabled={!comparisonEligibility?.isEligible}
+                        size="sm"
+                      />
+                    </Group>
+                    {compareWithSubmittingModels &&
+                      comparisonDataState.status === "loading" && (
+                        <Group gap="xs">
+                          <Loader size="sm" color="blue" />
+                          <Text size="sm" c="dimmed">
+                            Loading submitted model data for this location...
+                          </Text>
+                        </Group>
+                      )}
+                    {compareWithSubmittingModels &&
+                      comparisonDataState.status === "error" && (
+                        <Alert
+                          color="red"
+                          variant="light"
+                          radius="md"
+                          icon={<IconAlertCircle size={16} />}
                         >
-                          <Group gap="sm" wrap="wrap">
-                            {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
-                              <Checkbox
-                                key={option.value}
-                                value={option.value}
-                                label={option.label}
-                                size="xs"
-                              />
-                            ))}
-                          </Group>
-                        </Checkbox.Group>
-                      </Group>
-                    </Stack>
-                  </Paper>
+                          {comparisonDataState.error}
+                        </Alert>
+                      )}
+                  </Stack>
+                </Paper>
 
-                  <ModelSelector
-                    models={submittedModels}
-                    selectedModels={selectedSubmittedModels}
-                    setSelectedModels={handleSubmittedModelSelectionChange}
-                    activeModels={activeSubmittedModels}
-                    modelColorFn={submittedModelColorFn}
-                  />
-                </>
-              )}
+                {compareWithSubmittingModels &&
+                  comparisonDataState.status === "success" && (
+                    <>
+                      <Paper withBorder radius="md" p="sm">
+                        <Stack gap="sm">
+                          <Text fw={600} size="sm">
+                            Submitting models display
+                          </Text>
+                          <Group align="center" gap="md" wrap="wrap">
+                            <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
+                              Intervals
+                            </Text>
+                            <Checkbox.Group
+                              value={selectedSubmittedIntervals}
+                              onChange={(values) => {
+                                const nextVisibility = {};
+                                SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                                  nextVisibility[option.value] =
+                                    values.includes(option.value);
+                                });
+                                setSubmittedIntervalVisibility(nextVisibility);
+                              }}
+                            >
+                              <Group gap="sm" wrap="wrap">
+                                {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                                  <Checkbox
+                                    key={option.value}
+                                    value={option.value}
+                                    label={option.label}
+                                    size="xs"
+                                  />
+                                ))}
+                              </Group>
+                            </Checkbox.Group>
+                          </Group>
+                        </Stack>
+                      </Paper>
+
+                      <ModelSelector
+                        models={submittedModels}
+                        selectedModels={selectedSubmittedModels}
+                        setSelectedModels={handleSubmittedModelSelectionChange}
+                        activeModels={activeSubmittedModels}
+                        modelColorFn={submittedModelColorFn}
+                      />
+                    </>
+                  )}
+              </>
+            )}
           </Stack>
         </Paper>
       </Grid.Col>
@@ -2068,63 +2347,88 @@ const HubSelectionScreen = () => {
   return (
     <>
       <Seo
-        title="RespiLens | MyRespiLens"
-        description="Validate and prepare Hubverse forecast CSV files for use in MyRespiLens."
-        canonicalPath="/myrespilens"
+        title="RespiLens | Forecast Checker"
+        description="Validate and prepare Hubverse forecast CSV files for use in Forecast Checker."
+        canonicalPath="/toolbox/forecast-checker"
       />
-      <Container size="lg" py="xl">
-        <Stack gap="xl" maw={900} mx="auto">
-          <Stack gap="sm" ta="center">
-            <Title order={1} c="blue">
-              MyRespiLens
-            </Title>
-            <Text size="lg">
+      <Container size="xl" py="xl" style={{ maxWidth: "1500px" }}>
+        <Stack gap="xl" maw={1320} mx="auto">
+          <Stack gap="sm">
+            <Group justify="center" align="center" wrap="nowrap">
+              <Tooltip label="Back to toolbox" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="blue"
+                  size="xl"
+                  radius="xl"
+                  onClick={() => navigate("/toolbox")}
+                  aria-label="Back to toolbox"
+                >
+                  <IconArrowLeft size={24} stroke={2.25} />
+                </ActionIcon>
+              </Tooltip>
+              <Title order={1} c="blue" ta="center">
+                Forecast Checker
+              </Title>
+            </Group>
+            <Text size="lg" ta="center">
               Select a hub and drop your data for instant visualization!
             </Text>
           </Stack>
 
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-            {HUB_OPTIONS.map((hub) => (
-              <Paper
-                key={hub.slug}
-                withBorder
-                radius="xl"
-                p="xl"
-                onMouseEnter={() => setHoveredHub(hub.slug)}
-                onMouseLeave={() => setHoveredHub(null)}
-                onClick={() => navigate(`/myrespilens/${hub.slug}`)}
-                style={{
-                  aspectRatio: "1 / 1",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  transform:
-                    hoveredHub === hub.slug
-                      ? "translateY(-6px)"
-                      : "translateY(0)",
-                  boxShadow:
-                    hoveredHub === hub.slug
-                      ? "0 14px 30px rgba(37, 99, 235, 0.18)"
-                      : "0 4px 12px rgba(15, 23, 42, 0.06)",
-                  borderColor:
-                    hoveredHub === hub.slug
-                      ? "var(--mantine-color-blue-4)"
-                      : undefined,
-                  transition: "transform 160ms ease, box-shadow 160ms ease",
-                }}
-              >
-                <Stack align="center" gap="sm">
-                  <ThemeIcon size={56} radius="xl" variant="light" color="blue">
-                    <IconBrandGithub size={28} />
-                  </ThemeIcon>
-                  <Text fw={700} size="lg" tt="none">
-                    {hub.label}
-                  </Text>
-                </Stack>
-              </Paper>
-            ))}
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} spacing="lg">
+            {[...HUB_OPTIONS, ...EXTRA_HUB_OPTIONS].map((hub) => {
+              const HubIcon = hub.icon ?? IconBrandGithub;
+
+              return (
+                <Paper
+                  key={hub.slug}
+                  withBorder
+                  radius="xl"
+                  p="xl"
+                  onMouseEnter={() => setHoveredHub(hub.slug)}
+                  onMouseLeave={() => setHoveredHub(null)}
+                  onClick={() =>
+                    navigate(`/toolbox/forecast-checker/${hub.slug}`)
+                  }
+                  style={{
+                    aspectRatio: "1 / 1",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    transform:
+                      hoveredHub === hub.slug
+                        ? "translateY(-6px)"
+                        : "translateY(0)",
+                    boxShadow:
+                      hoveredHub === hub.slug
+                        ? "0 14px 30px rgba(37, 99, 235, 0.18)"
+                        : "0 4px 12px rgba(15, 23, 42, 0.06)",
+                    borderColor:
+                      hoveredHub === hub.slug
+                        ? "var(--mantine-color-blue-4)"
+                        : undefined,
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                  }}
+                >
+                  <Stack align="center" gap="sm">
+                    <ThemeIcon
+                      size={56}
+                      radius="xl"
+                      variant="light"
+                      color="blue"
+                    >
+                      <HubIcon size={28} />
+                    </ThemeIcon>
+                    <Text fw={700} size="lg" tt="none">
+                      {hub.label}
+                    </Text>
+                  </Stack>
+                </Paper>
+              );
+            })}
           </SimpleGrid>
 
           <Group justify="center">
@@ -2134,11 +2438,11 @@ const HubSelectionScreen = () => {
               leftSection={<IconInfoCircle size={16} />}
               onClick={toggle}
             >
-              What is MyRespiLens?
+              What is Forecast Checker?
             </Button>
             <Button
               component="a"
-              href="/myrespilens/documentation"
+              href="/toolbox/forecast-checker/documentation"
               target="_blank"
               variant="light"
               color="blue"
@@ -2151,11 +2455,11 @@ const HubSelectionScreen = () => {
           {opened && (
             <Alert
               icon={<IconInfoCircle size={16} />}
-              title="About MyRespiLens"
+              title="About Forecast Checker"
               color="blue"
               radius="lg"
             >
-              MyRespiLens is a tool that allows you to visualize your own
+              Forecast Checker is a tool that allows you to visualize your own
               respiratory disease forecast data <b>instantly</b> and{" "}
               <b>privately.</b> Simply <b>select the hub</b> your data
               corresponds to, <b>drag 'n drop your forecast data</b>, and then{" "}
@@ -2163,7 +2467,776 @@ const HubSelectionScreen = () => {
               Your data will not leave your machine, which means that your
               visualizations are not shareable via URL. User-provided model data
               must be in the Hubverse <code>.csv</code> format in order to be
-              visualized with MyRespiLens.
+              visualized with Forecast Checker.
+            </Alert>
+          )}
+        </Stack>
+      </Container>
+    </>
+  );
+};
+
+const OtherHubScreen = () => {
+  const navigate = useNavigate();
+  const [
+    groundTruthRequirementsOpened,
+    { toggle: toggleGroundTruthRequirements },
+  ] = useDisclosure(false);
+  const [groundTruthDragActive, setGroundTruthDragActive] = useState(false);
+  const [forecastDragActive, setForecastDragActive] = useState(false);
+  const [isGroundTruthProcessing, setIsGroundTruthProcessing] = useState(false);
+  const [isForecastProcessing, setIsForecastProcessing] = useState(false);
+  const [groundTruthState, setGroundTruthState] = useState({
+    status: "idle",
+    fileName: null,
+    rows: null,
+    summary: null,
+    error: null,
+  });
+  const [validationState, setValidationState] = useState(null);
+  const [projectionBuildState, setProjectionBuildState] = useState({
+    status: "idle",
+    outputs: null,
+    error: null,
+    comparisonEligibility: null,
+  });
+  const [groundTruthTargetWarning, setGroundTruthTargetWarning] =
+    useState(null);
+
+  const isShowingVisualization = projectionBuildState.status === "success";
+  const isOnForecastStep =
+    groundTruthState.status === "success" && !isShowingVisualization;
+  const backArrowLabel = isShowingVisualization
+    ? "Back to forecast upload"
+    : isOnForecastStep
+      ? "Back to ground truth upload"
+      : "Back to hub selection";
+
+  const handleResetForecastStep = useCallback(() => {
+    setForecastDragActive(false);
+    setIsForecastProcessing(false);
+    setValidationState(null);
+    setProjectionBuildState({
+      status: "idle",
+      outputs: null,
+      error: null,
+      comparisonEligibility: null,
+    });
+  }, []);
+
+  const handleResetGroundTruthStep = useCallback(() => {
+    setGroundTruthDragActive(false);
+    setIsGroundTruthProcessing(false);
+    setGroundTruthState({
+      status: "idle",
+      fileName: null,
+      rows: null,
+      summary: null,
+      error: null,
+    });
+    setGroundTruthTargetWarning(null);
+    handleResetForecastStep();
+  }, [handleResetForecastStep]);
+
+  const handleBackArrowClick = useCallback(() => {
+    if (isShowingVisualization) {
+      handleResetForecastStep();
+      return;
+    }
+
+    if (isOnForecastStep) {
+      handleResetGroundTruthStep();
+      return;
+    }
+
+    navigate("/toolbox/forecast-checker");
+  }, [
+    handleResetForecastStep,
+    handleResetGroundTruthStep,
+    isOnForecastStep,
+    isShowingVisualization,
+    navigate,
+  ]);
+
+  const processGroundTruthFiles = useCallback(async (incomingFiles) => {
+    setIsGroundTruthProcessing(true);
+    const files = Array.from(incomingFiles ?? []);
+
+    if (files.length !== 1) {
+      setGroundTruthState({
+        status: "error",
+        fileName: null,
+        rows: null,
+        summary: null,
+        error: "Please upload exactly one ground truth file at a time.",
+      });
+      setIsGroundTruthProcessing(false);
+      return;
+    }
+
+    const [file] = files;
+
+    try {
+      const { headers, records } = await readTabularUpload(file);
+      const missingColumns = GROUND_TRUTH_REQUIRED_COLUMNS.filter(
+        (column) => !headers.includes(column),
+      );
+
+      if (missingColumns.length > 0) {
+        setGroundTruthState({
+          status: "error",
+          fileName: file.name,
+          rows: null,
+          summary: null,
+          error: buildRequiredColumnError("ground truth data", missingColumns),
+        });
+        setIsGroundTruthProcessing(false);
+        return;
+      }
+
+      const validation = validateGroundTruthCsv(records);
+      if (!validation.ok) {
+        setGroundTruthState({
+          status: "error",
+          fileName: file.name,
+          rows: null,
+          summary: validation.summary,
+          error: validation.errors.join(" "),
+        });
+        setIsGroundTruthProcessing(false);
+        return;
+      }
+
+      setGroundTruthState({
+        status: "success",
+        fileName: file.name,
+        rows: validation.usableRows,
+        summary: validation.summary,
+        error: null,
+      });
+      setGroundTruthTargetWarning(null);
+      setValidationState(null);
+      setProjectionBuildState({
+        status: "idle",
+        outputs: null,
+        error: null,
+        comparisonEligibility: null,
+      });
+    } catch (error) {
+      setGroundTruthState({
+        status: "error",
+        fileName: file.name,
+        rows: null,
+        summary: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "The ground truth file could not be processed.",
+      });
+    } finally {
+      setIsGroundTruthProcessing(false);
+    }
+  }, []);
+
+  const processForecastFiles = useCallback(
+    async (incomingFiles) => {
+      if (!groundTruthState.rows) {
+        return;
+      }
+
+      setIsForecastProcessing(true);
+      const files = Array.from(incomingFiles ?? []);
+      const csvFiles = files.filter((file) =>
+        file.name.toLowerCase().endsWith(".csv"),
+      );
+
+      if (csvFiles.length === 0) {
+        setValidationState({
+          status: "error",
+          errors: [
+            "Please upload at least one Hubverse forecast file in `.csv` format.",
+          ],
+        });
+        setProjectionBuildState({
+          status: "idle",
+          outputs: null,
+          error: null,
+          comparisonEligibility: null,
+        });
+        setIsForecastProcessing(false);
+        return;
+      }
+
+      setValidationState(null);
+      setProjectionBuildState({
+        status: "idle",
+        outputs: null,
+        error: null,
+        comparisonEligibility: null,
+      });
+
+      try {
+        const parsedFiles = await Promise.all(
+          csvFiles.map(async (file) => {
+            const text = await file.text();
+            const rows = parseCsv(text);
+            const { headers, records } = toObjects(rows);
+            return {
+              fileName: getFileRelativePath(file),
+              headers,
+              records,
+            };
+          }),
+        );
+
+        const missingColumnsByFile = parsedFiles
+          .map((parsedFile) => ({
+            fileName: parsedFile.fileName,
+            missingColumns: FORECAST_REQUIRED_COLUMNS.filter(
+              (column) => !parsedFile.headers.includes(column),
+            ),
+          }))
+          .filter((entry) => entry.missingColumns.length > 0);
+
+        if (missingColumnsByFile.length > 0) {
+          setValidationState({
+            status: "error",
+            errors: missingColumnsByFile
+              .slice(0, 5)
+              .map(
+                (entry) =>
+                  `${entry.fileName} is missing required forecast columns: ${entry.missingColumns.join(", ")}.`,
+              ),
+          });
+          setIsForecastProcessing(false);
+          return;
+        }
+
+        const concatenatedRecords = parsedFiles.flatMap(
+          (parsedFile) => parsedFile.records,
+        );
+        const validation = validateHubverseCsv(
+          concatenatedRecords,
+          OTHER_HUB_CONFIG,
+        );
+
+        if (!validation.ok) {
+          setValidationState({
+            status: "error",
+            errors: validation.errors,
+            summary: validation.summary,
+          });
+          setIsForecastProcessing(false);
+          return;
+        }
+
+        setValidationState({
+          status: "success",
+          summary: validation.summary,
+        });
+
+        const outputs = buildProjectionOutputs({
+          hubConfig: OTHER_HUB_CONFIG,
+          forecastRows: validation.usableRows,
+          locationsRows: null,
+          targetRows: groundTruthState.rows,
+        });
+        setGroundTruthTargetWarning(
+          buildGroundTruthTargetWarning(
+            validation.usableRows,
+            groundTruthState.rows,
+          ),
+        );
+
+        setProjectionBuildState({
+          status: "success",
+          outputs,
+          error: null,
+          comparisonEligibility: {
+            isEligible: false,
+            reason:
+              "Comparison with submitting models is not available for custom hubs.",
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The forecast file could not be processed.";
+
+        setProjectionBuildState({
+          status: "error",
+          outputs: null,
+          error: message,
+          comparisonEligibility: null,
+        });
+        setValidationState({
+          status: "error",
+          errors: [message],
+        });
+      } finally {
+        setIsForecastProcessing(false);
+      }
+    },
+    [groundTruthState.rows],
+  );
+
+  const handleGroundTruthDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isGroundTruthProcessing) {
+        return;
+      }
+      setGroundTruthDragActive(false);
+      const droppedFiles = await collectDroppedFiles(event.dataTransfer);
+      if (droppedFiles.length > 0) {
+        processGroundTruthFiles(droppedFiles);
+      }
+    },
+    [isGroundTruthProcessing, processGroundTruthFiles],
+  );
+
+  const handleGroundTruthFileSelect = useCallback(
+    (event) => {
+      if (isGroundTruthProcessing) {
+        event.target.value = "";
+        return;
+      }
+      if (event.target.files?.length) {
+        processGroundTruthFiles(event.target.files);
+      }
+      event.target.value = "";
+    },
+    [isGroundTruthProcessing, processGroundTruthFiles],
+  );
+
+  const handleForecastDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isForecastProcessing) {
+        return;
+      }
+      setForecastDragActive(false);
+      const droppedFiles = await collectDroppedFiles(event.dataTransfer);
+      if (droppedFiles.length > 0) {
+        processForecastFiles(droppedFiles);
+      }
+    },
+    [isForecastProcessing, processForecastFiles],
+  );
+
+  const handleForecastFileSelect = useCallback(
+    (event) => {
+      if (isForecastProcessing) {
+        event.target.value = "";
+        return;
+      }
+      if (event.target.files?.length) {
+        processForecastFiles(event.target.files);
+      }
+      event.target.value = "";
+    },
+    [isForecastProcessing, processForecastFiles],
+  );
+
+  return (
+    <>
+      <Seo
+        title="RespiLens | Forecast Checker | Other Hub"
+        description="Provide ground truth and forecast data for a hub that is not currently listed in Forecast Checker."
+        canonicalPath="/toolbox/forecast-checker/other-hub"
+      />
+      <Container size="xl" py="xl" fluid>
+        <Stack gap="lg">
+          {isShowingVisualization ? (
+            <Group justify="space-between" align="center">
+              <Group gap="xs" align="center">
+                <Tooltip label={backArrowLabel} withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    color="blue"
+                    size="xl"
+                    radius="xl"
+                    onClick={handleBackArrowClick}
+                    aria-label={backArrowLabel}
+                  >
+                    <IconArrowLeft size={24} stroke={2.25} />
+                  </ActionIcon>
+                </Tooltip>
+                <Title order={1}>Other hub</Title>
+              </Group>
+            </Group>
+          ) : (
+            <Group justify="center">
+              <Box w="100%" maw={860}>
+                <Group justify="space-between" align="center">
+                  <Group gap="xs" align="center">
+                    <Tooltip label={backArrowLabel} withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        color="blue"
+                        size="xl"
+                        radius="xl"
+                        onClick={handleBackArrowClick}
+                        aria-label={backArrowLabel}
+                      >
+                        <IconArrowLeft size={24} stroke={2.25} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Title order={1}>Other hub</Title>
+                  </Group>
+                </Group>
+              </Box>
+            </Group>
+          )}
+
+          {isShowingVisualization && groundTruthTargetWarning && (
+            <Alert
+              color="red"
+              variant="light"
+              radius="lg"
+              icon={<IconInfoCircle size={16} />}
+              title="Possible target mismatch"
+            >
+              {groundTruthTargetWarning}
+            </Alert>
+          )}
+
+          {isShowingVisualization && (
+            <MyRespiVisualizationPanel
+              projectionOutputs={projectionBuildState.outputs}
+              hubConfig={OTHER_HUB_CONFIG}
+              comparisonEligibility={projectionBuildState.comparisonEligibility}
+            />
+          )}
+
+          {!isShowingVisualization && (
+            <Group justify="center">
+              <Box w="100%" maw={860}>
+                <Stack gap="md">
+                  <Text size="lg">
+                    If you wish to check forecasts for a hub that is not listed
+                    on RespiLens, you may do so by:
+                  </Text>
+                  <List type="ordered" spacing="xs">
+                    <List.Item>
+                      <b>Providing the corresponding ground truth data</b>
+                    </List.Item>
+                    <List.Item>
+                      <b>Providing your forecast data</b>
+                    </List.Item>
+                  </List>
+                  <Text size="lg">
+                    For ground truth data requirements, see below. For forecast
+                    data requirements, see the Forecast Checker{" "}
+                    <Anchor
+                      href="/toolbox/forecast-checker/documentation"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      documentation
+                    </Anchor>{" "}
+                    page.
+                  </Text>
+
+                  {!isOnForecastStep && (
+                    <Stack gap="md">
+                      <Paper
+                        withBorder
+                        radius="xl"
+                        p="xl"
+                        onDragEnter={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          if (isGroundTruthProcessing) {
+                            return;
+                          }
+                          setGroundTruthDragActive(true);
+                        }}
+                        onDragLeave={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setGroundTruthDragActive(false);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onDrop={handleGroundTruthDrop}
+                        onClick={() => {
+                          if (isGroundTruthProcessing) {
+                            return;
+                          }
+                          document
+                            .getElementById(
+                              "forecast-checker-other-ground-truth-input",
+                            )
+                            ?.click();
+                        }}
+                        style={{
+                          cursor: isGroundTruthProcessing
+                            ? "progress"
+                            : "pointer",
+                          border: groundTruthDragActive
+                            ? "2px dashed var(--mantine-color-blue-6)"
+                            : "2px dashed var(--mantine-color-gray-4)",
+                          backgroundColor: groundTruthDragActive
+                            ? "var(--mantine-color-blue-light)"
+                            : "transparent",
+                          transition:
+                            "border-color 160ms ease, background-color 160ms ease",
+                        }}
+                      >
+                        <Stack align="center" gap="lg" py="xl">
+                          {isGroundTruthProcessing ? (
+                            <Loader color="blue" size="xl" />
+                          ) : (
+                            <ThemeIcon
+                              size={84}
+                              radius="xl"
+                              variant="light"
+                              color={groundTruthDragActive ? "blue" : "gray"}
+                            >
+                              <IconUpload size={40} />
+                            </ThemeIcon>
+                          )}
+                          <Stack gap="xs" ta="center">
+                            <Title order={2}>
+                              {isGroundTruthProcessing
+                                ? "Validating ground truth data"
+                                : "Step 1: Add your ground truth data"}
+                            </Title>
+                            <Text c="dimmed">
+                              {isGroundTruthProcessing
+                                ? "This could take a moment..."
+                                : "Drop a single ground truth CSV or parquet file here, or click to select it from your device."}
+                            </Text>
+                          </Stack>
+                          <input
+                            id="forecast-checker-other-ground-truth-input"
+                            type="file"
+                            accept=".csv,.parquet,.pq,text/csv,application/octet-stream"
+                            style={{ display: "none" }}
+                            onChange={handleGroundTruthFileSelect}
+                          />
+                        </Stack>
+                      </Paper>
+
+                      <Group justify="center">
+                        <Button
+                          variant="light"
+                          color="blue"
+                          leftSection={<IconInfoCircle size={16} />}
+                          onClick={toggleGroundTruthRequirements}
+                        >
+                          Ground truth data requirements
+                        </Button>
+                      </Group>
+
+                      {groundTruthRequirementsOpened && (
+                        <Alert
+                          icon={<IconInfoCircle size={16} />}
+                          title="Ground truth data requirements"
+                          color="blue"
+                          radius="lg"
+                        >
+                          <Stack gap="sm">
+                            <Text>
+                              Upload exactly one ground truth file at a time.
+                              Forecast Checker currently accepts{" "}
+                              <code>.csv</code>, <code>.parquet</code>, or{" "}
+                              <code>.pq</code>.
+                            </Text>
+                            <Text fw={600}>Required columns</Text>
+                            <List spacing="xs">
+                              <List.Item>
+                                <code>target_end_date</code> (must be valid
+                                date)
+                              </List.Item>
+                              <List.Item>
+                                <code>location</code>
+                              </List.Item>
+                              <List.Item>
+                                <code>observation</code> (must be numeric)
+                              </List.Item>
+                              <List.Item>
+                                <code>target</code>
+                              </List.Item>
+                            </List>
+                            <Text>
+                              <code>as_of</code> is an optional column. If it is
+                              present, it will be used to filter duplicate rows
+                              (i.e., for each duplicate, the latest{" "}
+                              <code>as_of</code> value will be kept. In its
+                              absence, duplicate rows will cause validation
+                              failure. Must be a valid date.
+                            </Text>
+                            <Text fw={600}>Other validation behavior</Text>
+                            <List spacing="xs">
+                              <List.Item>
+                                Rows with missing or invalid required values are
+                                removed during validation.
+                              </List.Item>
+                              <List.Item>
+                                The presence of <code>NA</code> values causes
+                                validation to fail
+                              </List.Item>
+                              <List.Item>
+                                The upload fails if no usable ground truth rows
+                                remain after validation.
+                              </List.Item>
+                              <List.Item>
+                                Ground truth data may contain multiple targets,
+                                but only those found in your forecast data will
+                                be shown in the target selector.
+                              </List.Item>
+                            </List>
+                          </Stack>
+                        </Alert>
+                      )}
+                    </Stack>
+                  )}
+
+                  {isOnForecastStep && (
+                    <Paper
+                      withBorder
+                      radius="xl"
+                      p="xl"
+                      onDragEnter={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (isForecastProcessing) {
+                          return;
+                        }
+                        setForecastDragActive(true);
+                      }}
+                      onDragLeave={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setForecastDragActive(false);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onDrop={handleForecastDrop}
+                      onClick={() => {
+                        if (isForecastProcessing) {
+                          return;
+                        }
+                        document
+                          .getElementById(
+                            "forecast-checker-other-forecast-input",
+                          )
+                          ?.click();
+                      }}
+                      style={{
+                        cursor: isForecastProcessing ? "progress" : "pointer",
+                        border: forecastDragActive
+                          ? "2px dashed var(--mantine-color-blue-6)"
+                          : "2px dashed var(--mantine-color-gray-4)",
+                        backgroundColor: forecastDragActive
+                          ? "var(--mantine-color-blue-light)"
+                          : "transparent",
+                        transition:
+                          "border-color 160ms ease, background-color 160ms ease",
+                      }}
+                    >
+                      <Stack align="center" gap="lg" py="xl">
+                        {isForecastProcessing ? (
+                          <Loader color="blue" size="xl" />
+                        ) : (
+                          <ThemeIcon
+                            size={84}
+                            radius="xl"
+                            variant="light"
+                            color={forecastDragActive ? "blue" : "gray"}
+                          >
+                            <IconUpload size={40} />
+                          </ThemeIcon>
+                        )}
+                        <Stack gap="xs" ta="center">
+                          <Title order={2}>
+                            {isForecastProcessing
+                              ? "Processing your uploaded forecasts"
+                              : "Step 2: Add your forecast data"}
+                          </Title>
+                          <Text c="dimmed">
+                            {isForecastProcessing
+                              ? "This could take a moment..."
+                              : `Ground truth file loaded: ${groundTruthState.fileName}. Now drop your Hubverse-style forecast CSV file(s) here.`}
+                          </Text>
+                        </Stack>
+                        <input
+                          id="forecast-checker-other-forecast-input"
+                          type="file"
+                          accept=".csv,text/csv"
+                          multiple
+                          style={{ display: "none" }}
+                          onChange={handleForecastFileSelect}
+                        />
+                      </Stack>
+                    </Paper>
+                  )}
+                </Stack>
+              </Box>
+            </Group>
+          )}
+
+          {groundTruthState.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Ground truth validation failed"
+              icon={<IconAlertCircle size={16} />}
+            >
+              <Stack gap="sm">
+                <Text>{groundTruthState.error}</Text>
+                {groundTruthState.summary && (
+                  <Group gap="xs">
+                    <Badge color="blue" variant="light">
+                      {groundTruthState.summary.totalRows} rows read
+                    </Badge>
+                    <Badge color="green" variant="light">
+                      {groundTruthState.summary.usableRows} rows usable
+                    </Badge>
+                  </Group>
+                )}
+              </Stack>
+            </Alert>
+          )}
+
+          {projectionBuildState.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Could not create projections JSON"
+              icon={<IconAlertCircle size={16} />}
+            >
+              {projectionBuildState.error}
+            </Alert>
+          )}
+
+          {validationState?.status === "error" && (
+            <Alert
+              color="red"
+              radius="lg"
+              title="Validation failed"
+              icon={<IconAlertCircle size={16} />}
+            >
+              <Stack gap="sm">
+                <Text>CSV validation failed:</Text>
+                {validationState.summary && (
+                  <ValidationSummary summary={validationState.summary} />
+                )}
+                <List spacing="xs">
+                  {validationState.errors.map((error) => (
+                    <List.Item key={error}>{error}</List.Item>
+                  ))}
+                </List>
+              </Stack>
             </Alert>
           )}
         </Stack>
@@ -2473,7 +3546,7 @@ const HubUploadScreen = () => {
     : "Back to hub selection";
   const handleBackArrowClick = isShowingVisualization
     ? handleResetUpload
-    : () => navigate("/myrespilens");
+    : () => navigate("/toolbox/forecast-checker");
 
   if (!hubConfig) {
     return (
@@ -2483,7 +3556,8 @@ const HubUploadScreen = () => {
           title="Unknown hub"
           icon={<IconAlertCircle size={16} />}
         >
-          The MyRespiLens hub route <strong>{hub}</strong> is not supported.
+          The Forecast Checker hub route <strong>{hub}</strong> is not
+          supported.
         </Alert>
       </Container>
     );
@@ -2492,9 +3566,9 @@ const HubUploadScreen = () => {
   return (
     <>
       <Seo
-        title={`RespiLens | MyRespiLens | ${hubConfig.label}`}
-        description={`Validate Hubverse CSV data for ${hubConfig.label} before MyRespiLens conversion.`}
-        canonicalPath={`/myrespilens/${hubConfig.slug}`}
+        title={`RespiLens | Forecast Checker | ${hubConfig.label}`}
+        description={`Validate Hubverse CSV data for ${hubConfig.label} before Forecast Checker conversion.`}
+        canonicalPath={`/toolbox/forecast-checker/${hubConfig.slug}`}
       />
       <Container size="xl" py="xl" fluid>
         <Stack gap="lg">
@@ -2515,7 +3589,7 @@ const HubUploadScreen = () => {
                     </ActionIcon>
                   </Tooltip>
                   <Title order={1}>{hubConfig.label}</Title>
-                  <Tooltip label="Open hub GitHub" withArrow>
+                  <Tooltip label="Open hub in GitHub" withArrow>
                     <ActionIcon
                       component="a"
                       href={hubConfig.githubUrl}
@@ -2551,7 +3625,7 @@ const HubUploadScreen = () => {
                         </ActionIcon>
                       </Tooltip>
                       <Title order={1}>{hubConfig.label}</Title>
-                      <Tooltip label="Open hub GitHub" withArrow>
+                      <Tooltip label="Open hub in GitHub" withArrow>
                         <ActionIcon
                           component="a"
                           href={hubConfig.githubUrl}
@@ -2675,9 +3749,9 @@ const HubUploadScreen = () => {
                           "This could take a moment..."
                         ) : (
                           <>
-                            Visit the MyRespiLens{" "}
+                            Visit the Forecast Checker{" "}
                             <Anchor
-                              href="/myrespilens/documentation"
+                              href="/toolbox/forecast-checker/documentation"
                               target="_blank"
                               rel="noreferrer"
                               onClick={(event) => event.stopPropagation()}
@@ -2733,9 +3807,9 @@ const HubUploadScreen = () => {
                   ))}
                 </List>
                 <Text size="sm" c="dimmed">
-                  Check the MyRespiLens{" "}
+                  Check the Forecast Checker{" "}
                   <Anchor
-                    href="/myrespilens/documentation"
+                    href="/toolbox/forecast-checker/documentation"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -2752,8 +3826,12 @@ const HubUploadScreen = () => {
   );
 };
 
-const MyRespiLensDashboard = () => {
+const ForecastCheckerDashboard = () => {
   const { hub } = useParams();
+
+  if (hub === "other-hub") {
+    return <OtherHubScreen />;
+  }
 
   if (hub) {
     return <HubUploadScreen />;
@@ -2762,4 +3840,4 @@ const MyRespiLensDashboard = () => {
   return <HubSelectionScreen />;
 };
 
-export default MyRespiLensDashboard;
+export default ForecastCheckerDashboard;

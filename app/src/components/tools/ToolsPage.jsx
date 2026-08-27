@@ -9,17 +9,29 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconClock, IconTools } from "@tabler/icons-react";
+import {
+  IconClock,
+  IconTools,
+  IconAdjustmentsCheck,
+} from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import Seo from "../Seo";
 
 const tools = [
   {
+    title: "Forecast Checker",
+    description:
+      "Pick a respiratory illness forecasting hub and instantly visualize your forecast data. Compare with ground truth data and other submitting models.",
+    icon: IconAdjustmentsCheck,
+    href: "/toolbox/forecast-checker",
+    badge: "Visualization",
+  },
+  {
     title: "Reporting delay explorer",
     description:
       "Do you need to nowcast? What does your reporting delay distribution look like? Securely upload your reporting data to build your reporting triangle and answer these questions.",
     icon: IconClock,
-    href: "/reporting-triangle",
+    href: "/toolbox/reporting-triangle",
     badge: "Nowcasting",
   },
 ];
@@ -28,19 +40,19 @@ const ToolsPage = () => {
   return (
     <>
       <Seo
-        title="RespiLens | Toolbox"
-        description="Browse RespiLens tools for respiratory disease data quality checks, reporting delay exploration, and nowcasting preparation."
+        title="RespiLens | Toolbox | Forecast Checker"
+        description="Browse the RespiLens Toolbox, including Forecast Checker for private forecast visualization and the reporting delay explorer for nowcasting preparation."
         canonicalPath="/toolbox"
       />
       <Container size="xl" py="xl">
         <Stack gap="lg">
           <Group align="center">
             <IconTools size={28} />
-            <Title order={1}>RespiLens Toolboox</Title>
+            <Title order={1}>RespiLens Toolbox</Title>
           </Group>
           <Text c="dimmed" size="lg">
-            Browse lightweight utilities for data QA and perhaps more at some
-            point.
+            Lightweight infectious disease modeling utilities that run privately
+            in your browser. No data leaves your computer.
           </Text>
 
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">

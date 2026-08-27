@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Anchor,
   ActionIcon,
@@ -22,9 +23,11 @@ import {
   Table,
   Text,
   ThemeIcon,
+  Tooltip as MantineTooltip,
   Title,
 } from "@mantine/core";
 import {
+  IconArrowLeft,
   IconArrowsMaximize,
   IconArrowsMinimize,
   IconArrowRight,
@@ -36,11 +39,11 @@ import {
   BarElement,
   CategoryScale,
   Chart as ChartJS,
+  Tooltip as ChartTooltip,
   Legend,
   LineElement,
   LinearScale,
   PointElement,
-  Tooltip,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import Plot from "react-plotly.js";
@@ -54,7 +57,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
-  Tooltip,
+  ChartTooltip,
   Legend,
 );
 
@@ -272,6 +275,7 @@ const SAMPLE_MAPPING = {
 };
 
 const ReportingDelayPage = () => {
+  const navigate = useNavigate();
   const inputRef = useRef(null);
   const [csvRows, setCsvRows] = useState(() => INITIAL_PARSED.records);
   const [csvHeaders, setCsvHeaders] = useState(() => INITIAL_PARSED.headers);
@@ -654,18 +658,32 @@ const ReportingDelayPage = () => {
       <Seo
         title="RespiLens | Reporting Delay Explorer"
         description="Upload reporting data to explore delay distributions, build reporting triangles, and assess nowcasting needs in RespiLens."
-        canonicalPath="/reporting-triangle"
+        canonicalPath="/toolbox/reporting-triangle"
       />
       <Container size="xl" py="xl">
         <Stack gap="xl">
           <Stack gap="xs">
-            <Badge
-              variant="light"
-              leftSection={<IconClock size={14} />}
-              w="fit-content"
-            >
-              Reporting triangle explorer
-            </Badge>
+            <Group align="center" gap="xs" wrap="nowrap">
+              <MantineTooltip label="Back to toolbox" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="blue"
+                  size="xl"
+                  radius="xl"
+                  onClick={() => navigate("/toolbox")}
+                  aria-label="Back to toolbox"
+                >
+                  <IconArrowLeft size={24} stroke={2.25} />
+                </ActionIcon>
+              </MantineTooltip>
+              <Badge
+                variant="light"
+                leftSection={<IconClock size={14} />}
+                w="fit-content"
+              >
+                Reporting triangle explorer
+              </Badge>
+            </Group>
             <Title order={1}>
               Do you need to nowcast? What is your reporting delay distribution?
             </Title>

@@ -86,7 +86,7 @@ const InfoOverlay = () => {
             <List.Item>Multi date, target, and model comparison</List.Item>
             <List.Item>the Forecastle game!</List.Item>
             <List.Item>
-              MyRespiLens: a safe visualization tool for your own data
+              Forecast Checker: a safe visualization tool for your own data
             </List.Item>
           </List>
 

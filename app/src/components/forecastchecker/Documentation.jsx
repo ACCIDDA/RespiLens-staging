@@ -22,7 +22,7 @@ import {
   IconFilter,
   IconUpload,
 } from "@tabler/icons-react";
-import Seo from "./Seo";
+import Seo from "../Seo";
 
 const SectionCard = ({ title, icon, children, defaultOpened = false }) => {
   const [opened, { toggle }] = useDisclosure(defaultOpened);
@@ -61,32 +61,33 @@ const Documentation = () => {
   return (
     <>
       <Seo
-        title="MyRespiLens Documentation | RespiLens"
-        description="Learn how to visualize your data with MyRespiLens, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
-        canonicalPath="/myrespilens/documentation"
+        title="Forecast Checker Documentation | RespiLens"
+        description="Learn how to visualize your data with Forecast Checker, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
+        canonicalPath="/toolbox/forecast-checker/documentation"
       />
       <Container size="lg" py="xl">
         <Stack gap="lg">
           <Stack gap="sm">
             <Title order={1} c="blue">
-              MyRespiLens Documentation
+              Forecast Checker Documentation
             </Title>
           </Stack>
 
           <SectionCard
-            title="What is MyRespiLens?"
+            title="What is Forecast Checker?"
             icon={<IconUpload size={20} />}
             defaultOpened={true}
           >
             <Text>
-              MyRespiLens allows users to quickly visualize their forecast data
-              simply by dragging and dropping CSV file(s). From the user's data
-              (and location and ground truth data stored internally), a
-              visualization dashboard will be built. All targets, locations,
-              dates, and models found in the user's data will be available for
-              selection. Additionally, a control panel is provided to modulate
-              between linear, log, and square root y-axis scales, and to toggle
-              which prediction intervals are visible on the plot.{" "}
+              Forecast Checker allows users to quickly visualize their forecast
+              data simply by dragging and dropping CSV file(s). From the user's
+              forecast data (and, if using a listed hub, the ground truth data
+              stored internally), a visualization dashboard will be built. All
+              targets, locations, dates, and models found in the user's data
+              will be available for selection. Additionally, a control panel is
+              provided to modulate between linear, log base 10, log base 2, and
+              square root y-axis scales, and to toggle which prediction
+              intervals are visible on the plot.
             </Text>
             <Text>
               Before uploading, you will be prompted to select which hub your
@@ -97,25 +98,30 @@ const Documentation = () => {
                 as the selected hub
               </b>{" "}
               (e.g., you are predicting "weekly incidence of influenza
-              hospitalization" when you select FluSight). Your data must also
-              comply with the MyRespiLens validation requirements, which are
-              listed below.
+              hospitalization" when you select FluSight). Your forecast data
+              must also comply with the Forecast Checker validation
+              requirements, which are listed below. If you want to view
+              forecasts that do not belong to one of the listed hubs, you may do
+              so by first selecting <b>Other Hub</b>, and then providing your
+              own ground truth data. Once the ground truth data has been
+              validated, you may proceed with uploading your forecast data.
             </Text>
             <Text>
-              When you use MyRespiLens, the data does not leave your device (it
-              is a private display). That is, if you navigate away from your
+              When you use Forecast Checker, the data does not leave your device
+              (it is a private display). That is, if you navigate away from your
               visualization, you will have to re-upload your data to view it
               again.
             </Text>
           </SectionCard>
 
           <SectionCard
-            title="What are the requirements for my data?"
+            title="What are the requirements for my forecast data?"
             icon={<IconFileDescription size={20} />}
           >
             <Text>
-              Your uploaded data must be a Hubverse-style forecast CSV.
-              MyRespiLens can accept one file or multiple CSV files at once.
+              Your uploaded forecast data must be a Hubverse-style forecast CSV.
+              Forecast Checker can accept one file or multiple CSV files at
+              once.
             </Text>
             <Text fw={600}>Required columns:</Text>
             <List spacing="sm">
@@ -145,9 +151,10 @@ const Documentation = () => {
               </List.Item>
             </List>
             <Text>
-              <code>model_id</code> is optional. If it is missing, MyRespiLens
-              assigns the fallback model name <code>user-uploaded-model</code>{" "}
-              and assumes all data belongs to a single model.
+              <code>model_id</code> is optional. If it is missing, Forecast
+              Checker assigns the fallback model name{" "}
+              <code>user-uploaded-model</code> and assumes all data belongs to a
+              single model.
             </Text>
             <Text fw={600}>Expected value patterns</Text>
             <List spacing="sm">
@@ -179,12 +186,12 @@ const Documentation = () => {
           </SectionCard>
 
           <SectionCard
-            title="What is filtered out of my data?"
+            title="What is filtered out of my forecast data?"
             icon={<IconFilter size={20} />}
           >
             <Text>
               Some stipulations of user-uploaded data are not enforced with
-              fatal errors. Instead, MyRespiLens filters them out during
+              fatal errors. Instead, Forecast Checker filters them out during
               preprocessing and continues with the remaining usable rows. A list
               of things that will be filtered out of your data, if found:
             </Text>
@@ -224,7 +231,7 @@ const Documentation = () => {
               </List.Item>
               <List.Item>
                 Rows where the <code>target</code> column is a flu peak target,
-                which is currently excluded from this MyRespiLens workflow.
+                which is currently excluded from this Forecast Checker workflow.
               </List.Item>
             </List>
             <Alert
@@ -233,55 +240,44 @@ const Documentation = () => {
               radius="lg"
               icon={<IconCheck size={16} />}
             >
-              If enough usable rows remain after filtering, MyRespiLens will
-              continue and build the dashboard.
+              If enough usable rows remain after filtering, Forecast Checker
+              will continue and build the dashboard.
             </Alert>
           </SectionCard>
 
           <SectionCard
-            title="What will cause a failure or error?"
+            title="What will cause errors or failures?"
             icon={<IconAlertCircle size={20} />}
           >
             <Text>
-              MyRespiLens will stop and show an error when it cannot resolve
-              issues with the data. Common failure cases include:
+              Forecast Checker will stop and return an error when the uploaded
+              forecast data cannot be meaningfully processed. This can happen
+              when:
             </Text>
             <List spacing="sm">
-              <List.Item>No uploaded files are CSVs.</List.Item>
-              <List.Item>Required columns are missing.</List.Item>
               <List.Item>
-                The file has headers but no forecast rows. Or, no forecast rows
-                were left after filtering described above.
+                One or more required forecast columns are missing.
               </List.Item>
               <List.Item>
-                <code>target_end_date</code> cannot be parsed.
+                All rows are unusable after preprocessing and filtering.
               </List.Item>
               <List.Item>
-                <code>value</code> is not numeric.
+                <code>target_end_date</code>, <code>value</code>, or{" "}
+                <code>horizon</code> values cannot be parsed correctly.
               </List.Item>
               <List.Item>
-                <code>horizon</code> is missing or not parseable as an integer.
+                The frontend cannot load the hub reference files needed to pair
+                your upload with ground truth and location metadata.
               </List.Item>
               <List.Item>
-                For Flu Metrocast uploads, one or more{" "}
-                <code>target_end_date</code> values are before{" "}
-                <code>2025-11-22</code>.
+                Forecast rows reference locations that do not exist in the
+                selected hub's <code>locations.csv</code>.
               </List.Item>
               <List.Item>
-                A location in the uploaded forecast data is not present in the
-                hub’s reference <code>locations.csv</code> file.
-              </List.Item>
-              <List.Item>
-                The site cannot load the hub reference files it needs
-                internally.
+                No supported forecast rows remain after the app removes
+                unsupported data.
               </List.Item>
             </List>
-            <Text>
-              In attempt to prevent misleading visualization displays,
-              MyRespiLens will also show a non-fatal warning if the uploaded{" "}
-              <code>target</code> names do not appear to match the pathogen
-              implied by the hub you selected.
-            </Text>
           </SectionCard>
         </Stack>
       </Container>
