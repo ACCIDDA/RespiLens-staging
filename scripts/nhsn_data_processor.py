@@ -55,13 +55,18 @@ class NHSNDataProcessor:
 
         # pre-processing check:
         # ensure same loc and weekendingdate set between the two
+        # locs
         unique_regions = set(data['jurisdiction'])
         preliminary_unique_regions = set(preliminary_data['jurisdiction'])
-        if region_diff := unique_regions ^ preliminary_unique_regions:
+        if missing_regions := (unique_regions - preliminary_unique_regions):
             raise ValueError(
-                "Detected a difference between NHSN regular data locs and NHSN prelim data locs: "
-                f"{region_diff}.\nLen regular locs: {len(unique_regions)}\nLen prelim locs: {len(preliminary_unique_regions)}"
+                f"Data contains jurisdictions not present in preliminary data: {missing_regions}"
             )
+        if preliminary_unique_regions - unique_regions:
+            preliminary_data = preliminary_data[
+                preliminary_data['jurisdiction'].isin(unique_regions)
+            ].copy()
+        # dates
         unique_dates = set(data['weekendingdate'])
         preliminary_unique_dates = set(preliminary_data['weekendingdate'])
         if missing_from_prelim := (unique_dates - preliminary_unique_dates): # fail if prelim is missing any, or the two are lopsided 
