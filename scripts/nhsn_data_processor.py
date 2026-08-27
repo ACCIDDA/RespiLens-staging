@@ -64,11 +64,14 @@ class NHSNDataProcessor:
             )
         unique_dates = set(data['weekendingdate'])
         preliminary_unique_dates = set(preliminary_data['weekendingdate'])
-        if date_diff := unique_dates ^ preliminary_unique_dates:
+        if missing_from_prelim := (unique_dates - preliminary_unique_dates): # fail if prelim is missing any, or the two are lopsided 
             raise ValueError(
-                "Detected a difference between NHSN regular data weekendingdates and NHSN prelim "
-                f"data weekendingdates: {date_diff}"
+                f"Data contains dates not present in preliminary data: {missing_from_prelim}"
             )
+        if (preliminary_unique_dates - unique_dates): # limit if just prelim has extra dates (this will often be the case as prelim releases new dates earlier)
+            preliminary_data = preliminary_data[
+                preliminary_data['weekendingdate'].isin(unique_dates)
+            ].copy()
 
         # Process the data
         # Pipeline #1: key on longform location column name
