@@ -2,6 +2,7 @@ import { parseForecastUrlState } from "./forecastRoutes";
 
 const DEFAULT_PREFIX = "respilens";
 const MAX_FILENAME_LENGTH = 120;
+export const PLOT_DOWNLOAD_IMAGE_SCALE = 3;
 
 const slugify = (value) => {
   return value

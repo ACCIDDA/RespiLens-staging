@@ -25,7 +25,10 @@ import {
 } from "../../utils/scaleUtils";
 import { useView } from "../../hooks/useView";
 import { getDatasetTitleFromView } from "../../utils/datasetUtils";
-import { buildPlotDownloadName } from "../../utils/plotDownloadName";
+import {
+  buildPlotDownloadName,
+  PLOT_DOWNLOAD_IMAGE_SCALE,
+} from "../../utils/plotDownloadName";
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -630,6 +633,7 @@ const NHSNView = ({ location }) => {
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("nhsn-plot"),
+        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
       },
       modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
       modeBarButtonsToAdd: [

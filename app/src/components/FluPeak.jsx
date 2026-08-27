@@ -14,7 +14,10 @@ import {
   normalizeChartScale,
   transformValueForScale,
 } from "../utils/scaleUtils";
-import { buildPlotDownloadName } from "../utils/plotDownloadName";
+import {
+  buildPlotDownloadName,
+  PLOT_DOWNLOAD_IMAGE_SCALE,
+} from "../utils/plotDownloadName";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
 
 const FLU_PEAK_SEASON_START_MONTH_INDEX = 7;
@@ -790,6 +793,7 @@ const FluPeak = ({
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("peak-plot"),
+        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
       },
       modeBarButtonsToAdd: [
         {

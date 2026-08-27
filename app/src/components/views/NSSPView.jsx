@@ -20,7 +20,10 @@ import NSSPGeoMap from "../NSSPGeoMap";
 import TitleRow from "../TitleRow";
 import { MODEL_COLORS } from "../../config/datasets";
 import { useView } from "../../hooks/useView";
-import { buildPlotDownloadName } from "../../utils/plotDownloadName";
+import {
+  buildPlotDownloadName,
+  PLOT_DOWNLOAD_IMAGE_SCALE,
+} from "../../utils/plotDownloadName";
 import {
   buildLog2Ticks,
   buildSqrtTicks,
@@ -690,6 +693,7 @@ const NSSPView = ({ location, data, metadata }) => {
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("nssp-plot"),
+        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
       },
       modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
       modeBarButtonsToAdd: [
