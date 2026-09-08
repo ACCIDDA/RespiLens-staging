@@ -40,6 +40,7 @@ const TARGET_DATA_FILE_NAMES = new Set([
   "time-series.csv",
   "time-series.parquet",
 ]);
+const SILENT_MODEL_OUTPUT_FILES = new Set([".ds_store", "readme.md"]);
 
 const normalizePath = (path) =>
   String(path ?? "")
@@ -180,6 +181,13 @@ const getImmediateChildDirectories = (directories, parentPath) => {
 
 const isFileWithin = (path, directoryPath) =>
   normalizePath(path).startsWith(`${normalizePath(directoryPath)}/`);
+
+const isSilentModelOutputFile = (describedFile, modelOutputPath) => {
+  return (
+    isFileWithin(describedFile.path, modelOutputPath) &&
+    SILENT_MODEL_OUTPUT_FILES.has(describedFile.file.name.toLowerCase())
+  );
+};
 
 const uniqueValues = (values) => [...new Set(values)];
 
@@ -372,11 +380,16 @@ const processForecastFiles = async (
       isFileWithin(path, modelOutputPath),
     );
     filteredItems.push(
-      ...filesAtModelOutputLevel.map(({ path }) => ({
-        type: "file",
-        path,
-        reason: "The file is not inside a model folder.",
-      })),
+      ...filesAtModelOutputLevel
+        .filter(
+          (describedFile) =>
+            !isSilentModelOutputFile(describedFile, modelOutputPath),
+        )
+        .map(({ path }) => ({
+          type: "file",
+          path,
+          reason: "The file is not inside a model folder.",
+        })),
       {
         type: "folder",
         path: modelOutputPath,
@@ -398,6 +411,10 @@ const processForecastFiles = async (
     modelFolders.map((modelFolder) => [modelFolder, []]),
   );
   hubContents.files.forEach((describedFile) => {
+    if (isSilentModelOutputFile(describedFile, modelOutputPath)) {
+      return;
+    }
+
     const containingModelFolder = modelFolders.find((candidate) =>
       isFileWithin(describedFile.path, candidate),
     );
@@ -708,11 +725,7 @@ const MyPrivateHub = () => {
                     outputs ? "Choose another hub folder" : "Back to toolbox"
                   }
                 >
-                  {outputs ? (
-                    <IconRefresh size={24} />
-                  ) : (
-                    <IconArrowLeft size={24} />
-                  )}
+                  <IconArrowLeft size={24} />
                 </ActionIcon>
               </Tooltip>
               <Title order={1}>My Private Hub</Title>
