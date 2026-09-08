@@ -22,7 +22,7 @@ import TournamentDashboard from "./components/tournament/TournamentDashboard";
 import UnifiedAppShell from "./components/layout/UnifiedAppShell";
 import ReportingDelayPage from "./components/reporting/ReportingDelayPage";
 import ToolsPage from "./components/tools/ToolsPage";
-import MyPrivateHub from "./components/my-private-hub/my-private-hub";
+import MyPrivateHub from "./components/my-private-hub/MyPrivateHub";
 import { Center, Text } from "@mantine/core";
 import { ENABLED_TOURNAMENTS } from "./config";
 

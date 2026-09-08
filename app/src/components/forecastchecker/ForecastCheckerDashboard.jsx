@@ -3840,4 +3840,20 @@ const ForecastCheckerDashboard = () => {
   return <HubSelectionScreen />;
 };
 
+export {
+  FORECAST_REQUIRED_COLUMNS,
+  GROUND_TRUTH_REQUIRED_COLUMNS,
+  MyRespiVisualizationPanel,
+  OTHER_HUB_CONFIG,
+  // Shared with My Private Hub to keep both upload paths behaviorally aligned.
+  // eslint-disable-next-line react-refresh/only-export-components
+  buildGroundTruthOutput,
+  // eslint-disable-next-line react-refresh/only-export-components
+  readTabularUpload,
+  // eslint-disable-next-line react-refresh/only-export-components
+  validateGroundTruthCsv,
+  // eslint-disable-next-line react-refresh/only-export-components
+  validateHubverseCsv,
+};
+
 export default ForecastCheckerDashboard;
