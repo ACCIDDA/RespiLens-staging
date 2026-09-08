@@ -592,7 +592,9 @@ const parseTargetData = async (hubContents, targetDataPath) => {
     );
   }
 
-  const validation = validateGroundTruthCsv(records);
+  const validation = validateGroundTruthCsv(records, {
+    allowNaObservation: true,
+  });
   if (!validation.ok) {
     throw new Error(
       `Ground truth validation failed: ${validation.errors.join(" ")}`,
