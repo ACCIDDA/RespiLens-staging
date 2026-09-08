@@ -22,6 +22,7 @@ import TournamentDashboard from "./components/tournament/TournamentDashboard";
 import UnifiedAppShell from "./components/layout/UnifiedAppShell";
 import ReportingDelayPage from "./components/reporting/ReportingDelayPage";
 import ToolsPage from "./components/tools/ToolsPage";
+import MyPrivateHub from "./components/my-private-hub/my-private-hub";
 import { Center, Text } from "@mantine/core";
 import { ENABLED_TOURNAMENTS } from "./config";
 
@@ -99,6 +100,7 @@ const AppLayout = () => {
           path="/toolbox/reporting-triangle"
           element={<ReportingDelayPage />}
         />
+        <Route path="/toolbox/my-private-hub" element={<MyPrivateHub />} />
         <Route
           path="/myrespilens"
           element={<Navigate to="/toolbox/forecast-checker" replace />}
