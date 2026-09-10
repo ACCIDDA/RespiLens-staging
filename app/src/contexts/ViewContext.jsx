@@ -527,6 +527,7 @@ export const ViewProvider = ({ children }) => {
 
     const params = urlManager.getDatasetParams(currentDataset);
     let needsModelUrlUpdate = false;
+    let dateUrlUpdate = null;
 
     let modelsToSet = [];
     const validUrlModels =
@@ -541,6 +542,13 @@ export const ViewProvider = ({ children }) => {
       needsModelUrlUpdate = true;
     } else if (modelsForView.length > 0) {
       modelsToSet = [modelsForView[0]];
+      needsModelUrlUpdate = true;
+    }
+    if (
+      params.models?.length > 0 &&
+      modelsToSet.length === 1 &&
+      modelsToSet[0] === currentDataset.defaultModel
+    ) {
       needsModelUrlUpdate = true;
     }
 
@@ -558,10 +566,26 @@ export const ViewProvider = ({ children }) => {
       }
     }
 
+    const latestDate =
+      availableDatesToExpose[availableDatesToExpose.length - 1];
+    const isDefaultDate =
+      datesToSet.length === 1 && datesToSet[0] === latestDate;
+    const requestedDates = params.dates || [];
+    if (
+      requestedDates.length > 0 &&
+      (isDefaultDate || requestedDates.length !== validUrlDates.length)
+    ) {
+      dateUrlUpdate = isDefaultDate ? [] : datesToSet;
+    }
+
     const urlTarget = params.target;
     let targetToSet = null;
+    let needsTargetUrlUpdate = false;
     if (urlTarget && availableTargets.includes(urlTarget)) {
       targetToSet = urlTarget;
+    }
+    if (urlTarget && urlTarget === availableTargetsToExpose[0]) {
+      needsTargetUrlUpdate = true;
     }
 
     setSelectedModels((current) =>
@@ -585,8 +609,12 @@ export const ViewProvider = ({ children }) => {
       setSelectedTarget(targetToSet);
     }
 
-    if (needsModelUrlUpdate) {
-      updateDatasetParams({ models: [] });
+    if (needsModelUrlUpdate || dateUrlUpdate || needsTargetUrlUpdate) {
+      updateDatasetParams({
+        ...(needsModelUrlUpdate ? { models: [] } : {}),
+        ...(dateUrlUpdate ? { dates: dateUrlUpdate } : {}),
+        ...(needsTargetUrlUpdate ? { target: null } : {}),
+      });
     }
   }, [
     isForecastPage,
@@ -599,6 +627,7 @@ export const ViewProvider = ({ children }) => {
     selectedTarget,
     modelsForView,
     availableDatesToExpose,
+    availableTargetsToExpose,
   ]);
 
   useEffect(() => {
@@ -641,7 +670,9 @@ export const ViewProvider = ({ children }) => {
   const handleTargetSelect = (target) => {
     if (!target) return;
     setSelectedTarget(target);
-    updateDatasetParams({ target: target });
+    updateDatasetParams({
+      target: target === availableTargetsToExpose[0] ? null : target,
+    });
   };
 
   const handleViewLocationChange = useCallback(
@@ -682,7 +713,7 @@ export const ViewProvider = ({ children }) => {
 
         if (oldDataset) {
           newSearchParams.delete(`${oldDataset.prefix}_models`);
-          newSearchParams.delete(`${oldDataset.prefix}_dates`);
+          newSearchParams.delete("dates");
           newSearchParams.delete(`${oldDataset.prefix}_target`);
         }
 
@@ -946,7 +977,10 @@ export const ViewProvider = ({ children }) => {
       setSelectedDates((prevDates) => {
         const nextDates =
           typeof updater === "function" ? updater(prevDates) : updater;
-        updateDatasetParams({ dates: nextDates });
+        const latestDate =
+          availableDatesToExpose[availableDatesToExpose.length - 1];
+        const isDefault = nextDates.length === 1 && nextDates[0] === latestDate;
+        updateDatasetParams({ dates: isDefault ? [] : nextDates });
         return nextDates;
       });
     },
