@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { geoAlbersUsa, geoMercator, geoPath } from "d3-geo";
 import { NSSP_MAP_COLORS } from "../utils/nsspMap";
 
@@ -17,7 +17,9 @@ const NSSPGeoMap = ({
   getFeatureKey,
   getFeatureLabel,
   getFeatureFill,
+  getFeatureCallout,
 }) => {
+  const [activeCalloutKey, setActiveCalloutKey] = useState(null);
   const pathGenerator = useMemo(() => {
     if (!featureCollection?.features?.length) {
       return null;
@@ -36,6 +38,37 @@ const NSSPGeoMap = ({
 
     return geoPath(projection);
   }, [featureCollection, height, projectionKind]);
+
+  const featureCallouts = useMemo(() => {
+    if (!pathGenerator || !getFeatureCallout) {
+      return [];
+    }
+
+    return featureCollection.features.flatMap((feature) => {
+      const callout = getFeatureCallout(feature);
+      if (!callout) {
+        return [];
+      }
+
+      const [originX, originY] = pathGenerator.centroid(feature);
+      if (!Number.isFinite(originX) || !Number.isFinite(originY)) {
+        return [];
+      }
+
+      const [offsetX = 0, offsetY = 0] = callout.offset || [];
+      return [
+        {
+          ...callout,
+          feature,
+          key: getFeatureKey(feature),
+          originX,
+          originY,
+          x: originX + offsetX,
+          y: originY + offsetY,
+        },
+      ];
+    });
+  }, [featureCollection, getFeatureCallout, getFeatureKey, pathGenerator]);
 
   if (!featureCollection?.features?.length || !pathGenerator) {
     return null;
@@ -58,12 +91,17 @@ const NSSPGeoMap = ({
         const isClickable = isFeatureClickable
           ? isFeatureClickable(feature)
           : true;
+        const featureKey = getFeatureKey(feature);
 
         return (
           <path
-            key={getFeatureKey(feature)}
+            key={featureKey}
             d={pathData}
-            fill={getFeatureFill(feature)}
+            fill={
+              activeCalloutKey === featureKey
+                ? NSSP_MAP_COLORS.hover
+                : getFeatureFill(feature)
+            }
             stroke={NSSP_MAP_COLORS.outline}
             strokeWidth={0.8}
             style={{
@@ -88,6 +126,99 @@ const NSSPGeoMap = ({
           </path>
         );
       })}
+
+      {featureCallouts.map(
+        ({ feature, key, label, originX, originY, x, y }) => {
+          const featureLabel = getFeatureLabel(feature);
+          const isClickable = isFeatureClickable
+            ? isFeatureClickable(feature)
+            : true;
+          const isActive = activeCalloutKey === key;
+          const fill = isActive
+            ? NSSP_MAP_COLORS.hover
+            : getFeatureFill(feature);
+
+          const activate = () => {
+            if (isClickable) {
+              onFeatureClick(feature);
+            }
+          };
+
+          return (
+            <g
+              key={`callout-${key}`}
+              role={isClickable ? "button" : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              aria-label={featureLabel}
+              aria-disabled={!isClickable || undefined}
+              style={{ cursor: isClickable ? "pointer" : "not-allowed" }}
+              onClick={activate}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  activate();
+                }
+              }}
+              onMouseEnter={() => {
+                if (isClickable) {
+                  setActiveCalloutKey(key);
+                }
+              }}
+              onMouseLeave={() => setActiveCalloutKey(null)}
+              onFocus={() => {
+                if (isClickable) {
+                  setActiveCalloutKey(key);
+                }
+              }}
+              onBlur={() => setActiveCalloutKey(null)}
+            >
+              <title>{featureLabel}</title>
+              <line
+                x1={originX}
+                y1={originY}
+                x2={x - 23}
+                y2={y}
+                stroke={NSSP_MAP_COLORS.outline}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={originX}
+                cy={originY}
+                r={3.5}
+                fill={fill}
+                stroke={NSSP_MAP_COLORS.outline}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+              <rect
+                x={x - 23}
+                y={y - 16}
+                width={46}
+                height={32}
+                rx={16}
+                fill={fill}
+                stroke={NSSP_MAP_COLORS.outline}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+                style={{ transition: "fill 150ms ease" }}
+              />
+              <text
+                x={x}
+                y={y}
+                dy="0.35em"
+                textAnchor="middle"
+                fill="#172033"
+                fontSize={15}
+                fontWeight={700}
+                pointerEvents="none"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        },
+      )}
     </svg>
   );
 };
