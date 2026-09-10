@@ -38,7 +38,7 @@ const tools = [
   {
     title: "My Private Hub",
     description:
-      "Drag and drop your Hub folder for a private visualization display with all targets, models, dates, and locations.",
+      "Drag and drop a Hub folder for a private dashboard visualization of all targets, models, dates, and locations. The processing happens in your browser, no data is sent our servers.",
     icon: IconLockSquareRounded,
     href: "/toolbox/my-private-hub",
     badge: "Private",
