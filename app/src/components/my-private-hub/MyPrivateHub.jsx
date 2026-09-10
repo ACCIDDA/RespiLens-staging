@@ -15,10 +15,12 @@ import {
   Tooltip,
   Title,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import {
   IconAlertCircle,
   IconArrowLeft,
   IconFolder,
+  IconInfoCircle,
   IconRefresh,
 } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
@@ -623,6 +625,8 @@ const processHubContents = async (hubContents, onProgress) => {
 
 const MyPrivateHub = () => {
   const navigate = useNavigate();
+  const [requirementsOpened, { toggle: toggleRequirements }] =
+    useDisclosure(false);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -824,21 +828,96 @@ const MyPrivateHub = () => {
                     </Stack>
                   </Paper>
 
-                  <Alert
-                    color="blue"
-                    variant="light"
-                    title="Expected folder structure"
-                  >
-                    <List spacing="xs" size="sm">
-                      <List.Item>
-                        <code>model-output/&lt;model-name&gt;/*.csv</code>
-                      </List.Item>
-                      <List.Item>
-                        <code>target-data/time-series.csv</code> or{" "}
-                        <code>time-series.parquet</code>
-                      </List.Item>
-                    </List>
-                  </Alert>
+                  <Group justify="center">
+                    <Button
+                      variant="light"
+                      color="blue"
+                      leftSection={<IconInfoCircle size={16} />}
+                      onClick={toggleRequirements}
+                    >
+                      Hub folder requirements
+                    </Button>
+                  </Group>
+
+                  {requirementsOpened && (
+                    <Alert
+                      icon={<IconInfoCircle size={16} />}
+                      title="Hub folder requirements"
+                      color="blue"
+                      radius="lg"
+                    >
+                      <Stack gap="lg">
+                        <Stack gap="xs">
+                          <Text fw={600}>Folder structure</Text>
+                          <Text size="sm">
+                            Select exactly one hub folder containing one
+                            top-level <code>model-output</code> folder and one
+                            top-level <code>target-data</code> folder.
+                          </Text>
+                          <List spacing="xs" size="sm">
+                            <List.Item>
+                              <code>model-output/&lt;model-name&gt;/*.csv</code>
+                            </List.Item>
+                            <List.Item>
+                              <code>target-data/time-series.csv</code> or{" "}
+                              <code>target-data/time-series.parquet</code>
+                            </List.Item>
+                          </List>
+                        </Stack>
+
+                        <Stack gap="xs">
+                          <Text fw={600}>Model output</Text>
+                          <Text size="sm">
+                            <code>model-output</code> must contain at least one
+                            model folder. CSV files within each model folder are
+                            processed recursively.
+                          </Text>
+                          <Text size="sm">
+                            Required forecast columns:{" "}
+                            <code>{FORECAST_REQUIRED_COLUMNS.join(", ")}</code>.
+                          </Text>
+                          <Text size="sm">
+                            <code>model_id</code> is optional. When it is
+                            missing, the model folder name is used. Empty or
+                            unusable files and model folders are skipped and
+                            reported after processing. At least one usable model
+                            row must remain.
+                          </Text>
+                        </Stack>
+
+                        <Stack gap="xs">
+                          <Text fw={600}>Target data</Text>
+                          <Text size="sm">
+                            <code>target-data</code> must contain exactly one
+                            supported time-series file at its top level.
+                          </Text>
+                          <Text size="sm">
+                            Required target columns:{" "}
+                            <code>
+                              {GROUND_TRUTH_REQUIRED_COLUMNS.join(", ")}
+                            </code>
+                            .
+                          </Text>
+                          <Text size="sm">
+                            <code>as_of</code> is optional. <code>NA</code>{" "}
+                            observations are accepted and displayed as gaps in
+                            the ground truth plot.
+                          </Text>
+                        </Stack>
+
+                        <Stack gap="xs">
+                          <Text fw={600}>Matching data</Text>
+                          <Text size="sm">
+                            Model output and target data must share at least one
+                            exact <code>target_end_date</code>,{" "}
+                            <code>location</code>, and <code>target</code>{" "}
+                            combination. Only matching combinations are included
+                            in the visualization.
+                          </Text>
+                        </Stack>
+                      </Stack>
+                    </Alert>
+                  )}
                 </Stack>
               </Box>
             </Group>
