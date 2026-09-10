@@ -2608,7 +2608,9 @@ const OtherHubScreen = () => {
         return;
       }
 
-      const validation = validateGroundTruthCsv(records);
+      const validation = validateGroundTruthCsv(records, {
+        allowNaObservation: true,
+      });
       if (!validation.ok) {
         setGroundTruthState({
           status: "error",
@@ -3073,7 +3075,8 @@ const OtherHubScreen = () => {
                                 <code>location</code>
                               </List.Item>
                               <List.Item>
-                                <code>observation</code> (must be numeric)
+                                <code>observation</code> (must be numeric;{" "}
+                                <code>NA</code> is accepted)
                               </List.Item>
                               <List.Item>
                                 <code>target</code>
@@ -3094,8 +3097,8 @@ const OtherHubScreen = () => {
                                 removed during validation.
                               </List.Item>
                               <List.Item>
-                                The presence of <code>NA</code> values causes
-                                validation to fail
+                                <code>NA</code> observations are retained as
+                                gaps in the ground truth plot.
                               </List.Item>
                               <List.Item>
                                 The upload fails if no usable ground truth rows
