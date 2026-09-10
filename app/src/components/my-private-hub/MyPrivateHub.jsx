@@ -42,6 +42,7 @@ const TARGET_DATA_FILE_NAMES = new Set([
   "time-series.csv",
   "time-series.parquet",
 ]);
+const MODEL_OUTPUT_FILE_EXTENSIONS = [".csv", ".parquet"];
 const SILENT_MODEL_OUTPUT_FILES = new Set([".ds_store", "readme.md"]);
 
 const normalizePath = (path) =>
@@ -191,6 +192,13 @@ const isSilentModelOutputFile = (describedFile, modelOutputPath) => {
   );
 };
 
+const isSupportedModelOutputFile = (file) => {
+  const lowerName = file.name.toLowerCase();
+  return MODEL_OUTPUT_FILE_EXTENSIONS.some((extension) =>
+    lowerName.endsWith(extension),
+  );
+};
+
 const uniqueValues = (values) => [...new Set(values)];
 
 const createModelOutputError = (message, filteredItems) => {
@@ -209,9 +217,11 @@ const createProjectionAccumulator = (targetRows) => {
   const sharedTupleKeys = new Set();
   const targetTupleKeys = new Set(targetRows.map(buildSharedTupleKey));
   const targetDimensions = {
-    target_end_date: new Set(targetRows.map((row) => row.target_end_date)),
-    location: new Set(targetRows.map((row) => row.location)),
-    target: new Set(targetRows.map((row) => row.target)),
+    target_end_date: new Set(
+      targetRows.map((row) => String(row.target_end_date)),
+    ),
+    location: new Set(targetRows.map((row) => String(row.location))),
+    target: new Set(targetRows.map((row) => String(row.target))),
   };
   const sharedDimensions = {
     target_end_date: new Set(),
@@ -224,8 +234,9 @@ const createProjectionAccumulator = (targetRows) => {
     const retainedRowsBefore = retainedRows;
     forecastRows.forEach((row) => {
       Object.keys(sharedDimensions).forEach((key) => {
-        if (targetDimensions[key].has(row[key])) {
-          sharedDimensions[key].add(row[key]);
+        const value = String(row[key]);
+        if (targetDimensions[key].has(value)) {
+          sharedDimensions[key].add(value);
         }
       });
 
@@ -403,8 +414,8 @@ const processForecastFiles = async (
     );
     throw createModelOutputError(
       filesAtModelOutputLevel.length > 0
-        ? "The `model-output` folder contains files but no model folders. Put forecast CSVs inside folders named for their models."
-        : "The `model-output` folder is empty. Add at least one model folder containing forecast CSV files.",
+        ? "The `model-output` folder contains files but no model folders. Put forecast CSV or parquet files inside folders named for their models."
+        : "The `model-output` folder is empty. Add at least one model folder containing forecast CSV or parquet files.",
       filteredItems,
     );
   }
@@ -448,11 +459,11 @@ const processForecastFiles = async (
     const retainedRowsBeforeFolder = accumulator.getRetainedRows();
 
     for (const { file, path } of modelFiles) {
-      if (!file.name.toLowerCase().endsWith(".csv")) {
+      if (!isSupportedModelOutputFile(file)) {
         filteredItems.push({
           type: "file",
           path,
-          reason: "Only CSV files are supported in model folders.",
+          reason: "Only CSV and parquet files are supported in model folders.",
         });
       } else if (file.size === 0) {
         filteredItems.push({
@@ -856,7 +867,8 @@ const MyPrivateHub = () => {
                           </Text>
                           <List spacing="xs" size="sm">
                             <List.Item>
-                              <code>model-output/&lt;model-name&gt;/*.csv</code>
+                              <code>model-output/&lt;model-name&gt;/*.csv</code>{" "}
+                              or <code>*.parquet</code>
                             </List.Item>
                             <List.Item>
                               <code>target-data/time-series.csv</code> or{" "}
@@ -869,12 +881,20 @@ const MyPrivateHub = () => {
                           <Text fw={600}>Model output</Text>
                           <Text size="sm">
                             <code>model-output</code> must contain at least one
-                            model folder. CSV files within each model folder are
-                            processed recursively.
+                            model folder. CSV and parquet files within each
+                            model folder are processed recursively.
                           </Text>
                           <Text size="sm">
                             Required forecast columns:{" "}
                             <code>{FORECAST_REQUIRED_COLUMNS.join(", ")}</code>.
+                          </Text>
+                          <Text size="sm">
+                            My Private Hub currently visualizes{" "}
+                            <code>output_type</code> values{" "}
+                            <code>== quantile</code>. To be plotted, each{" "}
+                            <code>output_type_id</code> must be a numeric
+                            quantile between 0 and 1, inclusive. Other output
+                            types do not produce forecast traces in this tool.
                           </Text>
                           <Text size="sm">
                             <code>model_id</code> is optional. When it is
@@ -906,7 +926,7 @@ const MyPrivateHub = () => {
                         </Stack>
 
                         <Stack gap="xs">
-                          <Text fw={600}>Matching data</Text>
+                          <Text fw={600}>Resulting display</Text>
                           <Text size="sm">
                             Model output and target data must share at least one
                             exact <code>target_end_date</code>,{" "}
