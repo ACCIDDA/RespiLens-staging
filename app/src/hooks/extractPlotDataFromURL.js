@@ -20,6 +20,7 @@ const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
 export const extractPlotData = (viewType, href, data) => {
   const url = new URL(href);
   const params = url.searchParams;
+  const datesString = params.get("dates");
   const urlState = parseForecastUrlState(url.pathname, params);
   const id = crypto.randomUUID();
   const currentDate = new Date().toISOString().split("T")[0];
@@ -52,9 +53,8 @@ export const extractPlotData = (viewType, href, data) => {
       models = covidModelsString
         ? covidModelsString.split(",")
         : ["CovidHub-ensemble"];
-      const covidDatesString = params.get("covid_dates");
-      if (covidDatesString) {
-        dates = covidDatesString.split(",");
+      if (datesString) {
+        dates = datesString.split(",");
       } else {
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
@@ -88,9 +88,8 @@ export const extractPlotData = (viewType, href, data) => {
       models = fluModelsString
         ? fluModelsString.split(",")
         : ["FluSight-ensemble"];
-      const fluDatesString = params.get("flu_dates");
-      if (fluDatesString) {
-        dates = fluDatesString.split(",");
+      if (datesString) {
+        dates = datesString.split(",");
       } else {
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
@@ -135,9 +134,8 @@ export const extractPlotData = (viewType, href, data) => {
           : Array.from(availablePeakModels).sort().slice(0, 1);
       }
 
-      const fluPeakDatesString = params.get("flu_dates");
-      if (fluPeakDatesString) {
-        dates = fluPeakDatesString.split(",");
+      if (datesString) {
+        dates = datesString.split(",");
       } else {
         const availablePeakDates = Object.keys(data?.peaks || {});
         if (availablePeakDates.length > 0) {
@@ -171,9 +169,8 @@ export const extractPlotData = (viewType, href, data) => {
       models = rsvModelsString
         ? rsvModelsString.split(",")
         : ["RSVHub-ensemble"];
-      const rsvDatesString = params.get("rsv_dates");
-      if (rsvDatesString) {
-        dates = rsvDatesString.split(",");
+      if (datesString) {
+        dates = datesString.split(",");
       } else {
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {
@@ -204,9 +201,8 @@ export const extractPlotData = (viewType, href, data) => {
       models = metrocastModelsString
         ? metrocastModelsString.split(",")
         : ["epiENGAGE-ensemble_mean"];
-      const metrocastDatesString = params.get("metrocast_dates");
-      if (metrocastDatesString) {
-        dates = metrocastDatesString.split(",");
+      if (datesString) {
+        dates = datesString.split(",");
       } else {
         const availableDates = Object.keys(data?.forecasts || {});
         if (availableDates.length > 0) {

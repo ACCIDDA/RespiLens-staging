@@ -43,7 +43,7 @@ export class URLParameterManager {
     const currentView = this.getView();
 
     if (dataset.hasDateSelector) {
-      const dates = this.searchParams.get(`${prefix}_dates`);
+      const dates = this.searchParams.get("dates");
       params.dates = dates ? dates.split(",") : [];
     }
 
@@ -122,7 +122,7 @@ export class URLParameterManager {
     const prefix = dataset.prefix;
 
     if (dataset.hasDateSelector) {
-      newParams.delete(`${prefix}_dates`);
+      newParams.delete("dates");
     }
     if (dataset.hasModelSelector) {
       newParams.delete(`${prefix}_models`);
@@ -200,9 +200,9 @@ export class URLParameterManager {
       Object.prototype.hasOwnProperty.call(newParams, "dates")
     ) {
       if (newParams.dates && newParams.dates.length > 0) {
-        updatedParams.set(`${prefix}_dates`, newParams.dates.join(","));
+        updatedParams.set("dates", newParams.dates.join(","));
       } else {
-        updatedParams.delete(`${prefix}_dates`);
+        updatedParams.delete("dates");
       }
     }
 

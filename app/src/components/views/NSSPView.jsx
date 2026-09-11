@@ -36,6 +36,7 @@ import {
 import {
   NSSP_MAP_COLORS as MAP_COLORS,
   NSSP_MAP_HEIGHTS,
+  getNsspUsFeatureCallout,
 } from "../../utils/nsspMap";
 import {
   NSSP_STATE_ABBREVIATION_TO_INFO,
@@ -855,6 +856,7 @@ const NSSPView = ({ location, data, metadata }) => {
                 getFeatureKey={(feature) => feature.properties?.GEOID}
                 getFeatureLabel={(feature) => feature.properties?.NAME}
                 getFeatureFill={getStateFill}
+                getFeatureCallout={getNsspUsFeatureCallout}
               />
             ) : currentStateCoverage.hasCountyData ? (
               <NSSPGeoMap
