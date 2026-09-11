@@ -1,10 +1,17 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { URLParameterManager } from "../utils/urlManager";
 import { useForecastData } from "../hooks/useForecastData";
 import { ViewContext } from "./ViewContextObject";
 import { APP_CONFIG, DATASETS } from "../config";
 import { getDataPath } from "../utils/paths";
+import {
+  buildForecastPath,
+  buildForecastUrl,
+  isForecastPathname,
+  isPathBasedForecastView,
+  parseForecastUrlState,
+} from "../utils/forecastRoutes";
 
 const METRO_STATE_MAP = {
   Colorado: "CO",
@@ -339,17 +346,26 @@ const resolveLocationForView = ({
 export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const isForecastPage = location.pathname === "/";
+  const navigate = useNavigate();
+  const isForecastPage = isForecastPathname(location.pathname);
 
   const urlManager = useMemo(
-    () => new URLParameterManager(searchParams, setSearchParams),
-    [searchParams, setSearchParams],
+    () =>
+      new URLParameterManager(
+        searchParams,
+        setSearchParams,
+        location.pathname,
+        navigate,
+      ),
+    [searchParams, setSearchParams, location.pathname, navigate],
   );
 
   const [viewType, setViewTypeState] = useState(() => urlManager.getView());
   const [selectedLocation, setSelectedLocation] = useState(() => {
-    const urlLoc = urlManager.getLocation();
-    const currentView = urlManager.getView();
+    const { location: urlLoc, viewType: currentView } = parseForecastUrlState(
+      location.pathname,
+      searchParams,
+    );
     const dataset = urlManager.getDatasetFromView(currentView);
     if (dataset?.defaultLocation && urlLoc === APP_CONFIG.defaultLocation) {
       return dataset.defaultLocation;
@@ -372,7 +388,8 @@ export const ViewProvider = ({ children }) => {
   const [showLegend, setShowLegend] = useState(
     () => urlManager.getAdvancedParams().showLegend,
   );
-  const CURRENT_FLU_SEASON_START = "2025-11-01"; // !! CRITICAL !!: need to change this manually based on the season (for flu peak view)
+  const [showOtherGroundTruthSeasons, setShowOtherGroundTruthSeasons] =
+    useState(() => urlManager.getAdvancedParams().showOtherGroundTruthSeasons);
 
   const {
     data,
@@ -449,9 +466,7 @@ export const ViewProvider = ({ children }) => {
   // filter flu_peak dates based on current season
   const availableDatesToExpose = useMemo(() => {
     if (viewType === "flu_peak") {
-      return (availablePeakDates || []).filter(
-        (date) => date >= CURRENT_FLU_SEASON_START,
-      );
+      return availablePeakDates || [];
     }
     return availableDates || [];
   }, [viewType, availablePeakDates, availableDates]);
@@ -512,6 +527,7 @@ export const ViewProvider = ({ children }) => {
 
     const params = urlManager.getDatasetParams(currentDataset);
     let needsModelUrlUpdate = false;
+    let dateUrlUpdate = null;
 
     let modelsToSet = [];
     const validUrlModels =
@@ -526,6 +542,13 @@ export const ViewProvider = ({ children }) => {
       needsModelUrlUpdate = true;
     } else if (modelsForView.length > 0) {
       modelsToSet = [modelsForView[0]];
+      needsModelUrlUpdate = true;
+    }
+    if (
+      params.models?.length > 0 &&
+      modelsToSet.length === 1 &&
+      modelsToSet[0] === currentDataset.defaultModel
+    ) {
       needsModelUrlUpdate = true;
     }
 
@@ -543,10 +566,26 @@ export const ViewProvider = ({ children }) => {
       }
     }
 
+    const latestDate =
+      availableDatesToExpose[availableDatesToExpose.length - 1];
+    const isDefaultDate =
+      datesToSet.length === 1 && datesToSet[0] === latestDate;
+    const requestedDates = params.dates || [];
+    if (
+      requestedDates.length > 0 &&
+      (isDefaultDate || requestedDates.length !== validUrlDates.length)
+    ) {
+      dateUrlUpdate = isDefaultDate ? [] : datesToSet;
+    }
+
     const urlTarget = params.target;
     let targetToSet = null;
+    let needsTargetUrlUpdate = false;
     if (urlTarget && availableTargets.includes(urlTarget)) {
       targetToSet = urlTarget;
+    }
+    if (urlTarget && urlTarget === availableTargetsToExpose[0]) {
+      needsTargetUrlUpdate = true;
     }
 
     setSelectedModels((current) =>
@@ -570,8 +609,12 @@ export const ViewProvider = ({ children }) => {
       setSelectedTarget(targetToSet);
     }
 
-    if (needsModelUrlUpdate) {
-      updateDatasetParams({ models: [] });
+    if (needsModelUrlUpdate || dateUrlUpdate || needsTargetUrlUpdate) {
+      updateDatasetParams({
+        ...(needsModelUrlUpdate ? { models: [] } : {}),
+        ...(dateUrlUpdate ? { dates: dateUrlUpdate } : {}),
+        ...(needsTargetUrlUpdate ? { target: null } : {}),
+      });
     }
   }, [
     isForecastPage,
@@ -584,6 +627,7 @@ export const ViewProvider = ({ children }) => {
     selectedTarget,
     modelsForView,
     availableDatesToExpose,
+    availableTargetsToExpose,
   ]);
 
   useEffect(() => {
@@ -610,17 +654,25 @@ export const ViewProvider = ({ children }) => {
 
   const handleLocationSelect = (newLocation) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
-    const effectiveDefault =
-      currentDataset?.defaultLocation || APP_CONFIG.defaultLocation;
     setLocationMessage(null);
-    urlManager.updateLocation(newLocation, effectiveDefault);
+    const nextUrl = buildForecastUrl({
+      viewType,
+      location:
+        newLocation ||
+        currentDataset?.defaultLocation ||
+        APP_CONFIG.defaultLocation,
+      searchParams,
+    });
+    navigate(nextUrl, { replace: true });
     setSelectedLocation(newLocation);
   };
 
   const handleTargetSelect = (target) => {
     if (!target) return;
     setSelectedTarget(target);
-    updateDatasetParams({ target: target });
+    updateDatasetParams({
+      target: target === availableTargetsToExpose[0] ? null : target,
+    });
   };
 
   const handleViewLocationChange = useCallback(
@@ -650,21 +702,6 @@ export const ViewProvider = ({ children }) => {
       setLocationMessage(nextLocationMessage);
       setSelectedLocation(nextLocation);
 
-      if (nextLocation && nextLocation !== effectiveDefault) {
-        newSearchParams.set("location", nextLocation);
-      } else {
-        newSearchParams.delete("location");
-      }
-
-      if (
-        newView !== APP_CONFIG.defaultView ||
-        newSearchParams.toString().length > 0
-      ) {
-        newSearchParams.set("view", newView);
-      } else {
-        newSearchParams.delete("view");
-      }
-
       const isDatasetChange = oldDataset?.shortName !== newDataset?.shortName;
       const isPeakTransition = oldView === "flu_peak" || newView === "flu_peak";
 
@@ -676,7 +713,7 @@ export const ViewProvider = ({ children }) => {
 
         if (oldDataset) {
           newSearchParams.delete(`${oldDataset.prefix}_models`);
-          newSearchParams.delete(`${oldDataset.prefix}_dates`);
+          newSearchParams.delete("dates");
           newSearchParams.delete(`${oldDataset.prefix}_target`);
         }
 
@@ -695,7 +732,12 @@ export const ViewProvider = ({ children }) => {
       }
 
       setViewTypeState(newView);
-      setSearchParams(newSearchParams, { replace: false });
+      const nextUrl = buildForecastUrl({
+        viewType: newView,
+        location: nextLocation || effectiveDefault,
+        searchParams: newSearchParams,
+      });
+      navigate(nextUrl, { replace: false });
     },
     [
       viewType,
@@ -704,7 +746,7 @@ export const ViewProvider = ({ children }) => {
       selectedLocation,
       data,
       locationCatalogs,
-      setSearchParams,
+      navigate,
     ],
   );
 
@@ -755,7 +797,12 @@ export const ViewProvider = ({ children }) => {
     }
 
     setSelectedLocation(resolution.nextLocation);
-    urlManager.updateLocation(resolution.nextLocation, effectiveDefault);
+    const nextUrl = buildForecastUrl({
+      viewType,
+      location: resolution.nextLocation,
+      searchParams,
+    });
+    navigate(nextUrl, { replace: true });
   }, [
     isForecastPage,
     viewType,
@@ -763,6 +810,8 @@ export const ViewProvider = ({ children }) => {
     data,
     locationCatalogs,
     locationMessage,
+    navigate,
+    searchParams,
     urlManager,
   ]);
 
@@ -771,17 +820,38 @@ export const ViewProvider = ({ children }) => {
     if (viewFromUrl !== viewType) {
       setViewTypeState(viewFromUrl);
     }
-  }, [searchParams, urlManager, viewType]);
+  }, [searchParams, location.pathname, urlManager, viewType]);
+
+  useEffect(() => {
+    const locationFromUrl = urlManager.getLocation();
+    if (locationFromUrl !== selectedLocation) {
+      setSelectedLocation(locationFromUrl);
+    }
+  }, [searchParams, location.pathname, selectedLocation, urlManager]);
 
   useEffect(() => {
     if (!isForecastPage) {
       return;
     }
+
+    const isSurveillanceView = viewType === "nhsnall" || viewType === "nsspall";
     const {
       chartScale: urlScale,
       intervalVisibility: urlIntervals,
       showLegend: urlLegend,
+      showOtherGroundTruthSeasons: urlShowOtherGroundTruthSeasons,
     } = urlManager.getAdvancedParams();
+
+    if (isSurveillanceView && urlShowOtherGroundTruthSeasons) {
+      if (showOtherGroundTruthSeasons) {
+        setShowOtherGroundTruthSeasons(false);
+      }
+      urlManager.updateAdvancedParams({
+        showOtherGroundTruthSeasons: false,
+      });
+      return;
+    }
+
     if (urlScale !== chartScale) {
       setChartScale(urlScale);
     }
@@ -791,14 +861,44 @@ export const ViewProvider = ({ children }) => {
     if (urlLegend !== showLegend) {
       setShowLegend(urlLegend);
     }
+    if (urlShowOtherGroundTruthSeasons !== showOtherGroundTruthSeasons) {
+      setShowOtherGroundTruthSeasons(urlShowOtherGroundTruthSeasons);
+    }
   }, [
     searchParams,
+    location.pathname,
     urlManager,
     isForecastPage,
+    viewType,
     chartScale,
     intervalVisibility,
     showLegend,
+    showOtherGroundTruthSeasons,
   ]);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      return;
+    }
+
+    if (!isPathBasedForecastView(viewType)) {
+      return;
+    }
+
+    const nextUrl = buildForecastUrl({
+      viewType,
+      location: selectedLocation,
+      searchParams,
+    });
+    const canonicalPath = buildForecastPath(viewType, selectedLocation);
+
+    if (
+      nextUrl.pathname === canonicalPath &&
+      nextUrl.pathname !== location.pathname
+    ) {
+      navigate(nextUrl, { replace: true });
+    }
+  }, [location.pathname, navigate, searchParams, selectedLocation, viewType]);
 
   const setChartScaleWithUrl = useCallback(
     (nextScale) => {
@@ -828,6 +928,18 @@ export const ViewProvider = ({ children }) => {
       setShowLegend(nextShowLegend);
       if (isForecastPage) {
         urlManager.updateAdvancedParams({ showLegend: nextShowLegend });
+      }
+    },
+    [urlManager, isForecastPage],
+  );
+
+  const setShowOtherGroundTruthSeasonsWithUrl = useCallback(
+    (nextValue) => {
+      setShowOtherGroundTruthSeasons(nextValue);
+      if (isForecastPage) {
+        urlManager.updateAdvancedParams({
+          showOtherGroundTruthSeasons: nextValue,
+        });
       }
     },
     [urlManager, isForecastPage],
@@ -865,7 +977,10 @@ export const ViewProvider = ({ children }) => {
       setSelectedDates((prevDates) => {
         const nextDates =
           typeof updater === "function" ? updater(prevDates) : updater;
-        updateDatasetParams({ dates: nextDates });
+        const latestDate =
+          availableDatesToExpose[availableDatesToExpose.length - 1];
+        const isDefault = nextDates.length === 1 && nextDates[0] === latestDate;
+        updateDatasetParams({ dates: isDefault ? [] : nextDates });
         return nextDates;
       });
     },
@@ -880,9 +995,7 @@ export const ViewProvider = ({ children }) => {
     selectedTarget,
     handleTargetSelect,
     peaks,
-    availablePeakDates: (availablePeakDates || []).filter(
-      (date) => date >= CURRENT_FLU_SEASON_START,
-    ),
+    availablePeakDates: availablePeakDates || [],
     availablePeakModels,
     chartScale,
     setChartScale: setChartScaleWithUrl,
@@ -890,6 +1003,8 @@ export const ViewProvider = ({ children }) => {
     setIntervalVisibility: setIntervalVisibilityWithUrl,
     showLegend,
     setShowLegend: setShowLegendWithUrl,
+    showOtherGroundTruthSeasons,
+    setShowOtherGroundTruthSeasons: setShowOtherGroundTruthSeasonsWithUrl,
   };
 
   return (

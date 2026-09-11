@@ -35,7 +35,7 @@ const NsspViewLink = () => {
     <span>
       Check out our new{" "}
       <Anchor
-        href="/?view=nsspall"
+        href="/surveillance/nssp"
         fw={700}
         c="blue.7"
         style={{ fontSize: "inherit", verticalAlign: "baseline" }}

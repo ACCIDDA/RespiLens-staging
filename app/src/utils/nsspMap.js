@@ -12,3 +12,11 @@ export const NSSP_MAP_COLORS = {
   fallback: "#edf3fb",
   unavailable: "#d7d7db",
 };
+
+export const getNsspUsFeatureCallout = (feature) =>
+  feature.properties?.STUSAB === "DC"
+    ? {
+        label: "DC",
+        offset: [58, 28],
+      }
+    : null;

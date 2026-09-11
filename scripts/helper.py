@@ -1,27 +1,17 @@
 """Helper functions for data conversion process."""
 
-import json 
-import jsonschema
+import json
 from typing import Literal
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import requests
 import time 
 import logging 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
-
-# Import schema
-_current_dir = Path(__file__).parent
-projections_schema_path = _current_dir / 'schemas' / 'RespiLens_projections.schema.json'
-timeseries_schema_path = _current_dir / 'schemas' / 'RespiLens_timeseries.schema.json'
-with open(projections_schema_path, 'r') as f:
-    projections_schema = json.load(f)
-with open(timeseries_schema_path, 'r') as f:
-    timeseries_schema = json.load(f)
 
 
 def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -218,197 +208,6 @@ def save_json_file(
     with open(file_path, 'w') as of:
         json.dump(file_contents, of, indent=4)
 
-
-
-def validate_respilens_json(json_contents: dict, type: str = Literal['projections', 'timeseries']) -> bool | str:
-    """
-    Validate JSON output with RespiLens schema
-
-    Args:
-        json_contents: Contents of json file, stored as python dict
-        type: Type of RespiLens data (either projections or timeseries)
-
-    Returns:
-        True if validation is successful, str of error message if unsuccessful.
-
-    Raise:
-        ValidationError: When json contents do not match jsonschema
-    """
-    if type == 'projections':
-        try:
-            jsonschema.validate(instance=json_contents, schema=projections_schema)
-            return True
-        except jsonschema.exceptions.ValidationError as e:
-            return str(e)
-    elif type == 'timeseries':
-        try:
-            jsonschema.validate(instance=json_contents, schema=timeseries_schema)
-            return True
-        except jsonschema.exceptions.ValidationError as e:
-            return str(e)
-    else:
-        raise ValueError(f"`type` parameter must be one of 'projections' or 'timeseries'. Received {type}")
-
-
-NHSN_COLUMN_MASKS = {
-    "RAW_PATIENT_COUNTS": [
-        'jurisdiction',
-        'weekendingdate',
-        'totalconfc19newadmadult', 
-        'totalconfflunewadmadult',
-        'totalconfrsvnewadmadult',
-        'totalconfc19newadm',
-        'totalconfc19icupats',
-        'totalconffluicupats',
-        'totalconfrsvicupats',
-        'totalconfflunewadm',
-        'totalconfc19hosppats',
-        'totalconffluhosppats',
-        'totalconfrsvhosppats',
-        'totalconfc19newadmped',
-        'totalconfflunewadmped',
-        'totalconfrsvnewadmped',
-        'totalconfrsvnewadm',
-        'numconfc19newadmadult18to49',
-        'numconfc19newadmadult50to64',
-        'numconfc19newadmadult65to74',
-        'numconfc19newadmadult75plus',
-        'numconfc19icupatsadult',
-        'numconffluicupatsadult',
-        'numconfrsvicupatsadult',
-        'numconfflunewadmadult18to49',
-        'numconfflunewadmadult50to64',
-        'numconfflunewadmadult65to74',
-        'numconfflunewadmadult75plus',
-        'numconfc19hosppatsadult',
-        'numconffluhosppatsadult',
-        'numconfrsvhosppatsadult',
-        'numconfrsvnewadmadult18to49',
-        'numconfrsvnewadmadult50to64',
-        'numconfrsvnewadmadult65to74',
-        'numconfrsvnewadmadult75plus',
-        'numconfc19newadmunk',
-        'numconfflunewadmunk',
-        'numconffluhosppatsped',
-        'numconfc19newadmped0to4',
-        'numconfc19newadmped5to17',
-        'numconfc19icupatsped',
-        'numconffluicupatsped',
-        'numconfrsvicupatsped',
-        'numconfflunewadmped0to4',
-        'numconfflunewadmped5to17',
-        'numconfc19hosppatsped',
-        'numconfrsvhosppatsped',
-        'numconfrsvnewadmped0to4',
-        'numconfrsvnewadmped5to17',
-        'numconfrsvnewadmunk'
-    ],
-
-    "HOSPITAL_ADMISSION_RATES": [
-        'jurisdiction',
-        'weekendingdate',
-        'totalconfc19newadmadultper100k',
-        'totalconfflunewadmadultper100k',
-        'totalconfrsvnewadmadultper100k',
-        'totalconfc19newadmpedper100k',
-        'totalconfflunewadmpedper100k',
-        'totalconfrsvnewadmpedper100k',
-        'totalconfc19newadmper100k',
-        'totalconfflunewadmper100k',
-        'totalconfrsvnewadmper100k',
-        'numconfc19newadmadult18to49per100k',
-        'numconfc19newadmadult50to64per100k',
-        'numconfc19newadmadult65to74per100k',
-        'numconfc19newadmadult75plusper100k',
-        'numconfflunewadmadult18to49per100k',
-        'numconfflunewadmadult50to64per100k',
-        'numconfflunewadmadult65to74per100k',
-        'numconfflunewadmadult75plusper100k',
-        'numconfrsvnewadmadult18to49per100k',
-        'numconfrsvnewadmadult50to64per100k',
-        'numconfrsvnewadmadult65to74per100k',
-        'numconfrsvnewadmadult75plusper100k',
-        'numconfc19newadmped0to4per100k',
-        'numconfc19newadmped5to17per100k',
-        'numconfflunewadmped0to4per100k',
-        'numconfflunewadmped5to17per100k',
-        'numconfrsvnewadmped0to4per100k',
-        'numconfrsvnewadmped5to17per100k'
-    ],
-
-    "HOSPITAL_ADMISSION_PERCENTS": [
-        'jurisdiction',
-        'weekendingdate',
-        'pctconfc19newadmadult',
-        'pctconfflunewadmadult',
-        'pctconfrsvnewadmadult',
-        'pctconfc19newadmped',
-        'pctconfflunewadmped',
-        'pctconfrsvnewadmped'
-    ],
-
-    "RAW_BED_CAPACITY": [
-        'jurisdiction',
-        'weekendingdate',
-        'numicubedsadult',
-        'numicubedsoccadult',
-        'numinptbedsadult',
-        'numinptbedsoccadult',
-        'numicubeds',
-        'numicubedsocc',
-        'numinptbeds',
-        'numinptbedsocc',
-        'numicubedsped',
-        'numicubedsoccped',
-        'numinptbedsoccped',
-        'numinptbedsped'
-    ],
-
-    "CAPACITY_PERCENTS": [
-        'jurisdiction',
-        'weekendingdate',
-        'pcticubedsocc',
-        'pctconfc19icubeds',
-        'pctconffluicubeds',
-        'pctconfrsvicubeds',
-        'pctinptbedsocc',
-        'pctconfc19inptbeds',
-        'pctconffluinptbeds',
-        'pctconfrsvinptbeds'
-    ],
-
-    "ABSOLUTE_PERCENT_CHANGE": [
-        'jurisdiction',
-        'weekendingdate',
-        'totalconfflunewadmpercho',
-        'totalconfc19newadmadultp_1',
-        'totalconfflunewadmadultp_1',
-        'totalconfrsvnewadmadultp_1',
-        'totalconfc19newadmpercho',
-        'totalconfc19icupatsperch',
-        'totalconffluicupatsperch',
-        'totalconfrsvicupatsperch',
-        'numicubedsoccperchosprepabschg',
-        'numicubedsperchosprepabschg',
-        'numinptbedsoccperchospre',
-        'numinptbedsperchosprepabschg',
-        'totalconfc19newadmpedper_1',
-        'totalconfflunewadmpedper_1',
-        'totalconfrsvnewadmpedper_1',
-        'pctconfc19icubedsperchos',
-        'pctconffluicubedsperchos',
-        'pctconfrsvicubedsperchos',
-        'pcticubedsoccperchosprepabschg',
-        'pctconfc19inptbedspercho',
-        'pctconffluinptbedspercho',
-        'pctconfrsvinptbedspercho',
-        'pctinptbedsoccperchospre',
-        'totalconfrsvnewadmpercho',
-        'totalconfc19hosppatsperc_1',
-        'totalconfrsvhosppatsperc_1',
-        'totalconffluhosppatsperc_1'
-    ]
-}
 
 STATENAME_TO_ABBREVIATION_MAP = {
     'Alabama': 'AL',

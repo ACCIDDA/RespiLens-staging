@@ -12,8 +12,7 @@ import {
   IconChartLine,
   IconTarget,
   IconTrophy,
-  IconDashboard,
-  IconClipboard,
+  IconTool,
   IconChartScatter,
 } from "@tabler/icons-react";
 import { ENABLED_TOURNAMENTS } from "../../config";
@@ -22,7 +21,11 @@ import StateSelector from "../StateSelector";
 
 const getShellConfig = (pathname) => {
   // For forecast view (main page), show navbar with StateSelector
-  if (pathname === "/") {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/forecasts") ||
+    pathname.startsWith("/surveillance")
+  ) {
     return {
       type: "forecast",
       header: { height: 60 },
@@ -71,7 +74,10 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       href: "/",
       label: "Forecasts",
       icon: IconChartLine,
-      active: location.pathname === "/",
+      active:
+        location.pathname === "/" ||
+        location.pathname.startsWith("/forecasts") ||
+        location.pathname.startsWith("/surveillance"),
     },
     {
       href: "/forecastle",
@@ -86,16 +92,14 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       active: location.pathname.startsWith(tournament.path),
     })),
     {
-      href: "/myrespilens",
-      label: "MyRespiLens",
-      icon: IconDashboard,
-      active: location.pathname.startsWith("/myrespilens"),
-    },
-    {
-      href: "/documentation",
-      label: "Documentation",
-      icon: IconClipboard,
-      active: location.pathname.startsWith("/documentation"),
+      href: "/toolbox",
+      label: "Toolbox",
+      icon: IconTool,
+      active:
+        location.pathname.startsWith("/toolbox") ||
+        location.pathname.startsWith("/toolbox/forecast-checker") ||
+        location.pathname.startsWith("/myrespilens") ||
+        location.pathname.startsWith("/documentation"),
     },
     {
       href: "/myplots",

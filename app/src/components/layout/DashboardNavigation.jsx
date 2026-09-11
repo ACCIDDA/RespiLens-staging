@@ -21,6 +21,7 @@ import {
   IconUser,
   IconLogout,
   IconChartLine,
+  IconTool,
 } from "@tabler/icons-react";
 
 const DashboardNavigation = ({
@@ -36,7 +37,7 @@ const DashboardNavigation = ({
           <ThemeIcon size="lg" variant="light">
             <IconDashboard size={24} />
           </ThemeIcon>
-          <Title order={3}>MyRespiLens</Title>
+          <Title order={3}>Toolbox</Title>
         </Group>
 
         <Group gap="xs">
@@ -134,11 +135,11 @@ const DashboardNavigation = ({
         <Button
           variant="light"
           size="xs"
-          leftSection={<IconBookmark size={14} />}
+          leftSection={<IconTool size={14} />}
           component={Link}
-          to="/narratives"
+          to="/toolbox"
         >
-          Browse Narratives
+          Open Toolbox
         </Button>
         <Button
           variant="light"

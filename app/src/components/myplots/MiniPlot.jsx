@@ -12,24 +12,26 @@ import {
 } from "@mantine/core";
 import Plot from "react-plotly.js";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
-import { MODEL_COLORS } from "../../config/datasets";
+import { getModelColor } from "../../config/datasets";
 import { nhsnSlugToNameMap, targetDisplayNameMap } from "../../utils/mapUtils";
-import { buildSqrtTicks, getYRangeFromTraces } from "../../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getYRangeFromTraces,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../../utils/scaleUtils";
+import {
+  FLU_PEAK_GROUND_TRUTH_START,
+  FLU_PEAK_NORMALIZED_X_RANGE,
+  getNormalizedPeakDate,
+} from "../../utils/forecastSeasons";
 
 const NSSP_COLUMN_LABELS = {
   percent_visits_covid: "COVID-19",
   percent_visits_influenza: "Influenza",
   percent_visits_rsv: "RSV",
-};
-
-const CURRENT_FLU_SEASON_START = "2025-08-01";
-
-const getNormalizedPeakDate = (dateStr) => {
-  const date = new Date(dateStr);
-  const month = date.getUTCMonth();
-  const baseYear = month >= 7 ? 2000 : 2001;
-  date.setUTCFullYear(baseYear);
-  return date;
 };
 
 const toRgba = (hex, alpha) => {
@@ -49,6 +51,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
   const isNSSP = plot.viewType === "nsspall";
   const isFluPeak = plot.viewType === "flu_peak";
   const isSeriesView = isNHSN || isNSSP;
+  const normalizedScale = normalizeChartScale(plot.settings.scale);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,6 +78,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     forecasts: isSeriesView || isFluPeak ? null : data?.forecasts,
     selectedDates: plot.settings.dates || [],
     selectedModels: plot.settings.models || [],
+    modelOrder: plot.settings.models || [],
     target: plot.settings.target,
     showMedian: plot.settings.intervals?.includes("median") ?? true,
     show50: plot.settings.intervals?.includes("ci50") ?? true,
@@ -82,53 +86,75 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     showLegendForFirstDate: false,
     modelLineWidth: 1.5,
     modelMarkerSize: 4,
+    transformY:
+      normalizedScale === "sqrt" || normalizedScale === "log2"
+        ? (value) => transformValueForScale(value, normalizedScale)
+        : null,
   });
 
   const nhsnTraces = useMemo(() => {
     if (!isNHSN || !data?.series) return [];
 
     const dateAxis = data.series.dates;
-    const applySqrt = plot.settings.scale === "sqrt";
-
     return (plot.settings.columns || [])
-      .map((slug, index) => {
+      .flatMap((slug) => {
         const longformName = nhsnSlugToNameMap[slug] || slug;
-        const rawY = data.series[longformName] || [];
-        const yValues = applySqrt
-          ? rawY.map((value) =>
-              value !== null ? Math.sqrt(Math.max(0, value)) : value,
-            )
-          : rawY;
+        const officialRawY = data.series[longformName] || [];
+        const officialYValues = officialRawY.map((value) =>
+          transformValueForScale(value, normalizedScale),
+        );
+        const traces = [];
 
-        return {
-          x: dateAxis,
-          y: yValues,
-          name: longformName,
-          type: "scatter",
-          mode: "lines",
-          line: {
-            color: MODEL_COLORS[index % MODEL_COLORS.length],
-            width: 2,
-          },
-        };
+        if (officialYValues.length > 0) {
+          traces.push({
+            x: dateAxis,
+            y: officialYValues,
+            name: longformName,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: getModelColor(slug, plot.settings.columns || []),
+              width: 2,
+            },
+          });
+        }
+
+        const preliminaryRawY = data.preliminary_series?.[longformName] || [];
+        const preliminaryDates = data.preliminary_series?.dates || [];
+        const preliminaryYValues = preliminaryRawY.map((value) =>
+          transformValueForScale(value, normalizedScale),
+        );
+
+        if (preliminaryYValues.length > 0 && preliminaryDates.length > 0) {
+          traces.push({
+            x: preliminaryDates,
+            y: preliminaryYValues,
+            name: `${longformName} (preliminary)`,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: getModelColor(slug, plot.settings.columns || []),
+              width: 2,
+              dash: "dash",
+            },
+          });
+        }
+
+        return traces;
       })
       .filter((trace) => trace.y.length > 0);
-  }, [isNHSN, data, plot.settings]);
+  }, [isNHSN, data, plot.settings, normalizedScale]);
 
   const nsspTraces = useMemo(() => {
     if (!isNSSP || !data?.series) return [];
 
     const dateAxis = data.series.dates || [];
-    const applySqrt = plot.settings.scale === "sqrt";
-
     return (plot.settings.columns || [])
-      .map((column, index) => {
+      .map((column) => {
         const rawY = data.series[column] || [];
-        const yValues = applySqrt
-          ? rawY.map((value) =>
-              value !== null ? Math.sqrt(Math.max(0, value)) : value,
-            )
-          : rawY;
+        const yValues = rawY.map((value) =>
+          transformValueForScale(value, normalizedScale),
+        );
 
         return {
           x: dateAxis,
@@ -137,7 +163,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
           type: "scatter",
           mode: "lines+markers",
           line: {
-            color: MODEL_COLORS[index % MODEL_COLORS.length],
+            color: getModelColor(column, plot.settings.columns || []),
             width: 2,
           },
           marker: { size: 4 },
@@ -147,7 +173,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
         };
       })
       .filter((trace) => trace.y.length > 0);
-  }, [isNSSP, data, plot.settings]);
+  }, [isNSSP, data, plot.settings, normalizedScale]);
 
   const fluPeakTraces = useMemo(() => {
     if (!isFluPeak || !data) return [];
@@ -160,16 +186,15 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     const showMedian = plot.settings.intervals?.includes("median") ?? true;
     const show50 = plot.settings.intervals?.includes("ci50") ?? true;
     const show95 = plot.settings.intervals?.includes("ci95") ?? true;
-    const applySqrt = plot.settings.scale === "sqrt";
     const transformY = (value) => {
       if (value === null || value === undefined) return value;
-      return applySqrt ? Math.sqrt(Math.max(0, value)) : value;
+      return transformValueForScale(value, normalizedScale);
     };
 
     if (groundTruth?.["wk inc flu hosp"] && groundTruth?.dates) {
       const currentSeason = groundTruth.dates.reduce(
         (accumulator, date, index) => {
-          if (date >= CURRENT_FLU_SEASON_START) {
+          if (date >= FLU_PEAK_GROUND_TRUTH_START) {
             const rawValue = groundTruth["wk inc flu hosp"][index];
             accumulator.x.push(getNormalizedPeakDate(date));
             accumulator.y.push(transformY(rawValue));
@@ -196,8 +221,8 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
       }
     }
 
-    selectedModels.forEach((model, modelIndex) => {
-      const baseColor = MODEL_COLORS[modelIndex % MODEL_COLORS.length];
+    selectedModels.forEach((model) => {
+      const baseColor = getModelColor(model, plot.settings.models || []);
 
       selectedDates.forEach((referenceDate, dateIndex) => {
         const dateData = peaks?.[referenceDate];
@@ -304,7 +329,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     });
 
     return traces;
-  }, [isFluPeak, data, plot.settings]);
+  }, [isFluPeak, data, plot.settings, normalizedScale]);
 
   let finalTraces = forecastTraces;
   if (isNHSN) {
@@ -337,7 +362,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
             : data.series.dates[data.series.dates.length - 1],
         ];
       } else if (isFluPeak) {
-        xRange = ["2000-08-01", "2001-05-31"];
+        xRange = FLU_PEAK_NORMALIZED_X_RANGE;
       } else if (plot.settings.dates?.length > 0) {
         const sortedDates = [...plot.settings.dates].sort();
         const earliestDate = new Date(sortedDates[0]);
@@ -363,8 +388,15 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
       }
     }
 
+    const usesPercentSuffix =
+      isNSSP ||
+      plot.settings.target?.includes("%") ||
+      plot.settings.target?.includes("pct") ||
+      plot.settings.target?.includes("Percent") ||
+      plot.settings.target?.includes("percent");
+
     const sqrtTicks =
-      plot.settings.scale === "sqrt" && yRange
+      normalizedScale === "sqrt" && yRange
         ? buildSqrtTicks({
             rawRange: [0, yRange[1] ** 2],
             tickCount: 4,
@@ -375,12 +407,17 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
           })
         : null;
 
-    const usesPercentSuffix =
-      isNSSP ||
-      plot.settings.target?.includes("%") ||
-      plot.settings.target?.includes("pct") ||
-      plot.settings.target?.includes("Percent") ||
-      plot.settings.target?.includes("percent");
+    const log2Ticks =
+      normalizedScale === "log2" && yRange
+        ? buildLog2Ticks({
+            rawRange: [1, 2 ** yRange[1]],
+            maxTickCount: 4,
+            formatValue: (value) =>
+              value.toLocaleString(undefined, {
+                maximumFractionDigits: usesPercentSuffix ? 2 : 0,
+              }),
+          })
+        : null;
 
     return {
       autosize: true,
@@ -403,12 +440,17 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
         gridcolor: colorScheme === "dark" ? "#333" : "#eee",
         fixedrange: true,
         tickfont: { size: 8 },
-        type: plot.settings.scale === "log" ? "log" : "linear",
-        range: plot.settings.scale === "log" ? undefined : yRange,
+        type: isPlotlyLogScale(normalizedScale) ? "log" : "linear",
+        range: isPlotlyLogScale(normalizedScale) ? undefined : yRange,
         nticks: 5,
-        ticksuffix: usesPercentSuffix ? "%" : "",
-        tickvals: sqrtTicks?.tickvals,
-        ticktext: sqrtTicks?.ticktext,
+        ticksuffix:
+          normalizedScale === "sqrt" || normalizedScale === "log2"
+            ? undefined
+            : usesPercentSuffix
+              ? "%"
+              : "",
+        tickvals: sqrtTicks?.tickvals ?? log2Ticks?.tickvals,
+        ticktext: sqrtTicks?.ticktext ?? log2Ticks?.ticktext,
       },
       shapes:
         !isNHSN && !isNSSP && !isFluPeak
@@ -426,6 +468,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
   }, [
     colorScheme,
     plot.settings,
+    normalizedScale,
     isNHSN,
     isNSSP,
     isFluPeak,
@@ -484,7 +527,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
             SCALE:
           </Text>
           <Badge size="xs" variant="outline" color="blue.3">
-            {plot.settings.scale?.toUpperCase()}
+            {normalizedScale.toUpperCase()}
           </Badge>
         </Group>
 
@@ -511,7 +554,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
         )}
       </Stack>
     );
-  }, [plot.settings, isNHSN, isNSSP]);
+  }, [plot.settings, isNHSN, isNSSP, normalizedScale]);
 
   if (loading) {
     return (

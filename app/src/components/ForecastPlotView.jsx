@@ -4,14 +4,42 @@ import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import TitleRow from "./TitleRow";
-import { MODEL_COLORS } from "../config/datasets";
 import { CHART_CONSTANTS } from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
-import { buildSqrtTicks } from "../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
-import { buildPlotDownloadName } from "../utils/plotDownloadName";
+import {
+  buildPlotDownloadName,
+  PLOT_DOWNLOAD_IMAGE_SCALE,
+} from "../utils/plotDownloadName";
+import { getOfficialModels } from "../utils/forecastleScoring";
+import {
+  getEarliestGroundTruthSeasonStartDate,
+  getSeasonDateRange,
+  getSeasonStartYear,
+} from "../utils/forecastSeasons";
+
+const FORECAST_DATASET_KEYS_BY_VIEW = {
+  fludetailed: "flusight",
+  flu_forecasts: "flusight",
+  rsv_forecasts: "rsv",
+  covid_forecasts: "covid19",
+};
+
+const shiftDateStringByDays = (dateString, days) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
+  return shiftedDate.toISOString().slice(0, 10);
+};
 
 const ForecastPlotView = ({
   data,
@@ -36,7 +64,13 @@ const ForecastPlotView = ({
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
   const { colorScheme } = useMantineColorScheme();
-  const { chartScale, intervalVisibility, showLegend, viewType } = useView();
+  const {
+    chartScale,
+    intervalVisibility,
+    showLegend,
+    showOtherGroundTruthSeasons,
+    viewType,
+  } = useView();
   const stateName = data?.metadata?.location_name;
   const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
 
@@ -51,11 +85,16 @@ const ForecastPlotView = ({
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
+  const baselineModelName =
+    getOfficialModels(FORECAST_DATASET_KEYS_BY_VIEW[viewType]).baseline || null;
+  const normalizedChartScale = normalizeChartScale(chartScale);
 
-  const sqrtTransform = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
-    return (value) => Math.sqrt(Math.max(0, value));
-  }, [chartScale]);
+  const manualScaleTransform = useMemo(() => {
+    if (normalizedChartScale !== "sqrt" && normalizedChartScale !== "log2") {
+      return null;
+    }
+    return (value) => transformValueForScale(value, normalizedChartScale);
+  }, [normalizedChartScale]);
 
   const calculateYRange = useCallback(
     (chartData, xRange) => {
@@ -97,7 +136,11 @@ const ForecastPlotView = ({
     [resolvedForecastTarget],
   );
 
-  const { traces: projectionsData, rawYRange } = useQuantileForecastTraces({
+  const {
+    traces: projectionsData,
+    rawYRange,
+    hasForecastTraces,
+  } = useQuantileForecastTraces({
     groundTruth,
     forecasts,
     selectedDates,
@@ -108,15 +151,18 @@ const ForecastPlotView = ({
     valueSuffix: "",
     modelLineWidth: 2,
     modelMarkerSize: 6,
-    groundTruthLineWidth: 2,
+    groundTruthLineWidth: 1.5,
     groundTruthMarkerSize: 4,
     showLegendForFirstDate: showLegend,
     fillMissingQuantiles: false,
     showMedian,
     show50,
     show95,
-    transformY: sqrtTransform,
-    groundTruthHoverFormatter: sqrtTransform
+    showOtherGroundTruthSeasons,
+    viewType,
+    transformY: manualScaleTransform,
+    baselineModelName,
+    groundTruthHoverFormatter: manualScaleTransform
       ? (value) =>
           groundTruthValueFormat.includes(":.2f")
             ? Number(value).toFixed(2)
@@ -201,9 +247,59 @@ const ForecastPlotView = ({
   );
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({ rawRange: rawYRange });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({ rawRange: rawYRange });
+  }, [normalizedChartScale, rawYRange]);
+
+  const seasonDividerShapes = useMemo(() => {
+    if (!showOtherGroundTruthSeasons || !groundTruth?.dates?.length) {
+      return [];
+    }
+
+    const hubSeasonStartDate = getEarliestGroundTruthSeasonStartDate({
+      groundTruth,
+      target: resolvedForecastTarget,
+    });
+    const dividerYears = Array.from(
+      new Set(
+        groundTruth.dates
+          .filter((dateString) =>
+            hubSeasonStartDate ? dateString >= hubSeasonStartDate : true,
+          )
+          .map((dateString) => getSeasonStartYear(dateString)),
+      ),
+    )
+      .sort((a, b) => a - b)
+      .slice(1);
+
+    return dividerYears.map((seasonStartYear) => {
+      const { start } = getSeasonDateRange(seasonStartYear);
+      return {
+        type: "line",
+        x0: start,
+        x1: start,
+        y0: 0,
+        y1: 1,
+        yref: "paper",
+        line: {
+          color: colorScheme === "dark" ? "#495057" : "#ced4da",
+          width: 1,
+          dash: "dot",
+        },
+        layer: "below",
+      };
+    });
+  }, [
+    colorScheme,
+    groundTruth,
+    resolvedForecastTarget,
+    showOtherGroundTruthSeasons,
+  ]);
 
   const layout = useMemo(() => {
     const baseLayout = {
@@ -258,34 +354,50 @@ const ForecastPlotView = ({
             longName ||
             resolvedDisplayTarget ||
             "Value";
-          if (chartScale === "log") return `${baseTitle} (log)`;
-          if (chartScale === "sqrt") return `${baseTitle} (sqrt)`;
-          return baseTitle;
+          return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
         })(),
-        range: chartScale === "log" ? undefined : yAxisRange,
-        autorange: chartScale === "log" ? true : yAxisRange === null,
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : yAxisRange === null,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
       },
-      shapes: selectedDates.map((date) => {
-        return {
-          type: "line",
-          x0: date,
-          x1: date,
-          y0: 0,
-          y1: 1,
-          yref: "paper",
-          line: {
-            color: "red",
-            width: 1,
-            dash: "dash",
-          },
-        };
-      }),
+      shapes: [
+        ...seasonDividerShapes,
+        ...selectedDates.map((date) => {
+          const shiftedDate = shiftDateStringByDays(date, -3);
+          return {
+            type: "line",
+            x0: shiftedDate,
+            x1: shiftedDate,
+            y0: 0,
+            y1: 1,
+            yref: "paper",
+            line: {
+              color: "red",
+              width: 1,
+              dash: "dash",
+            },
+          };
+        }),
+      ],
     };
 
     if (layoutOverrides) {
@@ -302,9 +414,11 @@ const ForecastPlotView = ({
     xAxisRange,
     getDefaultRange,
     layoutOverrides,
-    chartScale,
+    normalizedChartScale,
     sqrtTicks,
+    log2Ticks,
     showLegend,
+    seasonDividerShapes,
   ]);
 
   const config = useMemo(() => {
@@ -319,6 +433,7 @@ const ForecastPlotView = ({
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("forecast-plot"),
+        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
       },
       modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
       modeBarButtonsToAdd: [
@@ -359,7 +474,7 @@ const ForecastPlotView = ({
     return baseConfig;
   }, [calculateYRange, configOverrides]);
 
-  const hasForecasts = projectionsData.length > 1;
+  const hasForecasts = hasForecastTraces;
   if (requireTarget && !selectedTarget) {
     return (
       <Stack align="center" justify="center" style={{ height: "300px" }}>
@@ -433,10 +548,6 @@ const ForecastPlotView = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
-          getModelColor={(model, currentSelected) => {
-            const index = currentSelected.indexOf(model);
-            return MODEL_COLORS[index % MODEL_COLORS.length];
-          }}
         />
       </Stack>
     </Stack>

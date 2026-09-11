@@ -1,17 +1,25 @@
 import { DATASETS, APP_CONFIG } from "../config";
-
-const DEFAULT_CHART_SCALE = "linear";
+import { parseForecastUrlState } from "./forecastRoutes";
+import { DEFAULT_CHART_SCALE, normalizeChartScale } from "./scaleUtils";
 const DEFAULT_INTERVAL_VISIBILITY = {
   median: true,
   ci50: true,
   ci95: true,
 };
 const DEFAULT_SHOW_LEGEND = true;
+const DEFAULT_SHOW_OTHER_GT = false;
 
 export class URLParameterManager {
-  constructor(searchParams, setSearchParams) {
+  constructor(
+    searchParams,
+    setSearchParams,
+    pathname = window.location?.pathname,
+    navigate = null,
+  ) {
     this.searchParams = searchParams;
     this.setSearchParams = setSearchParams;
+    this.pathname = pathname;
+    this.navigate = navigate;
   }
 
   // Get dataset from view type
@@ -35,7 +43,7 @@ export class URLParameterManager {
     const currentView = this.getView();
 
     if (dataset.hasDateSelector) {
-      const dates = this.searchParams.get(`${prefix}_dates`);
+      const dates = this.searchParams.get("dates");
       params.dates = dates ? dates.split(",") : [];
     }
 
@@ -63,8 +71,9 @@ export class URLParameterManager {
     const scaleParam = this.searchParams.get("scale");
     const intervalsParam = this.searchParams.get("intervals");
     const legendParam = this.searchParams.get("legend");
+    const otherGtParam = this.searchParams.get("other_gt");
 
-    const chartScale = scaleParam || DEFAULT_CHART_SCALE;
+    const chartScale = normalizeChartScale(scaleParam || DEFAULT_CHART_SCALE);
     let intervalVisibility = { ...DEFAULT_INTERVAL_VISIBILITY };
 
     if (intervalsParam === "none") {
@@ -89,7 +98,19 @@ export class URLParameterManager {
       showLegend = true;
     }
 
-    return { chartScale, intervalVisibility, showLegend };
+    let showOtherGroundTruthSeasons = DEFAULT_SHOW_OTHER_GT;
+    if (otherGtParam === "1" || otherGtParam === "true") {
+      showOtherGroundTruthSeasons = true;
+    } else if (otherGtParam === "0" || otherGtParam === "false") {
+      showOtherGroundTruthSeasons = false;
+    }
+
+    return {
+      chartScale,
+      intervalVisibility,
+      showLegend,
+      showOtherGroundTruthSeasons,
+    };
   }
 
   // Clear parameters for a specific dataset
@@ -101,7 +122,7 @@ export class URLParameterManager {
     const prefix = dataset.prefix;
 
     if (dataset.hasDateSelector) {
-      newParams.delete(`${prefix}_dates`);
+      newParams.delete("dates");
     }
     if (dataset.hasModelSelector) {
       newParams.delete(`${prefix}_models`);
@@ -116,7 +137,12 @@ export class URLParameterManager {
     this.setSearchParams(newParams, { replace: true });
   }
 
-  updateAdvancedParams({ chartScale, intervalVisibility, showLegend }) {
+  updateAdvancedParams({
+    chartScale,
+    intervalVisibility,
+    showLegend,
+    showOtherGroundTruthSeasons,
+  }) {
     const updatedParams = new URLSearchParams(this.searchParams);
 
     if (chartScale) {
@@ -148,6 +174,14 @@ export class URLParameterManager {
       }
     }
 
+    if (typeof showOtherGroundTruthSeasons === "boolean") {
+      if (showOtherGroundTruthSeasons !== DEFAULT_SHOW_OTHER_GT) {
+        updatedParams.set("other_gt", showOtherGroundTruthSeasons ? "1" : "0");
+      } else {
+        updatedParams.delete("other_gt");
+      }
+    }
+
     if (updatedParams.toString() !== this.searchParams.toString()) {
       this.setSearchParams(updatedParams, { replace: true });
     }
@@ -166,9 +200,9 @@ export class URLParameterManager {
       Object.prototype.hasOwnProperty.call(newParams, "dates")
     ) {
       if (newParams.dates && newParams.dates.length > 0) {
-        updatedParams.set(`${prefix}_dates`, newParams.dates.join(","));
+        updatedParams.set("dates", newParams.dates.join(","));
       } else {
-        updatedParams.delete(`${prefix}_dates`);
+        updatedParams.delete("dates");
       }
     }
 
@@ -228,28 +262,12 @@ export class URLParameterManager {
 
   // Get current location from URL
   getLocation() {
-    return this.searchParams.get("location") || APP_CONFIG.defaultLocation;
+    return parseForecastUrlState(this.pathname, this.searchParams).location;
   }
 
   // Get current view from URL
   getView() {
-    const viewParam = this.searchParams.get("view");
-    const allViews = Object.values(DATASETS).flatMap((ds) =>
-      ds.views.map((v) => v.value),
-    );
-    if (viewParam) {
-      if (viewParam === APP_CONFIG.defaultView) {
-        return viewParam;
-      }
-      if (allViews.includes(viewParam)) {
-        return viewParam;
-      }
-    }
-    if (APP_CONFIG.defaultView) {
-      return APP_CONFIG.defaultView;
-    }
-    const defaultDatasetKey = APP_CONFIG.defaultDataset;
-    return DATASETS[defaultDatasetKey]?.defaultView;
+    return parseForecastUrlState(this.pathname, this.searchParams).viewType;
   }
   initializeDefaults() {}
 }

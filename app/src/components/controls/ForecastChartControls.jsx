@@ -15,7 +15,8 @@ const INTERVAL_OPTIONS = [
 
 const SCALE_OPTIONS = [
   { value: "linear", label: "Linear" },
-  { value: "log", label: "Log" },
+  { value: "log10", label: "Log10" },
+  { value: "log2", label: "Log2" },
   { value: "sqrt", label: "Sqrt" },
 ];
 
@@ -26,18 +27,22 @@ const ForecastChartControls = ({
   setIntervalVisibility,
   showLegend,
   setShowLegend,
+  showOtherGroundTruthSeasons = false,
+  setShowOtherGroundTruthSeasons = null,
+  disableOtherGroundTruthSeasons = false,
   showIntervals = true,
+  intervalOptions = INTERVAL_OPTIONS,
 }) => {
-  const selectedIntervals = INTERVAL_OPTIONS.filter(
-    (option) => intervalVisibility?.[option.value],
-  ).map((option) => option.value);
+  const selectedIntervals = intervalOptions
+    .filter((option) => intervalVisibility?.[option.value])
+    .map((option) => option.value);
 
   const handleIntervalChange = (values) => {
-    setIntervalVisibility({
-      median: values.includes("median"),
-      ci50: values.includes("ci50"),
-      ci95: values.includes("ci95"),
+    const nextVisibility = {};
+    intervalOptions.forEach((option) => {
+      nextVisibility[option.value] = values.includes(option.value);
     });
+    setIntervalVisibility(nextVisibility);
   };
 
   return (
@@ -63,7 +68,7 @@ const ForecastChartControls = ({
             onChange={handleIntervalChange}
           >
             <Group gap="sm">
-              {INTERVAL_OPTIONS.map((option) => (
+              {intervalOptions.map((option) => (
                 <Checkbox
                   key={option.value}
                   value={option.value}
@@ -87,6 +92,27 @@ const ForecastChartControls = ({
           offLabel="Off"
         />
       </Group>
+      {typeof setShowOtherGroundTruthSeasons === "function" && (
+        <Group align="center" gap="md">
+          <Text
+            size="xs"
+            c={disableOtherGroundTruthSeasons ? "gray.6" : "dimmed"}
+            style={{ minWidth: 90 }}
+          >
+            Other GT
+          </Text>
+          <Switch
+            checked={showOtherGroundTruthSeasons}
+            disabled={disableOtherGroundTruthSeasons}
+            onChange={(event) =>
+              setShowOtherGroundTruthSeasons(event.currentTarget.checked)
+            }
+            size="sm"
+            onLabel="On"
+            offLabel="Off"
+          />
+        </Group>
+      )}
     </Stack>
   );
 };

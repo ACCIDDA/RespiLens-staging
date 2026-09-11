@@ -23,7 +23,11 @@ import {
   isNsspStatewideLocation,
   isNsspUnitedStatesLocation,
 } from "../utils/nsspGeo";
-import { NSSP_MAP_COLORS, NSSP_MAP_HEIGHTS } from "../utils/nsspMap";
+import {
+  NSSP_MAP_COLORS,
+  NSSP_MAP_HEIGHTS,
+  getNsspUsFeatureCallout,
+} from "../utils/nsspMap";
 
 const NSSPOverviewGraph = () => {
   const {
@@ -289,6 +293,7 @@ const NSSPOverviewGraph = () => {
                     : `${stateName}: no NSSP data available`;
                 }}
                 getFeatureFill={getStateFill}
+                getFeatureCallout={getNsspUsFeatureCallout}
               />
             </div>
           </Stack>
