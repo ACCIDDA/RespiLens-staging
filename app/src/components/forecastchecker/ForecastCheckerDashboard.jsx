@@ -730,14 +730,15 @@ const buildGroundTruthOutput = (
     const normalizedAsOf = hasAsOfColumn
       ? normalizeDateString(row.as_of)
       : null;
-    const observation = Number(row.observation);
+    const observation =
+      row.observation === null ? null : Number(row.observation);
     const target = String(row.target);
 
     if (
       (allowedTargetSet && !allowedTargetSet.has(target)) ||
       !normalizedTargetEndDate ||
       (hasAsOfColumn && !normalizedAsOf) ||
-      Number.isNaN(observation) ||
+      (observation !== null && Number.isNaN(observation)) ||
       (minDate && new Date(normalizedTargetEndDate) < minDate)
     ) {
       return;
@@ -1109,11 +1110,15 @@ const buildLocationOptions = (projectionOutputs) =>
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
 
-const validateGroundTruthCsv = (records) => {
+const validateGroundTruthCsv = (
+  records,
+  { allowNaObservation = false } = {},
+) => {
   const summary = {
     totalRows: records.length,
     rowsDroppedInvalidDates: 0,
     rowsDroppedInvalidObservation: 0,
+    rowsKeptAsGaps: 0,
     rowsDroppedMissingLocation: 0,
     rowsDroppedMissingTarget: 0,
     rowsCollapsedToLatestAsOf: 0,
@@ -1135,7 +1140,12 @@ const validateGroundTruthCsv = (records) => {
     const normalizedAsOf = hasAsOfColumn
       ? normalizeDateString(record.as_of)
       : null;
-    const observation = Number(record.observation);
+    const isNaObservation =
+      allowNaObservation &&
+      String(record.observation ?? "")
+        .trim()
+        .toUpperCase() === "NA";
+    const observation = isNaObservation ? null : Number(record.observation);
     const location = String(record.location ?? "").trim();
     const target = String(record.target ?? "").trim();
 
@@ -1167,6 +1177,10 @@ const validateGroundTruthCsv = (records) => {
         `Row ${index + 2} has a non-numeric observation of "${record.observation}".`,
       );
       return [];
+    }
+
+    if (isNaObservation) {
+      summary.rowsKeptAsGaps += 1;
     }
 
     return [
@@ -2594,7 +2608,9 @@ const OtherHubScreen = () => {
         return;
       }
 
-      const validation = validateGroundTruthCsv(records);
+      const validation = validateGroundTruthCsv(records, {
+        allowNaObservation: true,
+      });
       if (!validation.ok) {
         setGroundTruthState({
           status: "error",
@@ -3059,7 +3075,8 @@ const OtherHubScreen = () => {
                                 <code>location</code>
                               </List.Item>
                               <List.Item>
-                                <code>observation</code> (must be numeric)
+                                <code>observation</code> (must be numeric;{" "}
+                                <code>NA</code> is accepted)
                               </List.Item>
                               <List.Item>
                                 <code>target</code>
@@ -3080,8 +3097,8 @@ const OtherHubScreen = () => {
                                 removed during validation.
                               </List.Item>
                               <List.Item>
-                                The presence of <code>NA</code> values causes
-                                validation to fail
+                                <code>NA</code> observations are retained as
+                                gaps in the ground truth plot.
                               </List.Item>
                               <List.Item>
                                 The upload fails if no usable ground truth rows
@@ -3838,6 +3855,22 @@ const ForecastCheckerDashboard = () => {
   }
 
   return <HubSelectionScreen />;
+};
+
+export {
+  FORECAST_REQUIRED_COLUMNS,
+  GROUND_TRUTH_REQUIRED_COLUMNS,
+  MyRespiVisualizationPanel,
+  OTHER_HUB_CONFIG,
+  // Shared with My Private Hub to keep both upload paths behaviorally aligned.
+  // eslint-disable-next-line react-refresh/only-export-components
+  buildGroundTruthOutput,
+  // eslint-disable-next-line react-refresh/only-export-components
+  readTabularUpload,
+  // eslint-disable-next-line react-refresh/only-export-components
+  validateGroundTruthCsv,
+  // eslint-disable-next-line react-refresh/only-export-components
+  validateHubverseCsv,
 };
 
 export default ForecastCheckerDashboard;

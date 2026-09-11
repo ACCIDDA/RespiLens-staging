@@ -13,6 +13,7 @@ import {
   IconClock,
   IconTools,
   IconAdjustmentsCheck,
+  IconLockSquareRounded,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import Seo from "../Seo";
@@ -33,6 +34,14 @@ const tools = [
     icon: IconClock,
     href: "/toolbox/reporting-triangle",
     badge: "Nowcasting",
+  },
+  {
+    title: "My Private Hub",
+    description:
+      "Drag and drop a Hub folder for a private dashboard visualization of all targets, models, dates, and locations. The processing happens in your browser, no data is sent our servers.",
+    icon: IconLockSquareRounded,
+    href: "/toolbox/my-private-hub",
+    badge: "Private",
   },
 ];
 
