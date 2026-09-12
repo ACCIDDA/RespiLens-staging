@@ -20,7 +20,7 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
 
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem(storageKey) === "true";
+    return sessionStorage.getItem(storageKey) === "true";
   });
 
   const currentDate = new Date();
@@ -36,7 +36,7 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
   if (!isVisible || dismissed) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(storageKey, "true");
+    sessionStorage.setItem(storageKey, "true");
     setDismissed(true);
   };
 
