@@ -3,24 +3,31 @@ import { Group, Button, Image, Title, Anchor } from "@mantine/core";
 import {
   IconChartLine,
   IconTarget,
-  IconDashboard,
+  IconTool,
   IconChartScatter,
 } from "@tabler/icons-react";
 import InfoOverlay from "../InfoOverlay";
 import { useView } from "../../hooks/useView";
+import { APP_CONFIG } from "../../config/app";
 
 const MainNavigation = () => {
   const location = useLocation();
-  const { setViewType } = useView();
+  const { setViewAndLocation } = useView();
 
   const isActive = (path) => location.pathname.startsWith(path);
+  const handleForecastsNavigation = () => {
+    setViewAndLocation("frontpage", APP_CONFIG.defaultLocation);
+  };
 
   const navigationItems = [
     {
       href: "/",
       label: "Forecasts",
       icon: IconChartLine,
-      active: location.pathname === "/",
+      active:
+        location.pathname === "/" ||
+        location.pathname.startsWith("/forecasts") ||
+        location.pathname.startsWith("/surveillance"),
     },
     // { href: '/narratives', label: 'Narratives', icon: IconBook, active: isActive('/narratives') },   disable narratives for now
     {
@@ -30,14 +37,17 @@ const MainNavigation = () => {
       active: isActive("/forecastle"),
     },
     {
-      href: "/myrespilens",
-      label: "MyRespiLens",
-      icon: IconDashboard,
-      active: isActive("/myrespilens"),
+      href: "/toolbox",
+      label: "Toolbox",
+      icon: IconTool,
+      active:
+        isActive("/toolbox") ||
+        isActive("/toolbox/forecast-checker") ||
+        isActive("/myrespilens"),
     },
     {
       href: "/myplots",
-      label: "My Plots (α)",
+      label: "My Plots",
       icon: IconChartScatter,
       active: isActive("/myplots"),
     },
@@ -58,7 +68,7 @@ const MainNavigation = () => {
         to="/"
         underline="never"
         c="inherit"
-        onClick={() => setViewType("frontpage")}
+        onClick={handleForecastsNavigation}
       >
         <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
           <Image
@@ -90,6 +100,7 @@ const MainNavigation = () => {
             variant={item.active ? "filled" : "subtle"}
             leftSection={<item.icon size={16} />}
             size="sm"
+            onClick={item.href === "/" ? handleForecastsNavigation : undefined}
           >
             {item.label}
           </Button>

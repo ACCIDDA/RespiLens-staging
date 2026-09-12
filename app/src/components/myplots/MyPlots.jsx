@@ -19,6 +19,8 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { getSavedPlots, deletePlot } from "../../utils/plotStorage";
+import { fetchNsspLocationLabel } from "../../utils/nsspGeo";
+import { resolvePlotLocationDisplayName } from "../../utils/plotLocationDisplay";
 import MiniPlot from "./MiniPlot";
 import Seo from "../Seo";
 import { getDatasetTitleFromView } from "../../utils/datasetUtils";
@@ -34,11 +36,46 @@ const normalizeLabel = (value = "") =>
 const MyPlots = () => {
   const [userSavedPlots, setUserSavedPlots] = useState([]);
   const [plotMetadata, setPlotMetadata] = useState({});
+  const [plotLocationLabels, setPlotLocationLabels] = useState({});
 
   useEffect(() => {
     const plots = getSavedPlots();
     setUserSavedPlots(plots);
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadNsspLabels = async () => {
+      const nsspPlots = userSavedPlots.filter(
+        (plot) => plot.viewType === "nsspall" && plot.settings?.location,
+      );
+
+      if (nsspPlots.length === 0) {
+        if (isActive) {
+          setPlotLocationLabels({});
+        }
+        return;
+      }
+
+      const resolvedEntries = await Promise.all(
+        nsspPlots.map(async (plot) => [
+          plot.id,
+          await fetchNsspLocationLabel(plot.settings.location),
+        ]),
+      );
+
+      if (isActive) {
+        setPlotLocationLabels(Object.fromEntries(resolvedEntries));
+      }
+    };
+
+    loadNsspLabels();
+
+    return () => {
+      isActive = false;
+    };
+  }, [userSavedPlots]);
 
   const handleDelete = (id) => {
     if (deletePlot(id)) {
@@ -97,11 +134,38 @@ const MyPlots = () => {
       ) {
         return current;
       }
+
       return {
         ...current,
         [plotId]: metadata,
       };
     });
+  };
+
+  const getPlotLocationLabel = (plot) => {
+    if (plot.locationDisplayName) {
+      return plot.locationDisplayName;
+    }
+
+    if (plotMetadata[plot.id]?.location_name) {
+      return plotMetadata[plot.id].location_name;
+    }
+
+    if (plot.viewType === "nsspall") {
+      return plotLocationLabels[plot.id] || plot.settings.location;
+    }
+
+    if (plot.settings.location === "US") {
+      return "United States";
+    }
+
+    const resolvedLocation = resolvePlotLocationDisplayName(
+      plot.settings.location,
+    );
+
+    return resolvedLocation === plot.settings.location
+      ? plot.settings.location.toUpperCase()
+      : resolvedLocation;
   };
 
   const pageContainerStyle = {
@@ -148,16 +212,7 @@ const MyPlots = () => {
                   <Text size="sm" c="dimmed">
                     You haven't added any visualizations to <b>My Plots</b> yet.
                     Click the "Add to My Plots" button on any plot to see it
-                    here with any editorializations you choose. This feature is
-                    in its alpha release; if you encounter bugs or have
-                    suggestions, please report them{" "}
-                    <a
-                      href="https://github.com/ACCIDDA/RespiLens/issues/new?title=%E2%80%BC%EF%B8%8FMy%20Plots:%20user%20bug%20or%20suggestion%20%E2%80%BC%EF%B8%8F"
-                      rel="noopener"
-                      target="_blank"
-                    >
-                      here.
-                    </a>
+                    here with any editorializations you choose.
                   </Text>
                 </div>
 
@@ -182,21 +237,9 @@ const MyPlots = () => {
                   <Text size="sm" c="dimmed">
                     Your personalized library of saved visualizations.
                   </Text>
-                  <Text size="sm" c="dimmed">
-                    This feature is in its alpha release, and is still under
-                    develoment. If you encounter a bug or have a suggestion,
-                    please{" "}
-                    <a
-                      href="https://github.com/ACCIDDA/RespiLens/issues/new?title=%E2%80%BC%EF%B8%8FMy%20Plots:%20user%20bug%20or%20suggestion%20%E2%80%BC%EF%B8%8F"
-                      rel="noopener"
-                      target="_blank"
-                    >
-                      let us know.
-                    </a>
-                  </Text>
                 </div>
                 <Badge variant="filled" size="lg" color="blue">
-                  {userSavedPlots.length} Saved
+                  {plotCount} Saved
                 </Badge>
               </Group>
             </Paper>
@@ -209,8 +252,7 @@ const MyPlots = () => {
               >
                 {userSavedPlots.map((plot) => {
                   const metadata = plotMetadata[plot.id];
-                  const locationName =
-                    metadata?.location_name || plot.settings.location;
+                  const locationName = getPlotLocationLabel(plot);
                   const pathogenLabel =
                     getDatasetTitleFromView(plot.viewType) ||
                     metadata?.dataset ||
@@ -218,6 +260,8 @@ const MyPlots = () => {
                   const showViewBadge =
                     normalizeLabel(plot.viewDisplayName) !==
                     normalizeLabel(pathogenLabel);
+                  const showTargetBadge =
+                    plot.viewType === "flu_peak" && plot.settings?.target;
 
                   return (
                     <Paper
@@ -285,11 +329,18 @@ const MyPlots = () => {
                           </Group>
                         </Group>
 
-                        {showViewBadge && (
+                        {(showViewBadge || showTargetBadge) && (
                           <Group gap="xs">
                             <Badge color="gray" variant="outline" size="xs">
-                              {plot.viewDisplayName}
+                              {showViewBadge
+                                ? plot.viewDisplayName
+                                : plot.settings.target}
                             </Badge>
+                            {showViewBadge && showTargetBadge && (
+                              <Badge color="blue" variant="light" size="xs">
+                                {plot.settings.target}
+                              </Badge>
+                            )}
                           </Group>
                         )}
 
@@ -305,8 +356,8 @@ const MyPlots = () => {
                           <MiniPlot
                             plot={plot}
                             plotHeight={gridConfig.plotHeight}
-                            onMetadataLoad={(metadata) =>
-                              handleMetadataLoad(plot.id, metadata)
+                            onMetadataLoad={(metadataForPlot) =>
+                              handleMetadataLoad(plot.id, metadataForPlot)
                             }
                           />
                         </Paper>

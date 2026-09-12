@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Alert, Container, Tabs } from "@mantine/core";
-import { IconTrophy, IconChartLine } from "@tabler/icons-react";
+import { IconTrophy, IconChartLine, IconTarget } from "@tabler/icons-react";
 import {
   getStoredParticipantId,
   getStoredParticipantName,
@@ -9,12 +9,14 @@ import { TOURNAMENT_CONFIG } from "../../config";
 import TournamentRegistration from "./TournamentRegistration";
 import TournamentGame from "./TournamentGame";
 import TournamentLeaderboard from "./TournamentLeaderboard";
+import TournamentAnswers from "./TournamentAnswers";
 
 const TournamentDashboard = ({ tournamentConfig = TOURNAMENT_CONFIG }) => {
   const [participantId, setParticipantId] = useState(null);
   const [participantName, setParticipantName] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("challenges");
+  const [completedCount, setCompletedCount] = useState(null);
 
   // Load participant data on mount
   useEffect(() => {
@@ -31,6 +33,7 @@ const TournamentDashboard = ({ tournamentConfig = TOURNAMENT_CONFIG }) => {
   const handleRegistration = (id, name) => {
     setParticipantId(id);
     setParticipantName(name);
+    setCompletedCount(0);
   };
 
   // Navigate to leaderboard
@@ -75,6 +78,9 @@ const TournamentDashboard = ({ tournamentConfig = TOURNAMENT_CONFIG }) => {
           >
             Leaderboard
           </Tabs.Tab>
+          <Tabs.Tab value="answers" leftSection={<IconTarget size={16} />}>
+            Answers
+          </Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="challenges" pt="md">
@@ -83,6 +89,7 @@ const TournamentDashboard = ({ tournamentConfig = TOURNAMENT_CONFIG }) => {
             participantId={participantId}
             participantName={participantName}
             onAllCompleted={goToLeaderboard}
+            onProgressChange={setCompletedCount}
           />
         </Tabs.Panel>
 
@@ -90,6 +97,15 @@ const TournamentDashboard = ({ tournamentConfig = TOURNAMENT_CONFIG }) => {
           <TournamentLeaderboard
             tournamentConfig={tournamentConfig}
             participantId={participantId}
+          />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="answers" pt="md">
+          <TournamentAnswers
+            tournamentConfig={tournamentConfig}
+            participantId={participantId}
+            completedCount={completedCount}
+            isActive={activeTab === "answers"}
           />
         </Tabs.Panel>
       </Tabs>

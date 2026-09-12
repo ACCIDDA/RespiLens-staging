@@ -5,15 +5,22 @@
 
 import { TOURNAMENT_CONFIG, getChallengeByNumber } from "../config";
 
-const challengeMatchesSubmission = (submission, challenge) => {
-  if (!submission || !challenge) {
+const isLocalDevHost = () => {
+  if (typeof window === "undefined") {
     return false;
   }
 
-  return (
-    submission.challengeId === challenge.id ||
-    Number(submission.challengeNum) === Number(challenge.number)
-  );
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+};
+
+const getPostEndpoint = (apiUrl) => {
+  if (!isLocalDevHost()) {
+    return apiUrl;
+  }
+
+  const proxyUrl = new URL("/__tournament_api__", window.location.origin);
+  proxyUrl.searchParams.set("target", apiUrl);
+  return proxyUrl.toString();
 };
 
 /**
@@ -82,8 +89,10 @@ const apiPost = async (payload, tournamentConfig = TOURNAMENT_CONFIG) => {
   }
 
   try {
+    const endpoint = getPostEndpoint(apiUrl);
+
     // Use text/plain to avoid CORS preflight
-    const response = await fetch(apiUrl, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain",
@@ -179,22 +188,6 @@ export const submitForecast = async (
 
   if (!forecasts) {
     throw new Error("Forecast data is required");
-  }
-
-  if (tournamentConfig.features?.allowResubmit === false) {
-    const participantData = await getParticipant(
-      participantId,
-      tournamentConfig,
-    );
-    const alreadySubmitted = participantData.submissions.some((submission) =>
-      challengeMatchesSubmission(submission, challenge),
-    );
-
-    if (alreadySubmitted) {
-      throw new Error(
-        "This challenge has already been submitted. Amendments are disabled for this tournament.",
-      );
-    }
   }
 
   // Convert to array if single forecast object (backward compatibility)

@@ -14,10 +14,21 @@ import { getDataPath } from "../../utils/paths";
 import NHSNColumnSelector from "../NHSNColumnSelector";
 import TitleRow from "../TitleRow";
 import { MODEL_COLORS } from "../../config/datasets";
-import { buildSqrtTicks, getYRangeFromTraces } from "../../utils/scaleUtils";
+import {
+  buildLog2Ticks,
+  buildSqrtTicks,
+  getScaleTitleSuffix,
+  getYRangeFromTraces,
+  isPlotlyLogScale,
+  normalizeChartScale,
+  transformValueForScale,
+} from "../../utils/scaleUtils";
 import { useView } from "../../hooks/useView";
 import { getDatasetTitleFromView } from "../../utils/datasetUtils";
-import { buildPlotDownloadName } from "../../utils/plotDownloadName";
+import {
+  buildPlotDownloadName,
+  PLOT_DOWNLOAD_IMAGE_SCALE,
+} from "../../utils/plotDownloadName";
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -67,6 +78,7 @@ const NHSNView = ({ location }) => {
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
   const { viewType, chartScale, showLegend } = useView();
+  const normalizedChartScale = normalizeChartScale(chartScale);
   const stateName = data?.metadata?.location_name;
   const hubName = getDatasetTitleFromView(viewType) || metadata?.dataset;
 
@@ -95,12 +107,61 @@ const NHSNView = ({ location }) => {
       return rawValues.map((val) => {
         if (val === null || val === undefined) return val;
         const transformed = val;
-        return chartScale === "sqrt"
-          ? Math.sqrt(Math.max(0, transformed))
-          : transformed;
+        return transformValueForScale(transformed, normalizedChartScale);
       });
     },
-    [chartScale],
+    [normalizedChartScale],
+  );
+
+  const buildTracesForColumn = useCallback(
+    (columnName) => {
+      if (!data?.series?.dates) return [];
+
+      const columnIndex = filteredAvailableColumns.indexOf(columnName);
+      const color = MODEL_COLORS[columnIndex % MODEL_COLORS.length];
+      const tracesForColumn = [];
+
+      tracesForColumn.push({
+        x: data.series.dates,
+        y: getProcessedYValues(columnName, data.series[columnName]),
+        name: columnName,
+        type: "scatter",
+        mode: "lines+markers",
+        line: {
+          color,
+          width: 2,
+        },
+        marker: { size: 6 },
+        legendgroup: columnName,
+        hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
+      });
+
+      if (
+        data.preliminary_series?.dates &&
+        Array.isArray(data.preliminary_series[columnName])
+      ) {
+        tracesForColumn.push({
+          x: data.preliminary_series.dates,
+          y: getProcessedYValues(
+            columnName,
+            data.preliminary_series[columnName],
+          ),
+          name: `${columnName} (preliminary)`,
+          type: "scatter",
+          mode: "lines",
+          line: {
+            color,
+            width: 2,
+            dash: "dash",
+          },
+          legendgroup: columnName,
+          hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
+        });
+      }
+
+      return tracesForColumn;
+    },
+    [data, filteredAvailableColumns, getProcessedYValues],
   );
 
   useEffect(() => {
@@ -381,10 +442,12 @@ const NHSNView = ({ location }) => {
       return;
     }
 
-    const currentTraces = selectedColumns.map((column) => ({
-      x: data.series.dates,
-      y: getProcessedYValues(column, data.series[column]),
-    }));
+    const currentTraces = selectedColumns.flatMap((column) =>
+      buildTracesForColumn(column).map((trace) => ({
+        x: trace.x,
+        y: trace.y,
+      })),
+    );
 
     const currentXRange = xAxisRange || defaultRange;
 
@@ -402,6 +465,7 @@ const NHSNView = ({ location }) => {
     selectedTarget,
     defaultRange,
     calculateYRange,
+    buildTracesForColumn,
     getProcessedYValues,
   ]);
 
@@ -423,19 +487,20 @@ const NHSNView = ({ location }) => {
 
   const rawTraces = useMemo(() => {
     if (!data) return [];
-    return selectedColumns.map((column) => ({
-      x: data.series.dates,
-      y: getProcessedYValues(column, data.series[column]),
-      name: column,
-    }));
-  }, [data, getProcessedYValues, selectedColumns]);
+    return selectedColumns.flatMap(buildTracesForColumn);
+  }, [data, selectedColumns, buildTracesForColumn]);
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
 
   const sqrtTicks = useMemo(() => {
-    if (chartScale !== "sqrt") return null;
+    if (normalizedChartScale !== "sqrt") return null;
     return buildSqrtTicks({ rawRange: rawYRange });
-  }, [chartScale, rawYRange]);
+  }, [normalizedChartScale, rawYRange]);
+
+  const log2Ticks = useMemo(() => {
+    if (normalizedChartScale !== "log2") return null;
+    return buildLog2Ticks({ rawRange: rawYRange });
+  }, [normalizedChartScale, rawYRange]);
 
   const traces = useMemo(() => {
     if (!data) return [];
@@ -451,27 +516,12 @@ const NHSNView = ({ location }) => {
       ];
     }
 
-    return selectedColumns.map((columnName) => {
-      const columnIndex = filteredAvailableColumns.indexOf(columnName);
-      const processedY = getProcessedYValues(
-        columnName,
-        data.series[columnName],
-      );
-
-      return {
-        x: data.series.dates,
-        y: processedY,
-        name: columnName,
-        type: "scatter",
-        mode: "lines+markers",
-        line: {
-          color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
-          width: 2,
-        },
-        marker: { size: 6 },
-      };
-    });
-  }, [data, selectedColumns, filteredAvailableColumns, getProcessedYValues]);
+    return selectedColumns
+      .map((columnName) => {
+        return buildTracesForColumn(columnName);
+      })
+      .flat();
+  }, [data, selectedColumns, buildTracesForColumn]);
 
   const layout = useMemo(
     () => ({
@@ -501,18 +551,29 @@ const NHSNView = ({ location }) => {
         range: xAxisRange || defaultRange,
       },
       yaxis: {
-        title: nhsnYAxisLabelMap[selectedTarget] || "Value",
-        range: chartScale === "log" ? undefined : yAxisRange,
-        autorange:
-          chartScale === "log"
-            ? true
-            : yAxisRange === null || selectedColumns.length === 0,
-        type: chartScale === "log" ? "log" : "linear",
-        tickmode: chartScale === "sqrt" && sqrtTicks ? "array" : undefined,
+        title: `${nhsnYAxisLabelMap[selectedTarget] || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
+        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
+        autorange: isPlotlyLogScale(normalizedChartScale)
+          ? true
+          : yAxisRange === null || selectedColumns.length === 0,
+        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
+        tickmode:
+          (normalizedChartScale === "sqrt" && sqrtTicks) ||
+          (normalizedChartScale === "log2" && log2Ticks)
+            ? "array"
+            : undefined,
         tickvals:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.tickvals : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.tickvals
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.tickvals
+              : undefined,
         ticktext:
-          chartScale === "sqrt" && sqrtTicks ? sqrtTicks.ticktext : undefined,
+          normalizedChartScale === "sqrt" && sqrtTicks
+            ? sqrtTicks.ticktext
+            : normalizedChartScale === "log2" && log2Ticks
+              ? log2Ticks.ticktext
+              : undefined,
       },
       showlegend: showLegend ?? selectedColumns.length < 15,
       legend: {
@@ -552,12 +613,13 @@ const NHSNView = ({ location }) => {
       defaultRange,
       xAxisRange,
       yAxisRange,
-      chartScale,
+      normalizedChartScale,
       showLegend,
       selectedTarget,
       selectedColumns.length,
       plotRevision,
       sqrtTicks,
+      log2Ticks,
     ],
   );
 
@@ -571,6 +633,7 @@ const NHSNView = ({ location }) => {
       toImageButtonOptions: {
         format: "png",
         filename: buildPlotDownloadName("nhsn-plot"),
+        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
       },
       modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
       modeBarButtonsToAdd: [
@@ -583,10 +646,12 @@ const NHSNView = ({ location }) => {
             const newDefaultRange = getDefaultXRange();
             if (!newDefaultRange || newDefaultRange[0] === null) return;
 
-            const currentTraces = selectedColumns.map((column) => ({
-              x: data.series.dates,
-              y: getProcessedYValues(column, data.series[column]),
-            }));
+            const currentTraces = selectedColumns.flatMap((column) =>
+              buildTracesForColumn(column).map((trace) => ({
+                x: trace.x,
+                y: trace.y,
+              })),
+            );
 
             const newYRange = calculateYRange(currentTraces, newDefaultRange);
 
@@ -608,7 +673,7 @@ const NHSNView = ({ location }) => {
       selectedColumns,
       getDefaultXRange,
       calculateYRange,
-      getProcessedYValues,
+      buildTracesForColumn,
     ],
   );
 

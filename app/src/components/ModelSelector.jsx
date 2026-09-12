@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Stack,
   Group,
@@ -20,7 +20,8 @@ import {
   IconEye,
   IconEyeOff,
 } from "@tabler/icons-react";
-import { MODEL_COLORS } from "../config/datasets";
+import { getModelColor } from "../config/datasets";
+import { extendStableModelOrder } from "../utils/modelColorUtils";
 
 const ModelSelector = ({
   models = [],
@@ -29,13 +30,24 @@ const ModelSelector = ({
   activeModels = null,
   allowMultiple = true,
   disabled = false,
+  modelColorFn = null,
+  getModelColor: legacyGetModelColor = null,
 }) => {
   const [showAllAvailable, setShowAllAvailable] = useState(false);
   const [search, setSearch] = useState("");
+  const stableModelOrderRef = useRef([]);
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
     onDropdownOpen: () => combobox.updateSelectedOptionIndex("active", 0),
   });
+  const stableModelOrder = useMemo(() => {
+    const nextOrder = extendStableModelOrder(
+      stableModelOrderRef.current,
+      selectedModels,
+    );
+    stableModelOrderRef.current = nextOrder;
+    return nextOrder;
+  }, [selectedModels]);
 
   const handleSelectAll = () => {
     // Only select models that are currently active
@@ -50,9 +62,12 @@ const ModelSelector = ({
   };
 
   const getModelColorByIndex = (model) => {
-    // Only color selected models to avoid mismatched palette hints
-    const index = selectedModels.indexOf(model);
-    return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : undefined;
+    const resolvedColorFn = modelColorFn || legacyGetModelColor;
+    if (resolvedColorFn) {
+      return resolvedColorFn(model, selectedModels, stableModelOrder);
+    }
+
+    return getModelColor(model, stableModelOrder) ?? undefined;
   };
 
   const modelsToShow = showAllAvailable ? models : selectedModels;

@@ -18,13 +18,17 @@ const PATHOGEN_COLORS = {
 };
 
 const NHSNOverviewGraph = ({ location }) => {
-  const { setViewType, viewType: activeViewType } = useView();
+  const {
+    setViewAndLocation,
+    viewType: activeViewType,
+    selectedLocation,
+  } = useView();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const resolvedLocation = location || "US";
-  const isActive = activeViewType === "nhsn";
+  const isActive = activeViewType === "nhsnall";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,23 +71,48 @@ const NHSNOverviewGraph = ({ location }) => {
     const range = [twoMonthsAgo.toISOString().split("T")[0], lastDateStr];
 
     const tracesBuilder = (snapshot) =>
-      DEFAULT_COLS.map((col) => {
-        const yData = snapshot.series?.[col];
-        if (!yData) return null;
+      DEFAULT_COLS.flatMap((col) => {
+        const label = col.replace("Total ", "").replace(" Admissions", "");
+        const officialY = snapshot.series?.[col];
+        const preliminaryY = snapshot.preliminary_series?.[col];
 
-        return {
-          x: snapshot.series.dates,
-          y: yData,
-          name: col.replace("Total ", "").replace(" Admissions", ""),
-          type: "scatter",
-          mode: "lines",
-          line: {
-            color: PATHOGEN_COLORS[col],
-            width: 2,
+        if (!officialY) return [];
+
+        const traces = [
+          {
+            x: snapshot.series.dates,
+            y: officialY,
+            name: label,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: PATHOGEN_COLORS[col],
+              width: 2,
+            },
+            legendgroup: label,
+            hovertemplate: "%{y}<extra></extra>",
           },
-          hovertemplate: "%{y}<extra></extra>",
-        };
-      }).filter(Boolean);
+        ];
+
+        if (preliminaryY && snapshot.preliminary_series?.dates) {
+          traces.push({
+            x: snapshot.preliminary_series.dates,
+            y: preliminaryY,
+            name: `${label} (preliminary)`,
+            type: "scatter",
+            mode: "lines",
+            line: {
+              color: PATHOGEN_COLORS[col],
+              width: 2,
+              dash: "dash",
+            },
+            legendgroup: label,
+            hovertemplate: "%{y}<extra></extra>",
+          });
+        }
+
+        return traces;
+      });
 
     return { buildTraces: tracesBuilder, xRange: range };
   }, [data]);
@@ -121,6 +150,8 @@ const NHSNOverviewGraph = ({ location }) => {
 
   const locationLabel =
     resolvedLocation === "US" ? "US national view" : resolvedLocation;
+  const nhsnViewLocation =
+    selectedLocation && selectedLocation !== "US_All" ? resolvedLocation : "US";
 
   return (
     <OverviewGraphCard
@@ -134,7 +165,7 @@ const NHSNOverviewGraph = ({ location }) => {
       emptyLabel={null}
       actionLabel={isActive ? "Viewing" : "View NHSN data"}
       actionActive={isActive}
-      onAction={() => setViewType("nhsn")}
+      onAction={() => setViewAndLocation("nhsnall", nhsnViewLocation)}
       actionIcon={<IconChevronRight size={14} />}
       locationLabel={locationLabel}
     />

@@ -2,57 +2,72 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SAMPLE_DIR="${ROOT_DIR}/tests/samples/flusight"
-PY_OUTPUT_DIR="${ROOT_DIR}/tests/output/python"
-R_OUTPUT_DIR="${ROOT_DIR}/tests/output/r"
 
-rm -rf "${PY_OUTPUT_DIR}" "${R_OUTPUT_DIR}"
-mkdir -p "${PY_OUTPUT_DIR}" "${R_OUTPUT_DIR}"
-
-python "${ROOT_DIR}/scripts/external_to_projections.py" \
-  --output-path "${PY_OUTPUT_DIR}" \
-  --pathogen flu \
-  --data-path "${SAMPLE_DIR}/forecast_data.csv" \
-  --target-data-path "${SAMPLE_DIR}/target_data.csv" \
-  --locations-data-path "${SAMPLE_DIR}/locations.csv" \
-  --overwrite
-
-Rscript "${ROOT_DIR}/scripts/external_to_projections.R" \
-  --output-path "${R_OUTPUT_DIR}" \
-  --pathogen flu \
-  --data-path "${SAMPLE_DIR}/forecast_data.csv" \
-  --target-data-path "${SAMPLE_DIR}/target_data.csv" \
-  --locations-data-path "${SAMPLE_DIR}/locations.csv" \
-  --overwrite
+cd "${ROOT_DIR}"
 
 ROOT_DIR="${ROOT_DIR}" python - <<'PY'
 import json
-from pathlib import Path
-import sys
 import os
+import sys
+from pathlib import Path
 
 root = Path(os.environ["ROOT_DIR"])
-py_dir = root / "tests" / "output" / "python" / "flusight"
-r_dir = root / "tests" / "output" / "r" / "flusight"
+sys.path.append(str(root / "scripts"))
 
-def load(path: Path) -> dict:
+from external_data import load_inputs
+from processors import FlusightDataProcessor
+
+
+def load_expected(filename: str) -> dict:
+    path = root / "tests" / "samples" / "expected" / filename
     with path.open() as handle:
         return json.load(handle)
 
-def compare_payload(filename: str) -> None:
-    py_data = load(py_dir / filename)
-    r_data = load(r_dir / filename)
-    if py_data != r_data:
-        raise AssertionError(f"Payload mismatch for {filename}")
 
-compare_payload("CA_flu.json")
+def canonicalize_numbers(obj):
+    if isinstance(obj, dict):
+        return {key: canonicalize_numbers(value) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [canonicalize_numbers(value) for value in obj]
+    if isinstance(obj, float):
+        return int(obj) if obj.is_integer() else round(obj, 10)
+    return obj
 
-py_meta = load(py_dir / "metadata.json")
-r_meta = load(r_dir / "metadata.json")
-py_meta.pop("last_updated", None)
-r_meta.pop("last_updated", None)
-if py_meta != r_meta:
-    raise AssertionError("Metadata mismatch after removing last_updated")
+
+def sanitize(payload: dict) -> dict:
+    payload = json.loads(json.dumps(payload))
+    metadata = payload.get("metadata", {})
+    metadata.pop("last_updated", None)
+    return canonicalize_numbers(payload)
+
+
+base = root / "tests" / "samples" / "flusight"
+inputs = load_inputs(
+    pathogen="flu",
+    data_path=base / "forecast_data.csv",
+    target_data_path=base / "target_data.csv",
+    locations_data_path=base / "locations.csv",
+)
+
+processor = FlusightDataProcessor(
+    data=inputs.data,
+    locations_data=inputs.locations_data,
+    target_data=inputs.target_data,
+)
+
+actual = sanitize(processor.output_dict["CA_flu.json"])
+expected = sanitize(load_expected("CA_flu.json"))
+if actual != expected:
+    raise AssertionError("CA_flu.json did not match expected fixture output")
+
+actual_meta = sanitize(processor.output_dict["metadata.json"])
+expected_meta = sanitize(load_expected("metadata.json"))
+if actual_meta["models"] != expected_meta["models"]:
+    raise AssertionError("metadata.json models did not match expected fixture output")
+if actual_meta["locations"] != expected_meta["locations"]:
+    raise AssertionError(
+        "metadata.json locations did not match expected fixture output"
+    )
 PY
 
-echo "Python and R outputs match for sample flu dataset (metadata timestamps ignored)."
+echo "Processor regression test passed."

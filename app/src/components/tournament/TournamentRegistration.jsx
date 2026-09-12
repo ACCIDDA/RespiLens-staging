@@ -76,7 +76,7 @@ const TournamentRegistration = ({
             <Stack spacing="md">
               <TextInput
                 label="Your Name"
-                placeholder="Enter a recognizable name (e.g., your name :) )"
+                placeholder="e.g., John Snow"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -110,12 +110,14 @@ const TournamentRegistration = ({
             </Text>
             <Text size="sm" color="dimmed" mt="xs">
               • Complete {tournamentConfig.numChallenges} forecasting challenge
-              {tournamentConfig.numChallenges === 1 ? "" : "s"}
+              {tournamentConfig.numChallenges === 1 ? "" : "s"}. No
+              resubmissions
               <br />
-              • Predict hospitalization counts for different diseases and
-              locations
+              • Predict hospitalization counts for different diseases,
+              locations, and dates
               <br />
-              • Get scored using Weighted Interval Score (lower is better)
+              • Get scored using a relative Weighted Interval Score (lower is
+              better)
               <br />• Climb the leaderboard and compete with others!
             </Text>
           </div>

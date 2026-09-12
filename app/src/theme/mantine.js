@@ -25,8 +25,8 @@ export const MODEL_COLORS = [
 ];
 
 // Model color helper function
-export const getModelColor = (model, selectedModels) => {
-  const index = selectedModels.indexOf(model);
+export const getModelColor = (model, modelOrder = []) => {
+  const index = modelOrder.indexOf(model);
   return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : null;
 };
 

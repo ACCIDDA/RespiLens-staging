@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Set
-import json
 import logging
 
 import pandas as pd
@@ -79,33 +78,6 @@ def load_inputs(
         target_data=clean_nan_values(target_df),
         locations_data=clean_nan_values(locations_df),
     )
-
-
-def load_projections_schema() -> Dict:
-    """Load the RespiLens projections JSON schema."""
-
-    schema_path = Path(__file__).resolve().parent / "schemas" / "RespiLens_projections.schema.json"
-    with schema_path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
-def validate_against_schema(payload: Dict, schema: Dict) -> None:
-    """Validate a payload against the RespiLens projections schema."""
-
-    try:
-        from jsonschema import Draft202012Validator
-    except ImportError as exc:  # pragma: no cover - dependency is optional at runtime
-        raise ExternalDataError("jsonschema is required to validate outputs. Please install jsonschema.") from exc
-
-    validator = Draft202012Validator(schema)
-    errors = sorted(validator.iter_errors(payload), key=lambda e: e.path)
-    if errors:
-        first_error = errors[0]
-        raise ExternalDataError(
-            f"Schema validation failed: {first_error.message} at path {list(first_error.path)}"
-        )
-
-
 def _validate_pathogen(pathogen: str) -> None:
     if pathogen not in PATHOGEN_TARGET_REQUIREMENTS:
         raise ExternalDataError(

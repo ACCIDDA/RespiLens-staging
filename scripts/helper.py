@@ -1,20 +1,17 @@
 """Helper functions for data conversion process."""
 
-import json 
-import jsonschema
+import json
 from typing import Literal
 import numpy as np
 import pandas as pd
+import requests
+import time 
+import logging 
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from pathlib import Path
 
-# Import schema
-_current_dir = Path(__file__).parent
-projections_schema_path = _current_dir / 'schemas' / 'RespiLens_projections.schema.json'
-timeseries_schema_path = _current_dir / 'schemas' / 'RespiLens_timeseries.schema.json'
-with open(projections_schema_path, 'r') as f:
-    projections_schema = json.load(f)
-with open(timeseries_schema_path, 'r') as f:
-    timeseries_schema = json.load(f)
+logger = logging.getLogger(__name__)
 
 
 def clean_nan_values(df: pd.DataFrame) -> pd.DataFrame:
@@ -125,9 +122,38 @@ def get_location_info(
     else:
         return str(current_df[value_needed].iloc[0])
     
+def retrieve_data_from_endpoint_aslist(data_url: str) -> list[dict]:
+    """Downloads CDC data from API endpoint with pagination and retries."""
+        
+    session = requests.Session()
+    retries = Retry(total=5,
+                    backoff_factor=1,
+                    status_forcelist=[500, 502, 503, 504])
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    
+    all_data = []
+    offset = 0
+    batch_size = 1000
+    while True:
+        params = {"$limit": batch_size, "$offset": offset}
+        try:
+            # Use the configured session to make the request
+            data_response = session.get(data_url, params=params, timeout=30)
+            data_response.raise_for_status()
+            batch_data = data_response.json()
+            if not batch_data:
+                break
+            all_data.extend(batch_data)
+            offset += batch_size
+            time.sleep(0.1)
+        except Exception as e:
+            logger.error(f"Error downloading data: {str(e)}")
+            raise
+    return all_data
+    
 
 def save_json_file(
-        pathogen: Literal['flusight', 'flu', 'flusightforecasthub', 'rsv','covid','covid19','rsvforecasthub','covid19forecasthub','nhsn', 'flumetrocast', 'flumetrocasthub'],
+        pathogen: Literal['flusight', 'flu', 'flusightforecasthub', 'rsv','covid','covid19','rsvforecasthub','covid19forecasthub','nhsn', 'nssp', 'flumetrocast', 'flumetrocasthub'],
         output_path: str,
         output_filename: str,
         file_contents: dict,
@@ -157,6 +183,7 @@ def save_json_file(
         'covid19': 'covid19forecasthub',
         'covid19forecasthub': 'covid19forecasthub',
         'nhsn': 'nhsn',
+        'nssp': 'nssp',
         'flumetrocast': 'flumetrocast',
         'flumetrocashtub': 'flumetrocast',
     }
@@ -182,248 +209,113 @@ def save_json_file(
         json.dump(file_contents, of, indent=4)
 
 
+STATENAME_TO_ABBREVIATION_MAP = {
+    'Alabama': 'AL',
+    'Alaska': 'AK',
+    'Arizona': 'AZ',
+    'Arkansas': 'AR',
+    'California': 'CA',
+    'Colorado': 'CO',
+    'Connecticut': 'CT',
+    'Delaware': 'DE',
+    'District of Columbia': 'DC',
+    'Florida': 'FL',
+    'Georgia': 'GA',
+    'Hawaii': 'HI',
+    'Idaho': 'ID',
+    'Illinois': 'IL',
+    'Indiana': 'IN',
+    'Iowa': 'IA',
+    'Kansas': 'KS',
+    'Kentucky': 'KY',
+    'Louisiana': 'LA',
+    'Maine': 'ME',
+    'Maryland': 'MD',
+    'Massachusetts': 'MA',
+    'Michigan': 'MI',
+    'Minnesota': 'MN',
+    'Mississippi': 'MS',
+    'Missouri': 'MO',
+    'Montana': 'MT',
+    'Nebraska': 'NE',
+    'Nevada': 'NV',
+    'New Hampshire': 'NH',
+    'New Jersey': 'NJ',
+    'New Mexico': 'NM',
+    'New York': 'NY',
+    'North Carolina': 'NC',
+    'North Dakota': 'ND',
+    'Ohio': 'OH',
+    'Oklahoma': 'OK',
+    'Oregon': 'OR',
+    'Pennsylvania': 'PA',
+    'Rhode Island': 'RI',
+    'South Carolina': 'SC',
+    'South Dakota': 'SD',
+    'Tennessee': 'TN',
+    'Texas': 'TX',
+    'United States': 'US',
+    'Utah': 'UT',
+    'Vermont': 'VT',
+    'Virginia': 'VA',
+    'Washington': 'WA',
+    'West Virginia': 'WV',
+    'Wisconsin': 'WI',
+    'Wyoming': 'WY'
+ }
 
-def validate_respilens_json(json_contents: dict, type: str = Literal['projections', 'timeseries']) -> bool | str:
-    """
-    Validate JSON output with RespiLens schema
-
-    Args:
-        json_contents: Contents of json file, stored as python dict
-        type: Type of RespiLens data (either projections or timeseries)
-
-    Returns:
-        True if validation is successful, str of error message if unsuccessful.
-
-    Raise:
-        ValidationError: When json contents do not match jsonschema
-    """
-    if type == 'projections':
-        try:
-            jsonschema.validate(instance=json_contents, schema=projections_schema)
-            return True
-        except jsonschema.exceptions.ValidationError as e:
-            return str(e)
-    elif type == 'timeseries':
-        try:
-            jsonschema.validate(instance=json_contents, schema=timeseries_schema)
-            return True
-        except jsonschema.exceptions.ValidationError as e:
-            return str(e)
-    else:
-        raise ValueError(f"`type` parameter must be one of 'projections' or 'timeseries'. Received {type}")
-
-
-NHSN_COLUMN_MASKS = {
-    "RAW_PATIENT_COUNTS": [
-        'jurisdiction',
-        'weekendingdate',
-        'totalconfc19newadmadult', 
-        'totalconfflunewadmadult',
-        'totalconfrsvnewadmadult',
-        'totalconfc19newadm',
-        'totalconfc19icupats',
-        'totalconffluicupats',
-        'totalconfrsvicupats',
-        'totalconfflunewadm',
-        'totalconfc19hosppats',
-        'totalconffluhosppats',
-        'totalconfrsvhosppats',
-        'totalconfc19newadmped',
-        'totalconfflunewadmped',
-        'totalconfrsvnewadmped',
-        'totalconfrsvnewadm',
-        'numconfc19newadmadult18to49',
-        'numconfc19newadmadult50to64',
-        'numconfc19newadmadult65to74',
-        'numconfc19newadmadult75plus',
-        'numconfc19icupatsadult',
-        'numconffluicupatsadult',
-        'numconfrsvicupatsadult',
-        'numconfflunewadmadult18to49',
-        'numconfflunewadmadult50to64',
-        'numconfflunewadmadult65to74',
-        'numconfflunewadmadult75plus',
-        'numconfc19hosppatsadult',
-        'numconffluhosppatsadult',
-        'numconfrsvhosppatsadult',
-        'numconfrsvnewadmadult18to49',
-        'numconfrsvnewadmadult50to64',
-        'numconfrsvnewadmadult65to74',
-        'numconfrsvnewadmadult75plus',
-        'numconfc19newadmunk',
-        'numconfflunewadmunk',
-        'numconffluhosppatsped',
-        'numconfc19newadmped0to4',
-        'numconfc19newadmped5to17',
-        'numconfc19icupatsped',
-        'numconffluicupatsped',
-        'numconfrsvicupatsped',
-        'numconfflunewadmped0to4',
-        'numconfflunewadmped5to17',
-        'numconfc19hosppatsped',
-        'numconfrsvhosppatsped',
-        'numconfrsvnewadmped0to4',
-        'numconfrsvnewadmped5to17',
-        'numconfrsvnewadmunk'
-    ],
-
-    "HOSPITAL_ADMISSION_RATES": [
-        'jurisdiction',
-        'weekendingdate',
-        'totalconfc19newadmadultper100k',
-        'totalconfflunewadmadultper100k',
-        'totalconfrsvnewadmadultper100k',
-        'totalconfc19newadmpedper100k',
-        'totalconfflunewadmpedper100k',
-        'totalconfrsvnewadmpedper100k',
-        'totalconfc19newadmper100k',
-        'totalconfflunewadmper100k',
-        'totalconfrsvnewadmper100k',
-        'numconfc19newadmadult18to49per100k',
-        'numconfc19newadmadult50to64per100k',
-        'numconfc19newadmadult65to74per100k',
-        'numconfc19newadmadult75plusper100k',
-        'numconfflunewadmadult18to49per100k',
-        'numconfflunewadmadult50to64per100k',
-        'numconfflunewadmadult65to74per100k',
-        'numconfflunewadmadult75plusper100k',
-        'numconfrsvnewadmadult18to49per100k',
-        'numconfrsvnewadmadult50to64per100k',
-        'numconfrsvnewadmadult65to74per100k',
-        'numconfrsvnewadmadult75plusper100k',
-        'numconfc19newadmped0to4per100k',
-        'numconfc19newadmped5to17per100k',
-        'numconfflunewadmped0to4per100k',
-        'numconfflunewadmped5to17per100k',
-        'numconfrsvnewadmped0to4per100k',
-        'numconfrsvnewadmped5to17per100k'
-    ],
-
-    "HOSPITAL_ADMISSION_PERCENTS": [
-        'jurisdiction',
-        'weekendingdate',
-        'pctconfc19newadmadult',
-        'pctconfflunewadmadult',
-        'pctconfrsvnewadmadult',
-        'pctconfc19newadmped',
-        'pctconfflunewadmped',
-        'pctconfrsvnewadmped'
-    ],
-
-    "RAW_BED_CAPACITY": [
-        'jurisdiction',
-        'weekendingdate',
-        'numicubedsadult',
-        'numicubedsoccadult',
-        'numinptbedsadult',
-        'numinptbedsoccadult',
-        'numicubeds',
-        'numicubedsocc',
-        'numinptbeds',
-        'numinptbedsocc',
-        'numicubedsped',
-        'numicubedsoccped',
-        'numinptbedsoccped',
-        'numinptbedsped'
-    ],
-
-    "CAPACITY_PERCENTS": [
-        'jurisdiction',
-        'weekendingdate',
-        'pcticubedsocc',
-        'pctconfc19icubeds',
-        'pctconffluicubeds',
-        'pctconfrsvicubeds',
-        'pctinptbedsocc',
-        'pctconfc19inptbeds',
-        'pctconffluinptbeds',
-        'pctconfrsvinptbeds'
-    ],
-
-    "ABSOLUTE_PERCENT_CHANGE": [
-        'jurisdiction',
-        'weekendingdate',
-        'totalconfflunewadmpercho',
-        'totalconfc19newadmadultp_1',
-        'totalconfflunewadmadultp_1',
-        'totalconfrsvnewadmadultp_1',
-        'totalconfc19newadmpercho',
-        'totalconfc19icupatsperch',
-        'totalconffluicupatsperch',
-        'totalconfrsvicupatsperch',
-        'numicubedsoccperchosprepabschg',
-        'numicubedsperchosprepabschg',
-        'numinptbedsoccperchospre',
-        'numinptbedsperchosprepabschg',
-        'totalconfc19newadmpedper_1',
-        'totalconfflunewadmpedper_1',
-        'totalconfrsvnewadmpedper_1',
-        'pctconfc19icubedsperchos',
-        'pctconffluicubedsperchos',
-        'pctconfrsvicubedsperchos',
-        'pcticubedsoccperchosprepabschg',
-        'pctconfc19inptbedspercho',
-        'pctconffluinptbedspercho',
-        'pctconfrsvinptbedspercho',
-        'pctinptbedsoccperchospre',
-        'totalconfrsvnewadmpercho',
-        'totalconfc19hosppatsperc_1',
-        'totalconfrsvhosppatsperc_1',
-        'totalconffluhosppatsperc_1'
-    ]
+STATEABBREVIATION_TO_FIPS_MAP = {
+    'US': 'US',
+    'AL': '01',
+    'AK': '02',
+    'AZ': '04',
+    'AR': '05',
+    'CA': '06',
+    'CO': '08',
+    'CT': '09',
+    'DE': '10',
+    'DC': '11',
+    'FL': '12',
+    'GA': '13',
+    'HI': '15',
+    'ID': '16',
+    'IL': '17',
+    'IN': '18',
+    'IA': '19',
+    'KS': '20',
+    'KY': '21',
+    'LA': '22',
+    'ME': '23',
+    'MD': '24',
+    'MA': '25',
+    'MI': '26',
+    'MN': '27',
+    'MS': '28',
+    'MO': '29',
+    'MT': '30',
+    'NE': '31',
+    'NV': '32',
+    'NH': '33',
+    'NJ': '34',
+    'NM': '35',
+    'NY': '36',
+    'NC': '37',
+    'ND': '38',
+    'OH': '39',
+    'OK': '40',
+    'OR': '41',
+    'PA': '42',
+    'RI': '44',
+    'SC': '45',
+    'SD': '46',
+    'TN': '47',
+    'TX': '48',
+    'UT': '49',
+    'VT': '50',
+    'VA': '51',
+    'WA': '53',
+    'WV': '54',
+    'WI': '55',
+    'WY': '56',
+    'PR': '72'
 }
-
-
-LOCATIONS_MAP = {'US': 'US',
- 'AL': '01',
- 'AK': '02',
- 'AZ': '04',
- 'AR': '05',
- 'CA': '06',
- 'CO': '08',
- 'CT': '09',
- 'DE': '10',
- 'DC': '11',
- 'FL': '12',
- 'GA': '13',
- 'HI': '15',
- 'ID': '16',
- 'IL': '17',
- 'IN': '18',
- 'IA': '19',
- 'KS': '20',
- 'KY': '21',
- 'LA': '22',
- 'ME': '23',
- 'MD': '24',
- 'MA': '25',
- 'MI': '26',
- 'MN': '27',
- 'MS': '28',
- 'MO': '29',
- 'MT': '30',
- 'NE': '31',
- 'NV': '32',
- 'NH': '33',
- 'NJ': '34',
- 'NM': '35',
- 'NY': '36',
- 'NC': '37',
- 'ND': '38',
- 'OH': '39',
- 'OK': '40',
- 'OR': '41',
- 'PA': '42',
- 'RI': '44',
- 'SC': '45',
- 'SD': '46',
- 'TN': '47',
- 'TX': '48',
- 'UT': '49',
- 'VT': '50',
- 'VA': '51',
- 'WA': '53',
- 'WV': '54',
- 'WI': '55',
- 'WY': '56',
- 'PR': '72'}

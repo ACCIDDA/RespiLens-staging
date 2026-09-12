@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Anchor,
   ActionIcon,
@@ -22,9 +23,11 @@ import {
   Table,
   Text,
   ThemeIcon,
+  Tooltip as MantineTooltip,
   Title,
 } from "@mantine/core";
 import {
+  IconArrowLeft,
   IconArrowsMaximize,
   IconArrowsMinimize,
   IconArrowRight,
@@ -36,11 +39,11 @@ import {
   BarElement,
   CategoryScale,
   Chart as ChartJS,
+  Tooltip as ChartTooltip,
   Legend,
   LineElement,
   LinearScale,
   PointElement,
-  Tooltip,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import Plot from "react-plotly.js";
@@ -54,7 +57,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
-  Tooltip,
+  ChartTooltip,
   Legend,
 );
 
@@ -272,6 +275,7 @@ const SAMPLE_MAPPING = {
 };
 
 const ReportingDelayPage = () => {
+  const navigate = useNavigate();
   const inputRef = useRef(null);
   const [csvRows, setCsvRows] = useState(() => INITIAL_PARSED.records);
   const [csvHeaders, setCsvHeaders] = useState(() => INITIAL_PARSED.headers);
@@ -654,18 +658,32 @@ const ReportingDelayPage = () => {
       <Seo
         title="RespiLens | Reporting Delay Explorer"
         description="Upload reporting data to explore delay distributions, build reporting triangles, and assess nowcasting needs in RespiLens."
-        canonicalPath="/reporting-triangle"
+        canonicalPath="/toolbox/reporting-triangle"
       />
       <Container size="xl" py="xl">
         <Stack gap="xl">
           <Stack gap="xs">
-            <Badge
-              variant="light"
-              leftSection={<IconClock size={14} />}
-              w="fit-content"
-            >
-              Reporting triangle explorer
-            </Badge>
+            <Group align="center" gap="xs" wrap="nowrap">
+              <MantineTooltip label="Back to toolbox" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="blue"
+                  size="xl"
+                  radius="xl"
+                  onClick={() => navigate("/toolbox")}
+                  aria-label="Back to toolbox"
+                >
+                  <IconArrowLeft size={24} stroke={2.25} />
+                </ActionIcon>
+              </MantineTooltip>
+              <Badge
+                variant="light"
+                leftSection={<IconClock size={14} />}
+                w="fit-content"
+              >
+                Reporting triangle explorer
+              </Badge>
+            </Group>
             <Title order={1}>
               Do you need to nowcast? What is your reporting delay distribution?
             </Title>
@@ -680,15 +698,15 @@ const ReportingDelayPage = () => {
               <Title order={3}>Introduction</Title>
               <Text c="dimmed">
                 Do you need nowcasting ? What does your reporting delay
-                distrubution look like ? Let's dive into that using this little
+                distribution look like ? Let's dive into that using this little
                 app. Nothing leave your computer (say how to check). So upload a
-                data with some columns indicating the refrence date of an event,
-                the report date when it was reported, and the value reported.
-                Optionally you can have other columns like location, age group,
-                or target type to filter the data. You'll see your reporting
-                distrubtion and the so called reporting triangle introduced by
-                (probably Kaitlyn Johnson et al. but really i need to check
-                this). This For any deeper dive open the link below to
+                data with some columns indicating the reference date of an
+                event, the report date when it was reported, and the value
+                reported. Optionally you can have other columns like location,
+                age group, or target type to filter the data. You'll see your
+                reporting distribution and the so called reporting triangle
+                introduced by (probably Kaitlyn Johnson et al. but really i need
+                to check this). This For any deeper dive open the link below to
                 epinowcast on which this work is based.
               </Text>
               <Group gap="xs">
@@ -1159,7 +1177,7 @@ const ReportingDelayPage = () => {
                       >
                         <List.Item>Simple: use baselinenowcast</List.Item>
                         <List.Item>
-                          Better but more complex: use epinowcast (tood link)
+                          Better but more complex: use epinowcast (todo link)
                         </List.Item>
                         <List.Item>(both use the same data format)</List.Item>
                         <List.Item>

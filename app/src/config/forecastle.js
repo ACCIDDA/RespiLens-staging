@@ -37,7 +37,7 @@ export const FORECASTLE_CONFIG = {
    * Historical data display ranges
    * Controls how much historical data to show in the game charts
    *
-   * - 'seasonStart': Show data since July 1st of the current season
+   * - 'seasonStart': Show data since September 1st of the current season
    * - Number: Show last N weeks of data
    */
   historyDisplay: {

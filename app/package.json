@@ -27,6 +27,7 @@
     "chart.js": "^4.5.0",
     "dayjs": "^1.11.13",
     "driver.js": "^1.4.0",
+    "hyparquet": "^1.29.2",
     "patch-package": "^8.0.1",
     "plotly.js": "^2.30.0",
     "react": "^18.3.1",
