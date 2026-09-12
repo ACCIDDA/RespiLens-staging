@@ -66,12 +66,12 @@ const FrontPage = () => {
         text={<MyPlotsLink />}
       />
       <Announcement
-        id={"hub-seasonal-warning"}
+        id={"hub-seasonal-warning-2026"}
         startDate={"2026-05-31"}
         endDate={"2026-11-10"}
         announcementType={"alert"}
         text={
-          "Forecast hubs are out of season. Forecasting will begin again in November."
+          "Flu and RSV forecasts are currently paused because they are out of season. FluSight will resume influenza forecasts on October 7, 2026, while MetroCast (the local influenza forecast) will resume on November 4, 2026. The RSV Forecast Hub will start on September 23, 2026. COVID-19 forecasts are issued year-round and continue."
         }
       />
       <Paper shadow="sm" p="lg" radius="md" withBorder>
