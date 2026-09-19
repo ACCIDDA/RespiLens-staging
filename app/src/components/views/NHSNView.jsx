@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { usePersistentXRange } from "../../hooks/usePersistentXRange";
 import { useSearchParams } from "react-router-dom";
 import {
   Stack,
@@ -97,7 +98,10 @@ const NHSNView = ({ location }) => {
   const [plotRevision, setPlotRevision] = useState(0);
 
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations; each unit has its own window
+  const [xAxisRange, setXAxisRange] = usePersistentXRange(
+    `nhsnall:${selectedTarget}`,
+  );
 
   const plotRef = useRef(null);
   useChartReset(() => setXAxisRange(null));
@@ -203,7 +207,6 @@ const NHSNView = ({ location }) => {
         setSelectedColumns([]);
         setAvailableTargets([]);
         setSelectedTarget(null);
-        setXAxisRange(null);
         setYAxisRange(null);
         setError(null);
 
@@ -429,10 +432,6 @@ const NHSNView = ({ location }) => {
   const defaultRange = useMemo(() => getDefaultXRange(), [getDefaultXRange]);
   const fullRange = useMemo(() => getFullXRange(), [getFullXRange]);
 
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [selectedTarget]);
-
   const calculateYRange = useCallback((traces, xRange) => {
     if (!traces || traces.length === 0 || !xRange || !xRange[0]) return null;
 
@@ -506,7 +505,7 @@ const NHSNView = ({ location }) => {
         setXAxisRange(newXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, setXAxisRange],
   );
 
   const rawTraces = useMemo(() => {

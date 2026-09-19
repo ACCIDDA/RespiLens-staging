@@ -1,11 +1,5 @@
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import { useState, useLayoutEffect, useMemo, useCallback, useRef } from "react";
+import { usePersistentXRange } from "../../hooks/usePersistentXRange";
 import {
   useMantineColorScheme,
   Stack,
@@ -352,7 +346,11 @@ const MetroCastView = ({
     showLegend,
     showOtherGroundTruthSeasons,
   } = useView();
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations (the view remounts while one loads); each target
+  // has its own window
+  const [xAxisRange, setXAxisRange] = usePersistentXRange(
+    `metrocast:${selectedTarget}`,
+  );
   useChartReset(() => setXAxisRange(null));
 
   const stateName = data?.metadata?.location_name;
@@ -370,10 +368,6 @@ const MetroCastView = ({
     });
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget]);
-
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [selectedTarget]);
 
   const { data: childData, loading: loadingChildren } = useAsyncData(
     stateCode && metadata?.locations

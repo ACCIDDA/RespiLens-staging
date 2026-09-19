@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback } from "react";
+import { usePersistentXRange } from "../hooks/usePersistentXRange";
 import { Stack, useMantineColorScheme } from "@mantine/core";
 import Plot from "react-plotly.js";
 import ModelSelector from "./ModelSelector";
@@ -157,7 +158,8 @@ const FluPeak = ({
 }) => {
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations (the view remounts while one loads)
+  const [xAxisRange, setXAxisRange] = usePersistentXRange("flu_peak");
   const plotRef = useRef(null);
   useChartReset(() => setXAxisRange(null));
   // Click the chart or drag the date line to move the (single) forecast
@@ -629,7 +631,7 @@ const FluPeak = ({
         setXAxisRange(nextXRange);
       }
     },
-    [xAxisRange, plotData],
+    [xAxisRange, setXAxisRange, plotData],
   );
 
   const layout = useMemo(() => {

@@ -13,6 +13,7 @@ import { extractPlotData } from "../hooks/extractPlotDataFromURL";
 import ChartHeader from "./ChartHeader";
 import { ChartAboutContext } from "../contexts/ChartAboutContext";
 import { ChartResetContext } from "../contexts/ChartResetContext";
+import { ChartRangeContext } from "../contexts/ChartRangeContext";
 import LocationPicker from "./LocationPicker";
 import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 import ViewSwitchboard from "./ViewSwitchboard";
@@ -91,6 +92,9 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       setBackground: "opaque",
     });
   };
+
+  // Each chart's zoomed time range, kept while views remount
+  const rangeStore = useRef({});
 
   const [resetCount, setResetCount] = useState(0);
   const handleResetView = () => setResetCount((count) => count + 1);
@@ -640,44 +644,46 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       )}
       <ChartAboutContext.Provider value={chartAbout}>
         <ChartResetContext.Provider value={resetCount}>
-          <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
-            <Stack gap="lg">
-              <Stack gap="md" style={{ minHeight: "78vh" }}>
-                <ChartHeader
-                  onSave={handleSaveToMyPlots}
-                  isAdded={isAdded}
-                  onShare={handleShare}
-                  shareCopied={clipboard.copied}
-                  onDownload={handleDownload}
-                  onResetView={handleResetView}
-                />
-                <div ref={chartAreaRef} style={{ flex: 1, minHeight: 0 }}>
-                  <ViewSwitchboard
-                    viewType={viewType}
-                    location={selectedLocation}
-                    data={data}
-                    metadata={metadata}
-                    loading={loading}
-                    error={error}
-                    availableDates={availableDates}
-                    models={models}
-                    selectedDates={selectedDates}
-                    selectedModels={selectedModels}
-                    setSelectedDates={setSelectedDates}
-                    setActiveDate={setActiveDate}
-                    setSelectedModels={setSelectedModels}
-                    selectedColumns={selectedColumns}
-                    setSelectedColumns={setSelectedColumns}
-                    windowSize={windowSize}
-                    selectedTarget={selectedTarget}
-                    peaks={peaks}
-                    availablePeakDates={availablePeakDates}
-                    availablePeakModels={availablePeakModels}
+          <ChartRangeContext.Provider value={rangeStore}>
+            <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
+              <Stack gap="lg">
+                <Stack gap="md" style={{ minHeight: "78vh" }}>
+                  <ChartHeader
+                    onSave={handleSaveToMyPlots}
+                    isAdded={isAdded}
+                    onShare={handleShare}
+                    shareCopied={clipboard.copied}
+                    onDownload={handleDownload}
+                    onResetView={handleResetView}
                   />
-                </div>
+                  <div ref={chartAreaRef} style={{ flex: 1, minHeight: 0 }}>
+                    <ViewSwitchboard
+                      viewType={viewType}
+                      location={selectedLocation}
+                      data={data}
+                      metadata={metadata}
+                      loading={loading}
+                      error={error}
+                      availableDates={availableDates}
+                      models={models}
+                      selectedDates={selectedDates}
+                      selectedModels={selectedModels}
+                      setSelectedDates={setSelectedDates}
+                      setActiveDate={setActiveDate}
+                      setSelectedModels={setSelectedModels}
+                      selectedColumns={selectedColumns}
+                      setSelectedColumns={setSelectedColumns}
+                      windowSize={windowSize}
+                      selectedTarget={selectedTarget}
+                      peaks={peaks}
+                      availablePeakDates={availablePeakDates}
+                      availablePeakModels={availablePeakModels}
+                    />
+                  </div>
+                </Stack>
               </Stack>
-            </Stack>
-          </Container>
+            </Container>
+          </ChartRangeContext.Provider>
         </ChartResetContext.Provider>
       </ChartAboutContext.Provider>
     </ErrorBoundary>

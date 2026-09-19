@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePersistentXRange } from "../../hooks/usePersistentXRange";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
@@ -71,13 +72,12 @@ const NSSPView = ({ location, data }) => {
   const [stateCoverage, setStateCoverage] = useState({});
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(null);
-  const [selectedColumns, setSelectedColumns] = useState([]);
   const [dataRevision, setDataRevision] = useState(0);
   const [plotRevision, setPlotRevision] = useState(0);
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations
+  const [xAxisRange, setXAxisRange] = usePersistentXRange("nsspall");
   const [yAxisRange, setYAxisRange] = useState(null);
 
-  const hasInteractedRef = useRef(false);
   useChartReset(() => setXAxisRange(null));
 
   const stateAbbreviation = getNsspStateAbbreviationFromLocation(location);
@@ -278,70 +278,22 @@ const NSSPView = ({ location, data }) => {
     };
   }, [currentStateCoverage.hasCountyData, isUnitedStates, stateAbbreviation]);
 
-  useEffect(() => {
-    if (!availableColumns.length) {
-      setSelectedColumns([]);
-      return;
-    }
-
+  // The URL is the one source of the pathogen selection: read here, written
+  // only when the user toggles a chip (two-way syncing through state made
+  // the two overwrite each other after a location change). Pathogens this
+  // location lacks stay in the URL for the next one.
+  const selectedColumns = useMemo(() => {
+    if (!availableColumns.length) return [];
     const urlColumns = searchParams.getAll("nssp_cols");
-    const isExplicitlyEmpty = urlColumns.includes("none");
+    if (urlColumns.includes("none")) return [];
     const validUrlColumns = urlColumns.filter((column) =>
       availableColumns.includes(column),
     );
-
-    let nextColumns;
-    if (validUrlColumns.length > 0) {
-      nextColumns = validUrlColumns;
-    } else if (isExplicitlyEmpty) {
-      nextColumns = [];
-    } else {
-      nextColumns = NSSP_DEFAULT_COLUMNS.filter((column) =>
-        availableColumns.includes(column),
-      );
-    }
-
-    setSelectedColumns((currentColumns) => {
-      const sortedCurrent = [...currentColumns].sort();
-      const sortedNext = [...nextColumns].sort();
-      if (JSON.stringify(sortedCurrent) === JSON.stringify(sortedNext)) {
-        return currentColumns;
-      }
-
-      return nextColumns;
-    });
-  }, [availableColumns, searchParams]);
-
-  useEffect(() => {
-    const nextParams = new URLSearchParams(window.location.search);
-    nextParams.delete("nssp_cols");
-
-    const defaultColumns = NSSP_DEFAULT_COLUMNS.filter((column) =>
+    if (validUrlColumns.length > 0) return validUrlColumns;
+    return NSSP_DEFAULT_COLUMNS.filter((column) =>
       availableColumns.includes(column),
     );
-    const isDefaultSelection =
-      JSON.stringify([...selectedColumns].sort()) ===
-      JSON.stringify([...defaultColumns].sort());
-
-    if (!isDefaultSelection) {
-      if (selectedColumns.length > 0) {
-        selectedColumns.forEach((column) => {
-          nextParams.append("nssp_cols", column);
-        });
-      } else if (hasInteractedRef.current) {
-        nextParams.set("nssp_cols", "none");
-      }
-    }
-
-    const currentParams = new URLSearchParams(window.location.search);
-    if (nextParams.toString() !== currentParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [availableColumns, selectedColumns, setSearchParams]);
-
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [location]);
+  }, [availableColumns, searchParams]);
 
   useEffect(() => {
     if (data) {
@@ -394,7 +346,7 @@ const NSSPView = ({ location, data }) => {
         setXAxisRange(nextXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, setXAxisRange],
   );
 
   const hasReachedCountyDetail =
@@ -590,10 +542,29 @@ const NSSPView = ({ location, data }) => {
     yAxisRange,
   ]);
 
-  const handleSetSelectedColumns = useCallback((nextColumns) => {
-    hasInteractedRef.current = true;
-    setSelectedColumns(nextColumns);
-  }, []);
+  const handleSetSelectedColumns = useCallback(
+    (nextColumns) => {
+      const nextParams = new URLSearchParams(window.location.search);
+      nextParams.delete("nssp_cols");
+      const defaultColumns = NSSP_DEFAULT_COLUMNS.filter((column) =>
+        availableColumns.includes(column),
+      );
+      const isDefaultSelection =
+        JSON.stringify([...nextColumns].sort()) ===
+        JSON.stringify([...defaultColumns].sort());
+      if (!isDefaultSelection) {
+        if (nextColumns.length === 0) {
+          nextParams.set("nssp_cols", "none");
+        } else {
+          nextColumns.forEach((column) =>
+            nextParams.append("nssp_cols", column),
+          );
+        }
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [availableColumns, setSearchParams],
+  );
 
   if (!data?.series?.dates) {
     return (

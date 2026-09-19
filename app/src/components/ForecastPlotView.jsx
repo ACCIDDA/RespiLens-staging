@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { usePersistentXRange } from "../hooks/usePersistentXRange";
 import { useMantineColorScheme, Stack, Text, Box, Center } from "@mantine/core";
 import Plot from "react-plotly.js";
 import ModelSelector from "./ModelSelector";
@@ -57,7 +58,6 @@ const ForecastPlotView = ({
   groundTruthValueFormat = "%{y}",
 }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null);
   const plotRef = useRef(null);
   const { colorScheme } = useMantineColorScheme();
   const {
@@ -72,6 +72,11 @@ const ForecastPlotView = ({
   const forecasts = data?.forecasts;
 
   const resolvedForecastTarget = forecastTarget || selectedTarget;
+  // Kept across locations (the view remounts while one loads); each target
+  // has its own window
+  const [xAxisRange, setXAxisRange] = usePersistentXRange(
+    `${viewType}:${resolvedForecastTarget}`,
+  );
   const resolvedDisplayTarget =
     displayTarget || selectedTarget || resolvedForecastTarget;
   const showMedian = intervalVisibility?.median ?? true;
@@ -216,9 +221,6 @@ const ForecastPlotView = ({
     },
   });
 
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [selectedTarget, resolvedForecastTarget]);
   useChartReset(() => setXAxisRange(null));
 
   useEffect(() => {
@@ -241,7 +243,7 @@ const ForecastPlotView = ({
         setXAxisRange(newXRange);
       }
     },
-    [xAxisRange, projectionsData],
+    [xAxisRange, setXAxisRange, projectionsData],
   );
 
   const seasonDividerShapes = useMemo(() => {
