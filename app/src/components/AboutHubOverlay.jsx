@@ -6,6 +6,8 @@ const AboutHubOverlay = ({
   title,
   children,
   buttonLabel = "About the Hub",
+  // Optional custom trigger: (open) => node. Defaults to a button.
+  renderTrigger,
 }) => {
   const [opened, { open, close }] = useDisclosure(false);
 
@@ -15,18 +17,22 @@ const AboutHubOverlay = ({
         {children}
       </Modal>
 
-      <Group justify="flex-start">
-        <Button
-          variant="light"
-          size="xs"
-          color="red"
-          onClick={open}
-          leftSection={<IconInfoCircle size={16} />}
-        >
-          {/* Use the buttonLabel prop per view to name button */}
-          {buttonLabel}
-        </Button>
-      </Group>
+      {renderTrigger ? (
+        renderTrigger(open)
+      ) : (
+        <Group justify="flex-start">
+          <Button
+            variant="subtle"
+            size="xs"
+            color="gray"
+            onClick={open}
+            leftSection={<IconInfoCircle size={16} />}
+          >
+            {/* Use the buttonLabel prop per view to name button */}
+            {buttonLabel}
+          </Button>
+        </Group>
+      )}
     </>
   );
 };

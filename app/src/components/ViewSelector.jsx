@@ -67,9 +67,9 @@ const ViewSelector = () => {
     setViewType(value);
   };
 
-  // `isActive` is the selected view itself and gets a fill; `isParentActive`
-  // is a group holding the selected view and only needs a tint, so the two do
-  // not compete as a pair of solid blue blocks.
+  // `isActive` is the selected view: a soft tint with a blue accent bar.
+  // `isParentActive` is the group holding it (Flu) and only gets blue text,
+  // so a single row is highlighted.
   const renderOptionButton = ({
     label,
     value,
@@ -81,7 +81,7 @@ const ViewSelector = () => {
   }) => (
     <Button
       key={value || label}
-      variant={isActive ? "filled" : "subtle"}
+      variant="subtle"
       color={isActive || isParentActive ? "blue" : "dark"}
       size="sm"
       radius="sm"
@@ -94,11 +94,8 @@ const ViewSelector = () => {
           height: nested ? 32 : 34,
           paddingLeft: nested ? 22 : 10,
           paddingRight: 10,
-          // Active state is an accent bar, not a filled box.
-          backgroundColor: isParentActive
-            ? "var(--mantine-color-blue-1)"
-            : undefined,
-          boxShadow: isParentActive
+          backgroundColor: isActive ? "rgba(0, 118, 209, 0.08)" : undefined,
+          boxShadow: isActive
             ? "inset 3px 0 0 var(--mantine-color-blue-6)"
             : "none",
         },
@@ -107,16 +104,15 @@ const ViewSelector = () => {
           justifyContent: "space-between",
         },
         section: {
-          opacity: isActive ? 0.9 : isParentActive ? 0.7 : 0.35,
+          opacity: isActive || isParentActive ? 0.7 : 0.35,
         },
         label: {
           width: "100%",
           textAlign: "left",
           fontWeight: isActive || isParentActive ? 600 : nested ? 450 : 500,
           fontSize: nested ? "0.8125rem" : "0.875rem",
-          color: isActive
-            ? "var(--mantine-color-white)"
-            : isParentActive
+          color:
+            isActive || isParentActive
               ? "var(--mantine-color-blue-8)"
               : "var(--respilens-ink)",
         },

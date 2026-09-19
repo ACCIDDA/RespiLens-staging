@@ -12,12 +12,18 @@ import {
 } from "@mantine/core";
 import Plot from "react-plotly.js";
 import ModelSelector from "../ModelSelector";
-import TitleRow from "../TitleRow";
 import { useView } from "../../hooks/useView";
 import {
   CHART_CONSTANTS,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
   PLOT_CHROME,
   RANGESLIDER_STYLE,
+  getChartAxisStyle,
+  getChartFont,
+  getChartInk,
+  getChartLegendStyle,
+  getForecastDateLineStyle,
 } from "../../constants/chart";
 import {
   targetDisplayNameMap,
@@ -33,7 +39,8 @@ import {
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
-import { getDatasetTitleFromView } from "../../utils/datasetUtils";
+import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
+import ChartCaption from "../ChartCaption";
 
 const METRO_STATE_MAP = {
   Colorado: "CO",
@@ -127,8 +134,9 @@ const MetroPlotCard = ({
     formatValue: (value) => value.toFixed(2),
     modelLineWidth: isSmall ? 1 : 2,
     modelMarkerSize: isSmall ? 3 : 6,
-    groundTruthLineWidth: 1.5,
-    groundTruthMarkerSize: isSmall ? 2 : 4,
+    groundTruthLineWidth: isSmall ? 1.5 : GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: isSmall ? 2 : GROUND_TRUTH_MARKER_SIZE,
+    groundTruthColor: getChartInk(colorScheme).text,
     showLegendForFirstDate: showLegend && !isSmall,
     fillMissingQuantiles: true,
     showMedian,
@@ -197,7 +205,7 @@ const MetroPlotCard = ({
       <Plot
         style={{
           width: "100%",
-          height: isSmall ? "240px" : "450px",
+          height: isSmall ? "240px" : "400px",
           opacity: hasForecasts ? 1 : 0.6,
         }}
         data={projectionsData}
@@ -205,35 +213,31 @@ const MetroPlotCard = ({
           autosize: true,
           template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
           ...PLOT_CHROME,
-          font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+          font: {
+            ...getChartFont(colorScheme),
+            size: isSmall ? 11 : 13,
+          },
           margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
           showlegend: showLegend && !isSmall,
           legend: {
-            x: 0,
-            y: 1,
+            ...getChartLegendStyle(colorScheme),
+            x: 0.01,
+            y: 0.99,
             xanchor: "left",
             yanchor: "top",
-            bgcolor:
-              colorScheme === "dark"
-                ? "rgba(26, 27, 30, 0.8)"
-                : "rgba(255, 255, 255, 0.8)",
-            bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-            borderwidth: 1,
-            font: { size: 10 },
           },
           xaxis: {
-            range: xAxisRange || defRange,
+            ...getChartAxisStyle(colorScheme),
+            range: copyRange(xAxisRange || defRange),
             showticklabels: !isSmall,
             rangeslider: {
               ...RANGESLIDER_STYLE,
               visible: !isSmall,
               range: getDefaultRange(true),
             },
-            showline: true,
-            linewidth: 1,
-            linecolor: colorScheme === "dark" ? "#aaa" : "#444",
           },
           yaxis: {
+            ...getChartAxisStyle(colorScheme),
             title: !isSmall
               ? {
                   text: (() => {
@@ -245,10 +249,6 @@ const MetroPlotCard = ({
                       "Value";
                     return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
                   })(),
-                  font: {
-                    color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-                    size: 12,
-                  },
                 }
               : undefined,
             range: isPlotlyLogScale(normalizedChartScale)
@@ -259,8 +259,8 @@ const MetroPlotCard = ({
               : yAxisRange === null,
             type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
             tickfont: {
-              size: 9,
-              color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
+              ...getChartAxisStyle(colorScheme).tickfont,
+              size: isSmall ? 10 : 12,
             },
             tickformat:
               normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
@@ -299,23 +299,24 @@ const MetroPlotCard = ({
             y0: 0,
             y1: 1,
             yref: "paper",
-            line: { color: "red", width: 1, dash: "dash" },
+            line: getForecastDateLineStyle(colorScheme),
           })),
         }}
         config={{
-          displayModeBar: !isSmall,
+          // Plotly's toolbar is hidden: download lives in the chart header,
+          // zoom in the minimap and range buttons
+          displayModeBar: false,
           responsive: true,
           displaylogo: false,
           staticPlot: isSmall,
         }}
         onRelayout={(e) => {
-          const newRange = e["xaxis.range"];
-          if (newRange) {
-            if (JSON.stringify(xAxisRange) !== JSON.stringify(newRange)) {
-              setXAxisRange(newRange);
-            }
-          } else if (e["xaxis.autorange"]) {
-            if (xAxisRange !== null) setXAxisRange(null);
+          const newRange = getRelayoutXRange(e, projectionsData);
+          if (
+            newRange &&
+            JSON.stringify(xAxisRange) !== JSON.stringify(newRange)
+          ) {
+            setXAxisRange(newRange);
           }
         }}
       />
@@ -381,14 +382,12 @@ const MetroCastView = ({
     intervalVisibility,
     showLegend,
     showOtherGroundTruthSeasons,
-    viewType,
   } = useView();
   const [childData, setChildData] = useState({});
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [xAxisRange, setXAxisRange] = useState(null);
 
   const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
   const stateCode = METRO_STATE_MAP[stateName];
   const forecasts = data?.forecasts;
 
@@ -454,11 +453,6 @@ const MetroCastView = ({
 
   return (
     <Stack gap="xl">
-      <TitleRow
-        title={hubName ? `${stateName} — ${hubName}` : stateName}
-        timestamp={metadata?.last_updated}
-      />
-
       <MetroPlotCard
         locationData={data}
         title={null}
@@ -516,23 +510,13 @@ const MetroCastView = ({
         </Stack>
       )}
       <Stack gap={2}>
-        <p
-          style={{
-            fontStyle: "italic",
-            fontSize: "12px",
-            color: "#868e96",
-            textAlign: "right",
-            margin: 0,
-          }}
-        >
-          Note that forecasts should be interpreted with great caution and may
-          not reliably predict rapid changes in disease trends.
-        </p>
+        <ChartCaption forecastNote />
         <ModelSelector
           models={models}
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
+          selectedDates={selectedDates}
         />
       </Stack>
     </Stack>

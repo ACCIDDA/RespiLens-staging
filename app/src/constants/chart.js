@@ -1,5 +1,6 @@
 // Chart and visualization constants
 import { CHART_CONFIG } from "../config";
+import { SYSTEM_SANS } from "../theme/mantine";
 
 export const CHART_CONSTANTS = {
   // Plot dimensions (from centralized config)
@@ -62,8 +63,94 @@ export const PLOT_CHROME = {
   },
 };
 
+// Slim minimap: enough to see the full series and drag a window, without
+// eating a sixth of the chart's height (Plotly's default thickness is 0.15).
 export const RANGESLIDER_STYLE = {
+  thickness: 0.06,
+  // Always show the whole series: by default the minimap reuses the main
+  // chart's y-range, so zooming in would clip it too
+  yaxis: { rangemode: "auto" },
   bgcolor: "rgba(0,0,0,0)",
   bordercolor: "rgba(15,23,42,0.10)",
   borderwidth: 1,
 };
+
+// Chart typography and furniture, matched to the app (same font stack, ink
+// colours and hairlines as global.css) so charts read as part of the page.
+const CHART_INK = {
+  light: {
+    text: "#23262b",
+    soft: "#5d6470",
+    spine: "#5d6470",
+    grid: "rgba(15, 23, 42, 0.07)",
+    legendBg: "rgba(255, 255, 255, 0.85)",
+    marker: "rgba(15, 23, 42, 0.35)",
+  },
+  dark: {
+    text: "#c1c2c5",
+    soft: "#909296",
+    spine: "#909296",
+    grid: "rgba(255, 255, 255, 0.08)",
+    legendBg: "rgba(26, 27, 30, 0.85)",
+    marker: "rgba(255, 255, 255, 0.35)",
+  },
+};
+
+export const getChartInk = (colorScheme) =>
+  colorScheme === "dark" ? CHART_INK.dark : CHART_INK.light;
+
+export const getChartFont = (colorScheme) => ({
+  family: SYSTEM_SANS,
+  size: 13,
+  color: getChartInk(colorScheme).text,
+});
+
+// Both axes get a spine and outside ticks; the grid stays a faint hairline.
+export const getChartAxisStyle = (colorScheme) => {
+  const ink = getChartInk(colorScheme);
+  return {
+    showline: true,
+    linewidth: 1.5,
+    linecolor: ink.spine,
+    ticks: "outside",
+    ticklen: 5,
+    tickwidth: 1.5,
+    tickcolor: ink.spine,
+    tickfont: { size: 12, color: ink.soft },
+    gridcolor: ink.grid,
+    zeroline: false,
+    // Grow the margin to fit the larger tick labels instead of overlapping
+    automargin: true,
+  };
+};
+
+// Borderless, on a translucent wash of the page colour
+export const getChartLegendStyle = (colorScheme) => {
+  const ink = getChartInk(colorScheme);
+  return {
+    bgcolor: ink.legendBg,
+    borderwidth: 0,
+    font: { size: 12, color: ink.text },
+    itemwidth: 30,
+  };
+};
+
+// 1m / 6m / all: quiet text buttons instead of grey tiles
+export const getRangeSelectorStyle = (colorScheme) => {
+  const ink = getChartInk(colorScheme);
+  return {
+    bgcolor: "rgba(0,0,0,0)",
+    activecolor: colorScheme === "dark" ? "#1c3a55" : "#e3eef8",
+    font: { size: 12, color: ink.soft },
+  };
+};
+
+// Vertical marker for a forecast date: a thin neutral rule, not a red dash
+export const getForecastDateLineStyle = (colorScheme) => ({
+  color: getChartInk(colorScheme).marker,
+  width: 1.25,
+});
+
+// Observed data is the reference series: drawn heavier than model lines
+export const GROUND_TRUTH_LINE_WIDTH = 2.5;
+export const GROUND_TRUTH_MARKER_SIZE = 5;

@@ -15,10 +15,10 @@ import {
   IconChartScatter,
 } from "@tabler/icons-react";
 import MainNavigation from "./MainNavigation";
-import StateSelector from "../StateSelector";
+import ViewSelector from "../ViewSelector";
 
 const getShellConfig = (pathname) => {
-  // For forecast view (main page), show navbar with StateSelector
+  // For forecast view (main page), show navbar with dataset navigation
   if (
     pathname === "/" ||
     pathname.startsWith("/forecasts") ||
@@ -27,7 +27,7 @@ const getShellConfig = (pathname) => {
     return {
       type: "forecast",
       header: { height: 60 },
-      navbar: { width: 256, breakpoint: "sm" },
+      navbar: { width: 218, breakpoint: "sm" },
       padding: 0,
     };
   }
@@ -36,12 +36,12 @@ const getShellConfig = (pathname) => {
   return {
     type: "navigation",
     header: { height: 60 },
-    navbar: { width: 256, breakpoint: "sm" },
+    navbar: { width: 218, breakpoint: "sm" },
     padding: 0,
   };
 };
 
-const UnifiedAppShell = ({ children, forecastProps = {} }) => {
+const UnifiedAppShell = ({ children }) => {
   const location = useLocation();
   const config = getShellConfig(location.pathname);
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
@@ -126,12 +126,9 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
             <Divider />
           </Stack>
 
-          {/* State Selector */}
-          <StateSelector
-            onStateSelect={forecastProps.onStateSelect}
-            currentLocation={forecastProps.currentLocation}
-            appShellMode={true}
-          />
+          {/* Dataset / view navigation. Chart setup (location, target,
+              display) lives in ChartSetupBar above the chart. */}
+          <ViewSelector />
         </Stack>
       );
     }

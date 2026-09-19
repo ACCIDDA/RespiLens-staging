@@ -41,7 +41,7 @@ export const getModelColor = (model, modelOrder = []) => {
 // The platform's own UI font: San Francisco on Apple, Segoe UI on Windows,
 // Roboto on Android. Platforms are named before `system-ui` because bare
 // `system-ui` resolves to a CJK face on Chinese/Japanese Windows installs.
-const SYSTEM_SANS =
+export const SYSTEM_SANS =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", Arial, sans-serif';
 
 // Enhanced Mantine theme with overridden color palettes

@@ -54,7 +54,7 @@ const InfoOverlay = () => {
         title={
           <Group gap="sm" wrap="nowrap" align="center">
             <Image
-              src="respilens-logo.svg"
+              src="/respilens-logo.svg"
               alt="RespiLens logo"
               h={32}
               w={32}

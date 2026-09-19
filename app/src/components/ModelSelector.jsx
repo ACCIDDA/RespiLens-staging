@@ -1,28 +1,22 @@
 import { useMemo, useRef, useState } from "react";
 import {
-  Stack,
   Group,
-  Button,
+  Stack,
   Text,
+  TextInput,
+  SegmentedControl,
+  Anchor,
+  Checkbox,
+  CloseButton,
   Tooltip,
-  Switch,
-  Card,
-  SimpleGrid,
-  PillsInput,
-  Pill,
-  Combobox,
-  useCombobox,
-  Paper,
 } from "@mantine/core";
-import {
-  IconCircleCheck,
-  IconCircle,
-  IconEye,
-  IconEyeOff,
-} from "@tabler/icons-react";
+import { IconSearch } from "@tabler/icons-react";
 import { getModelColor } from "../config/datasets";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
 
+// Model picker under the chart: one filterable checklist, coloured like the
+// chart's lines. "Selected" shows what is plotted; "All" (or typing a search)
+// shows every model so any of them can be toggled.
 const ModelSelector = ({
   models = [],
   selectedModels = [],
@@ -32,14 +26,12 @@ const ModelSelector = ({
   disabled = false,
   modelColorFn = null,
   getModelColor: legacyGetModelColor = null,
+  // Only used to word the "not available" tooltip
+  selectedDates = [],
 }) => {
-  const [showAllAvailable, setShowAllAvailable] = useState(false);
+  const [scope, setScope] = useState("selected");
   const [search, setSearch] = useState("");
   const stableModelOrderRef = useRef([]);
-  const combobox = useCombobox({
-    onDropdownClose: () => combobox.resetSelectedOption(),
-    onDropdownOpen: () => combobox.updateSelectedOptionIndex("active", 0),
-  });
   const stableModelOrder = useMemo(() => {
     const nextOrder = extendStableModelOrder(
       stableModelOrderRef.current,
@@ -49,47 +41,55 @@ const ModelSelector = ({
     return nextOrder;
   }, [selectedModels]);
 
-  const handleSelectAll = () => {
-    // Only select models that are currently active
-    const modelsToSelect = activeModels
-      ? models.filter((m) => activeModels.has(m))
-      : models;
-    setSelectedModels(modelsToSelect);
-  };
-
-  const handleSelectNone = () => {
-    setSelectedModels([]);
-  };
-
-  const getModelColorByIndex = (model) => {
+  const colorFor = (model) => {
     const resolvedColorFn = modelColorFn || legacyGetModelColor;
     if (resolvedColorFn) {
       return resolvedColorFn(model, selectedModels, stableModelOrder);
     }
-
     return getModelColor(model, stableModelOrder) ?? undefined;
   };
 
-  const modelsToShow = showAllAvailable ? models : selectedModels;
+  const isActive = (model) => !activeModels || activeModels.has(model);
+  const isSelected = (model) => selectedModels.includes(model);
 
-  const handleValueSelect = (val) => {
-    setSearch("");
-    if (selectedModels.includes(val)) {
-      setSelectedModels(selectedModels.filter((v) => v !== val));
+  const query = search.toLowerCase().trim();
+  // Searching always looks through every model
+  const pool = query || scope === "all" ? models : selectedModels;
+  const visibleModels = query
+    ? pool.filter((model) => model.toLowerCase().includes(query))
+    : pool;
+
+  const toggle = (model) => {
+    if (disabled || !isActive(model)) return;
+    if (isSelected(model)) {
+      setSelectedModels(selectedModels.filter((m) => m !== model));
     } else if (allowMultiple) {
-      setSelectedModels([...selectedModels, val]);
+      setSelectedModels([...selectedModels, model]);
     } else {
-      setSelectedModels([val]);
+      setSelectedModels([model]);
     }
   };
 
-  const handleValueRemove = (val) => {
-    setSelectedModels(selectedModels.filter((v) => v !== val));
-  };
-
-  const filteredModels = models.filter((model) =>
-    model.toLowerCase().includes(search.toLowerCase().trim()),
+  // "Select all" adds every model with a forecast, or only the matches
+  // while searching
+  const toAdd = (query ? visibleModels : models).filter(
+    (model) => isActive(model) && !isSelected(model),
   );
+  const handleSelectAll = () =>
+    setSelectedModels([...selectedModels, ...toAdd]);
+  // An empty selection falls back to the dataset's default model
+  const handleReset = () => setSelectedModels([]);
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === "Enter") {
+      const first = visibleModels.find(
+        (model) => isActive(model) && !isSelected(model),
+      );
+      if (first) toggle(first);
+    } else if (event.key === "Escape") {
+      setSearch("");
+    }
+  };
 
   if (!models.length) {
     return (
@@ -100,242 +100,152 @@ const ModelSelector = ({
   }
 
   return (
-    <Paper radius="md" p="md" mt="md" shadow="xs" withBorder>
-      <Stack gap="md">
-        <Group gap="xs" align="center" wrap="wrap">
-          <Text size="sm" fw={500}>
-            Model selection ({selectedModels.length}/{models.length})
+    <Stack
+      gap="sm"
+      mt="md"
+      pt="md"
+      style={{ borderTop: "1px solid var(--respilens-hairline)" }}
+    >
+      <Group justify="space-between" gap="sm" wrap="wrap">
+        <Group gap="sm" wrap="wrap">
+          <Text fw={600} size="sm">
+            Models{" "}
+            <Text span c="dimmed" size="sm" fw={400}>
+              {selectedModels.length} of {models.length}
+            </Text>
           </Text>
-          {allowMultiple && (
-            <>
-              <Tooltip label="Select all available models">
-                <Button
-                  variant="subtle"
-                  size="xs"
-                  onClick={handleSelectAll}
-                  disabled={disabled || selectedModels.length === models.length}
-                >
-                  Select All
-                </Button>
-              </Tooltip>
-              <Tooltip label="Clear all selected models">
-                <Button
-                  variant="subtle"
-                  size="xs"
-                  onClick={handleSelectNone}
-                  disabled={disabled || selectedModels.length === 0}
-                >
-                  Clear All
-                </Button>
-              </Tooltip>
-            </>
-          )}
-          <Switch
-            label="Show all models"
-            checked={showAllAvailable}
-            onChange={(event) =>
-              setShowAllAvailable(event.currentTarget.checked)
-            }
-            size="sm"
-            disabled={disabled}
-            thumbIcon={
-              showAllAvailable ? (
-                <IconEye size={12} stroke={2.5} />
-              ) : (
-                <IconEyeOff size={12} stroke={2.5} />
+          <TextInput
+            w={240}
+            size="xs"
+            placeholder="Filter models…"
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            onKeyDown={handleSearchKeyDown}
+            leftSection={<IconSearch size={14} />}
+            rightSection={
+              search && (
+                <CloseButton
+                  size="sm"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                />
               )
             }
+            aria-label="Filter forecasting models"
+            disabled={disabled}
+          />
+          <SegmentedControl
+            size="xs"
+            value={query ? "all" : scope}
+            onChange={setScope}
+            data={[
+              { value: "selected", label: "Selected" },
+              { value: "all", label: "All" },
+            ]}
+            disabled={disabled || Boolean(query)}
+            aria-label="Which models to list"
           />
         </Group>
 
-        <Combobox
-          store={combobox}
-          onOptionSubmit={handleValueSelect}
-          withinPortal
-        >
-          <Combobox.DropdownTarget>
-            <PillsInput
-              onClick={() => combobox.openDropdown()}
-              size="sm"
-              label="Search and select models"
-            >
-              <Pill.Group>
-                {selectedModels.map((model) => {
-                  const modelColor = getModelColorByIndex(model);
-                  const isActive = !activeModels || activeModels.has(model);
-                  return (
-                    <Pill
-                      key={model}
-                      withRemoveButton
-                      onRemove={() => handleValueRemove(model)}
-                      style={{
-                        backgroundColor: isActive
-                          ? modelColor
-                          : "var(--mantine-color-gray-6)",
-                        color: "white",
-                        padding: "2px 6px",
-                        fontSize: "0.75rem",
-                      }}
-                    >
-                      {model}
-                    </Pill>
-                  );
-                })}
-
-                <Combobox.EventsTarget>
-                  <PillsInput.Field
-                    onFocus={() => combobox.openDropdown()}
-                    onBlur={() => combobox.closeDropdown()}
-                    value={search}
-                    placeholder="Quick search and select models..."
-                    aria-label="Search and select forecasting models"
-                    onChange={(event) => {
-                      combobox.updateSelectedOptionIndex();
-                      setSearch(event.currentTarget.value);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Backspace" && search.length === 0) {
-                        event.preventDefault();
-                        handleValueRemove(
-                          selectedModels[selectedModels.length - 1],
-                        );
-                      }
-                    }}
-                  />
-                </Combobox.EventsTarget>
-              </Pill.Group>
-            </PillsInput>
-          </Combobox.DropdownTarget>
-
-          <Combobox.Dropdown>
-            <Combobox.Options>
-              {filteredModels.map((model) => {
-                const modelColor = getModelColorByIndex(model);
-                const isSelected = selectedModels.includes(model);
-                const isActive = !activeModels || activeModels.has(model);
-
-                return (
-                  <Combobox.Option
-                    value={model}
-                    key={model}
-                    style={{
-                      padding: "4px 8px",
-                    }}
-                    disabled={!isActive} // Disable selection if not active
-                  >
-                    <Group gap="xs" justify="space-between">
-                      <Group gap="xs" align="center">
-                        {isSelected ? (
-                          <IconCircleCheck
-                            size={16}
-                            style={{ color: modelColor }}
-                          />
-                        ) : (
-                          <IconCircle
-                            size={16}
-                            style={{ color: "var(--mantine-color-gray-5)" }}
-                          />
-                        )}
-                        <span
-                          style={{
-                            color: isSelected
-                              ? modelColor
-                              : isActive
-                                ? "inherit"
-                                : "var(--mantine-color-gray-5)",
-                            fontWeight: isSelected ? 600 : 400,
-                          }}
-                        >
-                          {model}
-                        </span>
-                      </Group>
-                    </Group>
-                  </Combobox.Option>
-                );
-              })}
-            </Combobox.Options>
-          </Combobox.Dropdown>
-        </Combobox>
-
         {allowMultiple && (
-          <Text size="xs" c="dimmed" hiddenFrom="xs">
-            {selectedModels.length > 0 && `${selectedModels.length} selected`}
-          </Text>
+          <Group gap="md">
+            <Tooltip
+              label={
+                query
+                  ? `Add the ${toAdd.length} matching models`
+                  : "Add every model with a forecast"
+              }
+              openDelay={300}
+            >
+              <Anchor
+                component="button"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={disabled || toAdd.length === 0}
+              >
+                Select all
+              </Anchor>
+            </Tooltip>
+            <Tooltip label="Back to the default model" openDelay={300}>
+              <Anchor
+                component="button"
+                size="sm"
+                c="dimmed"
+                onClick={handleReset}
+                disabled={disabled || selectedModels.length === 0}
+              >
+                Reset
+              </Anchor>
+            </Tooltip>
+          </Group>
         )}
+      </Group>
 
-        {modelsToShow.length > 0 && (
-          <SimpleGrid
-            cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 5 }}
-            spacing="xs"
-            verticalSpacing="xs"
-          >
-            {modelsToShow.map((model) => {
-              const isSelected = selectedModels.includes(model);
-              const modelColor = getModelColorByIndex(model);
-              const inactiveColor = "var(--mantine-color-gray-5)";
-              const isActive = !activeModels || activeModels.has(model);
-              const isDisabled = disabled || !isActive; // Combine overall disabled with specific model active state
-
-              return (
-                <Card
-                  key={model}
-                  p="xs"
-                  radius="md"
-                  withBorder={!isSelected}
-                  variant={isSelected ? "filled" : "default"}
-                  style={{
-                    cursor: isDisabled ? "not-allowed" : "pointer",
-                    backgroundColor: isSelected ? modelColor : undefined,
-                    borderColor: isSelected ? modelColor : undefined,
-                    minWidth: 0,
-                  }}
-                  opacity={isDisabled ? 0.5 : 1}
-                  onClick={() => {
-                    if (isDisabled) return; // Use combined disabled state
-
-                    if (isSelected) {
-                      setSelectedModels(
-                        selectedModels.filter((m) => m !== model),
-                      );
-                    } else {
-                      if (allowMultiple) {
-                        setSelectedModels([...selectedModels, model]);
-                      } else {
-                        setSelectedModels([model]);
-                      }
-                    }
-                  }}
-                >
-                  <Group gap="xs" justify="space-between" align="center">
-                    <Group gap="xs" align="center" flex={1}>
-                      {isSelected ? (
-                        <IconCircleCheck size={16} color="white" />
-                      ) : (
-                        <IconCircle size={16} color={inactiveColor} />
-                      )}
-                      <Text
-                        size="xs"
-                        fw={isSelected ? 600 : 400}
-                        c={isSelected ? "white" : "inherit"}
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          flex: 1,
-                        }}
-                        title={model}
-                      >
-                        {model}
-                      </Text>
-                    </Group>
-                  </Group>
-                </Card>
-              );
-            })}
-          </SimpleGrid>
-        )}
-      </Stack>
-    </Paper>
+      {visibleModels.length === 0 ? (
+        <Text size="sm" c="dimmed">
+          {query
+            ? `No model matches “${search.trim()}”.`
+            : "No models selected. Search above or switch to All."}
+        </Text>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+            columnGap: "var(--mantine-spacing-md)",
+            rowGap: 2,
+          }}
+        >
+          {visibleModels.map((model) => {
+            const active = isActive(model);
+            const checked = isSelected(model);
+            // Colour only once plotted: unselected models have no line yet
+            const color = checked ? colorFor(model) : undefined;
+            const checkbox = (
+              <Checkbox
+                size="xs"
+                radius="sm"
+                checked={checked}
+                onChange={() => toggle(model)}
+                disabled={disabled || !active}
+                color={color}
+                styles={{
+                  root: { padding: "3px 0", minWidth: 0 },
+                  body: { alignItems: "center" },
+                  labelWrapper: { minWidth: 0 },
+                  label: {
+                    fontSize: 13,
+                    fontWeight: checked ? 500 : 400,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    cursor: active ? "pointer" : "not-allowed",
+                  },
+                }}
+                label={model}
+                title={active ? model : undefined}
+              />
+            );
+            if (active) return <div key={model}>{checkbox}</div>;
+            // Disabled inputs swallow hover events, so the tooltip sits on
+            // a wrapper
+            return (
+              <Tooltip
+                key={model}
+                label={
+                  selectedDates.length > 1
+                    ? "Not available for these dates"
+                    : "Not available for this date"
+                }
+                openDelay={200}
+              >
+                <div>{checkbox}</div>
+              </Tooltip>
+            );
+          })}
+        </div>
+      )}
+    </Stack>
   );
 };
 

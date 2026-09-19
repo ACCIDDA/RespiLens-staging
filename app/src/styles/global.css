@@ -4,14 +4,13 @@
  */
 
 :root {
-  /* Structure comes from the layout, not from a page tint. The sidebar
-     carries a light brand-azure tint and gives the site its identity; the
-     work area stays white so charts sit on the brightest ground. A uniform
-     page colour was tried in every direction and always read as grey, cream,
-     sad or washed out - a two-zone layout avoids that trade-off. */
+  /* Structure comes from the layout, not from a page tint. The frame is
+     neutral - a white top bar and a barely-off-white sidebar, separated by
+     hairlines - so blue is left to mean "interactive / selected" (pickers,
+     links, the current view) instead of washing over the whole frame. */
   --respilens-chrome: #ffffff;
-  --respilens-sidebar: #f1f7fd;
-  --respilens-sidebar-edge: #dfeaf5;
+  --respilens-sidebar: #fafafa;
+  --respilens-sidebar-edge: rgba(15, 23, 42, 0.08);
   --respilens-canvas: #ffffff;
   --respilens-surface: #ffffff;
 
@@ -50,26 +49,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Chrome (header, navbar) is the lightest warm tone; the content canvas
-   behind it sits a step deeper. */
-.respilens-shell-header,
+/* Top bar is white like the canvas, set off by a hairline; the sidebar is a
+   step off-white so the two zones still read apart. */
+.respilens-shell-header {
+  background-color: var(--respilens-chrome);
+  border-bottom: 1px solid var(--respilens-hairline);
+}
+
 .respilens-shell-navbar {
   background-color: var(--respilens-sidebar);
-}
-
-.respilens-shell-header {
-  border-bottom: 1px solid var(--respilens-hairline);
-  box-shadow: var(--respilens-chrome-shadow);
-}
-
-.respilens-shell-navbar {
   border-right: 1px solid var(--respilens-sidebar-edge);
 }
 
-/* Unselected sidebar rows hover in the sidebar's own hue rather than grey,
-   so the hover reads as part of the tinted surface. */
+/* Unselected sidebar rows hover in a neutral wash */
 .respilens-shell-navbar .mantine-Button-root[data-variant="subtle"]:hover {
-  background-color: rgba(0, 118, 209, 0.07);
+  background-color: rgba(15, 23, 42, 0.05);
 }
 
 /* Cards that link somewhere lift slightly on hover. */
@@ -111,4 +105,78 @@ body {
   .respilens-card-interactive:hover {
     transform: none;
   }
+}
+
+/* Inline pickers: a value inside a heading that opens a dropdown. Reads as
+   text first, with an underline and caret as the affordance. */
+.respilens-inline-picker {
+  font: inherit;
+  color: var(--mantine-color-blue-7);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2em;
+  max-width: 100%;
+  text-decoration: underline;
+  text-decoration-color: var(--mantine-color-blue-2);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
+  transition: text-decoration-color 120ms ease;
+}
+
+.respilens-inline-picker:hover,
+.respilens-inline-picker[aria-expanded="true"] {
+  text-decoration-color: var(--mantine-color-blue-5);
+}
+
+.respilens-inline-picker:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.respilens-inline-picker-caret {
+  width: 0.7em;
+  height: 0.7em;
+  flex-shrink: 0;
+  align-self: center;
+  opacity: 0.7;
+}
+
+[data-mantine-color-scheme="dark"] .respilens-inline-picker {
+  color: var(--mantine-color-blue-3);
+  text-decoration-color: var(--mantine-color-blue-8);
+}
+
+/* Stepper chevrons inside text: a disabled one just fades, no grey tile. */
+.respilens-quiet-icon:disabled,
+.respilens-quiet-icon[data-disabled] {
+  background: transparent;
+  opacity: 0.35;
+}
+
+/* Range-slider handles: Plotly draws small rounded tabs over the middle half
+   of the slider. Make them plain bars spanning its full height (the rect is
+   height/2 centred, so scaleY(2) about its centre fills it). */
+.js-plotly-plot .rangeslider-handle-min,
+.js-plotly-plot .rangeslider-handle-max {
+  fill: var(--mantine-color-gray-5) !important;
+  stroke: none !important;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(2);
+}
+
+.js-plotly-plot .rangeslider-grabber-min:hover .rangeslider-handle-min,
+.js-plotly-plot .rangeslider-grabber-max:hover .rangeslider-handle-max {
+  fill: var(--mantine-color-blue-5) !important;
+}
+
+/* Minimap is an overview: thin lines, no point markers, whatever the main
+   chart's trace widths. */
+.js-plotly-plot .rangeslider-container .scatterlayer .js-line {
+  stroke-width: 1.25px !important;
+}
+
+.js-plotly-plot .rangeslider-container .scatterlayer .points {
+  display: none;
 }

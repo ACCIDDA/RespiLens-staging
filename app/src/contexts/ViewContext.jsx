@@ -416,25 +416,35 @@ export const ViewProvider = ({ children }) => {
               return null;
             }
 
-            const response = await fetch(
-              getDataPath(`${dataset.dataPath}/metadata.json`),
-            );
-
-            if (!response.ok) {
-              throw new Error(
-                `Failed to fetch location metadata for ${dataset.shortName}: ${response.status}`,
+            // One missing dataset shouldn't wipe every catalog (which would
+            // snap all views back to their default location).
+            try {
+              const response = await fetch(
+                getDataPath(`${dataset.dataPath}/metadata.json`),
               );
+
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to fetch location metadata for ${dataset.shortName}: ${response.status}`,
+                );
+              }
+
+              const metadata = await response.json();
+              const catalog =
+                dataset.shortName === "nssp"
+                  ? buildNsspLocationCatalog(metadata)
+                  : dataset.shortName === "metrocast"
+                    ? buildMetroLocationCatalog(metadata)
+                    : buildStandardLocationCatalog(metadata);
+
+              return [dataset.shortName, catalog];
+            } catch (datasetError) {
+              console.error(
+                `Error loading location catalog for ${dataset.shortName}:`,
+                datasetError,
+              );
+              return null;
             }
-
-            const metadata = await response.json();
-            const catalog =
-              dataset.shortName === "nssp"
-                ? buildNsspLocationCatalog(metadata)
-                : dataset.shortName === "metrocast"
-                  ? buildMetroLocationCatalog(metadata)
-                  : buildStandardLocationCatalog(metadata);
-
-            return [dataset.shortName, catalog];
           }),
         );
 
@@ -765,6 +775,12 @@ export const ViewProvider = ({ children }) => {
 
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (!currentDataset) {
+      return;
+    }
+
+    // Wait for this view's catalog: validating against a missing one sends
+    // every deep link (e.g. /forecasts/flusight/MA) back to the default.
+    if (!locationCatalogs[viewType]) {
       return;
     }
 

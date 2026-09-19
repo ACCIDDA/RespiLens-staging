@@ -6,8 +6,16 @@ import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
 import {
   CHART_CONSTANTS,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
   PLOT_CHROME,
   RANGESLIDER_STYLE,
+  getChartAxisStyle,
+  getChartFont,
+  getChartInk,
+  getChartLegendStyle,
+  getForecastDateLineStyle,
+  getRangeSelectorStyle,
 } from "../constants/chart";
 import {
   buildLog2Ticks,
@@ -23,6 +31,8 @@ import {
   PLOT_DOWNLOAD_IMAGE_SCALE,
 } from "../utils/plotDownloadName";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
+import { copyRange, getRelayoutXRange } from "../utils/plotRange";
+import ChartCaption from "./ChartCaption";
 
 const FLU_PEAK_SEASON_START_MONTH_INDEX = 7;
 const FLU_PEAK_SEASON_START_MONTH = 8;
@@ -163,7 +173,6 @@ const FluPeak = ({
   peaks,
   peakDates,
   peakModels,
-  windowSize,
   selectedModels,
   setSelectedModels,
   selectedDates,
@@ -299,9 +308,15 @@ const FluPeak = ({
           name: "Observed",
           type: "scatter",
           mode: "lines+markers",
-          line: { color: "black", width: 2, dash: "dash" },
+          line: {
+            color: getChartInk(colorScheme).text,
+            width: GROUND_TRUTH_LINE_WIDTH,
+          },
           showlegend: true,
-          marker: { size: 4, color: "black" },
+          marker: {
+            size: GROUND_TRUTH_MARKER_SIZE,
+            color: getChartInk(colorScheme).text,
+          },
           hovertemplate:
             "<b>Observed</b><br>" +
             "Hospitalizations: %{y}<br>" +
@@ -608,6 +623,7 @@ const FluPeak = ({
     showOtherGroundTruthSeasons,
     normalizedChartScale,
     stableModelOrder,
+    colorScheme,
   ]);
 
   useEffect(() => {
@@ -631,14 +647,15 @@ const FluPeak = ({
         return;
       }
 
-      if (figure && figure["xaxis.range"]) {
-        const nextXRange = figure["xaxis.range"];
-        if (JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(nextXRange);
-        }
+      const nextXRange = getRelayoutXRange(figure, plotData);
+      if (
+        nextXRange &&
+        JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(nextXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, plotData],
   );
 
   const sqrtTicks = useMemo(() => {
@@ -659,54 +676,41 @@ const FluPeak = ({
 
   const layout = useMemo(
     () => ({
-      width: windowSize
-        ? Math.min(
-            CHART_CONSTANTS.MAX_WIDTH,
-            windowSize.width * CHART_CONSTANTS.WIDTH_RATIO,
-          )
-        : undefined,
-      height: windowSize
-        ? Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * 0.5)
-        : 500,
+      // Sized by its container (like the standard view), not the window,
+      // so it never spills past the content column
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       ...PLOT_CHROME,
-      font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+      font: getChartFont(colorScheme),
       margin: { l: 60, r: 30, t: 30, b: 50 },
       showlegend: showLegend,
       legend: {
-        x: 0,
-        y: 1,
+        ...getChartLegendStyle(colorScheme),
+        x: 0.01,
+        y: 0.99,
         xanchor: "left",
         yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: { size: 10 },
       },
       hovermode: "closest",
       hoverlabel: { namelength: -1 },
       dragmode: false,
       xaxis: {
-        range: xAxisRange || defaultRange,
+        ...getChartAxisStyle(colorScheme),
+        range: copyRange(xAxisRange || defaultRange),
         rangeslider: rangesliderRange
           ? { ...RANGESLIDER_STYLE, range: rangesliderRange }
           : undefined,
         rangeselector: {
+          ...getRangeSelectorStyle(colorScheme),
           buttons: [
             { count: 1, label: "1m", step: "month", stepmode: "backward" },
             { count: 6, label: "6m", step: "month", stepmode: "backward" },
             { step: "all", label: "all" },
           ],
         },
-        showline: true,
-        linewidth: 1,
-        linecolor: colorScheme === "dark" ? "#aaa" : "#444",
       },
       yaxis: {
+        ...getChartAxisStyle(colorScheme),
         title: (() => {
           const baseTitle = "Flu Hospitalizations";
           return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
@@ -763,17 +767,13 @@ const FluPeak = ({
             y0: 0,
             y1: 1,
             yref: "paper",
-            line: {
-              color: "rgba(255, 255, 255, 0.05)",
-              width: 2,
-            },
+            line: getForecastDateLineStyle(colorScheme),
           },
         ];
       }),
     }),
     [
       colorScheme,
-      windowSize,
       selectedDates,
       defaultRange,
       rangesliderRange,
@@ -789,7 +789,9 @@ const FluPeak = ({
   const config = useMemo(
     () => ({
       responsive: true,
-      displayModeBar: true,
+      // Plotly's toolbar is hidden: download lives in the chart header,
+      // zoom in the minimap and range buttons
+      displayModeBar: false,
       displaylogo: false,
       modeBarPosition: "left",
       scrollZoom: false,
@@ -836,7 +838,9 @@ const FluPeak = ({
                     cursor: default !important;
                 }
             `}</style>
-      <div style={{ width: "100%", minHeight: "400px" }}>
+      <div
+        style={{ width: "100%", height: "min(880px, 60vh)", minHeight: 340 }}
+      >
         <Plot
           ref={plotRef}
           data={plotData}
@@ -848,23 +852,13 @@ const FluPeak = ({
         />
       </div>
       <Stack gap={2}>
-        <p
-          style={{
-            fontStyle: "italic",
-            fontSize: "12px",
-            color: "#868e96",
-            textAlign: "right",
-            margin: 0,
-          }}
-        >
-          Note that forecasts should be interpreted with great caution and may
-          not reliably predict rapid changes in disease trends.
-        </p>
+        <ChartCaption forecastNote />
         <ModelSelector
           models={peakModels}
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activePeakModels}
+          selectedDates={selectedDates}
         />
       </Stack>
     </Stack>

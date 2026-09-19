@@ -3,11 +3,18 @@ import { useMantineColorScheme, Stack, Text, Box, Center } from "@mantine/core";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
-import TitleRow from "./TitleRow";
 import {
   CHART_CONSTANTS,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
   PLOT_CHROME,
   RANGESLIDER_STYLE,
+  getChartAxisStyle,
+  getChartFont,
+  getChartInk,
+  getChartLegendStyle,
+  getForecastDateLineStyle,
+  getRangeSelectorStyle,
 } from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
@@ -20,7 +27,6 @@ import {
   transformValueForScale,
 } from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
-import { getDatasetTitleFromView } from "../utils/datasetUtils";
 import {
   buildPlotDownloadName,
   PLOT_DOWNLOAD_IMAGE_SCALE,
@@ -31,6 +37,8 @@ import {
   getSeasonDateRange,
   getSeasonStartYear,
 } from "../utils/forecastSeasons";
+import { copyRange, getRelayoutXRange } from "../utils/plotRange";
+import ChartCaption from "./ChartCaption";
 
 const FORECAST_DATASET_KEYS_BY_VIEW = {
   fludetailed: "flusight",
@@ -47,7 +55,6 @@ const shiftDateStringByDays = (dateString, days) => {
 
 const ForecastPlotView = ({
   data,
-  metadata,
   selectedDates,
   selectedModels,
   models,
@@ -75,8 +82,6 @@ const ForecastPlotView = ({
     showOtherGroundTruthSeasons,
     viewType,
   } = useView();
-  const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
 
   const getDefaultRangeRef = useRef(getDefaultRange);
   const projectionsDataRef = useRef([]);
@@ -155,8 +160,9 @@ const ForecastPlotView = ({
     valueSuffix: "",
     modelLineWidth: 2,
     modelMarkerSize: 6,
-    groundTruthLineWidth: 1.5,
-    groundTruthMarkerSize: 4,
+    groundTruthLineWidth: GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: GROUND_TRUTH_MARKER_SIZE,
+    groundTruthColor: getChartInk(colorScheme).text,
     showLegendForFirstDate: showLegend,
     fillMissingQuantiles: false,
     showMedian,
@@ -240,14 +246,15 @@ const ForecastPlotView = ({
         isResettingRef.current = false;
         return;
       }
-      if (figure && figure["xaxis.range"]) {
-        const newXRange = figure["xaxis.range"];
-        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(newXRange);
-        }
+      const newXRange = getRelayoutXRange(figure, projectionsData);
+      if (
+        newXRange &&
+        JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(newXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, projectionsData],
   );
 
   const sqrtTicks = useMemo(() => {
@@ -310,47 +317,37 @@ const ForecastPlotView = ({
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       ...PLOT_CHROME,
-      font: {
-        color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-      },
+      font: getChartFont(colorScheme),
       showlegend: showLegend,
       legend: {
-        x: 0,
-        y: 1,
+        ...getChartLegendStyle(colorScheme),
+        x: 0.01,
+        y: 0.99,
         xanchor: "left",
         yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: {
-          size: 10,
-        },
       },
       hovermode: "closest",
       dragmode: false,
-      margin: { l: 60, r: 30, t: 30, b: 30 },
+      margin: { l: 64, r: 30, t: 36, b: 30 },
       xaxis: {
+        ...getChartAxisStyle(colorScheme),
         domain: [0, 1],
         rangeslider: {
           ...RANGESLIDER_STYLE,
           range: getDefaultRange(true),
         },
         rangeselector: {
+          ...getRangeSelectorStyle(colorScheme),
           buttons: [
             { count: 1, label: "1m", step: "month", stepmode: "backward" },
             { count: 6, label: "6m", step: "month", stepmode: "backward" },
             { step: "all", label: "all" },
           ],
         },
-        range: xAxisRange || defaultRange,
-        showline: true,
-        linewidth: 1,
-        linecolor: colorScheme === "dark" ? "#aaa" : "#444",
+        range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
+        ...getChartAxisStyle(colorScheme),
         title: (() => {
           const longName = targetDisplayNameMap[resolvedDisplayTarget];
           const baseTitle =
@@ -394,11 +391,7 @@ const ForecastPlotView = ({
             y0: 0,
             y1: 1,
             yref: "paper",
-            line: {
-              color: "red",
-              width: 1,
-              dash: "dash",
-            },
+            line: getForecastDateLineStyle(colorScheme),
           };
         }),
       ],
@@ -428,7 +421,9 @@ const ForecastPlotView = ({
   const config = useMemo(() => {
     const baseConfig = {
       responsive: true,
-      displayModeBar: true,
+      // Plotly's toolbar is hidden: download lives in the chart header,
+      // zoom in the minimap and range buttons
+      displayModeBar: false,
       displaylogo: false,
       showSendToCloud: false,
       plotlyServerURL: "",
@@ -489,15 +484,11 @@ const ForecastPlotView = ({
 
   return (
     <Stack>
-      <TitleRow
-        title={hubName ? `${stateName} — ${hubName}` : stateName}
-        timestamp={metadata?.last_updated}
-      />
       <div
         style={{
           width: "100%",
-          height: "min(1000px, 69vh)",
-          minHeight: 380,
+          height: "min(880px, 60vh)",
+          minHeight: 340,
           position: "relative", // Ensure the container is relative for absolute positioning
         }}
       >
@@ -535,23 +526,13 @@ const ForecastPlotView = ({
         />
       </div>
       <Stack gap={2}>
-        <p
-          style={{
-            fontStyle: "italic",
-            fontSize: "12px",
-            color: "#868e96",
-            textAlign: "right",
-            margin: 0,
-          }}
-        >
-          Note that forecasts should be interpreted with great caution and may
-          not reliably predict rapid changes in disease trends.
-        </p>
+        <ChartCaption forecastNote />
         <ModelSelector
           models={models}
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
+          selectedDates={selectedDates}
         />
       </Stack>
     </Stack>

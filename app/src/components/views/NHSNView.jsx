@@ -12,7 +12,6 @@ import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import { getDataPath } from "../../utils/paths";
 import NHSNColumnSelector from "../NHSNColumnSelector";
-import TitleRow from "../TitleRow";
 import { MODEL_COLORS } from "../../config/datasets";
 import {
   buildLog2Ticks,
@@ -24,7 +23,6 @@ import {
   transformValueForScale,
 } from "../../utils/scaleUtils";
 import { useView } from "../../hooks/useView";
-import { getDatasetTitleFromView } from "../../utils/datasetUtils";
 import {
   buildPlotDownloadName,
   PLOT_DOWNLOAD_IMAGE_SCALE,
@@ -35,7 +33,18 @@ import {
   nhsnSlugToNameMap, // { shortform: longform } map
   nhsnNameToPrettyNameMap, // { longform: presentable name } map
 } from "../../utils/mapUtils";
-import { PLOT_CHROME, RANGESLIDER_STYLE } from "../../constants/chart";
+import {
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CHROME,
+  RANGESLIDER_STYLE,
+  getChartAxisStyle,
+  getChartFont,
+  getChartLegendStyle,
+  getRangeSelectorStyle,
+} from "../../constants/chart";
+import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
+import ChartCaption from "../ChartCaption";
 
 const nhsnYAxisLabelMap = {
   "Hospital Admissions (count)": "Patient Count",
@@ -74,14 +83,11 @@ const getDefaultColumnsForTarget = (target) => {
 
 const NHSNView = ({ location }) => {
   const [data, setData] = useState(null);
-  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
-  const { viewType, chartScale, showLegend } = useView();
+  const { chartScale, showLegend } = useView();
   const normalizedChartScale = normalizeChartScale(chartScale);
-  const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetTitleFromView(viewType) || metadata?.dataset;
 
   const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
   const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
@@ -130,9 +136,9 @@ const NHSNView = ({ location }) => {
         mode: "lines+markers",
         line: {
           color,
-          width: 2,
+          width: GROUND_TRUTH_LINE_WIDTH,
         },
-        marker: { size: 6 },
+        marker: { size: GROUND_TRUTH_MARKER_SIZE },
         legendgroup: columnName,
         hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
       });
@@ -152,7 +158,7 @@ const NHSNView = ({ location }) => {
           mode: "lines",
           line: {
             color,
-            width: 2,
+            width: GROUND_TRUTH_LINE_WIDTH,
             dash: "dash",
           },
           legendgroup: columnName,
@@ -172,7 +178,6 @@ const NHSNView = ({ location }) => {
       try {
         setLoading(true);
         setData(null);
-        setMetadata(null);
         setAllDataColumns([]);
         setFilteredAvailableColumns([]);
         setSelectedColumns([]);
@@ -209,7 +214,6 @@ const NHSNView = ({ location }) => {
         }
 
         setData(jsonData);
-        setMetadata(jsonMetadata);
 
         const allColumnsFromData = Object.keys(jsonData.series)
           .filter((key) => key !== "dates")
@@ -470,17 +474,20 @@ const NHSNView = ({ location }) => {
     getProcessedYValues,
   ]);
 
+  // Filled after the traces are built below; read lazily on relayout
+  const tracesRef = useRef([]);
   const handleRelayout = useCallback(
     (figure) => {
       if (isResettingRef.current) {
         isResettingRef.current = false;
         return;
       }
-      if (figure && figure["xaxis.range"]) {
-        const newXRange = figure["xaxis.range"];
-        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(newXRange);
-        }
+      const newXRange = getRelayoutXRange(figure, tracesRef.current);
+      if (
+        newXRange &&
+        JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(newXRange);
       }
     },
     [xAxisRange],
@@ -523,35 +530,34 @@ const NHSNView = ({ location }) => {
       })
       .flat();
   }, [data, selectedColumns, buildTracesForColumn]);
+  tracesRef.current = traces;
 
   const layout = useMemo(
     () => ({
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       ...PLOT_CHROME,
-      font: {
-        color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-      },
+      font: getChartFont(colorScheme),
       xaxis: {
-        title: "Date",
+        ...getChartAxisStyle(colorScheme),
         rangeslider: {
           ...RANGESLIDER_STYLE,
           visible: true,
           range: fullRange,
         },
         rangeselector: {
+          ...getRangeSelectorStyle(colorScheme),
           buttons: [
             { count: 1, label: "1m", step: "month", stepmode: "backward" },
             { count: 6, label: "6m", step: "month", stepmode: "backward" },
             { count: 1, label: "1y", step: "year", stepmode: "backward" },
             { step: "all", label: "All" },
           ],
-          activecolor: colorScheme === "dark" ? "#4c6ef5" : "#228be6",
-          bgcolor: colorScheme === "dark" ? "#2c2e33" : "#f1f3f5",
         },
-        range: xAxisRange || defaultRange,
+        range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
+        ...getChartAxisStyle(colorScheme),
         title: `${nhsnYAxisLabelMap[selectedTarget] || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
         range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
         autorange: isPlotlyLogScale(normalizedChartScale)
@@ -578,19 +584,13 @@ const NHSNView = ({ location }) => {
       },
       showlegend: showLegend ?? selectedColumns.length < 15,
       legend: {
-        x: 0,
-        y: 1,
+        ...getChartLegendStyle(colorScheme),
+        x: 0.01,
+        y: 0.99,
         xanchor: "left",
         yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: { size: 10 },
       },
-      margin: { t: 40, r: 10, l: 60, b: 120 },
+      margin: { t: 40, r: 10, l: 60, b: 40 },
       uirevision: plotRevision,
       annotations:
         selectedColumns.length === 0
@@ -627,7 +627,9 @@ const NHSNView = ({ location }) => {
   const config = useMemo(
     () => ({
       responsive: true,
-      displayModeBar: true,
+      // Plotly's toolbar is hidden: download lives in the chart header,
+      // zoom in the minimap and range buttons
+      displayModeBar: false,
       displaylogo: false,
       showSendToCloud: false,
       plotlyServerURL: "",
@@ -702,12 +704,8 @@ const NHSNView = ({ location }) => {
 
   return (
     <Stack gap="md" w="100%">
-      <TitleRow
-        title={hubName ? `${stateName} — ${hubName}` : stateName}
-        timestamp={metadata?.last_updated}
-      />
       <div
-        style={{ width: "100%", height: "min(880px, 75vh)", minHeight: 400 }}
+        style={{ width: "100%", height: "min(780px, 66vh)", minHeight: 360 }}
       >
         <Plot
           ref={plotRef}
@@ -720,6 +718,7 @@ const NHSNView = ({ location }) => {
           onRelayout={handleRelayout}
         />
       </div>
+      <ChartCaption />
 
       <NHSNColumnSelector
         availableColumns={filteredAvailableColumns}

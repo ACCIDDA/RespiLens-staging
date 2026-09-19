@@ -138,6 +138,7 @@ const useQuantileForecastTraces = ({
   modelMarkerSize = 6,
   groundTruthLineWidth = 1.5,
   groundTruthMarkerSize = 4,
+  groundTruthColor = "black",
   showLegendForFirstDate = true,
   fillMissingQuantiles = false,
   showMedian = true,
@@ -199,8 +200,12 @@ const useQuantileForecastTraces = ({
       name: groundTruthLabel,
       type: "scatter",
       mode: "lines+markers",
-      line: { color: "black", width: groundTruthLineWidth, dash: "solid" },
-      marker: { size: groundTruthMarkerSize, color: "black" },
+      line: {
+        color: groundTruthColor,
+        width: groundTruthLineWidth,
+        dash: "solid",
+      },
+      marker: { size: groundTruthMarkerSize, color: groundTruthColor },
     };
 
     if (groundTruthHoverFormatter) {
@@ -509,6 +514,7 @@ const useQuantileForecastTraces = ({
     modelMarkerSize,
     groundTruthLineWidth,
     groundTruthMarkerSize,
+    groundTruthColor,
     showLegendForFirstDate,
     fillMissingQuantiles,
     showMedian,

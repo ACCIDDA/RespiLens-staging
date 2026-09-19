@@ -72,7 +72,7 @@ const MainNavigation = () => {
       >
         <Group gap="sm" align="center" style={{ flexShrink: 0 }}>
           <Image
-            src="respilens-logo.svg"
+            src="/respilens-logo.svg"
             alt="RespiLens Logo"
             h={28}
             w="auto"

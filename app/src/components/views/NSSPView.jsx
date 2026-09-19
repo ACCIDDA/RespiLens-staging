@@ -51,7 +51,17 @@ import {
   isNsspUnitedStatesLocation,
   normalizeCountyBasename,
 } from "../../utils/nsspGeo";
-import { PLOT_CHROME, RANGESLIDER_STYLE } from "../../constants/chart";
+import {
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CHROME,
+  RANGESLIDER_STYLE,
+  getChartAxisStyle,
+  getChartFont,
+  getChartLegendStyle,
+  getRangeSelectorStyle,
+} from "../../constants/chart";
+import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
+import ChartCaption from "../ChartCaption";
 
 const NSSP_COLUMN_LABELS = {
   percent_visits_covid: "COVID-19",
@@ -61,7 +71,7 @@ const NSSP_COLUMN_LABELS = {
 
 const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
 
-const NSSPView = ({ location, data, metadata }) => {
+const NSSPView = ({ location, data }) => {
   const { handleLocationSelect, locationMessage, chartScale, showLegend } =
     useView();
   const normalizedChartScale = normalizeChartScale(chartScale);
@@ -387,6 +397,8 @@ const NSSPView = ({ location, data, metadata }) => {
     xAxisRange,
   ]);
 
+  // Filled after the traces are built below; read lazily on relayout
+  const plotTracesRef = useRef([]);
   const handleRelayout = useCallback(
     (figure) => {
       if (isResettingRef.current) {
@@ -394,11 +406,12 @@ const NSSPView = ({ location, data, metadata }) => {
         return;
       }
 
-      if (figure && figure["xaxis.range"]) {
-        const nextXRange = figure["xaxis.range"];
-        if (JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(nextXRange);
-        }
+      const nextXRange = getRelayoutXRange(figure, plotTracesRef.current);
+      if (
+        nextXRange &&
+        JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(nextXRange);
       }
     },
     [xAxisRange],
@@ -570,42 +583,41 @@ const NSSPView = ({ location, data, metadata }) => {
           color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
           width: 2.5,
         },
-        marker: { size: 6 },
+        marker: { size: GROUND_TRUTH_MARKER_SIZE },
         hovertemplate:
           "%{x}<br>%{fullData.name}: %{customdata:.2f}%<extra></extra>",
         customdata: data.series[column],
       };
     });
   }, [availableColumns, data, getProcessedYValues, selectedColumns]);
+  plotTracesRef.current = plotTraces;
 
   const plotLayout = useMemo(
     () => ({
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
       ...PLOT_CHROME,
-      font: {
-        color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-      },
+      font: getChartFont(colorScheme),
       xaxis: {
-        title: "Date",
+        ...getChartAxisStyle(colorScheme),
         rangeslider: {
           ...RANGESLIDER_STYLE,
           visible: true,
           range: fullRange,
         },
         rangeselector: {
+          ...getRangeSelectorStyle(colorScheme),
           buttons: [
             { count: 1, label: "1m", step: "month", stepmode: "backward" },
             { count: 6, label: "6m", step: "month", stepmode: "backward" },
             { count: 1, label: "1y", step: "year", stepmode: "backward" },
             { step: "all", label: "All" },
           ],
-          activecolor: colorScheme === "dark" ? "#4c6ef5" : "#228be6",
-          bgcolor: colorScheme === "dark" ? "#2c2e33" : "#f1f3f5",
         },
-        range: xAxisRange || defaultRange,
+        range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
+        ...getChartAxisStyle(colorScheme),
         title: `Percent of visits${getScaleTitleSuffix(normalizedChartScale)}`,
         range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
         autorange: isPlotlyLogScale(normalizedChartScale)
@@ -640,19 +652,13 @@ const NSSPView = ({ location, data, metadata }) => {
       },
       showlegend: showLegend ?? true,
       legend: {
-        x: 0,
-        y: 1,
+        ...getChartLegendStyle(colorScheme),
+        x: 0.01,
+        y: 0.99,
         xanchor: "left",
         yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: { size: 10 },
       },
-      margin: { t: 56, r: 10, l: 72, b: 120 },
+      margin: { t: 56, r: 10, l: 72, b: 40 },
       uirevision: plotRevision,
       annotations:
         selectedColumns.length === 0
@@ -688,7 +694,9 @@ const NSSPView = ({ location, data, metadata }) => {
   const plotConfig = useMemo(
     () => ({
       responsive: true,
-      displayModeBar: true,
+      // Plotly's toolbar is hidden: download lives in the chart header,
+      // zoom in the minimap and range buttons
+      displayModeBar: false,
       displaylogo: false,
       showSendToCloud: false,
       plotlyServerURL: "",
@@ -794,7 +802,7 @@ const NSSPView = ({ location, data, metadata }) => {
 
       {shouldShowPlot ? (
         <Stack gap="md" w="100%">
-          <TitleRow title={plotTitle} timestamp={metadata?.last_updated} />
+          <TitleRow title={plotTitle} />
           {hasReachedCountyDetail ? (
             <Text size="sm" c="dimmed" ta="center">
               County selections resolve to their shared HSA grouping when
@@ -804,7 +812,7 @@ const NSSPView = ({ location, data, metadata }) => {
           <div
             style={{
               width: "100%",
-              height: "min(880px, 75vh)",
+              height: "min(780px, 66vh)",
               minHeight: 360,
             }}
           >
@@ -818,6 +826,7 @@ const NSSPView = ({ location, data, metadata }) => {
               onRelayout={handleRelayout}
             />
           </div>
+          <ChartCaption />
 
           <NSSPColumnSelector
             availableColumns={availableColumns}
