@@ -59,11 +59,31 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
   const clipboard = useClipboard({ timeout: 2000 });
   const chartAreaRef = useRef(null);
 
-  // Saves the main chart (the first plot in the view) as a PNG
+  // Saves the main chart (the first plot in the view) as a PNG: a copy of
+  // the figure at the range on screen, without the minimap or the
+  // 1m / 6m / All buttons (controls, not part of the chart)
   const handleDownload = () => {
     const plot = chartAreaRef.current?.querySelector(".js-plotly-plot");
-    if (!plot) return;
-    Plotly.downloadImage(plot, {
+    if (!plot?._fullLayout) return;
+    const full = plot._fullLayout;
+    const layout = { ...plot.layout };
+    Object.keys(full)
+      .filter((key) => /^[xy]axis\d*$/.test(key))
+      .forEach((key) => {
+        layout[key] = {
+          ...layout[key],
+          range: [...full[key].range],
+          autorange: false,
+          ...(key.startsWith("x") && {
+            rangeslider: { visible: false },
+            rangeselector: { visible: false },
+          }),
+        };
+      });
+    const figure = { data: plot.data, layout };
+    Plotly.downloadImage(figure, {
+      width: full.width,
+      height: full.height,
       format: "png",
       filename: buildPlotDownloadName(viewType),
       scale: PLOT_DOWNLOAD_IMAGE_SCALE,
