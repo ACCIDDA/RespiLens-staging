@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-import { IconAlertTriangle, IconChevronRight } from "@tabler/icons-react";
+import { Alert, Loader, Stack, Text } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
 import NSSPGeoMap from "./NSSPGeoMap";
+import OverviewTile from "./OverviewTile";
 import {
   NSSP_STATE_ABBREVIATION_TO_INFO,
   fetchNsspCountiesGeoJson,
@@ -253,149 +245,134 @@ const NSSPOverviewGraph = () => {
       : `No NSSP data for ${stateInfo?.name || selectedStateAbbreviation}`;
 
   return (
-    <Card withBorder radius="md" padding="lg" shadow="xs">
-      <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={5}>NSSP data</Title>
-        </Group>
-
-        {loading && (
-          <Stack align="center" gap="xs" py="lg">
-            <Loader size="sm" />
-            <Text size="sm" c="dimmed">
-              Loading NSSP map...
-            </Text>
-          </Stack>
-        )}
-
-        {!loading && error && (
-          <Text size="sm" c="red">
-            No NSSP map available
+    <OverviewTile
+      title="NSSP data"
+      subtitle="Emergency department visits"
+      actionLabel={isActive ? "Viewing" : "View NSSP data"}
+      actionActive={isActive}
+      onAction={() => setViewAndLocation("nsspall", nsspViewTarget)}
+      locationLabel={locationLabel}
+    >
+      {loading && (
+        <Stack align="center" gap="xs" py="lg">
+          <Loader size="sm" />
+          <Text size="sm" c="dimmed">
+            Loading NSSP map...
           </Text>
-        )}
+        </Stack>
+      )}
 
-        {hasUsMap && isUnitedStates && (
-          <Stack gap="xs">
-            <div style={{ width: "100%", minHeight: 200 }}>
-              <NSSPGeoMap
-                featureCollection={usMapData}
-                height={NSSP_MAP_HEIGHTS.usa}
-                projectionKind="usa"
-                onFeatureClick={handleStateClick}
-                isFeatureClickable={isStateClickable}
-                getFeatureKey={(feature) => feature.properties?.STUSAB}
-                getFeatureLabel={(feature) => {
-                  const stateAbbreviation = feature.properties?.STUSAB;
-                  const stateName =
-                    feature.properties?.NAME || stateAbbreviation || "State";
-                  return stateCoverage[stateAbbreviation]?.hasAnyData
-                    ? stateName
-                    : `${stateName}: no NSSP data available`;
-                }}
-                getFeatureFill={getStateFill}
-                getFeatureCallout={getNsspUsFeatureCallout}
-              />
-            </div>
-          </Stack>
-        )}
+      {!loading && error && (
+        <Text size="sm" c="red">
+          No NSSP map available
+        </Text>
+      )}
 
-        {!loading &&
-          !error &&
-          !isUnitedStates &&
-          !currentStateCoverage.hasAnyData && (
-            <Alert
-              icon={<IconAlertTriangle size={16} />}
-              color="yellow"
-              variant="light"
-            >
-              No NSSP data is available for{" "}
-              {stateInfo?.name || selectedStateAbbreviation}.
-            </Alert>
-          )}
+      {hasUsMap && isUnitedStates && (
+        <Stack gap="xs">
+          <div style={{ width: "100%", minHeight: 200 }}>
+            <NSSPGeoMap
+              featureCollection={usMapData}
+              height={NSSP_MAP_HEIGHTS.usa}
+              projectionKind="usa"
+              onFeatureClick={handleStateClick}
+              isFeatureClickable={isStateClickable}
+              getFeatureKey={(feature) => feature.properties?.STUSAB}
+              getFeatureLabel={(feature) => {
+                const stateAbbreviation = feature.properties?.STUSAB;
+                const stateName =
+                  feature.properties?.NAME || stateAbbreviation || "State";
+                return stateCoverage[stateAbbreviation]?.hasAnyData
+                  ? stateName
+                  : `${stateName}: no NSSP data available`;
+              }}
+              getFeatureFill={getStateFill}
+              getFeatureCallout={getNsspUsFeatureCallout}
+            />
+          </div>
+        </Stack>
+      )}
 
-        {!loading &&
-          !error &&
-          !isUnitedStates &&
-          currentStateCoverage.hasAnyData &&
-          !currentStateCoverage.hasCountyData && (
-            <Alert
-              icon={<IconAlertTriangle size={16} />}
-              color="yellow"
-              variant="light"
-            >
-              County-level NSSP data is not available for {stateInfo?.name}.
-            </Alert>
-          )}
-
-        {!loading &&
-          !error &&
-          !isUnitedStates &&
-          currentStateCoverage.hasAnyData &&
-          currentStateCoverage.hasCountyData && (
-            <Stack gap="xs">
-              {detailLoading ? (
-                <Stack align="center" gap="xs" py="lg">
-                  <Loader size="sm" />
-                  <Text size="sm" c="dimmed">
-                    Loading {stateInfo?.name} NSSP map...
-                  </Text>
-                </Stack>
-              ) : hasStateMap ? (
-                <div style={{ width: "100%", minHeight: 200 }}>
-                  <NSSPGeoMap
-                    featureCollection={stateMapData}
-                    height={NSSP_MAP_HEIGHTS.state}
-                    projectionKind="state"
-                    onFeatureClick={handleCountyClick}
-                    isFeatureClickable={isCountyClickable}
-                    getFeatureKey={(feature) => feature.properties?.GEOID}
-                    getFeatureLabel={(feature) => {
-                      const selection = getCountySelectionForFeature(
-                        feature,
-                        countyAssignmentData,
-                      );
-                      const countyName = feature.properties?.NAME || "County";
-
-                      if (!selection.hasData) {
-                        return `${countyName}: no NSSP data available`;
-                      }
-
-                      return selection.isStatewideFallback
-                        ? `${countyName}: uses statewide NSSP data`
-                        : countyName;
-                    }}
-                    getFeatureFill={getCountyFill}
-                  />
-                </div>
-              ) : (
-                <Alert
-                  icon={<IconAlertTriangle size={16} />}
-                  color="yellow"
-                  variant="light"
-                >
-                  County-level NSSP data is not available for {stateInfo?.name}.
-                </Alert>
-              )}
-            </Stack>
-          )}
-
-        <Group justify="space-between" align="center">
-          <Button
-            size="xs"
-            variant={isActive ? "light" : "filled"}
-            onClick={() => {
-              setViewAndLocation("nsspall", nsspViewTarget);
-            }}
-            rightSection={<IconChevronRight size={14} />}
+      {!loading &&
+        !error &&
+        !isUnitedStates &&
+        !currentStateCoverage.hasAnyData && (
+          <Alert
+            icon={<IconAlertTriangle size={16} />}
+            color="yellow"
+            variant="light"
           >
-            {isActive ? "Viewing" : "View NSSP data"}
-          </Button>
-          <Text size="xs" c="dimmed">
-            {locationLabel}
-          </Text>
-        </Group>
-      </Stack>
-    </Card>
+            No NSSP data is available for{" "}
+            {stateInfo?.name || selectedStateAbbreviation}.
+          </Alert>
+        )}
+
+      {!loading &&
+        !error &&
+        !isUnitedStates &&
+        currentStateCoverage.hasAnyData &&
+        !currentStateCoverage.hasCountyData && (
+          <Alert
+            icon={<IconAlertTriangle size={16} />}
+            color="yellow"
+            variant="light"
+          >
+            County-level NSSP data is not available for {stateInfo?.name}.
+          </Alert>
+        )}
+
+      {!loading &&
+        !error &&
+        !isUnitedStates &&
+        currentStateCoverage.hasAnyData &&
+        currentStateCoverage.hasCountyData && (
+          <Stack gap="xs">
+            {detailLoading ? (
+              <Stack align="center" gap="xs" py="lg">
+                <Loader size="sm" />
+                <Text size="sm" c="dimmed">
+                  Loading {stateInfo?.name} NSSP map...
+                </Text>
+              </Stack>
+            ) : hasStateMap ? (
+              <div style={{ width: "100%", minHeight: 200 }}>
+                <NSSPGeoMap
+                  featureCollection={stateMapData}
+                  height={NSSP_MAP_HEIGHTS.state}
+                  projectionKind="state"
+                  onFeatureClick={handleCountyClick}
+                  isFeatureClickable={isCountyClickable}
+                  getFeatureKey={(feature) => feature.properties?.GEOID}
+                  getFeatureLabel={(feature) => {
+                    const selection = getCountySelectionForFeature(
+                      feature,
+                      countyAssignmentData,
+                    );
+                    const countyName = feature.properties?.NAME || "County";
+
+                    if (!selection.hasData) {
+                      return `${countyName}: no NSSP data available`;
+                    }
+
+                    return selection.isStatewideFallback
+                      ? `${countyName}: uses statewide NSSP data`
+                      : countyName;
+                  }}
+                  getFeatureFill={getCountyFill}
+                />
+              </div>
+            ) : (
+              <Alert
+                icon={<IconAlertTriangle size={16} />}
+                color="yellow"
+                variant="light"
+              >
+                County-level NSSP data is not available for {stateInfo?.name}.
+              </Alert>
+            )}
+          </Stack>
+        )}
+    </OverviewTile>
   );
 };
 

@@ -45,8 +45,12 @@ import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
 import {
   CHART_CONSTANTS,
-  PLOT_CHROME,
   RANGESLIDER_STYLE,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  getBaseChartLayout,
+  getChartInk,
+  getForecastDateLineStyle,
 } from "../../constants/chart";
 import { extendStableModelOrder } from "../../utils/modelColorUtils";
 import {
@@ -1882,6 +1886,9 @@ const MyRespiVisualizationPanel = ({
     selectedModels,
     target: selectedTarget,
     showLegendForFirstDate: showLegend,
+    groundTruthLineWidth: GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: GROUND_TRUTH_MARKER_SIZE,
+    groundTruthColor: getChartInk(colorScheme).text,
     showMedian: intervalVisibility.median ?? hasMedian,
     fillMissingQuantiles: false,
     intervalDefinitions,
@@ -2019,24 +2026,13 @@ const MyRespiVisualizationPanel = ({
 
   const layout = useMemo(
     () => ({
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      ...PLOT_CHROME,
-      font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+      ...getBaseChartLayout(colorScheme),
       showlegend: showLegend,
-      legend: {
-        x: 0,
-        y: 1,
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255,255,255,0.8)",
-        font: { size: 10 },
-      },
       hovermode: "closest",
       dragmode: false,
       margin: { l: 60, r: 30, t: 30, b: 30 },
       xaxis: {
+        ...getBaseChartLayout(colorScheme).xaxis,
         rangeslider: {
           ...RANGESLIDER_STYLE,
           range: getDefaultViewerRange(
@@ -2048,6 +2044,7 @@ const MyRespiVisualizationPanel = ({
         range: xAxisRange || defaultRange,
       },
       yaxis: {
+        ...getBaseChartLayout(colorScheme).yaxis,
         title: `${selectedTarget || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
         range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
         autorange: isPlotlyLogScale(normalizedChartScale)
@@ -2081,7 +2078,7 @@ const MyRespiVisualizationPanel = ({
           y0: 0,
           y1: 1,
           yref: "paper",
-          line: { color: "red", width: 1, dash: "dash" },
+          line: getForecastDateLineStyle(colorScheme),
         };
       }),
     }),
@@ -2369,28 +2366,24 @@ const HubSelectionScreen = () => {
         description="Validate and prepare Hubverse forecast CSV files for use in Forecast Checker."
         canonicalPath="/toolbox/forecast-checker"
       />
-      <Container size="xl" py="xl" style={{ maxWidth: "1500px" }}>
-        <Stack gap="xl" maw={1320} mx="auto">
-          <Stack gap="sm">
-            <Group justify="center" align="center" wrap="nowrap">
+      <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1500px" }}>
+        <Stack gap="xl" maw={1320}>
+          <Stack gap={4}>
+            <Group gap="xs" align="center" wrap="nowrap">
               <Tooltip label="Back to toolbox" withArrow>
                 <ActionIcon
                   variant="subtle"
-                  color="blue"
-                  size="xl"
-                  radius="xl"
+                  color="gray"
                   onClick={() => navigate("/toolbox")}
                   aria-label="Back to toolbox"
                 >
-                  <IconArrowLeft size={24} stroke={2.25} />
+                  <IconArrowLeft size={18} />
                 </ActionIcon>
               </Tooltip>
-              <Title order={1} c="blue" ta="center">
-                Forecast Checker
-              </Title>
+              <Title order={1}>Forecast Checker</Title>
             </Group>
-            <Text size="lg" ta="center">
-              Select a hub and drop your data for instant visualization!
+            <Text size="sm" c="dimmed">
+              Select a hub and drop your data for instant visualization.
             </Text>
           </Stack>
 
@@ -2868,7 +2861,7 @@ const OtherHubScreen = () => {
         description="Provide ground truth and forecast data for a hub that is not currently listed in Forecast Checker."
         canonicalPath="/toolbox/forecast-checker/other-hub"
       />
-      <Container size="xl" py="xl" fluid>
+      <Container size="xl" pt="md" pb="xl" fluid>
         <Stack gap="lg">
           {isShowingVisualization ? (
             <Group justify="space-between" align="center">
@@ -3591,7 +3584,7 @@ const HubUploadScreen = () => {
         description={`Validate Hubverse CSV data for ${hubConfig.label} before Forecast Checker conversion.`}
         canonicalPath={`/toolbox/forecast-checker/${hubConfig.slug}`}
       />
-      <Container size="xl" py="xl" fluid>
+      <Container size="xl" pt="md" pb="xl" fluid>
         <Stack gap="lg">
           {isShowingVisualization ? (
             <Group justify="space-between" align="center">

@@ -65,12 +65,10 @@ const Documentation = () => {
         description="Learn how to visualize your data with Forecast Checker, what user-uploaded forecast data must contain, what gets filtered out, and what causes upload failures."
         canonicalPath="/toolbox/forecast-checker/documentation"
       />
-      <Container size="lg" py="xl">
+      <Container size="lg" pt="md" pb="xl">
         <Stack gap="lg">
           <Stack gap="sm">
-            <Title order={1} c="blue">
-              Forecast Checker Documentation
-            </Title>
+            <Title order={1}>Forecast Checker Documentation</Title>
           </Stack>
 
           <SectionCard

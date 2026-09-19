@@ -1449,7 +1449,7 @@ const ForecastleGame = () => {
         description="Play Forecastle, an interactive respiratory disease forecasting challenge that lets you compare your predictions with official model forecasts."
         canonicalPath="/forecastle"
       />
-      <Container size="xl" py="xl" style={{ maxWidth: "1100px" }}>
+      <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1100px" }}>
         {renderContent()}
         <ForecastleStatsModal
           opened={statsModalOpened}

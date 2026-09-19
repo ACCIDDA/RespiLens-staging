@@ -31,6 +31,7 @@ import {
 } from "../../utils/mapUtils";
 import { getDataPath } from "../../utils/paths";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
+import useForecastDateDrag from "../../hooks/useForecastDateDrag";
 import {
   buildLog2Ticks,
   buildSqrtTicks,
@@ -151,6 +152,16 @@ const MetroPlotCard = ({
   });
 
   const defRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+
+  // On the main chart: click to add a forecast date, drag a line to move it
+  const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
+    selectedDates,
+    enabled: !isSmall,
+    onBeforeCommit: (gd) => {
+      const range = gd?._fullLayout?.xaxis?.range;
+      if (!xAxisRange && range) setXAxisRange([...range]);
+    },
+  });
 
   const yAxisRange = useMemo(() => {
     const range = xAxisRange || defRange;
@@ -292,15 +303,37 @@ const MetroPlotCard = ({
           hoverlabel: {
             namelength: -1,
           },
-          shapes: selectedDates.map((d) => ({
+          shapes: displayDates.map((d) => ({
             type: "line",
             x0: d,
             x1: d,
             y0: 0,
             y1: 1,
             yref: "paper",
-            line: getForecastDateLineStyle(colorScheme),
+            line:
+              d === draggingDate
+                ? {
+                    ...getForecastDateLineStyle(colorScheme),
+                    width: 2.5,
+                    dash: "dash",
+                  }
+                : getForecastDateLineStyle(colorScheme),
           })),
+          annotations: draggingDate
+            ? [
+                {
+                  x: draggingDate,
+                  y: 1,
+                  yref: "paper",
+                  yanchor: "bottom",
+                  text: draggingDate,
+                  showarrow: false,
+                  font: { ...getChartFont(colorScheme), size: 12 },
+                  bgcolor: colorScheme === "dark" ? "#25262b" : "#ffffff",
+                  borderpad: 2,
+                },
+              ]
+            : [],
         }}
         config={{
           // Plotly's toolbar is hidden: download lives in the chart header,
@@ -360,7 +393,9 @@ const MetroPlotCard = ({
       />
     </Paper>
   ) : (
-    <Box style={{ position: "relative" }}>{PlotContent}</Box>
+    <Box ref={containerRef} style={{ position: "relative" }}>
+      {PlotContent}
+    </Box>
   );
 };
 

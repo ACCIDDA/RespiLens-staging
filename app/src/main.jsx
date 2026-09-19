@@ -10,6 +10,11 @@ import "@mantine/carousel/styles.css";
 import "./styles/global.css";
 import App from "./App.jsx";
 import { theme, cssVariablesResolver } from "./theme/mantine.js";
+import { applyChartJsDefaults } from "./constants/chart";
+
+// Chart.js charts (Forecastle, reporting delays) use the same type as the
+// Plotly ones
+applyChartJsDefaults();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

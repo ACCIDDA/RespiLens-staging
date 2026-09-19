@@ -9,7 +9,8 @@
      hairlines - so blue is left to mean "interactive / selected" (pickers,
      links, the current view) instead of washing over the whole frame. */
   --respilens-chrome: #ffffff;
-  --respilens-sidebar: #fafafa;
+  /* A breath of cool tint so the sidebar isn't a flat grey */
+  --respilens-sidebar: #f3f7fc;
   --respilens-sidebar-edge: rgba(15, 23, 42, 0.08);
   --respilens-canvas: #ffffff;
   --respilens-surface: #ffffff;
@@ -179,4 +180,70 @@ body {
 
 .js-plotly-plot .rangeslider-container .scatterlayer .points {
   display: none;
+}
+
+/* Site-section rows in the sidebar: neutral until hovered, the current
+   section tinted. The blue accent bar is kept for the current view in the
+   dataset list below, so only one row carries it. */
+.respilens-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--mantine-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--respilens-ink);
+  transition: background-color 120ms ease;
+}
+
+.respilens-nav-row svg {
+  color: var(--respilens-ink-soft);
+  flex-shrink: 0;
+}
+
+.respilens-nav-row:hover {
+  background-color: rgba(15, 23, 42, 0.05);
+}
+
+.respilens-nav-row[data-active] {
+  background-color: rgba(0, 118, 209, 0.08);
+  color: var(--mantine-color-blue-8);
+  font-weight: 600;
+}
+
+.respilens-nav-row[data-active] svg {
+  color: var(--mantine-color-blue-7);
+}
+
+/* "About RespiLens" keeps the brand red of the old Info link */
+.respilens-nav-row[data-tone="brand"],
+.respilens-nav-row[data-tone="brand"] svg {
+  color: var(--mantine-color-red-7);
+}
+
+.respilens-nav-row[data-tone="brand"]:hover {
+  background-color: rgba(224, 49, 49, 0.07);
+}
+
+/* A whole tile that links somewhere: flat hairline box, border and title
+   darken on hover */
+.respilens-tile-link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.respilens-tile-link:hover {
+  border-color: var(--respilens-hairline-strong);
+  background-color: rgba(15, 23, 42, 0.015);
+}
+
+/* Chart tiles in a grid (front page, My Plots): no card, just a hairline
+   along the top so neighbouring charts read as separate */
+.respilens-tile {
+  border-top: 1px solid var(--respilens-hairline);
+  padding-top: 12px;
 }

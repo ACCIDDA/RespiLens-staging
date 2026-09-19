@@ -64,7 +64,7 @@ const ChartHeader = ({ onSave, isAdded, onShare, shareCopied, onDownload }) => {
           <Text span inherit c="dimmed" fw={400}>
             in
           </Text>{" "}
-          <LocationPicker />
+          <LocationPicker arrowKeys />
         </Title>
 
         {/* Each fact stays on one line; facts wrap as whole units */}

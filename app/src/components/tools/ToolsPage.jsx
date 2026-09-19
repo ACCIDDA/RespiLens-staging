@@ -1,6 +1,5 @@
 import {
   Badge,
-  Button,
   Card,
   Container,
   Group,
@@ -11,7 +10,6 @@ import {
 } from "@mantine/core";
 import {
   IconClock,
-  IconTools,
   IconAdjustmentsCheck,
   IconLockSquareRounded,
 } from "@tabler/icons-react";
@@ -53,39 +51,44 @@ const ToolsPage = () => {
         description="Browse the RespiLens Toolbox, including Forecast Checker for private forecast visualization and the reporting delay explorer for nowcasting preparation."
         canonicalPath="/toolbox"
       />
-      <Container size="xl" py="xl">
+      <Container size="xl" pt="md" pb="xl">
         <Stack gap="lg">
-          <Group align="center">
-            <IconTools size={28} />
-            <Title order={1}>RespiLens Toolbox</Title>
-          </Group>
-          <Text c="dimmed" size="lg">
-            Lightweight infectious disease modeling utilities that run privately
-            in your browser. No data leaves your computer.
-          </Text>
+          <Stack gap={4}>
+            <Title order={1}>Toolbox</Title>
+            <Text size="sm" c="dimmed">
+              Lightweight infectious disease modeling utilities that run
+              privately in your browser. No data leaves your computer.
+            </Text>
+          </Stack>
 
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             {tools.map((tool) => (
-              <Card key={tool.title} withBorder radius="md" padding="lg">
-                <Stack gap="sm">
+              // The whole tile is the link
+              <Card
+                key={tool.title}
+                component={Link}
+                to={tool.href}
+                withBorder
+                radius="md"
+                padding="lg"
+                className="respilens-tile-link"
+              >
+                <Stack gap="sm" h="100%">
                   <Group justify="space-between">
                     <Group>
-                      <tool.icon size={22} />
+                      <tool.icon size={20} stroke={1.75} />
                       <Title order={3}>{tool.title}</Title>
                     </Group>
-                    <Badge variant="light">{tool.badge}</Badge>
+                    <Badge variant="light" color="gray">
+                      {tool.badge}
+                    </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
                     {tool.description}
                   </Text>
-                  <Button
-                    component={Link}
-                    to={tool.href}
-                    size="sm"
-                    w="fit-content"
-                  >
-                    Open tool
-                  </Button>
+                  <Text size="sm" c="blue.7" fw={500} mt="auto">
+                    Open tool →
+                  </Text>
                 </Stack>
               </Card>
             ))}

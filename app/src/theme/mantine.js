@@ -58,8 +58,9 @@ export const theme = createTheme({
     fontFamily: SYSTEM_SANS,
     fontWeight: "600",
     sizes: {
-      h1: { fontSize: "1.875rem", lineHeight: "1.25", fontWeight: "650" },
-      h2: { fontSize: "1.5rem", lineHeight: "1.3", fontWeight: "620" },
+      // Page titles everywhere match the dashboard's chart title (24px)
+      h1: { fontSize: "1.5rem", lineHeight: "1.35", fontWeight: "600" },
+      h2: { fontSize: "1.25rem", lineHeight: "1.35", fontWeight: "600" },
       h3: { fontSize: "1.1875rem", lineHeight: "1.35", fontWeight: "600" },
       h4: { fontSize: "1.0625rem", lineHeight: "1.4", fontWeight: "600" },
       h5: { fontSize: "0.9375rem", lineHeight: "1.45", fontWeight: "600" },
@@ -67,13 +68,12 @@ export const theme = createTheme({
     },
   },
 
-  // Soft, low-contrast elevation. Depth should read as light, not as a box.
-  // The page is pure white, so shadow is the only thing separating a card
-  // from its background - hence a little more weight than a tinted page
-  // would need, and a tight contact shadow under a broader ambient one.
+  // Flat page: cards (which use xs/sm) are separated by hairline borders,
+  // not shadows, matching the dashboard. Floating layers - dropdowns,
+  // popovers, modals (md and up) - keep a soft elevation.
   shadows: {
-    xs: "0 1px 2px rgba(15, 23, 42, 0.06)",
-    sm: "0 1px 2px rgba(15, 23, 42, 0.06), 0 3px 8px rgba(15, 23, 42, 0.07)",
+    xs: "none",
+    sm: "none",
     md: "0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.09)",
     lg: "0 4px 8px rgba(15, 23, 42, 0.06), 0 18px 36px rgba(15, 23, 42, 0.11)",
     xl: "0 8px 16px rgba(15, 23, 42, 0.07), 0 30px 60px rgba(15, 23, 42, 0.13)",

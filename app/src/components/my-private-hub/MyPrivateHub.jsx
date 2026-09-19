@@ -722,7 +722,7 @@ const MyPrivateHub = () => {
         description="Process and visualize a private Hubverse folder in your browser."
         canonicalPath="/toolbox/my-private-hub"
       />
-      <Container size="xl" py="xl" fluid>
+      <Container size="xl" pt="md" pb="xl" fluid>
         <Stack gap="lg">
           <Group justify="space-between" align="center">
             <Group gap="xs">

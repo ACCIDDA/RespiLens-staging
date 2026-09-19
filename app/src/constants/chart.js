@@ -1,5 +1,6 @@
 // Chart and visualization constants
 import { CHART_CONFIG } from "../config";
+import { Chart as ChartJS } from "chart.js";
 import { SYSTEM_SANS } from "../theme/mantine";
 
 export const CHART_CONSTANTS = {
@@ -154,3 +155,40 @@ export const getForecastDateLineStyle = (colorScheme) => ({
 // Observed data is the reference series: drawn heavier than model lines
 export const GROUND_TRUTH_LINE_WIDTH = 2.5;
 export const GROUND_TRUTH_MARKER_SIZE = 5;
+
+// The layout every Plotly chart in the app starts from: app font, spined
+// axes, borderless legend, transparent background. `compact` is for small
+// charts (front-page cards, My Plots tiles). Callers spread it and add their
+// own ranges, titles and shapes.
+export const getBaseChartLayout = (colorScheme, { compact = false } = {}) => {
+  const axis = getChartAxisStyle(colorScheme);
+  const tickfont = { ...axis.tickfont, size: compact ? 10 : 12 };
+  return {
+    autosize: true,
+    template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
+    ...PLOT_CHROME,
+    font: { ...getChartFont(colorScheme), size: compact ? 11 : 13 },
+    legend: {
+      ...getChartLegendStyle(colorScheme),
+      x: 0.01,
+      y: 0.99,
+      xanchor: "left",
+      yanchor: "top",
+    },
+    xaxis: { ...axis, tickfont },
+    yaxis: { ...axis, tickfont },
+  };
+};
+
+// Observed line on small charts: still the heaviest line, scaled down
+export const COMPACT_GROUND_TRUTH_LINE_WIDTH = 2;
+
+// Global Chart.js defaults matching the Plotly charts: app font, muted tick
+// text, hairline grid
+export const applyChartJsDefaults = () => {
+  const ink = CHART_INK.light;
+  ChartJS.defaults.font.family = SYSTEM_SANS;
+  ChartJS.defaults.font.size = 12;
+  ChartJS.defaults.color = ink.soft;
+  ChartJS.defaults.borderColor = ink.grid;
+};

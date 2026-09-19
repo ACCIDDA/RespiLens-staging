@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
-import { Stack, Button, Text, Box } from "@mantine/core";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { Stack, Button, Text, Box, Group } from "@mantine/core";
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconChartLine,
+  IconActivityHeartbeat,
+} from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
 import { DATASETS } from "../config";
 
-const ViewSelector = () => {
+// Forecasts and surveillance data as two always-open groups, each with its
+// own heading and icon. `showActive`: highlight the current view (off on pages
+// that are not a chart, where the remembered view is not "where you are").
+const ViewSelector = ({ showActive = true }) => {
   const { viewType, setViewType } = useView();
   const [isFluExpanded, setIsFluExpanded] = useState(false);
 
@@ -92,7 +100,8 @@ const ViewSelector = () => {
       styles={{
         root: {
           height: nested ? 32 : 34,
-          paddingLeft: nested ? 22 : 10,
+          // Rows sit under their group heading's text, past its icon
+          paddingLeft: nested ? 44 : 32,
           paddingRight: 10,
           backgroundColor: isActive ? "rgba(0, 118, 209, 0.08)" : undefined,
           boxShadow: isActive
@@ -122,17 +131,20 @@ const ViewSelector = () => {
     </Button>
   );
 
-  const renderSection = (title, options) => (
+  const renderSection = (title, Icon, options) => (
     <Stack gap={2}>
-      <Text size="xs" fw={700} px={10} pb={4} className="respilens-eyebrow">
-        {title}
-      </Text>
+      <Group gap={8} px={10} pb={4} wrap="nowrap">
+        <Icon size={14} stroke={2} className="respilens-eyebrow" />
+        <Text size="xs" fw={700} className="respilens-eyebrow">
+          {title}
+        </Text>
+      </Group>
       {options.map((option) => {
         if (!option.children) {
           return renderOptionButton({
             label: option.label,
             value: option.value,
-            isActive: viewType === option.value,
+            isActive: showActive && viewType === option.value,
             onClick: () => handleViewSelect(option.value),
           });
         }
@@ -142,7 +154,7 @@ const ViewSelector = () => {
             {renderOptionButton({
               label: option.label,
               value: option.value,
-              isParentActive: isFluActive,
+              isParentActive: showActive && isFluActive,
               rightSection: isFluExpanded ? (
                 <IconChevronDown size={14} />
               ) : (
@@ -162,7 +174,7 @@ const ViewSelector = () => {
                     label: child.label,
                     value: child.value,
                     nested: true,
-                    isActive: viewType === child.value,
+                    isActive: showActive && viewType === child.value,
                     onClick: () => handleViewSelect(child.value),
                   }),
                 )}
@@ -176,8 +188,12 @@ const ViewSelector = () => {
 
   return (
     <Stack gap="md">
-      {renderSection("Forecasts", forecastOptions)}
-      {renderSection("Surveillance data", surveillanceOptions)}
+      {renderSection("Forecasts", IconChartLine, forecastOptions)}
+      {renderSection(
+        "Surveillance data",
+        IconActivityHeartbeat,
+        surveillanceOptions,
+      )}
     </Stack>
   );
 };

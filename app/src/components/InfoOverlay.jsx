@@ -18,35 +18,41 @@ import {
   IconWorld,
 } from "@tabler/icons-react";
 
-const InfoOverlay = () => {
+// `renderTrigger(open)` replaces the default Info button (e.g. a sidebar row)
+const InfoOverlay = ({ renderTrigger } = {}) => {
   const [opened, { open, close }] = useDisclosure(false);
 
   return (
     <>
-      {/* Desktop - Full button with text */}
-      <Button
-        variant="subtle"
-        color="red"
-        size="sm"
-        leftSection={<IconInfoCircle size={20} />}
-        onClick={open}
-        radius="xl"
-        visibleFrom="sm"
-      >
-        Info
-      </Button>
+      {renderTrigger && renderTrigger(open)}
+      {!renderTrigger && (
+        <>
+          {/* Desktop - Full button with text */}
+          <Button
+            variant="subtle"
+            color="red"
+            size="sm"
+            leftSection={<IconInfoCircle size={20} />}
+            onClick={open}
+            radius="xl"
+            visibleFrom="sm"
+          >
+            Info
+          </Button>
 
-      {/* Mobile - Icon only */}
-      <ActionIcon
-        variant="subtle"
-        color="red"
-        size="lg"
-        onClick={open}
-        aria-label="Info"
-        hiddenFrom="sm"
-      >
-        <IconInfoCircle size={20} />
-      </ActionIcon>
+          {/* Mobile - Icon only */}
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            size="lg"
+            onClick={open}
+            aria-label="Info"
+            hiddenFrom="sm"
+          >
+            <IconInfoCircle size={20} />
+          </ActionIcon>
+        </>
+      )}
 
       <Modal
         opened={opened}

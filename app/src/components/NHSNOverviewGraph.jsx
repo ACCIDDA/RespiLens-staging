@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect } from "react";
-import { IconChevronRight } from "@tabler/icons-react";
 import { getDataPath } from "../utils/paths";
 import { useView } from "../hooks/useView";
 import OverviewGraphCard from "./OverviewGraphCard";
@@ -156,6 +155,7 @@ const NHSNOverviewGraph = ({ location }) => {
   return (
     <OverviewGraphCard
       title="NHSN data"
+      subtitle="Weekly hospital admissions"
       loading={loading}
       loadingLabel="Loading CDC data..."
       error={error}
@@ -166,7 +166,6 @@ const NHSNOverviewGraph = ({ location }) => {
       actionLabel={isActive ? "Viewing" : "View NHSN data"}
       actionActive={isActive}
       onAction={() => setViewAndLocation("nhsnall", nhsnViewLocation)}
-      actionIcon={<IconChevronRight size={14} />}
       locationLabel={locationLabel}
     />
   );

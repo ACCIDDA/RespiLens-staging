@@ -4,16 +4,18 @@ import {
   Loader,
   Text,
   Box,
-  Stack,
-  Group,
-  Badge,
-  Tooltip,
   useMantineColorScheme,
 } from "@mantine/core";
 import Plot from "react-plotly.js";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { getModelColor } from "../../config/datasets";
-import { nhsnSlugToNameMap, targetDisplayNameMap } from "../../utils/mapUtils";
+import {
+  COMPACT_GROUND_TRUTH_LINE_WIDTH,
+  getBaseChartLayout,
+  getChartInk,
+  getForecastDateLineStyle,
+} from "../../constants/chart";
+import { nhsnSlugToNameMap } from "../../utils/mapUtils";
 import {
   buildLog2Ticks,
   buildSqrtTicks,
@@ -86,6 +88,10 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     showLegendForFirstDate: false,
     modelLineWidth: 1.5,
     modelMarkerSize: 4,
+    // Observed data heavier than model lines, as on the dashboard
+    groundTruthLineWidth: COMPACT_GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: 3,
+    groundTruthColor: getChartInk(colorScheme).text,
     transformY:
       normalizedScale === "sqrt" || normalizedScale === "log2"
         ? (value) => transformValueForScale(value, normalizedScale)
@@ -419,27 +425,24 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
           })
         : null;
 
+    // Same base as the front-page cards (compact size)
+    const shared = getBaseChartLayout(colorScheme, { compact: true });
     return {
-      autosize: true,
+      ...shared,
       height: plotHeight,
-      margin: { l: 40, r: 8, t: 8, b: 30 },
+      margin: { l: 44, r: 8, t: 8, b: 30 },
       showlegend: false,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor: "rgba(0,0,0,0)",
       dragmode: "pan",
       xaxis: {
+        ...shared.xaxis,
         showgrid: false,
         fixedrange: false,
-        tickfont: { size: 8 },
         range: xRange,
         tickformat: isFluPeak ? "%b" : undefined,
       },
       yaxis: {
-        showgrid: true,
-        gridcolor: colorScheme === "dark" ? "#333" : "#eee",
+        ...shared.yaxis,
         fixedrange: true,
-        tickfont: { size: 8 },
         type: isPlotlyLogScale(normalizedScale) ? "log" : "linear",
         range: isPlotlyLogScale(normalizedScale) ? undefined : yRange,
         nticks: 5,
@@ -461,7 +464,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
               y0: 0,
               y1: 1,
               yref: "paper",
-              line: { color: "red", width: 1, dash: "dash" },
+              line: getForecastDateLineStyle(colorScheme),
             }))
           : [],
     };
@@ -477,84 +480,6 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
     finalTraces,
     plotHeight,
   ]);
-
-  const tooltipContent = useMemo(() => {
-    const resolvedTarget =
-      targetDisplayNameMap[plot.settings.target] || plot.settings.target;
-    let detailBadges = plot.settings.dates?.map((date) => (
-      <Badge key={date} size="xs" variant="outline" color="blue.3">
-        {date}
-      </Badge>
-    ));
-
-    if (isNHSN) {
-      detailBadges = plot.settings.columns?.map((slug) => (
-        <Badge key={slug} size="xs" variant="outline" color="blue.3">
-          {nhsnSlugToNameMap[slug] || slug}
-        </Badge>
-      ));
-    } else if (isNSSP) {
-      detailBadges = plot.settings.columns?.map((column) => (
-        <Badge key={column} size="xs" variant="outline" color="blue.3">
-          {NSSP_COLUMN_LABELS[column] || column}
-        </Badge>
-      ));
-    }
-
-    return (
-      <Stack gap={8} p={5}>
-        <Text
-          fw={700}
-          size="xs"
-          c="blue.2"
-          style={{
-            borderBottom: "1px solid rgba(255,255,255,0.2)",
-            marginBottom: 4,
-          }}
-        >
-          PLOT INFO
-        </Text>
-
-        <Group gap={6} align="flex-start">
-          <Text size="xs" fw={700} style={{ flexShrink: 0 }}>
-            TARGET:
-          </Text>
-          <Text size="xs">{resolvedTarget}</Text>
-        </Group>
-
-        <Group gap={6}>
-          <Text size="xs" fw={700}>
-            SCALE:
-          </Text>
-          <Badge size="xs" variant="outline" color="blue.3">
-            {normalizedScale.toUpperCase()}
-          </Badge>
-        </Group>
-
-        <Stack gap={4}>
-          <Text size="xs" fw={700}>
-            {isNHSN || isNSSP ? "COLUMNS:" : "DATES:"}
-          </Text>
-          <Group gap={4}>{detailBadges}</Group>
-        </Stack>
-
-        {!isNHSN && !isNSSP && (
-          <Stack gap={4}>
-            <Text size="xs" fw={700}>
-              MODELS:
-            </Text>
-            <Group gap={4}>
-              {plot.settings.models?.map((model) => (
-                <Badge key={model} size="xs" variant="outline" color="blue.3">
-                  {model}
-                </Badge>
-              ))}
-            </Group>
-          </Stack>
-        )}
-      </Stack>
-    );
-  }, [plot.settings, isNHSN, isNSSP, normalizedScale]);
 
   if (loading) {
     return (
@@ -575,29 +500,20 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
   }
 
   return (
-    <Tooltip
-      label={tooltipContent}
-      position="bottom"
-      withArrow
-      multiline
-      w={350}
-      events={{ hover: true, focus: false, touch: true }}
-    >
-      <Box h={plotHeight} style={{ overflow: "hidden", cursor: "grab" }}>
-        <Plot
-          data={finalTraces}
-          layout={layout}
-          config={{
-            displayModeBar: false,
-            staticPlot: false,
-            scrollZoom: true,
-            responsive: true,
-          }}
-          style={{ width: "100%", height: "100%" }}
-          useResizeHandler
-        />
-      </Box>
-    </Tooltip>
+    <Box h={plotHeight} style={{ overflow: "hidden", cursor: "grab" }}>
+      <Plot
+        data={finalTraces}
+        layout={layout}
+        config={{
+          displayModeBar: false,
+          staticPlot: false,
+          scrollZoom: true,
+          responsive: true,
+        }}
+        style={{ width: "100%", height: "100%" }}
+        useResizeHandler
+      />
+    </Box>
   );
 };
 

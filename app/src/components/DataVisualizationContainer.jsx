@@ -584,7 +584,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
             description="Explore respiratory disease forecasts and surveillance data for influenza, COVID-19, RSV, and hospital respiratory metrics across the United States."
           />
         )}
-        <Container size="xl" py="xl" style={{ maxWidth: "1400px" }}>
+        <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
           <Stack gap="lg">
             <Title order={2} fz={{ base: 20, sm: 24 }} fw={600}>
               <Text span inherit c="dimmed" fw={400}>
@@ -608,7 +608,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
         />
       )}
       <ChartAboutContext.Provider value={chartAbout}>
-        <Container size="xl" py="xl" style={{ maxWidth: "1400px" }}>
+        <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
           <Stack gap="lg">
             <Stack gap="md" style={{ minHeight: "78vh" }}>
               <ChartHeader

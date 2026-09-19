@@ -18,6 +18,7 @@ import {
 } from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
+import useForecastDateDrag from "../hooks/useForecastDateDrag";
 import {
   buildLog2Ticks,
   buildSqrtTicks,
@@ -46,6 +47,9 @@ const FORECAST_DATASET_KEYS_BY_VIEW = {
   rsv_forecasts: "rsv",
   covid_forecasts: "covid19",
 };
+
+// Forecast date lines are drawn a few days before the reference date
+const FORECAST_LINE_OFFSET_DAYS = -3;
 
 const shiftDateStringByDays = (dateString, days) => {
   const [year, month, day] = dateString.split("-").map(Number);
@@ -226,6 +230,18 @@ const ForecastPlotView = ({
 
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
+  // Click the chart to add a forecast date, drag a date line to move it.
+  // Pin the visible window first so the chart does not re-centre on the
+  // new dates under the pointer.
+  const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
+    selectedDates,
+    lineOffsetDays: FORECAST_LINE_OFFSET_DAYS,
+    onBeforeCommit: (gd) => {
+      const range = gd?._fullLayout?.xaxis?.range;
+      if (!xAxisRange && range) setXAxisRange([...range]);
+    },
+  });
+
   useEffect(() => {
     setXAxisRange(null);
   }, [selectedTarget, resolvedForecastTarget]);
@@ -382,8 +398,12 @@ const ForecastPlotView = ({
       },
       shapes: [
         ...seasonDividerShapes,
-        ...selectedDates.map((date) => {
-          const shiftedDate = shiftDateStringByDays(date, -3);
+        ...displayDates.map((date) => {
+          const shiftedDate = shiftDateStringByDays(
+            date,
+            FORECAST_LINE_OFFSET_DAYS,
+          );
+          const lineStyle = getForecastDateLineStyle(colorScheme);
           return {
             type: "line",
             x0: shiftedDate,
@@ -391,10 +411,29 @@ const ForecastPlotView = ({
             y0: 0,
             y1: 1,
             yref: "paper",
-            line: getForecastDateLineStyle(colorScheme),
+            line:
+              date === draggingDate
+                ? { ...lineStyle, width: 2.5, dash: "dash" }
+                : lineStyle,
           };
         }),
       ],
+      // While dragging, label the date the line will land on
+      annotations: draggingDate
+        ? [
+            {
+              x: shiftDateStringByDays(draggingDate, FORECAST_LINE_OFFSET_DAYS),
+              y: 1,
+              yref: "paper",
+              yanchor: "bottom",
+              text: draggingDate,
+              showarrow: false,
+              font: { ...getChartFont(colorScheme), size: 12 },
+              bgcolor: colorScheme === "dark" ? "#25262b" : "#ffffff",
+              borderpad: 2,
+            },
+          ]
+        : [],
     };
 
     if (layoutOverrides) {
@@ -406,7 +445,8 @@ const ForecastPlotView = ({
     colorScheme,
     defaultRange,
     resolvedDisplayTarget,
-    selectedDates,
+    displayDates,
+    draggingDate,
     yAxisRange,
     xAxisRange,
     getDefaultRange,
@@ -485,6 +525,7 @@ const ForecastPlotView = ({
   return (
     <Stack>
       <div
+        ref={containerRef}
         style={{
           width: "100%",
           height: "min(880px, 60vh)",

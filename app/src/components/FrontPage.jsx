@@ -1,4 +1,5 @@
-import { SimpleGrid, Stack, Title, Anchor } from "@mantine/core";
+import { SimpleGrid, Stack, Group, Text, Anchor } from "@mantine/core";
+import { IconChartLine, IconActivityHeartbeat } from "@tabler/icons-react";
 import PathogenOverviewGraph from "./PathogenOverviewGraph";
 import NHSNOverviewGraph from "./NHSNOverviewGraph";
 import NSSPOverviewGraph from "./NSSPOverviewGraph";
@@ -49,11 +50,21 @@ const NsspViewLink = () => {
 };
 
 // Sections are separated by headings and whitespace rather than by a box
-// drawn around each group.
-const Section = ({ title, children }) => (
-  <Stack gap="sm" mt="xs">
-    <Title order={3}>{title}</Title>
-    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+// drawn around each group. Headings match the sidebar's groups (same label
+// and icon) so forecasts and surveillance data read as distinct.
+const Section = ({ title, icon: Icon, children }) => (
+  <Stack gap="md" mt="md">
+    <Group gap={8} wrap="nowrap">
+      <Icon size={16} stroke={2} className="respilens-eyebrow" />
+      <Text size="sm" fw={700} className="respilens-eyebrow">
+        {title}
+      </Text>
+    </Group>
+    <SimpleGrid
+      cols={{ base: 1, sm: 2, lg: 3 }}
+      spacing="xl"
+      verticalSpacing={40}
+    >
       {children}
     </SimpleGrid>
   </Stack>
@@ -88,7 +99,7 @@ const FrontPage = () => {
           "Flu and RSV forecasts are currently paused because they are out of season. FluSight will resume influenza forecasts on October 7, 2026, while MetroCast (the local influenza forecast) will resume on November 4, 2026. The RSV Forecast Hub will start on September 23, 2026. COVID-19 forecasts are issued year-round and continue."
         }
       />
-      <Section title="Explore forecasts by pathogen">
+      <Section title="Forecasts" icon={IconChartLine}>
         <PathogenOverviewGraph
           viewType="covid_forecasts"
           title="COVID-19"
@@ -106,7 +117,7 @@ const FrontPage = () => {
         />
       </Section>
 
-      <Section title="Explore surveillance data by source">
+      <Section title="Surveillance data" icon={IconActivityHeartbeat}>
         <NHSNOverviewGraph location={overviewLocation} />
         <NSSPOverviewGraph />
       </Section>
