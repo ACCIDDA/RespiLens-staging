@@ -85,14 +85,48 @@ const NHSNView = ({ location }) => {
   const normalizedChartScale = normalizeChartScale(chartScale);
 
   const [allDataColumns, setAllDataColumns] = useState([]); // All columns from JSON
-  const [filteredAvailableColumns, setFilteredAvailableColumns] = useState([]); // Columns for the selected target
-
-  const [selectedColumns, setSelectedColumns] = useState([]);
-  const hasInteractedRef = useRef(false);
   const [availableTargets, setAvailableTargets] = useState([]);
-  const [selectedTarget, setSelectedTarget] = useState(null); // This is the string key, e.g., "Raw Patient Counts"
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // The URL is the one source of the unit (target) and the plotted columns:
+  // read here, written only by the user's picks (see the handlers below).
+  // Syncing them two ways through state made the two overwrite each other
+  // after a location change. Columns this location lacks stay in the URL.
+  const urlTarget = searchParams.get("nhsn_target");
+  const selectedTarget = useMemo(() => {
+    if (availableTargets.length === 0) return null;
+    return urlTarget && availableTargets.includes(urlTarget)
+      ? urlTarget
+      : availableTargets[0];
+  }, [availableTargets, urlTarget]);
+
+  // Columns for the selected target
+  const filteredAvailableColumns = useMemo(() => {
+    if (!selectedTarget) return [];
+    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
+    return allDataColumns.filter((col) => columnsForTarget.includes(col));
+  }, [selectedTarget, allDataColumns]);
+
+  const defaultColumns = useMemo(() => {
+    const defaults = getDefaultColumnsForTarget(selectedTarget).filter((col) =>
+      filteredAvailableColumns.includes(col),
+    );
+    if (defaults.length > 0) return defaults;
+    return filteredAvailableColumns.length > 0
+      ? [filteredAvailableColumns[0]]
+      : [];
+  }, [selectedTarget, filteredAvailableColumns]);
+
+  const selectedColumns = useMemo(() => {
+    if (filteredAvailableColumns.length === 0) return [];
+    const urlSlugs = searchParams.getAll("nhsn_cols");
+    if (urlSlugs.includes("none")) return [];
+    const validUrlCols = urlSlugs
+      .map((slug) => nhsnSlugToNameMap[slug])
+      .filter((name) => name && filteredAvailableColumns.includes(name));
+    return validUrlCols.length > 0 ? validUrlCols : defaultColumns;
+  }, [searchParams, filteredAvailableColumns, defaultColumns]);
 
   const [dataRevision, setDataRevision] = useState(0);
   const [plotRevision, setPlotRevision] = useState(0);
@@ -196,18 +230,15 @@ const NHSNView = ({ location }) => {
   );
 
   useEffect(() => {
+    // The previous location's chart stays up (dimmed, see ViewSwitchboard)
+    // until this one arrives; a response for a location already left is
+    // dropped
+    let active = true;
     const fetchData = async () => {
       if (!location) return;
 
       try {
         setLoading(true);
-        setData(null);
-        setAllDataColumns([]);
-        setFilteredAvailableColumns([]);
-        setSelectedColumns([]);
-        setAvailableTargets([]);
-        setSelectedTarget(null);
-        setYAxisRange(null);
         setError(null);
 
         const dataUrl = getDataPath(`nhsn/${location}_nhsn.json`);
@@ -228,6 +259,7 @@ const NHSNView = ({ location }) => {
 
         const jsonData = await dataResponse.json();
         const jsonMetadata = await metadataResponse.json();
+        if (!active) return;
 
         if (!jsonData.series || !jsonData.series.dates) {
           throw new Error("Invalid data format");
@@ -246,155 +278,54 @@ const NHSNView = ({ location }) => {
         const targets = Object.keys(nhsnTargetsToColumnsMap);
         setAvailableTargets(targets);
       } catch (err) {
-        setError(err.message);
+        if (active) setError(err.message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchData();
+    return () => {
+      active = false;
+    };
   }, [location]);
 
-  useEffect(() => {
-    if (loading || availableTargets.length === 0) {
-      return;
-    }
-    const urlTarget = searchParams.get("nhsn_target");
-    const newTarget =
-      urlTarget && availableTargets.includes(urlTarget)
-        ? urlTarget
-        : availableTargets[0];
-
-    setSelectedTarget((currentTarget) => {
-      if (currentTarget !== newTarget) {
-        return newTarget;
+  const handleSetSelectedColumns = useCallback(
+    (newCols) => {
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete("nhsn_cols");
+      const isDefault =
+        JSON.stringify([...newCols].sort()) ===
+        JSON.stringify([...defaultColumns].sort());
+      if (!isDefault) {
+        if (newCols.length === 0) {
+          newParams.set("nhsn_cols", "none");
+        } else {
+          newCols.forEach((name) => {
+            const slug = nhsnNameToSlugMap[name];
+            if (slug) newParams.append("nhsn_cols", slug);
+          });
+        }
       }
-      return currentTarget;
-    });
-  }, [loading, availableTargets, searchParams]);
-
-  useEffect(() => {
-    if (loading || !selectedTarget || allDataColumns.length === 0) {
-      setFilteredAvailableColumns([]);
-      return;
-    }
-    const columnsForTarget = nhsnTargetsToColumnsMap[selectedTarget] || [];
-    const filtered = allDataColumns.filter((col) =>
-      columnsForTarget.includes(col),
-    );
-    setFilteredAvailableColumns(filtered);
-
-    const urlSlugs = searchParams.getAll("nhsn_cols");
-    const urlTarget = searchParams.get("nhsn_target");
-
-    const isExplicitlyEmpty = urlSlugs.includes("none");
-
-    const validUrlCols = urlSlugs
-      .map((slug) => nhsnSlugToNameMap[slug])
-      .filter((colName) => colName && filtered.includes(colName));
-
-    let newSelectedCols;
-
-    if (validUrlCols.length > 0) {
-      newSelectedCols = validUrlCols;
-    } else if (isExplicitlyEmpty) {
-      newSelectedCols = [];
-    } else if (
-      !hasInteractedRef.current ||
-      (urlTarget !== selectedTarget && urlSlugs.length === 0)
-    ) {
-      const defaultColumns = getDefaultColumnsForTarget(selectedTarget);
-      const filteredDefaults = defaultColumns.filter((col) =>
-        filtered.includes(col),
-      );
-      newSelectedCols =
-        filteredDefaults.length > 0 ? filteredDefaults : [filtered[0]];
-    } else {
-      newSelectedCols = [];
-    }
-
-    setSelectedColumns((currentCols) => {
-      const sortedNew = [...newSelectedCols].sort();
-      const sortedCurrent = [...currentCols].sort();
-      if (JSON.stringify(sortedNew) !== JSON.stringify(sortedCurrent)) {
-        return newSelectedCols;
-      }
-      return currentCols;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, selectedTarget, allDataColumns]);
-
-  useEffect(() => {
-    if (
-      loading ||
-      !selectedTarget ||
-      availableTargets.length === 0 ||
-      allDataColumns.length === 0
-    ) {
-      return;
-    }
-
-    const currentSearch = window.location.search;
-    const newParams = new URLSearchParams(currentSearch);
-
-    // Target Sync
-    const defaultTarget = availableTargets[0];
-    if (selectedTarget && selectedTarget !== defaultTarget) {
-      newParams.set("nhsn_target", selectedTarget);
-    } else {
-      newParams.delete("nhsn_target");
-    }
-
-    // Column Sync
-    newParams.delete("nhsn_cols");
-
-    const defaultColumnsArray = getDefaultColumnsForTarget(selectedTarget);
-    const filteredCols = allDataColumns.filter((col) =>
-      (nhsnTargetsToColumnsMap[selectedTarget] || []).includes(col),
-    );
-    const filteredDefaults = defaultColumnsArray.filter((col) =>
-      filteredCols.includes(col),
-    );
-    const defaultColumns =
-      filteredDefaults.length > 0
-        ? filteredDefaults
-        : filteredCols.length > 0
-          ? [filteredCols[0]]
-          : [];
-
-    const isDefault =
-      JSON.stringify([...selectedColumns].sort()) ===
-      JSON.stringify([...defaultColumns].sort());
-
-    if (!isDefault) {
-      if (selectedColumns.length > 0) {
-        selectedColumns.forEach((name) => {
-          const slug = nhsnNameToSlugMap[name];
-          if (slug) newParams.append("nhsn_cols", slug);
-        });
-      } else if (hasInteractedRef.current) {
-        newParams.set("nhsn_cols", "none");
-      }
-    }
-
-    if (
-      newParams.toString() !== new URLSearchParams(currentSearch).toString()
-    ) {
       setSearchParams(newParams, { replace: true });
-    }
-  }, [
-    selectedTarget,
-    selectedColumns,
-    allDataColumns,
-    availableTargets,
-    loading,
-    setSearchParams,
-  ]);
+    },
+    [defaultColumns, setSearchParams],
+  );
 
-  const handleSetSelectedColumns = useCallback((newCols) => {
-    hasInteractedRef.current = true;
-    setSelectedColumns(newCols);
-  }, []);
+  // A new unit starts from its default columns
+  const handleTargetChange = useCallback(
+    (target) => {
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete("nhsn_cols");
+      if (target && target !== availableTargets[0]) {
+        newParams.set("nhsn_target", target);
+      } else {
+        newParams.delete("nhsn_target");
+      }
+      setSearchParams(newParams, { replace: true });
+    },
+    [availableTargets, setSearchParams],
+  );
 
   useEffect(() => {
     if (data) setPlotRevision((p) => p + 1);
@@ -594,7 +525,8 @@ const NHSNView = ({ location }) => {
     plotRevision,
   ]);
 
-  if (loading)
+  // Only the first load; later ones keep the chart up
+  if (loading && !data)
     return (
       <Center p="md">
         <Stack align="center">
@@ -643,10 +575,7 @@ const NHSNView = ({ location }) => {
         nameMap={nhsnNameToPrettyNameMap}
         selectedTarget={selectedTarget}
         availableTargets={availableTargets}
-        onTargetChange={(val) => {
-          hasInteractedRef.current = false;
-          setSelectedTarget(val);
-        }}
+        onTargetChange={handleTargetChange}
         loading={loading}
       />
     </Stack>

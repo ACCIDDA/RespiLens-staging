@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getDataPath } from "../utils/paths";
 
 export const useForecastData = (location, viewType) => {
@@ -14,6 +14,9 @@ export const useForecastData = (location, viewType) => {
   const [availablePeakDates, setAvailablePeakDates] = useState([]);
   const [availablePeakModels, setAvailablePeakModels] = useState([]);
   const peaks = data?.peaks || null;
+  // The view the loaded data belongs to: a new location in the same view
+  // keeps showing it (dimmed) while loading, a new view starts empty
+  const loadedViewRef = useRef(null);
 
   useEffect(() => {
     const isMetrocastView = viewType === "metrocast_forecasts";
@@ -26,6 +29,7 @@ export const useForecastData = (location, viewType) => {
       return;
     }
     if (!location || !viewType || viewType === "frontpage") {
+      loadedViewRef.current = null;
       setLoading(false);
       setError(null);
       setData(null);
@@ -37,17 +41,20 @@ export const useForecastData = (location, viewType) => {
       return;
     }
 
+    let active = true;
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      setData(null);
-      setMetadata(null);
-      setAvailableDates([]);
-      setModels([]);
-      setAvailableTargets([]);
-      setModelsByTarget({});
-      setAvailablePeakDates([]);
-      setAvailablePeakModels([]);
+      if (loadedViewRef.current !== viewType) {
+        setData(null);
+        setMetadata(null);
+        setAvailableDates([]);
+        setModels([]);
+        setAvailableTargets([]);
+        setModelsByTarget({});
+        setAvailablePeakDates([]);
+        setAvailablePeakModels([]);
+      }
 
       try {
         const datasetMap = {
@@ -96,9 +103,16 @@ export const useForecastData = (location, viewType) => {
 
         const jsonData = await dataResponse.json();
         const jsonMetadata = await metadataResponse.json();
+        // A location already left: drop it
+        if (!active) return;
 
+        loadedViewRef.current = viewType;
         setData(jsonData);
         setMetadata(jsonMetadata);
+        // Replace, not merge, whatever the previous location had
+        setAvailableDates([]);
+        setModels([]);
+        setModelsByTarget({});
 
         if (jsonData.forecasts) {
           const dates = Object.keys(jsonData.forecasts).sort();
@@ -150,14 +164,18 @@ export const useForecastData = (location, viewType) => {
         }
         setAvailableTargets(targets);
       } catch (err) {
+        if (!active) return;
         console.error("Error fetching forecast data:", err);
         setError(err.message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchData();
+    return () => {
+      active = false;
+    };
   }, [location, viewType]);
 
   useEffect(() => {

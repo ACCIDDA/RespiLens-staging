@@ -534,3 +534,38 @@ body {
   flex-shrink: 0;
   color: var(--notice-ink);
 }
+
+/* A view loading another location (see ViewSwitchboard): the charts dim
+   and a small spinner sits over the chart area. Both wait a moment, so a
+   quick load does not flash. */
+.respilens-view {
+  position: relative;
+}
+
+.respilens-view .js-plotly-plot {
+  transition: opacity 150ms ease;
+}
+
+.respilens-view[data-loading] .js-plotly-plot {
+  opacity: 0.35;
+  transition-delay: 120ms;
+}
+
+.respilens-chart-spinner {
+  position: absolute;
+  top: min(30vh, 440px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+  animation: respilens-fade-in 150ms ease 120ms both;
+}
+
+@keyframes respilens-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -28,8 +28,10 @@ const ViewSwitchboard = ({
   availablePeakDates,
   availablePeakModels,
 }) => {
-  // Show loading state
-  if (loading) {
+  // Full loader only when there is nothing to show yet (first load, a new
+  // view). A new location in the same view keeps the current chart up,
+  // dimmed under a small spinner (see renderView below).
+  if (loading && !data) {
     return (
       <Center h="100%">
         <Stack align="center" gap="md">
@@ -112,100 +114,115 @@ const ViewSwitchboard = ({
   };
 
   // Render appropriate view based on viewType
-  switch (viewType) {
-    case "fludetailed":
-    case "flu_forecasts":
-    case "flu_peak":
-      return (
-        <FluView
-          data={data}
-          metadata={metadata}
-          selectedDates={selectedDates}
-          selectedModels={selectedModels}
-          models={models}
-          setSelectedModels={setSelectedModels}
-          viewType={viewType}
-          windowSize={windowSize}
-          getDefaultRange={getDefaultRange}
-          selectedTarget={selectedTarget}
-          peaks={peaks}
-          availablePeakDates={availablePeakDates}
-          availablePeakModels={availablePeakModels}
-          peakLocation={location}
-        />
-      );
+  const renderView = () => {
+    switch (viewType) {
+      case "fludetailed":
+      case "flu_forecasts":
+      case "flu_peak":
+        return (
+          <FluView
+            data={data}
+            metadata={metadata}
+            selectedDates={selectedDates}
+            selectedModels={selectedModels}
+            models={models}
+            setSelectedModels={setSelectedModels}
+            viewType={viewType}
+            windowSize={windowSize}
+            getDefaultRange={getDefaultRange}
+            selectedTarget={selectedTarget}
+            peaks={peaks}
+            availablePeakDates={availablePeakDates}
+            availablePeakModels={availablePeakModels}
+            peakLocation={location}
+          />
+        );
 
-    case "rsv_forecasts":
-      return (
-        <RSVView
-          data={data}
-          metadata={metadata}
-          selectedDates={selectedDates}
-          selectedModels={selectedModels}
-          models={models}
-          setSelectedModels={setSelectedModels}
-          viewType={viewType}
-          windowSize={windowSize}
-          getDefaultRange={getDefaultRange}
-          selectedTarget={selectedTarget}
-        />
-      );
+      case "rsv_forecasts":
+        return (
+          <RSVView
+            data={data}
+            metadata={metadata}
+            selectedDates={selectedDates}
+            selectedModels={selectedModels}
+            models={models}
+            setSelectedModels={setSelectedModels}
+            viewType={viewType}
+            windowSize={windowSize}
+            getDefaultRange={getDefaultRange}
+            selectedTarget={selectedTarget}
+          />
+        );
 
-    case "covid_forecasts":
-      return (
-        <COVID19View
-          data={data}
-          metadata={metadata}
-          selectedDates={selectedDates}
-          selectedModels={selectedModels}
-          models={models}
-          setSelectedModels={setSelectedModels}
-          viewType={viewType}
-          windowSize={windowSize}
-          getDefaultRange={getDefaultRange}
-          selectedTarget={selectedTarget}
-        />
-      );
+      case "covid_forecasts":
+        return (
+          <COVID19View
+            data={data}
+            metadata={metadata}
+            selectedDates={selectedDates}
+            selectedModels={selectedModels}
+            models={models}
+            setSelectedModels={setSelectedModels}
+            viewType={viewType}
+            windowSize={windowSize}
+            getDefaultRange={getDefaultRange}
+            selectedTarget={selectedTarget}
+          />
+        );
 
-    case "nhsnall":
-      return (
-        <NHSNView // gets its data from within NHSNView.jsx file
-          location={location}
-        />
-      );
+      case "nhsnall":
+        return (
+          <NHSNView // gets its data from within NHSNView.jsx file
+            location={location}
+          />
+        );
 
-    case "metrocast_forecasts":
-      return (
-        <MetroCastView
-          data={data}
-          metadata={metadata}
-          selectedDates={selectedDates}
-          selectedModels={selectedModels}
-          models={models}
-          setSelectedModels={setSelectedModels}
-          windowSize={windowSize}
-          getDefaultRange={getDefaultRange}
-          selectedTarget={selectedTarget}
-        />
-      );
+      case "metrocast_forecasts":
+        return (
+          <MetroCastView
+            data={data}
+            metadata={metadata}
+            selectedDates={selectedDates}
+            selectedModels={selectedModels}
+            models={models}
+            setSelectedModels={setSelectedModels}
+            windowSize={windowSize}
+            getDefaultRange={getDefaultRange}
+            selectedTarget={selectedTarget}
+          />
+        );
 
-    case "nsspall":
-      return <NSSPView location={location} data={data} metadata={metadata} />;
+      case "nsspall":
+        return <NSSPView location={location} data={data} metadata={metadata} />;
 
-    default:
-      return (
-        <Center h="100%">
-          <Stack align="center" gap="md">
-            <Text size="lg" fw={600}>
-              Unknown View Type
-            </Text>
-            <Text c="dimmed" ta="center">
-              The requested view type "{viewType}" is not supported.
-            </Text>
-          </Stack>
-        </Center>
-      );
-  }
+      default:
+        return (
+          <Center h="100%">
+            <Stack align="center" gap="md">
+              <Text size="lg" fw={600}>
+                Unknown View Type
+              </Text>
+              <Text c="dimmed" ta="center">
+                The requested view type "{viewType}" is not supported.
+              </Text>
+            </Stack>
+          </Center>
+        );
+    }
+  };
+
+  // While another location loads, the chart stays (dimmed) with a spinner
+  // over it, so the page neither jumps nor flashes
+  return (
+    <div className="respilens-view" data-loading={loading || undefined}>
+      {renderView()}
+      {loading && (
+        <div className="respilens-chart-spinner" aria-live="polite">
+          <Loader size="sm" aria-label="Loading" />
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ViewSwitchboard;
