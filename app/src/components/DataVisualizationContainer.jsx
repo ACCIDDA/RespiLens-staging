@@ -16,7 +16,7 @@ import { ChartResetContext } from "../contexts/ChartResetContext";
 import LocationPicker from "./LocationPicker";
 import ViewSwitchboard from "./ViewSwitchboard";
 import ErrorBoundary from "./ErrorBoundary";
-import FrontPage from "./FrontPage";
+import FrontPage, { FrontPageAnnouncements } from "./FrontPage";
 import { IconBrandGithub } from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
 import Seo from "./Seo";
@@ -588,6 +588,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
             description="Explore respiratory disease forecasts and surveillance data for influenza, COVID-19, RSV, and hospital respiratory metrics across the United States."
           />
         )}
+        <FrontPageAnnouncements />
         <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
           <Stack gap="lg">
             <Title order={2} fz={{ base: 20, sm: 24 }} fw={600}>

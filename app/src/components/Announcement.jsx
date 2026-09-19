@@ -1,13 +1,6 @@
 import { useState } from "react";
-import {
-  Paper,
-  Group,
-  Text,
-  ThemeIcon,
-  Stack,
-  CloseButton,
-} from "@mantine/core";
-import { IconSpeakerphone, IconAlertSquareRounded } from "@tabler/icons-react";
+import { Text, CloseButton } from "@mantine/core";
+import { IconSpeakerphone, IconAlertTriangle } from "@tabler/icons-react";
 
 // Announcement component params:
 // `id` | unique ID for the announcement
@@ -41,63 +34,29 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
   };
 
   const isAlert = announcementType === "alert";
+  const Icon = isAlert ? IconAlertTriangle : IconSpeakerphone;
 
+  // A flat full-width strip across the top of the page: the tint carries the
+  // tone, so there is no box, border or pill around the message.
   return (
-    <Stack>
-      <Paper
-        p="sm"
-        pl="md"
-        radius="md"
-        shadow="none"
-        style={{
-          // A flat tint with a single accent edge, rather than a gradient
-          // inside a full outline.
-          background: isAlert
-            ? "var(--mantine-color-yellow-0)"
-            : "var(--mantine-color-blue-0)",
-          borderLeft: `3px solid ${
-            isAlert
-              ? "var(--mantine-color-yellow-5)"
-              : "var(--mantine-color-blue-4)"
-          }`,
-        }}
-      >
-        <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Group gap="sm" wrap="nowrap" align="flex-start">
-            <ThemeIcon
-              variant="light"
-              color={isAlert ? "yellow" : "blue"}
-              radius="xl"
-              size="sm"
-              style={{ flexShrink: 0, marginTop: 2 }}
-            >
-              {isAlert ? (
-                <IconAlertSquareRounded size={14} />
-              ) : (
-                <IconSpeakerphone size={14} />
-              )}
-            </ThemeIcon>
-            <Text
-              size="sm"
-              fw={450}
-              lh={1.5}
-              c={isAlert ? "yellow.9" : "blue.9"}
-            >
-              <strong>{isAlert ? "Alert" : "Update"}:</strong> {text}
-            </Text>
-          </Group>
-
-          <CloseButton
-            size="sm"
-            iconSize={14}
-            onClick={handleDismiss}
-            variant="transparent"
-            c={isAlert ? "yellow.9" : "blue.9"}
-            aria-label="Dismiss announcement"
-          />
-        </Group>
-      </Paper>
-    </Stack>
+    <div
+      className="respilens-notice"
+      data-tone={isAlert ? "alert" : "update"}
+      role="note"
+    >
+      <Icon size={16} stroke={2} className="respilens-notice-icon" />
+      <Text size="sm" lh={1.55} className="respilens-notice-text">
+        <strong>{isAlert ? "Alert" : "Update"}:</strong> {text}
+      </Text>
+      <CloseButton
+        size="sm"
+        iconSize={14}
+        onClick={handleDismiss}
+        variant="transparent"
+        className="respilens-notice-close"
+        aria-label="Dismiss announcement"
+      />
+    </div>
   );
 };
 

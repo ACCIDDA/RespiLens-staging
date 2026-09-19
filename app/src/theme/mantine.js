@@ -199,6 +199,26 @@ export const theme = createTheme({
     Tooltip: {
       defaultProps: { radius: "sm" },
     },
+    // Same look as the front-page Announcement: a neutral hairline box,
+    // with the tone carried only by the icon (the stock `light` fill is
+    // saturated, and its alpha is raised for buttons below).
+    Alert: {
+      defaultProps: { radius: "md" },
+      styles: (_theme, { color = "blue" }) => ({
+        root: {
+          background: "var(--respilens-surface)",
+          border: "1px solid var(--respilens-hairline-strong)",
+          padding: "10px var(--mantine-spacing-md)",
+        },
+        icon: { color: `var(--mantine-color-${color}-7)` },
+        title: { color: "var(--respilens-ink)" },
+        message: {
+          color: "var(--respilens-ink-soft)",
+          fontSize: "var(--mantine-font-size-sm)",
+          lineHeight: 1.55,
+        },
+      }),
+    },
     Badge: {
       defaultProps: { radius: "sm" },
       styles: { label: { fontWeight: 600, letterSpacing: "0.01em" } },

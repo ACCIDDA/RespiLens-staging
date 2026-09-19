@@ -176,8 +176,9 @@ const NSSPOverviewGraph = () => {
   const nsspViewTarget = currentStateCoverage.hasAnyData
     ? resolvedNsspLocation
     : "US_All";
+  // The national entry map needs no caption; states name their county map
   const locationLabel = isUnitedStates
-    ? "U.S. entry map"
+    ? null
     : currentStateCoverage.hasAnyData
       ? `${stateInfo?.name || selectedStateAbbreviation} county map`
       : `No NSSP data for ${stateInfo?.name || selectedStateAbbreviation}`;

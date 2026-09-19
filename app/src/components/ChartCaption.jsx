@@ -100,7 +100,15 @@ const ChartCaption = ({ forecastNote = false }) => {
       align="flex-start"
       gap="xs"
       wrap="wrap"
-      style={{ marginTop: mt, paddingLeft: pl, paddingRight: pr }}
+      // Pulled up into the chart's bottom margin, so stack above the plot
+      // or its container swallows clicks on the source link
+      style={{
+        marginTop: mt,
+        paddingLeft: pl,
+        paddingRight: pr,
+        position: "relative",
+        zIndex: 1,
+      }}
     >
       <Text size="xs" c="dimmed" lh={1.5} style={{ whiteSpace: "nowrap" }}>
         {about ? (

@@ -70,35 +70,42 @@ const Section = ({ title, icon: Icon, children }) => (
   </Stack>
 );
 
+// Site notices, rendered full width above the page title (outside the
+// content container) by DataVisualizationContainer
+export const FrontPageAnnouncements = () => (
+  <>
+    <Announcement
+      id="new-nssp-all-view"
+      startDate="2026-05-20"
+      endDate="2026-07-15"
+      announcementType="update"
+      text={<NsspViewLink />}
+    />
+    <Announcement
+      id="new-myplots-feature"
+      startDate="2026-04-06"
+      endDate="2026-06-30"
+      announcementType={"update"}
+      text={<MyPlotsLink />}
+    />
+    <Announcement
+      id={"hub-seasonal-warning-2026"}
+      startDate={"2026-06-01"}
+      endDate={"2026-11-10"}
+      announcementType={"alert"}
+      text={
+        "Flu and RSV forecasts are currently paused because they are out of season. FluSight will resume influenza forecasts on October 7, 2026, while MetroCast (the local influenza forecast) will resume on November 4, 2026. The RSV Forecast Hub will start on September 23, 2026. COVID-19 forecasts are issued year-round and continue."
+      }
+    />
+  </>
+);
+
 const FrontPage = () => {
   const { selectedLocation } = useView();
   const overviewLocation = normalizeFrontPageLocation(selectedLocation);
 
   return (
     <Stack gap="lg">
-      <Announcement
-        id="new-nssp-all-view"
-        startDate="2026-05-20"
-        endDate="2026-07-15"
-        announcementType="update"
-        text={<NsspViewLink />}
-      />
-      <Announcement
-        id="new-myplots-feature"
-        startDate="2026-04-06"
-        endDate="2026-06-30"
-        announcementType={"update"}
-        text={<MyPlotsLink />}
-      />
-      <Announcement
-        id={"hub-seasonal-warning-2026"}
-        startDate={"2026-06-01"}
-        endDate={"2026-11-10"}
-        announcementType={"alert"}
-        text={
-          "Flu and RSV forecasts are currently paused because they are out of season. FluSight will resume influenza forecasts on October 7, 2026, while MetroCast (the local influenza forecast) will resume on November 4, 2026. The RSV Forecast Hub will start on September 23, 2026. COVID-19 forecasts are issued year-round and continue."
-        }
-      />
       <Section title="Forecasts" icon={IconChartLine}>
         <PathogenOverviewGraph
           viewType="covid_forecasts"

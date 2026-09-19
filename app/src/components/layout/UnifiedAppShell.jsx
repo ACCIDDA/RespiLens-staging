@@ -1,4 +1,4 @@
-import { AppShell, Burger, Group } from "@mantine/core";
+import { AppShell, Burger, Group, Overlay } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import SidebarNav, { BrandLink } from "./SidebarNav";
 
@@ -46,6 +46,17 @@ const UnifiedAppShell = ({ children }) => {
       >
         <SidebarNav onNavigate={closeMobile} />
       </AppShell.Navbar>
+
+      {isMobile && mobileOpened && (
+        // Tapping the page beside the narrow drawer closes it
+        <Overlay
+          fixed
+          color="#0f172a"
+          backgroundOpacity={0.3}
+          zIndex={99}
+          onClick={closeMobile}
+        />
+      )}
 
       <AppShell.Main>{children}</AppShell.Main>
     </AppShell>

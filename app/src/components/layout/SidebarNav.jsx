@@ -19,15 +19,15 @@ import {
 import { useView } from "../../hooks/useView";
 import { APP_CONFIG } from "../../config/app";
 import ViewSelector from "../ViewSelector";
-import InfoOverlay from "../InfoOverlay";
 
 const isForecastPath = (pathname) =>
   pathname === "/" ||
   pathname.startsWith("/forecasts") ||
   pathname.startsWith("/surveillance");
 
-// Logo + wordmark; clicking it returns to the forecasts front page
-export const BrandLink = ({ onNavigate }) => {
+// Logo + wordmark; clicking it returns to the forecasts front page. `large`
+// fills the sidebar's width; the mobile header keeps the compact size.
+export const BrandLink = ({ onNavigate, large = false }) => {
   const { setViewAndLocation } = useView();
   return (
     <Anchor
@@ -44,11 +44,15 @@ export const BrandLink = ({ onNavigate }) => {
         <Image
           src="/respilens-logo.svg"
           alt="RespiLens Logo"
-          h={26}
+          h={large ? 30 : 26}
           w="auto"
           fit="contain"
         />
-        <Title order={4} className="respilens-brand-wordmark">
+        <Title
+          order={4}
+          fz={large ? 20 : undefined}
+          className="respilens-brand-wordmark"
+        >
           RespiLens
         </Title>
       </Group>
@@ -106,8 +110,8 @@ const SidebarNav = ({ onNavigate }) => {
 
   return (
     <Stack gap="md" h="100%">
-      <Box px={10} pt={2} pb={4} visibleFrom="sm">
-        <BrandLink onNavigate={onNavigate} />
+      <Box px={4} pt={2} pb={4} visibleFrom="sm">
+        <BrandLink onNavigate={onNavigate} large />
       </Box>
 
       <NavRow
@@ -122,7 +126,10 @@ const SidebarNav = ({ onNavigate }) => {
         }}
       />
 
-      <ViewSelector showActive={onForecasts && !onOverview} />
+      <ViewSelector
+        showActive={onForecasts && !onOverview}
+        onNavigate={onNavigate}
+      />
 
       <Divider className="respilens-nav-divider" />
 
@@ -141,15 +148,14 @@ const SidebarNav = ({ onNavigate }) => {
       </Stack>
 
       <Box mt="auto">
-        <InfoOverlay
-          renderTrigger={(open) => (
-            <NavRow
-              icon={IconInfoCircle}
-              label="About RespiLens"
-              data-tone="brand"
-              onClick={open}
-            />
-          )}
+        <NavRow
+          component={Link}
+          to="/about"
+          icon={IconInfoCircle}
+          label="About RespiLens"
+          data-tone="brand"
+          active={path.startsWith("/about")}
+          onClick={onNavigate}
         />
       </Box>
     </Stack>

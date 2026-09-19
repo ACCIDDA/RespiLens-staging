@@ -117,6 +117,7 @@ const NHSNColumnSelector = ({
   selectedColumns,
   setSelectedColumns,
   seriesColors,
+  seriesSymbols,
   nameMap,
   selectedTarget,
   availableTargets,
@@ -131,6 +132,7 @@ const NHSNColumnSelector = ({
       selectedColumns={selectedColumns}
       setSelectedColumns={setSelectedColumns}
       colors={seriesColors}
+      symbols={seriesSymbols}
       labels={nameMap}
     />
   );

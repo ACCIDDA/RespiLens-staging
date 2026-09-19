@@ -11,7 +11,10 @@ import {
 import Plot from "react-plotly.js";
 import { getDataPath } from "../../utils/paths";
 import NHSNColumnSelector from "../NHSNColumnSelector";
-import { assignSeriesColors } from "../../theme/pathogenColors";
+import {
+  SERIES_MARKER_SIZE,
+  assignSeriesStyles,
+} from "../../theme/pathogenColors";
 import {
   getScaleYAxis,
   getYRangeFromTraces,
@@ -28,10 +31,10 @@ import {
 } from "../../utils/mapUtils";
 import {
   GROUND_TRUTH_LINE_WIDTH,
-  GROUND_TRUTH_MARKER_SIZE,
   PLOT_CONFIG,
   RANGESLIDER_STYLE,
   getBaseChartLayout,
+  getPreliminaryLegendTitle,
   getRangeSelector,
 } from "../../constants/chart";
 import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
@@ -111,17 +114,31 @@ const NHSNView = ({ location }) => {
     [normalizedChartScale],
   );
 
-  // Pathogen colours, fixed per column across toggles
-  const seriesColors = useMemo(
-    () => assignSeriesColors(filteredAvailableColumns),
+  // Pathogen colour + marker shape, fixed per column across toggles
+  const seriesStyles = useMemo(
+    () => assignSeriesStyles(filteredAvailableColumns),
     [filteredAvailableColumns],
+  );
+  const seriesColors = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(seriesStyles).map(([col, s]) => [col, s.color]),
+      ),
+    [seriesStyles],
+  );
+  const seriesSymbols = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(seriesStyles).map(([col, s]) => [col, s.symbol]),
+      ),
+    [seriesStyles],
   );
 
   const buildTracesForColumn = useCallback(
     (columnName) => {
       if (!data?.series?.dates) return [];
 
-      const color = seriesColors[columnName];
+      const { color, symbol } = seriesStyles[columnName] ?? {};
       const tracesForColumn = [];
 
       tracesForColumn.push({
@@ -134,7 +151,13 @@ const NHSNView = ({ location }) => {
           color,
           width: GROUND_TRUTH_LINE_WIDTH,
         },
-        marker: { size: GROUND_TRUTH_MARKER_SIZE },
+        // Shape tells apart series of one pathogen along with the colour
+        // step; a little larger than the default dot so shapes read
+        marker: {
+          symbol,
+          size: SERIES_MARKER_SIZE,
+          line: { width: 1, color: "#ffffff" },
+        },
         legendgroup: columnName,
         hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
       });
@@ -158,13 +181,14 @@ const NHSNView = ({ location }) => {
             dash: "dash",
           },
           legendgroup: columnName,
+          showlegend: false,
           hovertemplate: "%{x}<br>%{fullData.name}: %{y}<extra></extra>",
         });
       }
 
       return tracesForColumn;
     },
-    [data, seriesColors, getProcessedYValues],
+    [data, seriesStyles, getProcessedYValues],
   );
 
   useEffect(() => {
@@ -491,6 +515,7 @@ const NHSNView = ({ location }) => {
   }, [data, selectedColumns, buildTracesForColumn]);
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
+  const hasPreliminary = rawTraces.some((t) => t.line?.dash === "dash");
 
   const traces = useMemo(() => {
     if (!data) return [];
@@ -531,6 +556,12 @@ const NHSNView = ({ location }) => {
         }),
       },
       showlegend: showLegend ?? selectedColumns.length < 15,
+      legend: {
+        ...base.legend,
+        ...(hasPreliminary && {
+          title: getPreliminaryLegendTitle(colorScheme),
+        }),
+      },
       margin: { t: 40, r: 10, l: 60, b: 40 },
       uirevision: plotRevision,
       annotations:
@@ -558,6 +589,7 @@ const NHSNView = ({ location }) => {
     normalizedChartScale,
     rawYRange,
     showLegend,
+    hasPreliminary,
     selectedTarget,
     selectedColumns.length,
     plotRevision,
@@ -608,6 +640,7 @@ const NHSNView = ({ location }) => {
         selectedColumns={selectedColumns}
         setSelectedColumns={handleSetSelectedColumns}
         seriesColors={seriesColors}
+        seriesSymbols={seriesSymbols}
         nameMap={nhsnNameToPrettyNameMap}
         selectedTarget={selectedTarget}
         availableTargets={availableTargets}

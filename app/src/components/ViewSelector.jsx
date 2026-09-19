@@ -12,7 +12,7 @@ import { DATASETS } from "../config";
 // Forecasts and surveillance data as two always-open groups, each with its
 // own heading and icon. `showActive`: highlight the current view (off on pages
 // that are not a chart, where the remembered view is not "where you are").
-const ViewSelector = ({ showActive = true }) => {
+const ViewSelector = ({ showActive = true, onNavigate }) => {
   const { viewType, setViewType } = useView();
   const [isFluExpanded, setIsFluExpanded] = useState(false);
 
@@ -71,8 +71,10 @@ const ViewSelector = ({ showActive = true }) => {
     }
   }, [isFluActive]);
 
+  // `onNavigate` lets the mobile drawer close once a view is picked
   const handleViewSelect = (value) => {
     setViewType(value);
+    onNavigate?.();
   };
 
   // Rows share the sidebar's nav-row style. `isActive` is the selected view;

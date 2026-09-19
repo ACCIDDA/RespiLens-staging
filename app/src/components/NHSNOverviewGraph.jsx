@@ -1,10 +1,12 @@
 import { useMemo } from "react";
+import { useMantineColorScheme } from "@mantine/core";
 import { fetchJson, getDataPath } from "../utils/paths";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useView } from "../hooks/useView";
 import OverviewGraphCard from "./OverviewGraphCard";
 import useOverviewPlot from "../hooks/useOverviewPlot";
 import { detectPathogen, getPathogenColor } from "../theme/pathogenColors";
+import { getPreliminaryLegendTitle } from "../constants/chart";
 
 const DEFAULT_COLS = [
   "Total COVID-19 Admissions",
@@ -18,6 +20,7 @@ const NHSNOverviewGraph = ({ location }) => {
     viewType: activeViewType,
     selectedLocation,
   } = useView();
+  const { colorScheme } = useMantineColorScheme();
   const resolvedLocation = location || "US";
   const isActive = activeViewType === "nhsnall";
 
@@ -80,6 +83,7 @@ const NHSNOverviewGraph = ({ location }) => {
               dash: "dash",
             },
             legendgroup: label,
+            showlegend: false,
             hovertemplate: "%{y}<extra></extra>",
           });
         }
@@ -89,6 +93,10 @@ const NHSNOverviewGraph = ({ location }) => {
 
     return { buildTraces: tracesBuilder, xRange: range };
   }, [data]);
+
+  const hasPreliminary = DEFAULT_COLS.some((col) =>
+    Array.isArray(data?.preliminary_series?.[col]),
+  );
 
   const { traces, layout } = useOverviewPlot({
     data,
@@ -106,6 +114,9 @@ const NHSNOverviewGraph = ({ location }) => {
         x: 0.5,
         xanchor: "center",
         font: { size: 9 },
+        ...(hasPreliminary && {
+          title: getPreliminaryLegendTitle(colorScheme),
+        }),
       },
     },
   });
@@ -122,7 +133,7 @@ const NHSNOverviewGraph = ({ location }) => {
   );
 
   const locationLabel =
-    resolvedLocation === "US" ? "US national view" : resolvedLocation;
+    resolvedLocation === "US" ? "US national" : resolvedLocation;
   const nhsnViewLocation =
     selectedLocation && selectedLocation !== "US_All" ? resolvedLocation : "US";
 

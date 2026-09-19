@@ -179,6 +179,15 @@ export const getForecastDateLineStyle = (colorScheme) => ({
   width: 1.25,
 });
 
+// Preliminary NHSN releases are drawn dashed in each pathogen's colour and
+// share their pathogen's legend entry; this plain-text legend title explains
+// the dashes.
+export const getPreliminaryLegendTitle = (colorScheme) => ({
+  text: "Dashed: preliminary release",
+  side: "top",
+  font: { size: 11, color: getChartInk(colorScheme).soft },
+});
+
 // Observed data is the reference series: drawn heavier than model lines
 export const GROUND_TRUTH_LINE_WIDTH = 2.5;
 export const GROUND_TRUTH_MARKER_SIZE = 5;

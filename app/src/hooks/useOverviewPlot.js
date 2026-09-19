@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useMantineColorScheme } from "@mantine/core";
 import { getBaseChartLayout } from "../constants/chart";
 
-const DEFAULT_MARGIN = { l: 40, r: 20, t: 40, b: 40 };
+// Small top margin: overview charts have no title or legend above the plot
+const DEFAULT_MARGIN = { l: 40, r: 20, t: 10, b: 40 };
 
 const isValidDate = (dateValue) => {
   const date = new Date(dateValue);

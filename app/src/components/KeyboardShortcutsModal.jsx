@@ -2,17 +2,15 @@ import { useState } from "react";
 import { Group, Kbd, Modal, Stack, Text } from "@mantine/core";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
 
-// "?" lists the keyboard shortcuts for the forecast page. Rows for controls
-// the current view doesn't have are left out.
-const KeyboardShortcutsModal = ({
-  enabled = true,
-  hasTargets = false,
-  hasDates = false,
-  hasModels = false,
+// The forecast-page shortcuts. Rows for controls a view doesn't have can be
+// left out; the About page lists them all.
+export const ShortcutList = ({
+  hasTargets = true,
+  hasDates = true,
+  hasModels = true,
+  size = "sm",
+  ...props
 }) => {
-  const [opened, setOpened] = useState(false);
-  useKeyboardShortcut("?", () => setOpened((open) => !open), enabled);
-
   const rows = [
     { keys: ["L"], label: "Change location" },
     { keys: ["↑", "↓"], label: "Previous / next location" },
@@ -24,6 +22,29 @@ const KeyboardShortcutsModal = ({
   ].filter(Boolean);
 
   return (
+    <Stack gap="xs" {...props}>
+      {rows.map(({ keys, label }) => (
+        <Group key={label} justify="space-between" wrap="nowrap">
+          <Text size={size}>{label}</Text>
+          <Group gap={4} wrap="nowrap">
+            {keys.map((key) => (
+              <Kbd key={key} size={size}>
+                {key}
+              </Kbd>
+            ))}
+          </Group>
+        </Group>
+      ))}
+    </Stack>
+  );
+};
+
+// "?" toggles the list on forecast pages
+const KeyboardShortcutsModal = ({ enabled = true, ...listProps }) => {
+  const [opened, setOpened] = useState(false);
+  useKeyboardShortcut("?", () => setOpened((open) => !open), enabled);
+
+  return (
     <Modal
       opened={opened}
       onClose={() => setOpened(false)}
@@ -31,20 +52,7 @@ const KeyboardShortcutsModal = ({
       size="sm"
       centered
     >
-      <Stack gap="xs">
-        {rows.map(({ keys, label }) => (
-          <Group key={label} justify="space-between" wrap="nowrap">
-            <Text size="sm">{label}</Text>
-            <Group gap={4} wrap="nowrap">
-              {keys.map((key) => (
-                <Kbd key={key} size="sm">
-                  {key}
-                </Kbd>
-              ))}
-            </Group>
-          </Group>
-        ))}
-      </Stack>
+      <ShortcutList {...listProps} />
     </Modal>
   );
 };

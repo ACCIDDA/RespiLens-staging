@@ -203,6 +203,15 @@ body {
   color: var(--nav-ink);
 }
 
+/* Phones: Mantine makes the drawer full width; keep it only as wide as the
+   menu needs, floating over a dimmed page (the backdrop closes it). */
+@media (max-width: 48em) {
+  .respilens-shell-navbar {
+    width: min(280px, 85vw);
+    box-shadow: var(--mantine-shadow-lg);
+  }
+}
+
 .respilens-brand-wordmark {
   color: var(--mantine-color-blue-7);
 }
@@ -385,12 +394,15 @@ body {
   outline-offset: 2px;
 }
 
-.respilens-series-chip-dot {
-  width: 9px;
-  height: 9px;
+.respilens-series-chip-mark {
+  width: 11px;
+  height: 11px;
   flex-shrink: 0;
-  border-radius: 50%;
-  border: 2px solid var(--series-color);
+  overflow: visible;
+  fill: none;
+  stroke: var(--series-color);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
 .respilens-series-chip[data-selected] {
@@ -399,8 +411,8 @@ body {
   color: var(--respilens-ink);
 }
 
-.respilens-series-chip[data-selected] .respilens-series-chip-dot {
-  background-color: var(--series-color);
+.respilens-series-chip[data-selected] .respilens-series-chip-mark {
+  fill: var(--series-color);
 }
 
 /* MetroCast city tiles: the whole tile opens the city, so the title takes
@@ -420,4 +432,55 @@ body {
 
 .respilens-metro-tile:hover .respilens-metro-tile-title {
   color: var(--mantine-color-blue-7);
+}
+
+/* The ACCIDDA wordmark's navy letters vanish on a dark background, so in
+   dark mode it sits on a white chip */
+.respilens-accidda-logo {
+  display: inline-flex;
+  border-radius: 6px;
+}
+
+[data-mantine-color-scheme="dark"] .respilens-accidda-logo {
+  background: #fff;
+  padding: 4px 8px;
+}
+
+/* Site notices (Announcement): a flat full-width strip at the top of the
+   page. No box or pill; the tint and a hairline underneath set it apart. */
+.respilens-notice {
+  --notice-bg: var(--mantine-color-blue-1);
+  --notice-edge: var(--mantine-color-blue-2);
+  --notice-ink: var(--mantine-color-blue-9);
+  --notice-icon: var(--mantine-color-blue-7);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--notice-bg);
+  border-bottom: 1px solid var(--notice-edge);
+}
+
+.respilens-notice[data-tone="alert"] {
+  --notice-bg: var(--mantine-color-yellow-1);
+  --notice-edge: var(--mantine-color-yellow-2);
+  --notice-ink: var(--mantine-color-yellow-9);
+  --notice-icon: var(--mantine-color-yellow-7);
+}
+
+.respilens-notice-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--notice-icon);
+}
+
+.respilens-notice-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--notice-ink);
+}
+
+.respilens-notice-close {
+  flex-shrink: 0;
+  color: var(--notice-ink);
 }

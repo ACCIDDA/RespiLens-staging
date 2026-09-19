@@ -762,10 +762,12 @@ export const ViewProvider = ({ children }) => {
 
   const handleViewChange = useCallback(
     (newView) => {
-      if (viewType === newView) return;
+      // Off the chart pages (Forecastle, My Plots...) the remembered view is
+      // not on screen, so picking it again still has to navigate there
+      if (isForecastPage && viewType === newView) return;
       handleViewLocationChange(newView);
     },
-    [handleViewLocationChange, viewType],
+    [handleViewLocationChange, viewType, isForecastPage],
   );
 
   useEffect(() => {

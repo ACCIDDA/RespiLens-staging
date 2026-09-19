@@ -222,7 +222,7 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
   });
 
   const locationLabel =
-    resolvedLocation === "US" ? "US national view" : resolvedLocation;
+    resolvedLocation === "US" ? "US national" : resolvedLocation;
 
   return (
     <OverviewGraphCard
