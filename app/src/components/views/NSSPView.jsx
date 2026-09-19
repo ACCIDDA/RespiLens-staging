@@ -14,22 +14,15 @@ import {
 } from "@mantine/core";
 import { IconAlertTriangle, IconArrowLeft } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js/dist/plotly";
-import NSSPColumnSelector from "../NSSPColumnSelector";
+import SeriesToggleChips from "../controls/SeriesToggleChips";
 import NSSPGeoMap from "../NSSPGeoMap";
 import TitleRow from "../TitleRow";
-import { MODEL_COLORS } from "../../config/datasets";
+import { assignSeriesColors } from "../../theme/pathogenColors";
 import { useView } from "../../hooks/useView";
+import { useChartReset } from "../../hooks/useChartReset";
 import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../../utils/plotDownloadName";
-import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  getScaleYAxis,
   getYRangeFromTraces,
-  isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
@@ -52,24 +45,19 @@ import {
   normalizeCountyBasename,
 } from "../../utils/nsspGeo";
 import {
+  GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
-  PLOT_CHROME,
+  PLOT_CONFIG,
   RANGESLIDER_STYLE,
-  getChartAxisStyle,
-  getChartFont,
-  getChartLegendStyle,
-  getRangeSelectorStyle,
+  getBaseChartLayout,
+  getRangeSelector,
 } from "../../constants/chart";
 import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
 import ChartCaption from "../ChartCaption";
-
-const NSSP_COLUMN_LABELS = {
-  percent_visits_covid: "COVID-19",
-  percent_visits_influenza: "Influenza",
-  percent_visits_rsv: "RSV",
-};
-
-const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
+import {
+  NSSP_COLUMN_LABELS,
+  NSSP_DEFAULT_COLUMNS,
+} from "../../config/datasets";
 
 const NSSPView = ({ location, data }) => {
   const { handleLocationSelect, locationMessage, chartScale, showLegend } =
@@ -91,7 +79,7 @@ const NSSPView = ({ location, data }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
 
   const hasInteractedRef = useRef(false);
-  const isResettingRef = useRef(false);
+  useChartReset(() => setXAxisRange(null));
 
   const stateAbbreviation = getNsspStateAbbreviationFromLocation(location);
   const stateInfo = NSSP_STATE_ABBREVIATION_TO_INFO[stateAbbreviation];
@@ -105,6 +93,10 @@ const NSSPView = ({ location, data }) => {
     () =>
       Object.keys(data?.series || {}).filter((key) => key !== "dates" && key),
     [data],
+  );
+  const seriesColors = useMemo(
+    () => assignSeriesColors(availableColumns),
+    [availableColumns],
   );
 
   const getProcessedYValues = useCallback(
@@ -401,11 +393,6 @@ const NSSPView = ({ location, data }) => {
   const plotTracesRef = useRef([]);
   const handleRelayout = useCallback(
     (figure) => {
-      if (isResettingRef.current) {
-        isResettingRef.current = false;
-        return;
-      }
-
       const nextXRange = getRelayoutXRange(figure, plotTracesRef.current);
       if (
         nextXRange &&
@@ -525,34 +512,6 @@ const NSSPView = ({ location, data }) => {
   );
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") {
-      return null;
-    }
-
-    return buildSqrtTicks({
-      rawRange: rawYRange,
-      formatValue: (value) =>
-        `${value.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") {
-      return null;
-    }
-
-    return buildLog2Ticks({
-      rawRange: rawYRange,
-      formatValue: (value) =>
-        `${value.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
   const plotTraces = useMemo(() => {
     if (!data?.series?.dates?.length) {
       return [];
@@ -571,8 +530,6 @@ const NSSPView = ({ location, data }) => {
     }
 
     return selectedColumns.map((column) => {
-      const columnIndex = availableColumns.indexOf(column);
-
       return {
         x: data.series.dates,
         y: getProcessedYValues(data.series[column]),
@@ -580,8 +537,8 @@ const NSSPView = ({ location, data }) => {
         type: "scatter",
         mode: "lines+markers",
         line: {
-          color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
-          width: 2.5,
+          color: seriesColors[column],
+          width: GROUND_TRUTH_LINE_WIDTH,
         },
         marker: { size: GROUND_TRUTH_MARKER_SIZE },
         hovertemplate:
@@ -589,75 +546,36 @@ const NSSPView = ({ location, data }) => {
         customdata: data.series[column],
       };
     });
-  }, [availableColumns, data, getProcessedYValues, selectedColumns]);
+  }, [data, getProcessedYValues, selectedColumns, seriesColors]);
   plotTracesRef.current = plotTraces;
 
-  const plotLayout = useMemo(
-    () => ({
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      ...PLOT_CHROME,
-      font: getChartFont(colorScheme),
+  const plotLayout = useMemo(() => {
+    const base = getBaseChartLayout(colorScheme);
+    const isTransformedScale =
+      normalizedChartScale === "sqrt" || normalizedChartScale === "log2";
+    return {
+      ...base,
       xaxis: {
-        ...getChartAxisStyle(colorScheme),
-        rangeslider: {
-          ...RANGESLIDER_STYLE,
-          visible: true,
-          range: fullRange,
-        },
-        rangeselector: {
-          ...getRangeSelectorStyle(colorScheme),
-          buttons: [
-            { count: 1, label: "1m", step: "month", stepmode: "backward" },
-            { count: 6, label: "6m", step: "month", stepmode: "backward" },
-            { count: 1, label: "1y", step: "year", stepmode: "backward" },
-            { step: "all", label: "All" },
-          ],
-        },
+        ...base.xaxis,
+        rangeslider: { ...RANGESLIDER_STYLE, visible: true, range: fullRange },
+        rangeselector: getRangeSelector(colorScheme, { includeYear: true }),
         range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
-        ...getChartAxisStyle(colorScheme),
-        title: `Percent of visits${getScaleTitleSuffix(normalizedChartScale)}`,
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : yAxisRange === null || selectedColumns.length === 0,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
-        tickformat:
-          normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
-            ? undefined
-            : ".2f",
-        ticksuffix:
-          normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
-            ? undefined
-            : "%",
+        ...base.yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: rawYRange,
+          range: yAxisRange,
+          autorange: selectedColumns.length === 0,
+          title: "Percent of visits",
+          formatValue: (value) =>
+            `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`,
+        }),
+        tickformat: isTransformedScale ? undefined : ".2f",
+        ticksuffix: isTransformedScale ? undefined : "%",
       },
       showlegend: showLegend ?? true,
-      legend: {
-        ...getChartLegendStyle(colorScheme),
-        x: 0.01,
-        y: 0.99,
-        xanchor: "left",
-        yanchor: "top",
-      },
       margin: { t: 56, r: 10, l: 72, b: 40 },
       uirevision: plotRevision,
       annotations:
@@ -675,74 +593,19 @@ const NSSPView = ({ location, data }) => {
               },
             ]
           : [],
-    }),
-    [
-      normalizedChartScale,
-      colorScheme,
-      defaultRange,
-      fullRange,
-      plotRevision,
-      selectedColumns.length,
-      showLegend,
-      sqrtTicks,
-      log2Ticks,
-      xAxisRange,
-      yAxisRange,
-    ],
-  );
-
-  const plotConfig = useMemo(
-    () => ({
-      responsive: true,
-      // Plotly's toolbar is hidden: download lives in the chart header,
-      // zoom in the minimap and range buttons
-      displayModeBar: false,
-      displaylogo: false,
-      showSendToCloud: false,
-      plotlyServerURL: "",
-      toImageButtonOptions: {
-        format: "png",
-        filename: buildPlotDownloadName("nssp-plot"),
-        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      },
-      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: function (graphDiv) {
-            if (!data) return;
-
-            const nextDefaultRange = getDefaultXRange();
-            if (!nextDefaultRange?.[0]) return;
-
-            const currentTraces = selectedColumns.map((column) => ({
-              x: data.series.dates,
-              y: getProcessedYValues(data.series[column]),
-            }));
-            const nextYRange = calculateYRange(currentTraces, nextDefaultRange);
-
-            isResettingRef.current = true;
-            setXAxisRange(null);
-            setYAxisRange(nextYRange);
-
-            Plotly.relayout(graphDiv, {
-              "xaxis.range": nextDefaultRange,
-              "yaxis.range": nextYRange,
-              "yaxis.autorange": nextYRange === null,
-            });
-          },
-        },
-      ],
-    }),
-    [
-      calculateYRange,
-      data,
-      getDefaultXRange,
-      getProcessedYValues,
-      selectedColumns,
-    ],
-  );
+    };
+  }, [
+    normalizedChartScale,
+    colorScheme,
+    defaultRange,
+    fullRange,
+    plotRevision,
+    rawYRange,
+    selectedColumns.length,
+    showLegend,
+    xAxisRange,
+    yAxisRange,
+  ]);
 
   const handleSetSelectedColumns = useCallback((nextColumns) => {
     hasInteractedRef.current = true;
@@ -820,7 +683,7 @@ const NSSPView = ({ location, data }) => {
               useResizeHandler
               data={plotTraces}
               layout={plotLayout}
-              config={plotConfig}
+              config={PLOT_CONFIG}
               style={{ width: "100%", height: "100%" }}
               revision={dataRevision}
               onRelayout={handleRelayout}
@@ -828,12 +691,20 @@ const NSSPView = ({ location, data }) => {
           </div>
           <ChartCaption />
 
-          <NSSPColumnSelector
-            availableColumns={availableColumns}
-            selectedColumns={selectedColumns}
-            setSelectedColumns={handleSetSelectedColumns}
-            columnLabelMap={NSSP_COLUMN_LABELS}
-          />
+          <Stack gap="sm">
+            <Text size="sm" fw={700}>
+              Select a pathogen(s)
+            </Text>
+            <Group gap="xs">
+              <SeriesToggleChips
+                columns={availableColumns}
+                selectedColumns={selectedColumns}
+                setSelectedColumns={handleSetSelectedColumns}
+                colors={seriesColors}
+                labels={NSSP_COLUMN_LABELS}
+              />
+            </Group>
+          </Stack>
         </Stack>
       ) : (
         <Paper withBorder radius="md" p="lg">

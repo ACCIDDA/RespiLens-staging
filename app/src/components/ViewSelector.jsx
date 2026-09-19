@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Stack, Button, Text, Box, Group } from "@mantine/core";
+import { Stack, Box, UnstyledButton } from "@mantine/core";
 import {
   IconChevronDown,
   IconChevronRight,
@@ -75,9 +75,9 @@ const ViewSelector = ({ showActive = true }) => {
     setViewType(value);
   };
 
-  // `isActive` is the selected view: a soft tint with a blue accent bar.
-  // `isParentActive` is the group holding it (Flu) and only gets blue text,
-  // so a single row is highlighted.
+  // Rows share the sidebar's nav-row style. `isActive` is the selected view;
+  // `isParentActive` is the group holding it (Flu), which only gets the
+  // active text colour so a single row is highlighted.
   const renderOptionButton = ({
     label,
     value,
@@ -87,58 +87,28 @@ const ViewSelector = ({ showActive = true }) => {
     isActive = false,
     isParentActive = false,
   }) => (
-    <Button
+    <UnstyledButton
       key={value || label}
-      variant="subtle"
-      color={isActive || isParentActive ? "blue" : "dark"}
-      size="sm"
-      radius="sm"
-      fullWidth
-      justify="space-between"
-      rightSection={rightSection}
+      className="respilens-nav-row"
+      data-indent={nested ? "2" : "1"}
+      data-active={isActive || undefined}
+      data-parent-active={isParentActive || undefined}
+      aria-current={isActive ? "page" : undefined}
       onClick={onClick}
-      styles={{
-        root: {
-          height: nested ? 32 : 34,
-          // Rows sit under their group heading's text, past its icon
-          paddingLeft: nested ? 44 : 32,
-          paddingRight: 10,
-          backgroundColor: isActive ? "rgba(0, 118, 209, 0.08)" : undefined,
-          boxShadow: isActive
-            ? "inset 3px 0 0 var(--mantine-color-blue-6)"
-            : "none",
-        },
-        inner: {
-          width: "100%",
-          justifyContent: "space-between",
-        },
-        section: {
-          opacity: isActive || isParentActive ? 0.7 : 0.35,
-        },
-        label: {
-          width: "100%",
-          textAlign: "left",
-          fontWeight: isActive || isParentActive ? 600 : nested ? 450 : 500,
-          fontSize: nested ? "0.8125rem" : "0.875rem",
-          color:
-            isActive || isParentActive
-              ? "var(--mantine-color-blue-8)"
-              : "var(--respilens-ink)",
-        },
-      }}
     >
-      {label}
-    </Button>
+      <span className="respilens-nav-row-label">{label}</span>
+      {rightSection && (
+        <span className="respilens-nav-row-end">{rightSection}</span>
+      )}
+    </UnstyledButton>
   );
 
   const renderSection = (title, Icon, options) => (
-    <Stack gap={2}>
-      <Group gap={8} px={10} pb={4} wrap="nowrap">
-        <Icon size={14} stroke={2} className="respilens-eyebrow" />
-        <Text size="xs" fw={700} className="respilens-eyebrow">
-          {title}
-        </Text>
-      </Group>
+    <Stack gap={1}>
+      <div className="respilens-nav-heading">
+        <Icon size={15} stroke={2} />
+        <span>{title}</span>
+      </div>
       {options.map((option) => {
         if (!option.children) {
           return renderOptionButton({
@@ -168,7 +138,7 @@ const ViewSelector = ({ showActive = true }) => {
                   : handleViewSelect(DATASETS.flu.defaultView),
             })}
             {isFluExpanded && (
-              <Stack gap={2} mt={2}>
+              <Stack gap={1} mt={1}>
                 {option.children.map((child) =>
                   renderOptionButton({
                     label: child.label,

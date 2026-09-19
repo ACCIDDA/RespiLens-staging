@@ -5,7 +5,6 @@ import {
   Text,
   Center,
   SimpleGrid,
-  Paper,
   Loader,
   Box,
   UnstyledButton,
@@ -13,30 +12,29 @@ import {
 import Plot from "react-plotly.js";
 import ModelSelector from "../ModelSelector";
 import { useView } from "../../hooks/useView";
+import { useChartReset } from "../../hooks/useChartReset";
 import {
   CHART_CONSTANTS,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
-  PLOT_CHROME,
+  PLOT_CONFIG,
   RANGESLIDER_STYLE,
-  getChartAxisStyle,
+  COMPACT_GROUND_TRUTH_LINE_WIDTH,
+  getBaseChartLayout,
   getChartFont,
   getChartInk,
-  getChartLegendStyle,
   getForecastDateLineStyle,
 } from "../../constants/chart";
 import {
   targetDisplayNameMap,
   targetYAxisLabelMap,
 } from "../../utils/mapUtils";
-import { getDataPath } from "../../utils/paths";
+import { fetchJson, getDataPath } from "../../utils/paths";
+import { useAsyncData } from "../../hooks/useAsyncData";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import useForecastDateDrag from "../../hooks/useForecastDateDrag";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
-  isPlotlyLogScale,
+  getScaleYAxis,
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
@@ -133,9 +131,11 @@ const MetroPlotCard = ({
     groundTruthValueFormat: "%{y:.2f}",
     valueSuffix: "%",
     formatValue: (value) => value.toFixed(2),
-    modelLineWidth: isSmall ? 1 : 2,
+    modelLineWidth: isSmall ? 1.5 : 2,
     modelMarkerSize: isSmall ? 3 : 6,
-    groundTruthLineWidth: isSmall ? 1.5 : GROUND_TRUTH_LINE_WIDTH,
+    groundTruthLineWidth: isSmall
+      ? COMPACT_GROUND_TRUTH_LINE_WIDTH
+      : GROUND_TRUTH_LINE_WIDTH,
     groundTruthMarkerSize: isSmall ? 2 : GROUND_TRUTH_MARKER_SIZE,
     groundTruthColor: getChartInk(colorScheme).text,
     showLegendForFirstDate: showLegend && !isSmall,
@@ -168,28 +168,22 @@ const MetroPlotCard = ({
     return calculateYRange(projectionsData, range);
   }, [projectionsData, xAxisRange, defRange, calculateYRange]);
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({
-      rawRange: rawYRange,
-      formatValue: (value) => `${value.toFixed(2)}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({
-      rawRange: rawYRange,
-      formatValue: (value) => `${value.toFixed(2)}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
   const hasForecasts = hasForecastTraces;
+  const base = getBaseChartLayout(colorScheme, { compact: isSmall });
+  const isTransformedScale =
+    normalizedChartScale === "sqrt" || normalizedChartScale === "log2";
+  const longName = targetDisplayNameMap[selectedTarget];
 
   const PlotContent = (
     <>
       {title && (
-        <Text fw={400} size={isSmall ? "xs" : "sm"} mb={5} ta="center">
+        <Text
+          fw={600}
+          size="sm"
+          mb={4}
+          ta="left"
+          className="respilens-metro-tile-title"
+        >
           {title}
         </Text>
       )}
@@ -221,26 +215,13 @@ const MetroPlotCard = ({
         }}
         data={projectionsData}
         layout={{
-          autosize: true,
-          template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-          ...PLOT_CHROME,
-          font: {
-            ...getChartFont(colorScheme),
-            size: isSmall ? 11 : 13,
-          },
-          margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
+          ...base,
+          margin: { l: isSmall ? 45 : 60, r: 12, t: 10, b: isSmall ? 30 : 80 },
           showlegend: showLegend && !isSmall,
-          legend: {
-            ...getChartLegendStyle(colorScheme),
-            x: 0.01,
-            y: 0.99,
-            xanchor: "left",
-            yanchor: "top",
-          },
           xaxis: {
-            ...getChartAxisStyle(colorScheme),
+            ...base.xaxis,
             range: copyRange(xAxisRange || defRange),
-            showticklabels: !isSmall,
+            ...(isSmall && { nticks: 4 }),
             rangeslider: {
               ...RANGESLIDER_STYLE,
               visible: !isSmall,
@@ -248,56 +229,21 @@ const MetroPlotCard = ({
             },
           },
           yaxis: {
-            ...getChartAxisStyle(colorScheme),
-            title: !isSmall
-              ? {
-                  text: (() => {
-                    const longName = targetDisplayNameMap[selectedTarget];
-                    const baseTitle =
-                      targetYAxisLabelMap[longName] ||
-                      longName ||
-                      selectedTarget ||
-                      "Value";
-                    return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
-                  })(),
-                }
-              : undefined,
-            range: isPlotlyLogScale(normalizedChartScale)
-              ? undefined
-              : yAxisRange,
-            autorange: isPlotlyLogScale(normalizedChartScale)
-              ? true
-              : yAxisRange === null,
-            type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-            tickfont: {
-              ...getChartAxisStyle(colorScheme).tickfont,
-              size: isSmall ? 10 : 12,
-            },
-            tickformat:
-              normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
+            ...base.yaxis,
+            ...getScaleYAxis({
+              scale: normalizedChartScale,
+              rawRange: rawYRange,
+              range: yAxisRange,
+              title: isSmall
                 ? undefined
-                : ".2f",
-            ticksuffix:
-              normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
-                ? undefined
-                : "%",
-            tickmode:
-              (normalizedChartScale === "sqrt" && sqrtTicks) ||
-              (normalizedChartScale === "log2" && log2Ticks)
-                ? "array"
-                : undefined,
-            tickvals:
-              normalizedChartScale === "sqrt" && sqrtTicks
-                ? sqrtTicks.tickvals
-                : normalizedChartScale === "log2" && log2Ticks
-                  ? log2Ticks.tickvals
-                  : undefined,
-            ticktext:
-              normalizedChartScale === "sqrt" && sqrtTicks
-                ? sqrtTicks.ticktext
-                : normalizedChartScale === "log2" && log2Ticks
-                  ? log2Ticks.ticktext
-                  : undefined,
+                : targetYAxisLabelMap[longName] ||
+                  longName ||
+                  selectedTarget ||
+                  "Value",
+              formatValue: (value) => `${value.toFixed(2)}%`,
+            }),
+            tickformat: isTransformedScale ? undefined : ".2f",
+            ticksuffix: isTransformedScale ? undefined : "%",
           },
           hovermode: isSmall ? false : "closest",
           hoverlabel: {
@@ -335,14 +281,7 @@ const MetroPlotCard = ({
               ]
             : [],
         }}
-        config={{
-          // Plotly's toolbar is hidden: download lives in the chart header,
-          // zoom in the minimap and range buttons
-          displayModeBar: false,
-          responsive: true,
-          displaylogo: false,
-          staticPlot: isSmall,
-        }}
+        config={{ ...PLOT_CONFIG, staticPlot: isSmall }}
         onRelayout={(e) => {
           const newRange = getRelayoutXRange(e, projectionsData);
           if (
@@ -356,42 +295,11 @@ const MetroPlotCard = ({
     </>
   );
 
+  // Small city charts are tiles like the front page's: no card, a hairline
+  // along the top, the title turning blue on hover (the whole tile opens the
+  // city).
   return isSmall ? (
-    <Paper
-      withBorder
-      p="xs"
-      radius="md"
-      shadow="xs"
-      style={{
-        position: "relative",
-        cursor: "pointer",
-        border: "1px solid #dee2e6",
-      }}
-    >
-      {PlotContent}
-      <Box
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 5,
-          borderRadius: "8px",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.parentElement.style.transform = "translateY(-4px)";
-          e.currentTarget.parentElement.style.borderColor = "#2563eb";
-          e.currentTarget.parentElement.style.boxShadow =
-            "0 10px 15px -3px rgba(0, 0, 0, 0.1)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.parentElement.style.transform = "translateY(0)";
-          e.currentTarget.parentElement.style.borderColor = "#dee2e6";
-          e.currentTarget.parentElement.style.boxShadow = "none";
-        }}
-      />
-    </Paper>
+    <Box className="respilens-tile respilens-metro-tile">{PlotContent}</Box>
   ) : (
     <Box ref={containerRef} style={{ position: "relative" }}>
       {PlotContent}
@@ -418,9 +326,8 @@ const MetroCastView = ({
     showLegend,
     showOtherGroundTruthSeasons,
   } = useView();
-  const [childData, setChildData] = useState({});
-  const [loadingChildren, setLoadingChildren] = useState(false);
   const [xAxisRange, setXAxisRange] = useState(null);
+  useChartReset(() => setXAxisRange(null));
 
   const stateName = data?.metadata?.location_name;
   const stateCode = METRO_STATE_MAP[stateName];
@@ -442,42 +349,32 @@ const MetroCastView = ({
     setXAxisRange(null);
   }, [selectedTarget]);
 
-  useEffect(() => {
-    if (!stateCode || !metadata?.locations) {
-      setChildData({});
-      return;
-    }
-
-    const fetchChildren = async () => {
-      setLoadingChildren(true);
-      const results = {};
-      const cityList = metadata.locations.filter((l) =>
-        l.location_name.includes(`, ${stateCode}`),
-      );
-
-      await Promise.all(
-        cityList.map(async (city) => {
-          try {
-            const res = await fetch(
-              getDataPath(
-                `flumetrocast/${city.abbreviation}_flu_metrocast.json`,
+  const { data: childData, loading: loadingChildren } = useAsyncData(
+    stateCode && metadata?.locations
+      ? async () => {
+          const cityList = metadata.locations.filter((l) =>
+            l.location_name.includes(`, ${stateCode}`),
+          );
+          const entries = await Promise.all(
+            cityList.map((city) =>
+              fetchJson(
+                getDataPath(
+                  `flumetrocast/${city.abbreviation}_flu_metrocast.json`,
+                ),
+              ).then(
+                (json) => [city.abbreviation, json],
+                (e) => {
+                  console.error(e);
+                  return null;
+                },
               ),
-            );
-            if (res.ok) {
-              results[city.abbreviation] = await res.json();
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }),
-      );
-
-      setChildData(results);
-      setLoadingChildren(false);
-    };
-
-    fetchChildren();
-  }, [stateCode, metadata, selectedTarget]);
+            ),
+          );
+          return Object.fromEntries(entries.filter(Boolean));
+        }
+      : null,
+    [stateCode, metadata],
+  );
 
   if (!selectedTarget)
     return (
@@ -514,11 +411,11 @@ const MetroCastView = ({
           ) : (
             <>
               <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
-                {Object.entries(childData).map(([abbr, cityData]) => (
+                {Object.entries(childData ?? {}).map(([abbr, cityData]) => (
                   <UnstyledButton
                     key={abbr}
                     onClick={() => handleLocationSelect(abbr)}
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", display: "block" }}
                   >
                     <MetroPlotCard
                       locationData={cityData}
@@ -552,6 +449,7 @@ const MetroCastView = ({
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
           selectedDates={selectedDates}
+          keyboardShortcut
         />
       </Stack>
     </Stack>

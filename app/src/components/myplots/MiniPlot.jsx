@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   Center,
   Loader,
@@ -8,7 +8,10 @@ import {
 } from "@mantine/core";
 import Plot from "react-plotly.js";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
-import { getModelColor } from "../../config/datasets";
+import { useAsyncData } from "../../hooks/useAsyncData";
+import { fetchJson, getDataPath } from "../../utils/paths";
+import { getModelColor, NSSP_COLUMN_LABELS } from "../../config/datasets";
+import { hexToRgba } from "../../utils/modelColorUtils";
 import {
   COMPACT_GROUND_TRUTH_LINE_WIDTH,
   getBaseChartLayout,
@@ -30,23 +33,7 @@ import {
   getNormalizedPeakDate,
 } from "../../utils/forecastSeasons";
 
-const NSSP_COLUMN_LABELS = {
-  percent_visits_covid: "COVID-19",
-  percent_visits_influenza: "Influenza",
-  percent_visits_rsv: "RSV",
-};
-
-const toRgba = (hex, alpha) => {
-  const match = hex.replace("#", "").match(/.{1,2}/g);
-  if (!match) return hex;
-  const [r, g, b] = match.map((component) => parseInt(component, 16));
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
 const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { colorScheme } = useMantineColorScheme();
 
   const isNHSN = plot.viewType === "nhsnall";
@@ -55,24 +42,13 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
   const isSeriesView = isNHSN || isNSSP;
   const normalizedScale = normalizeChartScale(plot.settings.scale);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const dataUrl = `/processed_data/${plot.fullDataPath}`;
-        const response = await fetch(dataUrl);
-        if (!response.ok) throw new Error("Data not found");
-        const json = await response.json();
-        setData(json);
-        onMetadataLoad?.(json?.metadata || null);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const { data, loading, error } = useAsyncData(async () => {
+    const json = await fetchJson(
+      getDataPath(plot.fullDataPath),
+      "Data not found",
+    );
+    onMetadataLoad?.(json?.metadata || null);
+    return json;
   }, [plot.fullDataPath, onMetadataLoad]);
 
   const { traces: forecastTraces } = useQuantileForecastTraces({
@@ -284,7 +260,7 @@ const MiniPlot = ({ plot, onMetadataLoad, plotHeight = 210 }) => {
           selectedDates.length <= 1
             ? 1
             : 0.4 + (dateIndex / (selectedDates.length - 1)) * 0.6;
-        const traceColor = toRgba(baseColor, opacity);
+        const traceColor = hexToRgba(baseColor, opacity);
 
         if (show95 && low95 !== null && high95 !== null) {
           traces.push({

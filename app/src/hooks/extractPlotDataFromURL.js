@@ -1,14 +1,7 @@
 import { savePlot } from "../utils/plotStorage";
 import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
 import { parseForecastUrlState } from "../utils/forecastRoutes";
-
-const NSSP_COLUMN_LABELS = {
-  percent_visits_covid: "COVID-19",
-  percent_visits_influenza: "Influenza",
-  percent_visits_rsv: "RSV",
-};
-
-const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
+import { NSSP_DEFAULT_COLUMNS } from "../config/datasets";
 
 /**
  * Parses the current URL and viewType to extract a serialized state

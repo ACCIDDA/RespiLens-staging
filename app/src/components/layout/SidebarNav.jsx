@@ -48,7 +48,7 @@ export const BrandLink = ({ onNavigate }) => {
           w="auto"
           fit="contain"
         />
-        <Title order={4} c="blue">
+        <Title order={4} className="respilens-brand-wordmark">
           RespiLens
         </Title>
       </Group>
@@ -56,16 +56,17 @@ export const BrandLink = ({ onNavigate }) => {
   );
 };
 
-// One sidebar row, styled like the dataset rows in ViewSelector: the current
-// section gets a soft tint and a blue accent bar.
+// One sidebar row. Dataset rows in ViewSelector use the same class, so every
+// row in the sidebar hovers and highlights the same way.
 const NavRow = ({ icon: Icon, label, active, ...props }) => (
   <UnstyledButton
     className="respilens-nav-row"
     data-active={active || undefined}
+    aria-current={active ? "page" : undefined}
     {...props}
   >
     <Icon size={17} stroke={1.75} />
-    <span>{label}</span>
+    <span className="respilens-nav-row-label">{label}</span>
   </UnstyledButton>
 );
 
@@ -105,7 +106,7 @@ const SidebarNav = ({ onNavigate }) => {
 
   return (
     <Stack gap="md" h="100%">
-      <Box px={10} pt={2} visibleFrom="sm">
+      <Box px={10} pt={2} pb={4} visibleFrom="sm">
         <BrandLink onNavigate={onNavigate} />
       </Box>
 
@@ -123,9 +124,9 @@ const SidebarNav = ({ onNavigate }) => {
 
       <ViewSelector showActive={onForecasts && !onOverview} />
 
-      <Divider color="var(--respilens-hairline)" />
+      <Divider className="respilens-nav-divider" />
 
-      <Stack gap={2}>
+      <Stack gap={1}>
         {tools.map((tool) => (
           <NavRow
             key={tool.href}

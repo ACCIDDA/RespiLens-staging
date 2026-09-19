@@ -1,41 +1,38 @@
-import { Stack, Group, Button, Text, SimpleGrid, Select } from "@mantine/core";
-import { MODEL_COLORS } from "../config/datasets";
+import { Stack, Group, Text, SimpleGrid, Select } from "@mantine/core";
+import { getPathogenColor } from "../theme/pathogenColors";
+import SeriesToggleChips from "./controls/SeriesToggleChips";
+
+const SUBCATEGORIES = [
+  { key: "total", label: "Total" },
+  { key: "icu", label: "ICU" },
+  { key: "byAge", label: "By Age" },
+  { key: "adult", label: "Adult" },
+  { key: "pediatric", label: "Pediatric" },
+  { key: "percent", label: "Percent" },
+];
+
+const DISEASE_SECTIONS = [
+  { key: "covid", name: "COVID-19", pathogen: "covid" },
+  { key: "influenza", name: "Influenza", pathogen: "flu" },
+  { key: "rsv", name: "RSV", pathogen: "rsv" },
+];
+
+const AGE_RANGES = ["0-4", "5-17", "18-49", "50-64", "65-74", "75+"];
 
 // Function to organize columns by disease first, then by subcategory
 const organizeByDisease = (columns) => {
-  const diseases = {
-    covid: {
-      total: [],
-      icu: [],
-      byAge: [],
-      adult: [],
-      pediatric: [],
-      percent: [],
-    },
-    influenza: {
-      total: [],
-      icu: [],
-      byAge: [],
-      adult: [],
-      pediatric: [],
-      percent: [],
-    },
-    rsv: {
-      total: [],
-      icu: [],
-      byAge: [],
-      adult: [],
-      pediatric: [],
-      percent: [],
-    },
-  };
+  const diseases = Object.fromEntries(
+    DISEASE_SECTIONS.map(({ key }) => [
+      key,
+      Object.fromEntries(SUBCATEGORIES.map(({ key: sub }) => [sub, []])),
+    ]),
+  );
 
   const other = { beds: [], bedPercent: [], other: [] };
 
   const sortByAge = (a, b) => {
-    const ageRanges = ["0-4", "5-17", "18-49", "50-64", "65-74", "75+"];
-    const aAge = ageRanges.findIndex((age) => a.includes(age));
-    const bAge = ageRanges.findIndex((age) => b.includes(age));
+    const aAge = AGE_RANGES.findIndex((age) => a.includes(age));
+    const bAge = AGE_RANGES.findIndex((age) => b.includes(age));
     if (aAge !== -1 && bAge !== -1) return aAge - bAge;
     return a.localeCompare(b);
   };
@@ -93,8 +90,6 @@ const organizeByDisease = (columns) => {
       } else if (colLower.includes("adult")) {
         // Adult without age ranges
         group.adult.push(col);
-      } else if (colLower.startsWith("total ")) {
-        group.total.push(col);
       } else {
         group.total.push(col);
       }
@@ -121,64 +116,47 @@ const NHSNColumnSelector = ({
   availableColumns,
   selectedColumns,
   setSelectedColumns,
+  seriesColors,
   nameMap,
   selectedTarget,
   availableTargets,
   onTargetChange,
   loading,
 }) => {
-  const toggleColumn = (column) => {
-    if (selectedColumns.includes(column)) {
-      setSelectedColumns(selectedColumns.filter((c) => c !== column));
-    } else {
-      setSelectedColumns([...selectedColumns, column]);
-    }
-  };
-
   const { diseases, other } = organizeByDisease(availableColumns);
 
-  const renderButton = (column) => {
-    const columnIndex = availableColumns.indexOf(column);
-    return (
-      <Button
-        key={column}
-        onClick={() => toggleColumn(column)}
-        variant={selectedColumns.includes(column) ? "filled" : "outline"}
-        size="xs"
-        style={
-          selectedColumns.includes(column)
-            ? {
-                backgroundColor:
-                  MODEL_COLORS[columnIndex % MODEL_COLORS.length],
-                color: "white",
-              }
-            : undefined
-        }
-      >
-        {nameMap[column] || column}
-      </Button>
-    );
-  };
+  const renderChips = (columns) => (
+    <SeriesToggleChips
+      columns={columns}
+      selectedColumns={selectedColumns}
+      setSelectedColumns={setSelectedColumns}
+      colors={seriesColors}
+      labels={nameMap}
+    />
+  );
 
-  const renderDiseaseSection = (diseaseName, diseaseData, colorScheme) => {
-    const subcategories = [
-      { key: "total", label: "Total" },
-      { key: "icu", label: "ICU" },
-      { key: "byAge", label: "By Age" },
-      { key: "adult", label: "Adult" },
-      { key: "pediatric", label: "Pediatric" },
-      { key: "percent", label: "Percent" },
-    ];
-
+  const renderDiseaseSection = ({ key: diseaseKey, name, pathogen }) => {
+    const diseaseData = diseases[diseaseKey];
     const hasData = Object.values(diseaseData).some((arr) => arr.length > 0);
     if (!hasData) return null;
 
     return (
-      <Stack key={diseaseName} gap="xs">
-        <Text size="sm" fw={700} c={colorScheme}>
-          {diseaseName}
-        </Text>
-        {subcategories.map(({ key, label }) => {
+      <Stack key={diseaseKey} gap="xs">
+        <Group gap={8} wrap="nowrap">
+          <span
+            aria-hidden="true"
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 3,
+              background: getPathogenColor(pathogen),
+            }}
+          />
+          <Text size="sm" fw={700}>
+            {name}
+          </Text>
+        </Group>
+        {SUBCATEGORIES.map(({ key, label }) => {
           if (diseaseData[key].length === 0) return null;
           return (
             <Group key={key} gap="xs" wrap="nowrap" align="flex-start">
@@ -191,7 +169,7 @@ const NHSNColumnSelector = ({
                 {label}:
               </Text>
               <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
-                {diseaseData[key].map(renderButton)}
+                {renderChips(diseaseData[key])}
               </Group>
             </Group>
           );
@@ -230,9 +208,7 @@ const NHSNColumnSelector = ({
       {/* Disease-specific columns in 3-column layout */}
       {hasDiseaseData && (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
-          {renderDiseaseSection("COVID-19", diseases.covid, "black")}
-          {renderDiseaseSection("Influenza", diseases.influenza, "black")}
-          {renderDiseaseSection("RSV", diseases.rsv, "black")}
+          {DISEASE_SECTIONS.map(renderDiseaseSection)}
         </SimpleGrid>
       )}
 
@@ -241,28 +217,28 @@ const NHSNColumnSelector = ({
         <Stack gap="xs">
           {(other.beds.length > 0 || other.bedPercent.length > 0) && (
             <>
-              <Text size="sm" fw={700} c="gray">
+              <Text size="sm" fw={700}>
                 Bed Capacity
               </Text>
               {other.beds.length > 0 && (
                 <Group gap="xs" wrap="wrap" align="flex-start">
-                  {other.beds.map(renderButton)}
+                  {renderChips(other.beds)}
                 </Group>
               )}
               {other.bedPercent.length > 0 && (
                 <Group gap="xs" wrap="wrap" align="flex-start">
-                  {other.bedPercent.map(renderButton)}
+                  {renderChips(other.bedPercent)}
                 </Group>
               )}
             </>
           )}
           {other.other.length > 0 && (
             <>
-              <Text size="sm" fw={700} c="gray">
+              <Text size="sm" fw={700}>
                 Other
               </Text>
               <Group gap="xs" wrap="wrap" align="flex-start">
-                {other.other.map(renderButton)}
+                {renderChips(other.other)}
               </Group>
             </>
           )}

@@ -9,24 +9,17 @@ import {
   Loader,
 } from "@mantine/core";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js/dist/plotly";
 import { getDataPath } from "../../utils/paths";
 import NHSNColumnSelector from "../NHSNColumnSelector";
-import { MODEL_COLORS } from "../../config/datasets";
+import { assignSeriesColors } from "../../theme/pathogenColors";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  getScaleYAxis,
   getYRangeFromTraces,
-  isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
 import { useView } from "../../hooks/useView";
-import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../../utils/plotDownloadName";
+import { useChartReset } from "../../hooks/useChartReset";
 import {
   nhsnTargetsToColumnsMap, // groupings
   nhsnNameToSlugMap, // { longform: shortform } map
@@ -36,12 +29,10 @@ import {
 import {
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
-  PLOT_CHROME,
+  PLOT_CONFIG,
   RANGESLIDER_STYLE,
-  getChartAxisStyle,
-  getChartFont,
-  getChartLegendStyle,
-  getRangeSelectorStyle,
+  getBaseChartLayout,
+  getRangeSelector,
 } from "../../constants/chart";
 import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
 import ChartCaption from "../ChartCaption";
@@ -106,7 +97,7 @@ const NHSNView = ({ location }) => {
   const [xAxisRange, setXAxisRange] = useState(null);
 
   const plotRef = useRef(null);
-  const isResettingRef = useRef(false);
+  useChartReset(() => setXAxisRange(null));
 
   const getProcessedYValues = useCallback(
     (columnName, rawValues) => {
@@ -120,12 +111,17 @@ const NHSNView = ({ location }) => {
     [normalizedChartScale],
   );
 
+  // Pathogen colours, fixed per column across toggles
+  const seriesColors = useMemo(
+    () => assignSeriesColors(filteredAvailableColumns),
+    [filteredAvailableColumns],
+  );
+
   const buildTracesForColumn = useCallback(
     (columnName) => {
       if (!data?.series?.dates) return [];
 
-      const columnIndex = filteredAvailableColumns.indexOf(columnName);
-      const color = MODEL_COLORS[columnIndex % MODEL_COLORS.length];
+      const color = seriesColors[columnName];
       const tracesForColumn = [];
 
       tracesForColumn.push({
@@ -168,7 +164,7 @@ const NHSNView = ({ location }) => {
 
       return tracesForColumn;
     },
-    [data, filteredAvailableColumns, getProcessedYValues],
+    [data, seriesColors, getProcessedYValues],
   );
 
   useEffect(() => {
@@ -478,10 +474,6 @@ const NHSNView = ({ location }) => {
   const tracesRef = useRef([]);
   const handleRelayout = useCallback(
     (figure) => {
-      if (isResettingRef.current) {
-        isResettingRef.current = false;
-        return;
-      }
       const newXRange = getRelayoutXRange(figure, tracesRef.current);
       if (
         newXRange &&
@@ -500,16 +492,6 @@ const NHSNView = ({ location }) => {
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({ rawRange: rawYRange });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({ rawRange: rawYRange });
-  }, [normalizedChartScale, rawYRange]);
-
   const traces = useMemo(() => {
     if (!data) return [];
     if (selectedColumns.length === 0) {
@@ -524,72 +506,31 @@ const NHSNView = ({ location }) => {
       ];
     }
 
-    return selectedColumns
-      .map((columnName) => {
-        return buildTracesForColumn(columnName);
-      })
-      .flat();
-  }, [data, selectedColumns, buildTracesForColumn]);
+    return rawTraces;
+  }, [data, selectedColumns.length, rawTraces]);
   tracesRef.current = traces;
 
-  const layout = useMemo(
-    () => ({
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      ...PLOT_CHROME,
-      font: getChartFont(colorScheme),
+  const layout = useMemo(() => {
+    const base = getBaseChartLayout(colorScheme);
+    return {
+      ...base,
       xaxis: {
-        ...getChartAxisStyle(colorScheme),
-        rangeslider: {
-          ...RANGESLIDER_STYLE,
-          visible: true,
-          range: fullRange,
-        },
-        rangeselector: {
-          ...getRangeSelectorStyle(colorScheme),
-          buttons: [
-            { count: 1, label: "1m", step: "month", stepmode: "backward" },
-            { count: 6, label: "6m", step: "month", stepmode: "backward" },
-            { count: 1, label: "1y", step: "year", stepmode: "backward" },
-            { step: "all", label: "All" },
-          ],
-        },
+        ...base.xaxis,
+        rangeslider: { ...RANGESLIDER_STYLE, visible: true, range: fullRange },
+        rangeselector: getRangeSelector(colorScheme, { includeYear: true }),
         range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
-        ...getChartAxisStyle(colorScheme),
-        title: `${nhsnYAxisLabelMap[selectedTarget] || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : yAxisRange === null || selectedColumns.length === 0,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
+        ...base.yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: rawYRange,
+          range: yAxisRange,
+          autorange: selectedColumns.length === 0,
+          title: nhsnYAxisLabelMap[selectedTarget] || "Value",
+        }),
       },
       showlegend: showLegend ?? selectedColumns.length < 15,
-      legend: {
-        ...getChartLegendStyle(colorScheme),
-        x: 0.01,
-        y: 0.99,
-        xanchor: "left",
-        yanchor: "top",
-      },
       margin: { t: 40, r: 10, l: 60, b: 40 },
       uirevision: plotRevision,
       annotations:
@@ -607,78 +548,20 @@ const NHSNView = ({ location }) => {
               },
             ]
           : [],
-    }),
-    [
-      colorScheme,
-      fullRange,
-      defaultRange,
-      xAxisRange,
-      yAxisRange,
-      normalizedChartScale,
-      showLegend,
-      selectedTarget,
-      selectedColumns.length,
-      plotRevision,
-      sqrtTicks,
-      log2Ticks,
-    ],
-  );
-
-  const config = useMemo(
-    () => ({
-      responsive: true,
-      // Plotly's toolbar is hidden: download lives in the chart header,
-      // zoom in the minimap and range buttons
-      displayModeBar: false,
-      displaylogo: false,
-      showSendToCloud: false,
-      plotlyServerURL: "",
-      toImageButtonOptions: {
-        format: "png",
-        filename: buildPlotDownloadName("nhsn-plot"),
-        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      },
-      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: function (gd) {
-            if (!data) return;
-
-            const newDefaultRange = getDefaultXRange();
-            if (!newDefaultRange || newDefaultRange[0] === null) return;
-
-            const currentTraces = selectedColumns.flatMap((column) =>
-              buildTracesForColumn(column).map((trace) => ({
-                x: trace.x,
-                y: trace.y,
-              })),
-            );
-
-            const newYRange = calculateYRange(currentTraces, newDefaultRange);
-
-            isResettingRef.current = true;
-            setXAxisRange(null);
-            setYAxisRange(newYRange);
-
-            Plotly.relayout(gd, {
-              "xaxis.range": newDefaultRange,
-              "yaxis.range": newYRange,
-              "yaxis.autorange": newYRange === null,
-            });
-          },
-        },
-      ],
-    }),
-    [
-      data,
-      selectedColumns,
-      getDefaultXRange,
-      calculateYRange,
-      buildTracesForColumn,
-    ],
-  );
+    };
+  }, [
+    colorScheme,
+    fullRange,
+    defaultRange,
+    xAxisRange,
+    yAxisRange,
+    normalizedChartScale,
+    rawYRange,
+    showLegend,
+    selectedTarget,
+    selectedColumns.length,
+    plotRevision,
+  ]);
 
   if (loading)
     return (
@@ -712,7 +595,7 @@ const NHSNView = ({ location }) => {
           useResizeHandler
           data={traces}
           layout={layout}
-          config={config}
+          config={PLOT_CONFIG}
           style={{ width: "100%", height: "100%" }}
           revision={dataRevision}
           onRelayout={handleRelayout}
@@ -724,6 +607,7 @@ const NHSNView = ({ location }) => {
         availableColumns={filteredAvailableColumns}
         selectedColumns={selectedColumns}
         setSelectedColumns={handleSetSelectedColumns}
+        seriesColors={seriesColors}
         nameMap={nhsnNameToPrettyNameMap}
         selectedTarget={selectedTarget}
         availableTargets={availableTargets}

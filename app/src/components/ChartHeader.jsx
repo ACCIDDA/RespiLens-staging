@@ -12,19 +12,29 @@ import {
   IconShare,
   IconChartScatter,
   IconDownload,
+  IconZoomReset,
 } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
+import { FORECAST_VIEWS } from "../hooks/useKeyboardShortcut";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
 import LocationPicker from "./LocationPicker";
 import TargetSelector from "./TargetSelector";
 import DateSelector from "./DateSelector";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 import ForecastChartControls from "./controls/ForecastChartControls";
 
 // The chart's title doubles as its setup: "<target> in <location>", with the
 // forecast date on the line below (source and freshness are captioned under
 // the chart). Display options and
 // actions on the view stay as quiet icons to the right.
-const ChartHeader = ({ onSave, isAdded, onShare, shareCopied, onDownload }) => {
+const ChartHeader = ({
+  onSave,
+  isAdded,
+  onShare,
+  shareCopied,
+  onDownload,
+  onResetView,
+}) => {
   const {
     viewType,
     currentDataset,
@@ -123,6 +133,17 @@ const ChartHeader = ({ onSave, isAdded, onShare, shareCopied, onDownload }) => {
             />
           </Popover.Dropdown>
         </Popover>
+        <Tooltip label="Reset view">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            color="gray"
+            onClick={onResetView}
+            aria-label="Reset view"
+          >
+            <IconZoomReset size={18} />
+          </ActionIcon>
+        </Tooltip>
         <Tooltip label="Download chart as PNG">
           <ActionIcon
             variant="subtle"
@@ -159,6 +180,13 @@ const ChartHeader = ({ onSave, isAdded, onShare, shareCopied, onDownload }) => {
           </ActionIcon>
         </Tooltip>
       </Group>
+
+      <KeyboardShortcutsModal
+        enabled={FORECAST_VIEWS.has(viewType)}
+        hasTargets={hasTargets}
+        hasDates={Boolean(currentDataset?.hasDateSelector)}
+        hasModels={Boolean(currentDataset?.hasModelSelector)}
+      />
     </Group>
   );
 };

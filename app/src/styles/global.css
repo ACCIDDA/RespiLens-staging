@@ -9,9 +9,7 @@
      hairlines - so blue is left to mean "interactive / selected" (pickers,
      links, the current view) instead of washing over the whole frame. */
   --respilens-chrome: #ffffff;
-  /* A breath of cool tint so the sidebar isn't a flat grey */
-  --respilens-sidebar: #f3f7fc;
-  --respilens-sidebar-edge: rgba(15, 23, 42, 0.08);
+  /* Sidebar colours are the --nav-* tokens further down */
   --respilens-canvas: #ffffff;
   --respilens-surface: #ffffff;
 
@@ -55,16 +53,6 @@ body {
 .respilens-shell-header {
   background-color: var(--respilens-chrome);
   border-bottom: 1px solid var(--respilens-hairline);
-}
-
-.respilens-shell-navbar {
-  background-color: var(--respilens-sidebar);
-  border-right: 1px solid var(--respilens-sidebar-edge);
-}
-
-/* Unselected sidebar rows hover in a neutral wash */
-.respilens-shell-navbar .mantine-Button-root[data-variant="subtle"]:hover {
-  background-color: rgba(15, 23, 42, 0.05);
 }
 
 /* Cards that link somewhere lift slightly on hover. */
@@ -182,50 +170,168 @@ body {
   display: none;
 }
 
-/* Site-section rows in the sidebar: neutral until hovered, the current
-   section tinted. The blue accent bar is kept for the current view in the
-   dataset list below, so only one row carries it. */
+/* ---------------------------------------------------------------------
+ * Sidebar
+ * Every row (Overview, datasets, views, tools, About) is one
+ * .respilens-nav-row, coloured only through the --nav-* tokens.
+ * ------------------------------------------------------------------- */
+
+/* White sidebar split from the canvas by a hairline,
+   dark ink, the current page a soft blue pill. */
+:root {
+  --nav-bg: #ffffff;
+  --nav-edge: rgba(15, 23, 42, 0.1);
+  --nav-ink: #1f2937;
+  --nav-ink-soft: #4b5563;
+  --nav-icon: #6b7280;
+  --nav-heading: #6b7280;
+  --nav-hover: rgba(15, 23, 42, 0.05);
+  --nav-active-bg: #e0f1fd;
+  --nav-active-ink: #014d83;
+  --nav-active-icon: #0062a8;
+  --nav-accent: transparent;
+  --nav-parent-ink: #0062a8;
+  --nav-divider: rgba(15, 23, 42, 0.08);
+  --nav-wordmark: #0062a8;
+  --nav-about: #b91c1c;
+  --nav-about-hover: rgba(220, 38, 38, 0.07);
+}
+
+.respilens-shell-navbar {
+  background-color: var(--nav-bg);
+  border-right: 1px solid var(--nav-edge);
+  color: var(--nav-ink);
+}
+
+.respilens-brand-wordmark {
+  color: var(--mantine-color-blue-7);
+}
+
+.respilens-shell-navbar .respilens-brand-wordmark {
+  color: var(--nav-wordmark);
+}
+
+/* Group heading ("Forecasts", "Surveillance data"): quiet label whose icon
+   sits in the same column as the row icons below and above it. */
+.respilens-nav-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--nav-heading);
+}
+
+.respilens-nav-heading svg {
+  width: 17px;
+  flex-shrink: 0;
+}
+
 .respilens-nav-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   height: 34px;
   padding: 0 10px;
-  border-radius: var(--mantine-radius-sm);
+  border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--respilens-ink);
-  transition: background-color 120ms ease;
+  color: var(--nav-ink);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/* Dataset rows have no icon: their text lines up with the icon rows'
+   text (10px pad + 17px icon + 10px gap); flu views one step further in. */
+.respilens-nav-row[data-indent="1"] {
+  padding-left: 37px;
+}
+
+.respilens-nav-row[data-indent="2"] {
+  padding-left: 49px;
+  height: 32px;
+  font-size: 0.8125rem;
+  color: var(--nav-ink-soft);
+}
+
+.respilens-nav-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
 }
 
 .respilens-nav-row svg {
-  color: var(--respilens-ink-soft);
+  color: var(--nav-icon);
   flex-shrink: 0;
 }
 
-.respilens-nav-row:hover {
-  background-color: rgba(15, 23, 42, 0.05);
+.respilens-nav-row-end {
+  display: flex;
+  opacity: 0.7;
 }
 
-.respilens-nav-row[data-active] {
-  background-color: rgba(0, 118, 209, 0.08);
-  color: var(--mantine-color-blue-8);
+.respilens-nav-row:hover {
+  background-color: var(--nav-hover);
+}
+
+.respilens-nav-row:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: -2px;
+}
+
+.respilens-nav-row[data-parent-active] {
+  color: var(--nav-parent-ink);
+  font-weight: 600;
+}
+
+.respilens-nav-row[data-parent-active] svg {
+  color: var(--nav-parent-ink);
+}
+
+.respilens-nav-row[data-active],
+.respilens-nav-row[data-active]:hover {
+  background-color: var(--nav-active-bg);
+  color: var(--nav-active-ink);
   font-weight: 600;
 }
 
 .respilens-nav-row[data-active] svg {
-  color: var(--mantine-color-blue-7);
+  color: var(--nav-active-icon);
+}
+
+/* Optional accent bar on the current row (off while --nav-accent is
+   transparent) */
+.respilens-nav-row[data-active]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--nav-accent);
+}
+
+.respilens-nav-divider {
+  border-color: var(--nav-divider) !important;
 }
 
 /* "About RespiLens" keeps the brand red of the old Info link */
 .respilens-nav-row[data-tone="brand"],
 .respilens-nav-row[data-tone="brand"] svg {
-  color: var(--mantine-color-red-7);
+  color: var(--nav-about);
 }
 
 .respilens-nav-row[data-tone="brand"]:hover {
-  background-color: rgba(224, 49, 49, 0.07);
+  background-color: var(--nav-about-hover);
 }
 
 /* A whole tile that links somewhere: flat hairline box, border and title
@@ -246,4 +352,70 @@ body {
 .respilens-tile {
   border-top: 1px solid var(--respilens-hairline);
   padding-top: 12px;
+}
+
+/* Series toggle chips (NHSN / NSSP pickers). --series-color is set inline. */
+.respilens-series-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--respilens-hairline-strong);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--respilens-ink-soft);
+  background: var(--respilens-surface);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.respilens-series-chip:hover {
+  border-color: var(--series-color);
+  color: var(--respilens-ink);
+}
+
+.respilens-series-chip:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: 2px;
+}
+
+.respilens-series-chip-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--series-color);
+}
+
+.respilens-series-chip[data-selected] {
+  border-color: var(--series-color);
+  background-color: color-mix(in srgb, var(--series-color) 10%, white);
+  color: var(--respilens-ink);
+}
+
+.respilens-series-chip[data-selected] .respilens-series-chip-dot {
+  background-color: var(--series-color);
+}
+
+/* MetroCast city tiles: the whole tile opens the city, so the title takes
+   the link colour on hover. */
+.respilens-metro-tile {
+  border-radius: 2px;
+  transition: background-color 120ms ease;
+}
+
+.respilens-metro-tile-title {
+  transition: color 120ms ease;
+}
+
+.respilens-metro-tile:hover {
+  background-color: rgba(15, 23, 42, 0.02);
+}
+
+.respilens-metro-tile:hover .respilens-metro-tile-title {
+  color: var(--mantine-color-blue-7);
 }

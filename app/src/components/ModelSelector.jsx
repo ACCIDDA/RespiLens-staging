@@ -12,6 +12,8 @@ import {
 } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { getModelColor } from "../config/datasets";
+import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
+import ShortcutHint from "./ShortcutHint";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
 
 // Model picker under the chart: one filterable checklist, coloured like the
@@ -28,9 +30,23 @@ const ModelSelector = ({
   getModelColor: legacyGetModelColor = null,
   // Only used to word the "not available" tooltip
   selectedDates = [],
+  // M jumps to the filter box (forecast pages only: one list per page)
+  keyboardShortcut = false,
 }) => {
   const [scope, setScope] = useState("selected");
   const [search, setSearch] = useState("");
+  const searchRef = useRef(null);
+  useKeyboardShortcut(
+    "m",
+    () => {
+      searchRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+      searchRef.current?.focus({ preventScroll: true });
+    },
+    keyboardShortcut && !disabled && models.length > 0,
+  );
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
     const nextOrder = extendStableModelOrder(
@@ -114,26 +130,34 @@ const ModelSelector = ({
               {selectedModels.length} of {models.length}
             </Text>
           </Text>
-          <TextInput
-            w={240}
-            size="xs"
-            placeholder="Filter models…"
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            onKeyDown={handleSearchKeyDown}
-            leftSection={<IconSearch size={14} />}
-            rightSection={
-              search && (
-                <CloseButton
-                  size="sm"
-                  onClick={() => setSearch("")}
-                  aria-label="Clear search"
-                />
-              )
-            }
-            aria-label="Filter forecasting models"
-            disabled={disabled}
-          />
+          <Tooltip
+            label={<ShortcutHint label="Filter models" shortcut="m" />}
+            disabled={!keyboardShortcut}
+            openDelay={400}
+          >
+            <TextInput
+              ref={searchRef}
+              w={240}
+              size="xs"
+              placeholder="Filter models…"
+              value={search}
+              onChange={(event) => setSearch(event.currentTarget.value)}
+              onKeyDown={handleSearchKeyDown}
+              leftSection={<IconSearch size={14} />}
+              rightSection={
+                search && (
+                  <CloseButton
+                    size="sm"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                  />
+                )
+              }
+              aria-label="Filter forecasting models"
+              aria-keyshortcuts={keyboardShortcut ? "M" : undefined}
+              disabled={disabled}
+            />
+          </Tooltip>
           <SegmentedControl
             size="xs"
             value={query ? "all" : scope}

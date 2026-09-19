@@ -1,36 +1,27 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { Stack, useMantineColorScheme } from "@mantine/core";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
 import {
   CHART_CONSTANTS,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
-  PLOT_CHROME,
+  PLOT_CONFIG,
   RANGESLIDER_STYLE,
-  getChartAxisStyle,
-  getChartFont,
+  getBaseChartLayout,
   getChartInk,
-  getChartLegendStyle,
   getForecastDateLineStyle,
-  getRangeSelectorStyle,
+  getRangeSelector,
 } from "../constants/chart";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  getScaleYAxis,
   getYRangeFromTraces,
-  isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
 } from "../utils/scaleUtils";
-import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../utils/plotDownloadName";
-import { extendStableModelOrder } from "../utils/modelColorUtils";
+import { useChartReset } from "../hooks/useChartReset";
+import { extendStableModelOrder, hexToRgba } from "../utils/modelColorUtils";
 import { copyRange, getRelayoutXRange } from "../utils/plotRange";
 import ChartCaption from "./ChartCaption";
 
@@ -148,26 +139,6 @@ const buildHistoricalPeakGroundTruthTraces = ({
   return traces;
 };
 
-// helper to convert Hex to RGBA for opacity control
-const hexToRgba = (hex, alpha) => {
-  let c;
-  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-    c = hex.substring(1).split("");
-    if (c.length === 3) {
-      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-    }
-    c = "0x" + c.join("");
-    return (
-      "rgba(" +
-      [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(",") +
-      "," +
-      alpha +
-      ")"
-    );
-  }
-  return hex;
-};
-
 const FluPeak = ({
   data,
   peaks,
@@ -185,9 +156,7 @@ const FluPeak = ({
   const groundTruth = data?.ground_truth;
   const [xAxisRange, setXAxisRange] = useState(null);
   const plotRef = useRef(null);
-  const getDefaultRangeRef = useRef(() => null);
-  const plotDataRef = useRef([]);
-  const isResettingRef = useRef(false);
+  useChartReset(() => setXAxisRange(null));
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
@@ -626,11 +595,6 @@ const FluPeak = ({
     colorScheme,
   ]);
 
-  useEffect(() => {
-    getDefaultRangeRef.current = () => defaultRange;
-    plotDataRef.current = plotData;
-  }, [defaultRange, plotData]);
-
   const displayedYRange = useMemo(() => {
     const currentRange = xAxisRange || defaultRange;
     if (!plotData.length || !currentRange) {
@@ -642,11 +606,6 @@ const FluPeak = ({
 
   const handlePlotUpdate = useCallback(
     (figure) => {
-      if (isResettingRef.current) {
-        isResettingRef.current = false;
-        return;
-      }
-
       const nextXRange = getRelayoutXRange(figure, plotData);
       if (
         nextXRange &&
@@ -658,87 +617,34 @@ const FluPeak = ({
     [xAxisRange, plotData],
   );
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({
-      rawRange: rawYRange,
-      formatValue: (value) => Number(value).toLocaleString(),
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({
-      rawRange: rawYRange,
-      formatValue: (value) => Number(value).toLocaleString(),
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const layout = useMemo(
-    () => ({
+  const layout = useMemo(() => {
+    const base = getBaseChartLayout(colorScheme);
+    return {
+      ...base,
       // Sized by its container (like the standard view), not the window,
       // so it never spills past the content column
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      ...PLOT_CHROME,
-      font: getChartFont(colorScheme),
       margin: { l: 60, r: 30, t: 30, b: 50 },
       showlegend: showLegend,
-      legend: {
-        ...getChartLegendStyle(colorScheme),
-        x: 0.01,
-        y: 0.99,
-        xanchor: "left",
-        yanchor: "top",
-      },
       hovermode: "closest",
       hoverlabel: { namelength: -1 },
       dragmode: false,
       xaxis: {
-        ...getChartAxisStyle(colorScheme),
+        ...base.xaxis,
         range: copyRange(xAxisRange || defaultRange),
         rangeslider: rangesliderRange
           ? { ...RANGESLIDER_STYLE, range: rangesliderRange }
           : undefined,
-        rangeselector: {
-          ...getRangeSelectorStyle(colorScheme),
-          buttons: [
-            { count: 1, label: "1m", step: "month", stepmode: "backward" },
-            { count: 6, label: "6m", step: "month", stepmode: "backward" },
-            { step: "all", label: "all" },
-          ],
-        },
+        rangeselector: getRangeSelector(colorScheme),
       },
       yaxis: {
-        ...getChartAxisStyle(colorScheme),
-        title: (() => {
-          const baseTitle = "Flu Hospitalizations";
-          return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
-        })(),
-        range: isPlotlyLogScale(normalizedChartScale)
-          ? undefined
-          : displayedYRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : displayedYRange === null,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
+        ...base.yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: rawYRange,
+          range: displayedYRange,
+          title: "Flu Hospitalizations",
+          formatValue: (value) => Number(value).toLocaleString(),
+        }),
       },
 
       // dynamic gray shading section
@@ -771,65 +677,18 @@ const FluPeak = ({
           },
         ];
       }),
-    }),
-    [
-      colorScheme,
-      selectedDates,
-      defaultRange,
-      rangesliderRange,
-      xAxisRange,
-      displayedYRange,
-      normalizedChartScale,
-      sqrtTicks,
-      log2Ticks,
-      showLegend,
-    ],
-  );
-
-  const config = useMemo(
-    () => ({
-      responsive: true,
-      // Plotly's toolbar is hidden: download lives in the chart header,
-      // zoom in the minimap and range buttons
-      displayModeBar: false,
-      displaylogo: false,
-      modeBarPosition: "left",
-      scrollZoom: false,
-      doubleClick: "reset",
-      modeBarButtonsToRemove: ["select2d", "lasso2d", "resetScale2d"],
-      toImageButtonOptions: {
-        format: "png",
-        filename: buildPlotDownloadName("peak-plot"),
-        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      },
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: function (gd) {
-            const currentDefaultRange = getDefaultRangeRef.current();
-            const currentPlotData = plotDataRef.current;
-
-            if (!currentDefaultRange) return;
-
-            const nextYRange = calculateYRange(
-              currentPlotData,
-              currentDefaultRange,
-            );
-            isResettingRef.current = true;
-            setXAxisRange(null);
-
-            Plotly.relayout(gd, {
-              "xaxis.range": currentDefaultRange,
-              "yaxis.range": nextYRange,
-              "yaxis.autorange": nextYRange === null,
-            });
-          },
-        },
-      ],
-    }),
-    [calculateYRange],
-  );
+    };
+  }, [
+    colorScheme,
+    selectedDates,
+    defaultRange,
+    rangesliderRange,
+    xAxisRange,
+    displayedYRange,
+    normalizedChartScale,
+    rawYRange,
+    showLegend,
+  ]);
 
   return (
     <Stack gap="md" style={{ padding: "20px" }}>
@@ -845,7 +704,7 @@ const FluPeak = ({
           ref={plotRef}
           data={plotData}
           layout={layout}
-          config={config}
+          config={PLOT_CONFIG}
           style={{ width: "100%", height: "100%" }}
           useResizeHandler={true}
           onRelayout={(figure) => handlePlotUpdate(figure)}
@@ -859,6 +718,7 @@ const FluPeak = ({
           setSelectedModels={setSelectedModels}
           activeModels={activePeakModels}
           selectedDates={selectedDates}
+          keyboardShortcut
         />
       </Stack>
     </Stack>

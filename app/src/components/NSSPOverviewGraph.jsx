@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Alert, Loader, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
+import { useAsyncData } from "../hooks/useAsyncData";
 import NSSPGeoMap from "./NSSPGeoMap";
 import OverviewTile from "./OverviewTile";
 import {
@@ -21,19 +22,27 @@ import {
   getNsspUsFeatureCallout,
 } from "../utils/nsspMap";
 
+const EMPTY_COVERAGE = {};
+
 const NSSPOverviewGraph = () => {
   const {
     selectedLocation,
     viewType: activeViewType,
     setViewAndLocation,
   } = useView();
-  const [usMapData, setUsMapData] = useState(null);
-  const [stateMapData, setStateMapData] = useState(null);
-  const [countyAssignmentData, setCountyAssignmentData] = useState(null);
-  const [stateCoverage, setStateCoverage] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    data: usMap,
+    loading,
+    error,
+  } = useAsyncData(async () => {
+    const [coverage, statesGeoJson] = await Promise.all([
+      fetchNsspStateCoverage(),
+      fetchNsspStatesGeoJson(),
+    ]);
+    return { coverage, statesGeoJson };
+  }, []);
+  const usMapData = usMap?.statesGeoJson ?? null;
+  const stateCoverage = usMap?.coverage ?? EMPTY_COVERAGE;
 
   const resolvedNsspLocation = useMemo(() => {
     if (
@@ -68,99 +77,28 @@ const NSSPOverviewGraph = () => {
   };
   const isActive = activeViewType === "nsspall";
 
-  useEffect(() => {
-    let isActiveRequest = true;
+  const needsStateMap =
+    !loading &&
+    !isUnitedStates &&
+    Boolean(selectedStateAbbreviation) &&
+    selectedStateAbbreviation !== "US" &&
+    currentStateCoverage.hasAnyData &&
+    currentStateCoverage.hasCountyData;
 
-    const loadMap = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [coverage, statesGeoJson] = await Promise.all([
-          fetchNsspStateCoverage(),
-          fetchNsspStatesGeoJson(),
-        ]);
-
-        if (!isActiveRequest) {
-          return;
+  const { data: stateMap, loading: detailLoading } = useAsyncData(
+    needsStateMap
+      ? async () => {
+          const [countiesGeoJson, assignments] = await Promise.all([
+            fetchNsspCountiesGeoJson(selectedStateAbbreviation),
+            fetchNsspCountyAssignments(selectedStateAbbreviation),
+          ]);
+          return { countiesGeoJson, assignments };
         }
-
-        setStateCoverage(coverage);
-        setUsMapData(statesGeoJson);
-      } catch (err) {
-        console.error("Failed to load NSSP front page map", err);
-        if (isActiveRequest) {
-          setError(err.message);
-          setUsMapData(null);
-        }
-      } finally {
-        if (isActiveRequest) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadMap();
-    return () => {
-      isActiveRequest = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isActiveRequest = true;
-
-    const loadStateMap = async () => {
-      if (
-        loading ||
-        isUnitedStates ||
-        !selectedStateAbbreviation ||
-        selectedStateAbbreviation === "US" ||
-        !currentStateCoverage.hasAnyData ||
-        !currentStateCoverage.hasCountyData
-      ) {
-        setStateMapData(null);
-        setCountyAssignmentData(null);
-        setDetailLoading(false);
-        return;
-      }
-
-      try {
-        setDetailLoading(true);
-        const [countiesGeoJson, assignments] = await Promise.all([
-          fetchNsspCountiesGeoJson(selectedStateAbbreviation),
-          fetchNsspCountyAssignments(selectedStateAbbreviation),
-        ]);
-
-        if (!isActiveRequest) {
-          return;
-        }
-
-        setStateMapData(countiesGeoJson);
-        setCountyAssignmentData(assignments);
-      } catch (err) {
-        console.error("Failed to load NSSP state map", err);
-        if (isActiveRequest) {
-          setStateMapData(null);
-          setCountyAssignmentData(null);
-        }
-      } finally {
-        if (isActiveRequest) {
-          setDetailLoading(false);
-        }
-      }
-    };
-
-    loadStateMap();
-    return () => {
-      isActiveRequest = false;
-    };
-  }, [
-    currentStateCoverage.hasAnyData,
-    currentStateCoverage.hasCountyData,
-    isUnitedStates,
-    loading,
-    selectedStateAbbreviation,
-  ]);
+      : null,
+    [needsStateMap, selectedStateAbbreviation],
+  );
+  const stateMapData = stateMap?.countiesGeoJson ?? null;
+  const countyAssignmentData = stateMap?.assignments ?? null;
 
   const isStateClickable = (feature) =>
     Boolean(stateCoverage[feature.properties?.STUSAB]?.hasAnyData);

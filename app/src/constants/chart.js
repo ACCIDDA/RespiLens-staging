@@ -146,6 +146,33 @@ export const getRangeSelectorStyle = (colorScheme) => {
   };
 };
 
+// Range buttons for the time-series charts: 1m / 6m (/ 1y) / All
+export const getRangeSelector = (
+  colorScheme,
+  { includeYear = false } = {},
+) => ({
+  ...getRangeSelectorStyle(colorScheme),
+  buttons: [
+    { count: 1, label: "1m", step: "month", stepmode: "backward" },
+    { count: 6, label: "6m", step: "month", stepmode: "backward" },
+    ...(includeYear
+      ? [{ count: 1, label: "1y", step: "year", stepmode: "backward" }]
+      : []),
+    { step: "all", label: "All" },
+  ],
+});
+
+// Plotly config for the full-size charts. The toolbar is hidden: download
+// lives in the chart header, zoom in the minimap and range buttons, and a
+// double-click resets the view.
+export const PLOT_CONFIG = {
+  responsive: true,
+  displayModeBar: false,
+  displaylogo: false,
+  scrollZoom: false,
+  doubleClick: "reset",
+};
+
 // Vertical marker for a forecast date: a thin neutral rule, not a red dash
 export const getForecastDateLineStyle = (colorScheme) => ({
   color: getChartInk(colorScheme).marker,

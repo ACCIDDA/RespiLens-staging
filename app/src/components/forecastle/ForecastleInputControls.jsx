@@ -260,7 +260,7 @@ const ForecastleInputControls = ({
               min={0}
               max={sliderMax / 2}
               step={1}
-              color="pink"
+              color="blue"
               size="md"
               disabled={disabled}
               marks={[
@@ -297,7 +297,7 @@ const ForecastleInputControls = ({
               min={-50}
               max={100}
               step={1}
-              color="pink"
+              color="blue"
               size="md"
               disabled={disabled}
               marks={[
@@ -331,7 +331,7 @@ const ForecastleInputControls = ({
               min={0}
               max={sliderMax / 2}
               step={1}
-              color="red"
+              color="blue"
               size="md"
               disabled={disabled}
               marks={[
@@ -363,7 +363,7 @@ const ForecastleInputControls = ({
               min={-50}
               max={100}
               step={1}
-              color="red"
+              color="blue"
               size="md"
               disabled={disabled}
               marks={[
@@ -386,11 +386,11 @@ const ForecastleInputControls = ({
                   <Text size="xs" c="dimmed" ta="center">
                     {formatHorizonLabel(entry.horizon)}
                   </Text>
-                  <Text size="xs" fw={500} ta="center" c="pink.7">
+                  <Text size="xs" fw={500} ta="center">
                     50%: [{Math.round(entry.lower50)},{" "}
                     {Math.round(entry.upper50)}]
                   </Text>
-                  <Text size="xs" fw={500} ta="center" c="red.7">
+                  <Text size="xs" fw={500} ta="center">
                     95%: [{Math.round(entry.lower95)},{" "}
                     {Math.round(entry.upper95)}]
                   </Text>
@@ -435,7 +435,7 @@ const ForecastleInputControls = ({
                     min={0}
                     max={sliderMax}
                     step={1}
-                    color="red"
+                    color="blue"
                     size="sm"
                     minRange={0}
                     disabled={disabled}
@@ -469,7 +469,7 @@ const ForecastleInputControls = ({
                     min={entry.lower95}
                     max={entry.upper95}
                     step={1}
-                    color="pink"
+                    color="blue"
                     size="sm"
                     minRange={0}
                     disabled={disabled}

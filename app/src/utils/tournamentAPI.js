@@ -297,25 +297,3 @@ export const getStoredParticipantName = (
 ) => {
   return localStorage.getItem(tournamentConfig.storageKeys.participantName);
 };
-
-/**
- * Clear participant data from localStorage (logout)
- * @param {Object} tournamentConfig - Tournament configuration
- */
-export const clearParticipantData = (tournamentConfig = TOURNAMENT_CONFIG) => {
-  localStorage.removeItem(tournamentConfig.storageKeys.participantId);
-  localStorage.removeItem(tournamentConfig.storageKeys.participantName);
-  localStorage.removeItem(tournamentConfig.storageKeys.submissions);
-  localStorage.removeItem(tournamentConfig.storageKeys.lastSync);
-};
-
-/**
- * Check if participant is registered
- * @param {Object} tournamentConfig - Tournament configuration
- * @returns {boolean} True if participant ID is stored
- */
-export const isParticipantRegistered = (
-  tournamentConfig = TOURNAMENT_CONFIG,
-) => {
-  return !!getStoredParticipantId(tournamentConfig);
-};

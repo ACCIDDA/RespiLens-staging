@@ -206,15 +206,6 @@ const FluView = ({
     [viewType, lastSelectedDate, colorScheme],
   );
 
-  const configOverrides = useCallback(
-    (baseConfig) => ({
-      ...baseConfig,
-      modeBarPosition: "left",
-      modeBarButtonsToRemove: ["select2d", "lasso2d", "resetScale2d"],
-    }),
-    [],
-  );
-
   if (viewType === "flu_peak") {
     return (
       <>
@@ -253,7 +244,6 @@ const FluView = ({
       activeModels={activeModels}
       extraTraces={extraTraces}
       layoutOverrides={layoutOverrides}
-      configOverrides={configOverrides}
       groundTruthValueFormat="%{y}"
     />
   );

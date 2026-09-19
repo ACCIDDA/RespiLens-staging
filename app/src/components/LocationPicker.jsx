@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useView } from "../hooks/useView";
+import { FORECAST_VIEWS, isOwnedKeyEvent } from "../hooks/useKeyboardShortcut";
 import { useLocationOptions } from "../hooks/useLocationOptions";
 import { getNsspTopLevelLocation } from "../utils/nsspGeo";
 import InlinePicker from "./InlinePicker";
@@ -7,21 +8,8 @@ import InlinePicker from "./InlinePicker";
 const displayName = (location) =>
   location.abbreviation === "US" ? "United States" : location.location_name;
 
-const FORECAST_VIEWS = new Set([
-  "fludetailed",
-  "flu_forecasts",
-  "flu_peak",
-  "rsv_forecasts",
-  "covid_forecasts",
-  "metrocast_forecasts",
-]);
-
-// Keys typed into these belong to them (menus, search boxes, pickers)
-const KEY_OWNERS =
-  'input, textarea, select, [contenteditable="true"], [role="listbox"], [role="combobox"], [role="menu"], [role="option"]';
-
 // `arrowKeys`: on forecast pages, ArrowUp / ArrowDown step to the previous /
-// next location in the picker's order
+// next location in the picker's order, and L opens the picker
 const LocationPicker = ({ arrowKeys = false }) => {
   const { selectedLocation, handleLocationSelect, viewType, currentDataset } =
     useView();
@@ -41,9 +29,7 @@ const LocationPicker = ({ arrowKeys = false }) => {
     if (!keysEnabled || locations.length === 0) return undefined;
     const handleKeyDown = (event) => {
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-      if (event.defaultPrevented || event.altKey || event.ctrlKey) return;
-      if (event.metaKey || event.shiftKey) return;
-      if (event.target.closest?.(KEY_OWNERS)) return;
+      if (event.shiftKey || isOwnedKeyEvent(event)) return;
 
       const index = locations.findIndex(
         (location) => location.abbreviation === selectedLocation,
@@ -68,6 +54,8 @@ const LocationPicker = ({ arrowKeys = false }) => {
       data={data}
       onChange={handleLocationSelect}
       searchable
+      shortcut={keysEnabled ? "l" : null}
+      shortcutLabel="Change location"
       placeholder={loading ? "…" : error ? "unavailable" : "a location"}
       renderOption={(item) => {
         const isCity = isMetro && item.label.includes(",");

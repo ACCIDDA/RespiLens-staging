@@ -54,9 +54,7 @@ import {
 } from "../../constants/chart";
 import { extendStableModelOrder } from "../../utils/modelColorUtils";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  getScaleYAxis,
   isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
@@ -2004,16 +2002,6 @@ const MyRespiVisualizationPanel = ({
     normalizedChartScale,
   ]);
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({ rawRange: combinedRawYRange });
-  }, [normalizedChartScale, combinedRawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({ rawRange: combinedRawYRange });
-  }, [normalizedChartScale, combinedRawYRange]);
-
   const handlePlotUpdate = useCallback((figure) => {
     if (isResettingRef.current) {
       isResettingRef.current = false;
@@ -2045,29 +2033,12 @@ const MyRespiVisualizationPanel = ({
       },
       yaxis: {
         ...getBaseChartLayout(colorScheme).yaxis,
-        title: `${selectedTarget || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : yAxisRange === null,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: combinedRawYRange,
+          range: yAxisRange,
+          title: selectedTarget || "Value",
+        }),
       },
       shapes: selectedDates.map((date) => {
         const shiftedDate = shiftDateStringByDays(date, -3);
@@ -2092,8 +2063,7 @@ const MyRespiVisualizationPanel = ({
       selectedTarget,
       normalizedChartScale,
       yAxisRange,
-      sqrtTicks,
-      log2Ticks,
+      combinedRawYRange,
     ],
   );
 

@@ -12,6 +12,7 @@ import { useView } from "../hooks/useView";
 import { extractPlotData } from "../hooks/extractPlotDataFromURL";
 import ChartHeader from "./ChartHeader";
 import { ChartAboutContext } from "../contexts/ChartAboutContext";
+import { ChartResetContext } from "../contexts/ChartResetContext";
 import LocationPicker from "./LocationPicker";
 import ViewSwitchboard from "./ViewSwitchboard";
 import ErrorBoundary from "./ErrorBoundary";
@@ -69,6 +70,9 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       setBackground: "opaque",
     });
   };
+
+  const [resetCount, setResetCount] = useState(0);
+  const handleResetView = () => setResetCount((count) => count + 1);
 
   const [isAdded, setIsAdded] = useState(false);
   const handleSaveToMyPlots = () => {
@@ -608,43 +612,46 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
         />
       )}
       <ChartAboutContext.Provider value={chartAbout}>
-        <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
-          <Stack gap="lg">
-            <Stack gap="md" style={{ minHeight: "78vh" }}>
-              <ChartHeader
-                onSave={handleSaveToMyPlots}
-                isAdded={isAdded}
-                onShare={handleShare}
-                shareCopied={clipboard.copied}
-                onDownload={handleDownload}
-              />
-              <div ref={chartAreaRef} style={{ flex: 1, minHeight: 0 }}>
-                <ViewSwitchboard
-                  viewType={viewType}
-                  location={selectedLocation}
-                  data={data}
-                  metadata={metadata}
-                  loading={loading}
-                  error={error}
-                  availableDates={availableDates}
-                  models={models}
-                  selectedDates={selectedDates}
-                  selectedModels={selectedModels}
-                  setSelectedDates={setSelectedDates}
-                  setActiveDate={setActiveDate}
-                  setSelectedModels={setSelectedModels}
-                  selectedColumns={selectedColumns}
-                  setSelectedColumns={setSelectedColumns}
-                  windowSize={windowSize}
-                  selectedTarget={selectedTarget}
-                  peaks={peaks}
-                  availablePeakDates={availablePeakDates}
-                  availablePeakModels={availablePeakModels}
+        <ChartResetContext.Provider value={resetCount}>
+          <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
+            <Stack gap="lg">
+              <Stack gap="md" style={{ minHeight: "78vh" }}>
+                <ChartHeader
+                  onSave={handleSaveToMyPlots}
+                  isAdded={isAdded}
+                  onShare={handleShare}
+                  shareCopied={clipboard.copied}
+                  onDownload={handleDownload}
+                  onResetView={handleResetView}
                 />
-              </div>
+                <div ref={chartAreaRef} style={{ flex: 1, minHeight: 0 }}>
+                  <ViewSwitchboard
+                    viewType={viewType}
+                    location={selectedLocation}
+                    data={data}
+                    metadata={metadata}
+                    loading={loading}
+                    error={error}
+                    availableDates={availableDates}
+                    models={models}
+                    selectedDates={selectedDates}
+                    selectedModels={selectedModels}
+                    setSelectedDates={setSelectedDates}
+                    setActiveDate={setActiveDate}
+                    setSelectedModels={setSelectedModels}
+                    selectedColumns={selectedColumns}
+                    setSelectedColumns={setSelectedColumns}
+                    windowSize={windowSize}
+                    selectedTarget={selectedTarget}
+                    peaks={peaks}
+                    availablePeakDates={availablePeakDates}
+                    availablePeakModels={availablePeakModels}
+                  />
+                </div>
+              </Stack>
             </Stack>
-          </Stack>
-        </Container>
+          </Container>
+        </ChartResetContext.Provider>
       </ChartAboutContext.Provider>
     </ErrorBoundary>
   );
