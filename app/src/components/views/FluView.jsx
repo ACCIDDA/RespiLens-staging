@@ -184,6 +184,7 @@ const FluView = ({
             standoff: 10,
           },
           domain: [0.85, 1],
+          anchor: "y2",
           showgrid: false,
         },
         yaxis2: {
@@ -191,7 +192,10 @@ const FluView = ({
           title: "",
           showticklabels: true,
           type: "category",
-          side: "right",
+          // Spine along the bars' left edge, labels outside it (in the gap
+          // between the two charts), like every other axis
+          anchor: "x2",
+          side: "left",
           // Category names run along the bars, so they never wrap or overlap
           tickangle: -90,
           tickfont: {
