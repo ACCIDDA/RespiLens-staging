@@ -184,7 +184,6 @@ body {
   --nav-ink: #1f2937;
   --nav-ink-soft: #4b5563;
   --nav-icon: #6b7280;
-  --nav-heading: #6b7280;
   --nav-hover: rgba(15, 23, 42, 0.05);
   --nav-active-bg: #e0f1fd;
   --nav-active-ink: #014d83;
@@ -220,21 +219,22 @@ body {
   color: var(--nav-wordmark);
 }
 
-/* Group heading ("Forecasts", "Surveillance data"): quiet label whose icon
-   sits in the same column as the row icons below and above it. */
+/* Group heading ("Forecasts", "Surveillance data"): set like the tool rows
+   (Forecastle, Toolbox) with an icon, but not a link itself; its datasets
+   are listed under it. */
 .respilens-nav-heading {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 10px 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--nav-heading);
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--nav-ink);
 }
 
 .respilens-nav-heading svg {
-  width: 17px;
+  color: var(--nav-icon);
   flex-shrink: 0;
 }
 
@@ -343,19 +343,44 @@ body {
   background-color: var(--nav-about-hover);
 }
 
-/* A whole tile that links somewhere: flat hairline box, border and title
-   darken on hover */
-.respilens-tile-link {
+/* Big clickable cards (Toolbox, Forecast Checker hubs): lift and turn
+   blue on hover */
+.respilens-hub-card {
   color: inherit;
   text-decoration: none;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
   transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
-.respilens-tile-link:hover {
-  border-color: var(--respilens-hairline-strong);
-  background-color: rgba(15, 23, 42, 0.015);
+.respilens-hub-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.18);
+  border-color: var(--mantine-color-blue-4);
+}
+
+/* "View →" on a front-page tile: underlined link, the arrow nudges on
+   hover */
+.respilens-tile-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--mantine-color-blue-2);
+}
+
+.respilens-tile-action:hover {
+  text-decoration-color: currentColor;
+}
+
+.respilens-tile-action svg {
+  transition: transform 120ms ease;
+}
+
+.respilens-tile-action:hover svg {
+  transform: translateX(2px);
 }
 
 /* Chart tiles in a grid (front page, My Plots): no card, just a hairline
@@ -417,6 +442,31 @@ body {
 
 /* MetroCast city tiles: the whole tile opens the city, so the title takes
    the link colour on hover. */
+/* MetroCast state view (see MetroStateLayout): 2/3 main block, city tiles
+   beside it two per row, then full rows of six below */
+.respilens-metro-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--mantine-spacing-lg);
+  align-items: start;
+}
+
+.respilens-metro-main {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (min-width: 62em) {
+  .respilens-metro-layout {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .respilens-metro-main {
+    grid-column: 1 / span 4;
+    grid-row: 1 / span var(--metro-main-rows, 1);
+  }
+}
+
 .respilens-metro-tile {
   border-radius: 2px;
   transition: background-color 120ms ease;

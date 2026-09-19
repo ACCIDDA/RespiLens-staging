@@ -1,11 +1,16 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   useMantineColorScheme,
   Stack,
   Text,
   Center,
-  SimpleGrid,
-  Loader,
   Box,
   UnstyledButton,
 } from "@mantine/core";
@@ -21,9 +26,9 @@ import {
   RANGESLIDER_STYLE,
   COMPACT_GROUND_TRUTH_LINE_WIDTH,
   getBaseChartLayout,
-  getChartFont,
   getChartInk,
-  getForecastDateLineStyle,
+  getForecastDateMarks,
+  getRangeSelector,
 } from "../../constants/chart";
 import {
   targetDisplayNameMap,
@@ -55,6 +60,51 @@ const METRO_STATE_MAP = {
   Virginia: "VA",
   "North Carolina": "NC",
   Oregon: "OR",
+};
+
+// Same height as the other forecast charts
+const MAIN_PLOT_HEIGHT = "min(880px, 60vh)";
+const TILE_PLOT_HEIGHT = 150;
+
+// State view: the state's chart (and its model list) takes the left two
+// thirds; the city tiles fill the column beside it, two per row, then wrap
+// into full rows below. The main block spans as many tile rows as its
+// height needs, measured as it resizes.
+const MetroStateLayout = ({ main, tiles }) => {
+  const mainRef = useRef(null);
+  const tilesRef = useRef(null);
+  const [rows, setRows] = useState(1);
+
+  useLayoutEffect(() => {
+    const mainEl = mainRef.current;
+    const layoutEl = tilesRef.current;
+    if (!mainEl || !layoutEl) return undefined;
+    const measure = () => {
+      const tile = layoutEl.querySelector(".respilens-metro-tile-cell");
+      if (!tile) return;
+      const gap = parseFloat(getComputedStyle(layoutEl).rowGap) || 0;
+      const tileHeight = tile.getBoundingClientRect().height;
+      const mainHeight = mainEl.getBoundingClientRect().height;
+      setRows(Math.max(1, Math.round((mainHeight + gap) / (tileHeight + gap))));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(mainEl);
+    measure();
+    return () => observer.disconnect();
+  }, [tiles.length]);
+
+  return (
+    <div
+      ref={tilesRef}
+      className="respilens-metro-layout"
+      style={{ "--metro-main-rows": rows }}
+    >
+      <div ref={mainRef} className="respilens-metro-main">
+        {main}
+      </div>
+      {tiles}
+    </div>
+  );
 };
 
 const MetroPlotCard = ({
@@ -210,18 +260,24 @@ const MetroPlotCard = ({
       <Plot
         style={{
           width: "100%",
-          height: isSmall ? "240px" : "400px",
+          height: isSmall ? TILE_PLOT_HEIGHT : MAIN_PLOT_HEIGHT,
+          minHeight: isSmall ? undefined : 340,
           opacity: hasForecasts ? 1 : 0.6,
         }}
         data={projectionsData}
         layout={{
           ...base,
-          margin: { l: isSmall ? 45 : 60, r: 12, t: 10, b: isSmall ? 30 : 80 },
+          // Full size: same frame as the other forecast charts
+          margin: isSmall
+            ? { l: 45, r: 12, t: 10, b: 30 }
+            : { l: 64, r: 30, t: 36, b: 30 },
           showlegend: showLegend && !isSmall,
+          dragmode: false,
           xaxis: {
             ...base.xaxis,
             range: copyRange(xAxisRange || defRange),
             ...(isSmall && { nticks: 4 }),
+            ...(!isSmall && { rangeselector: getRangeSelector(colorScheme) }),
             rangeslider: {
               ...RANGESLIDER_STYLE,
               visible: !isSmall,
@@ -249,37 +305,7 @@ const MetroPlotCard = ({
           hoverlabel: {
             namelength: -1,
           },
-          shapes: displayDates.map((d) => ({
-            type: "line",
-            x0: d,
-            x1: d,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line:
-              d === draggingDate
-                ? {
-                    ...getForecastDateLineStyle(colorScheme),
-                    width: 2.5,
-                    dash: "dash",
-                  }
-                : getForecastDateLineStyle(colorScheme),
-          })),
-          annotations: draggingDate
-            ? [
-                {
-                  x: draggingDate,
-                  y: 1,
-                  yref: "paper",
-                  yanchor: "bottom",
-                  text: draggingDate,
-                  showarrow: false,
-                  font: { ...getChartFont(colorScheme), size: 12 },
-                  bgcolor: colorScheme === "dark" ? "#25262b" : "#ffffff",
-                  borderpad: 2,
-                },
-              ]
-            : [],
+          ...getForecastDateMarks(colorScheme, displayDates, draggingDate, 0),
         }}
         config={{ ...PLOT_CONFIG, staticPlot: isSmall }}
         onRelayout={(e) => {
@@ -383,7 +409,7 @@ const MetroCastView = ({
       </Center>
     );
 
-  return (
+  const main = (
     <Stack gap="xl">
       <MetroPlotCard
         locationData={data}
@@ -402,45 +428,6 @@ const MetroCastView = ({
         showLegend={showLegend}
         showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
       />
-      {stateCode && (
-        <Stack gap="md">
-          {loadingChildren ? (
-            <Center p="xl">
-              <Loader size="sm" />
-            </Center>
-          ) : (
-            <>
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
-                {Object.entries(childData ?? {}).map(([abbr, cityData]) => (
-                  <UnstyledButton
-                    key={abbr}
-                    onClick={() => handleLocationSelect(abbr)}
-                    style={{ width: "100%", display: "block" }}
-                  >
-                    <MetroPlotCard
-                      locationData={cityData}
-                      title={cityData.metadata?.location_name}
-                      isSmall={true}
-                      colorScheme={colorScheme}
-                      windowSize={windowSize}
-                      selectedTarget={selectedTarget}
-                      selectedModels={selectedModels}
-                      selectedDates={selectedDates}
-                      getDefaultRange={getDefaultRange}
-                      xAxisRange={xAxisRange}
-                      setXAxisRange={setXAxisRange}
-                      chartScale={chartScale}
-                      intervalVisibility={intervalVisibility}
-                      showLegend={showLegend}
-                      showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
-                    />
-                  </UnstyledButton>
-                ))}
-              </SimpleGrid>
-            </>
-          )}
-        </Stack>
-      )}
       <Stack gap={2}>
         <ChartCaption forecastNote />
         <ModelSelector
@@ -454,6 +441,40 @@ const MetroCastView = ({
       </Stack>
     </Stack>
   );
+
+  // A city: just its chart, like the other forecast pages
+  if (!stateCode) return main;
+
+  const tiles = loadingChildren
+    ? []
+    : Object.entries(childData ?? {}).map(([abbr, cityData]) => (
+        <UnstyledButton
+          key={abbr}
+          className="respilens-metro-tile-cell"
+          onClick={() => handleLocationSelect(abbr)}
+          style={{ width: "100%", display: "block", minWidth: 0 }}
+        >
+          <MetroPlotCard
+            locationData={cityData}
+            title={cityData.metadata?.location_name}
+            isSmall={true}
+            colorScheme={colorScheme}
+            windowSize={windowSize}
+            selectedTarget={selectedTarget}
+            selectedModels={selectedModels}
+            selectedDates={selectedDates}
+            getDefaultRange={getDefaultRange}
+            xAxisRange={xAxisRange}
+            setXAxisRange={setXAxisRange}
+            chartScale={chartScale}
+            intervalVisibility={intervalVisibility}
+            showLegend={showLegend}
+            showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
+          />
+        </UnstyledButton>
+      ));
+
+  return <MetroStateLayout main={main} tiles={tiles} />;
 };
 
 export default MetroCastView;

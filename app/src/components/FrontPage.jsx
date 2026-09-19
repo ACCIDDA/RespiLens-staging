@@ -53,7 +53,7 @@ const NsspViewLink = () => {
 // drawn around each group. Headings match the sidebar's groups (same label
 // and icon) so forecasts and surveillance data read as distinct.
 const Section = ({ title, icon: Icon, children }) => (
-  <Stack gap="md" mt="md">
+  <Stack gap="xs">
     <Group gap={8} wrap="nowrap">
       <Icon size={16} stroke={2} className="respilens-eyebrow" />
       <Text size="sm" fw={700} className="respilens-eyebrow">
@@ -63,7 +63,7 @@ const Section = ({ title, icon: Icon, children }) => (
     <SimpleGrid
       cols={{ base: 1, sm: 2, lg: 3 }}
       spacing="xl"
-      verticalSpacing={40}
+      verticalSpacing="xl"
     >
       {children}
     </SimpleGrid>

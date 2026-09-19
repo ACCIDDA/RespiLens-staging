@@ -5,14 +5,16 @@ import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
 import {
   CHART_CONSTANTS,
+  FORECAST_LINE_OFFSET_DAYS,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
   PLOT_CONFIG,
   RANGESLIDER_STYLE,
   getBaseChartLayout,
   getChartInk,
-  getForecastDateLineStyle,
+  getForecastDateMarks,
   getRangeSelector,
+  shiftDateStringByDays,
 } from "../constants/chart";
 import {
   getScaleYAxis,
@@ -21,6 +23,7 @@ import {
   transformValueForScale,
 } from "../utils/scaleUtils";
 import { useChartReset } from "../hooks/useChartReset";
+import useForecastDateDrag from "../hooks/useForecastDateDrag";
 import { extendStableModelOrder, hexToRgba } from "../utils/modelColorUtils";
 import { copyRange, getRelayoutXRange } from "../utils/plotRange";
 import ChartCaption from "./ChartCaption";
@@ -157,6 +160,18 @@ const FluPeak = ({
   const [xAxisRange, setXAxisRange] = useState(null);
   const plotRef = useRef(null);
   useChartReset(() => setXAxisRange(null));
+  // Click the chart or drag the date line to move the (single) forecast
+  // date, like the standard view. Pin the visible window first so the chart
+  // does not re-centre under the pointer.
+  const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
+    selectedDates,
+    lineOffsetDays: FORECAST_LINE_OFFSET_DAYS,
+    maxDates: 1,
+    onBeforeCommit: (gd) => {
+      const range = gd?._fullLayout?.xaxis?.range;
+      if (!xAxisRange && range) setXAxisRange([...range]);
+    },
+  });
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
@@ -619,6 +634,11 @@ const FluPeak = ({
 
   const layout = useMemo(() => {
     const base = getBaseChartLayout(colorScheme);
+    const dateMarks = getForecastDateMarks(
+      colorScheme,
+      displayDates,
+      draggingDate,
+    );
     return {
       ...base,
       // Sized by its container (like the standard view), not the window,
@@ -647,40 +667,31 @@ const FluPeak = ({
         }),
       },
 
-      // dynamic gray shading section
-      shapes: selectedDates.flatMap((dateStr) => {
-        const seasonStart = getFluPeakSeasonStartDate(dateStr);
-        return [
-          {
-            type: "rect",
-            xref: "x",
-            yref: "paper",
-            x0: seasonStart,
-            x1: dateStr,
-            y0: 0,
-            y1: 1,
-            fillcolor:
-              colorScheme === "dark"
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(128, 128, 128, 0.1)",
-            line: { width: 0 },
-            layer: "below",
-          },
-          {
-            type: "line",
-            x0: dateStr,
-            x1: dateStr,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line: getForecastDateLineStyle(colorScheme),
-          },
-        ];
-      }),
+      // The season so far is shaded up to the forecast date's line
+      shapes: [
+        ...displayDates.map((dateStr) => ({
+          type: "rect",
+          xref: "x",
+          yref: "paper",
+          x0: getFluPeakSeasonStartDate(dateStr),
+          x1: shiftDateStringByDays(dateStr, FORECAST_LINE_OFFSET_DAYS),
+          y0: 0,
+          y1: 1,
+          fillcolor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(128, 128, 128, 0.1)",
+          line: { width: 0 },
+          layer: "below",
+        })),
+        ...dateMarks.shapes,
+      ],
+      annotations: dateMarks.annotations,
     };
   }, [
     colorScheme,
-    selectedDates,
+    displayDates,
+    draggingDate,
     defaultRange,
     rangesliderRange,
     xAxisRange,
@@ -691,13 +702,9 @@ const FluPeak = ({
   ]);
 
   return (
-    <Stack gap="md" style={{ padding: "20px" }}>
-      <style>{`
-                .js-plotly-plot .plotly .nsewdrag {
-                    cursor: default !important;
-                }
-            `}</style>
+    <Stack gap="md">
       <div
+        ref={containerRef}
         style={{ width: "100%", height: "min(880px, 60vh)", minHeight: 340 }}
       >
         <Plot

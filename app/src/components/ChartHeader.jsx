@@ -1,3 +1,4 @@
+import { useContext } from "react";
 import {
   Group,
   Stack,
@@ -15,12 +16,15 @@ import {
   IconZoomReset,
 } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
-import { FORECAST_VIEWS } from "../hooks/useKeyboardShortcut";
 import { getDatasetTitleFromView } from "../utils/datasetUtils";
-import LocationPicker from "./LocationPicker";
+import LocationPicker, { MetroCityPicker } from "./LocationPicker";
+import NsspCountyPicker from "./NsspCountyPicker";
 import TargetSelector from "./TargetSelector";
 import DateSelector from "./DateSelector";
-import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
+import { ChartInfoButton } from "./KeyboardShortcutsModal";
+import ShortcutHint from "./ShortcutHint";
+import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
+import { ChartAboutContext } from "../contexts/ChartAboutContext";
 import ForecastChartControls from "./controls/ForecastChartControls";
 
 // The chart's title doubles as its setup: "<target> in <location>", with the
@@ -55,6 +59,8 @@ const ChartHeader = ({
     setShowOtherGroundTruthSeasons,
   } = useView();
 
+  const about = useContext(ChartAboutContext);
+  useKeyboardShortcut("r", onResetView);
   const isSurveillance = viewType === "nhsnall" || viewType === "nsspall";
   const hasTargets = availableTargets?.length > 0;
   const datasetTitle =
@@ -74,7 +80,9 @@ const ChartHeader = ({
           <Text span inherit c="dimmed" fw={400}>
             in
           </Text>{" "}
-          <LocationPicker arrowKeys />
+          <LocationPicker />
+          {viewType === "nsspall" && <NsspCountyPicker />}
+          {viewType === "metrocast_forecasts" && <MetroCityPicker />}
         </Title>
 
         {/* Each fact stays on one line; facts wrap as whole units */}
@@ -133,7 +141,7 @@ const ChartHeader = ({
             />
           </Popover.Dropdown>
         </Popover>
-        <Tooltip label="Reset view">
+        <Tooltip label={<ShortcutHint label="Reset view" shortcut="r" />}>
           <ActionIcon
             variant="subtle"
             size="lg"
@@ -179,14 +187,14 @@ const ChartHeader = ({
             <IconShare size={18} />
           </ActionIcon>
         </Tooltip>
+        <ChartInfoButton
+          about={about}
+          hasTargets={hasTargets}
+          hasDates={Boolean(currentDataset?.hasDateSelector)}
+          hasModels={Boolean(currentDataset?.hasModelSelector)}
+          singleDate={viewType === "flu_peak"}
+        />
       </Group>
-
-      <KeyboardShortcutsModal
-        enabled={FORECAST_VIEWS.has(viewType)}
-        hasTargets={hasTargets}
-        hasDates={Boolean(currentDataset?.hasDateSelector)}
-        hasModels={Boolean(currentDataset?.hasModelSelector)}
-      />
     </Group>
   );
 };

@@ -1,15 +1,5 @@
 import { useEffect, useRef } from "react";
 
-// Views whose chart header and model list answer to keyboard shortcuts
-export const FORECAST_VIEWS = new Set([
-  "fludetailed",
-  "flu_forecasts",
-  "flu_peak",
-  "rsv_forecasts",
-  "covid_forecasts",
-  "metrocast_forecasts",
-]);
-
 // Keys typed into these belong to them (menus, search boxes, pickers)
 const KEY_OWNERS =
   'input, textarea, select, [contenteditable="true"], [role="listbox"], [role="combobox"], [role="menu"], [role="option"]';

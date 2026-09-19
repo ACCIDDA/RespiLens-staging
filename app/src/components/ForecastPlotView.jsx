@@ -4,14 +4,14 @@ import Plot from "react-plotly.js";
 import ModelSelector from "./ModelSelector";
 import {
   CHART_CONSTANTS,
+  FORECAST_LINE_OFFSET_DAYS,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
   PLOT_CONFIG,
   RANGESLIDER_STYLE,
   getBaseChartLayout,
-  getChartFont,
   getChartInk,
-  getForecastDateLineStyle,
+  getForecastDateMarks,
   getRangeSelector,
 } from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
@@ -38,15 +38,6 @@ const FORECAST_DATASET_KEYS_BY_VIEW = {
   flu_forecasts: "flusight",
   rsv_forecasts: "rsv",
   covid_forecasts: "covid19",
-};
-
-// Forecast date lines are drawn a few days before the reference date
-const FORECAST_LINE_OFFSET_DAYS = -3;
-
-const shiftDateStringByDays = (dateString, days) => {
-  const [year, month, day] = dateString.split("-").map(Number);
-  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
-  return shiftedDate.toISOString().slice(0, 10);
 };
 
 const ForecastPlotView = ({
@@ -299,6 +290,11 @@ const ForecastPlotView = ({
   ]);
 
   const layout = useMemo(() => {
+    const dateMarks = getForecastDateMarks(
+      colorScheme,
+      displayDates,
+      draggingDate,
+    );
     const base = getBaseChartLayout(colorScheme);
     const longName = targetDisplayNameMap[resolvedDisplayTarget];
     const baseLayout = {
@@ -327,44 +323,8 @@ const ForecastPlotView = ({
             "Value",
         }),
       },
-      shapes: [
-        ...seasonDividerShapes,
-        ...displayDates.map((date) => {
-          const shiftedDate = shiftDateStringByDays(
-            date,
-            FORECAST_LINE_OFFSET_DAYS,
-          );
-          const lineStyle = getForecastDateLineStyle(colorScheme);
-          return {
-            type: "line",
-            x0: shiftedDate,
-            x1: shiftedDate,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line:
-              date === draggingDate
-                ? { ...lineStyle, width: 2.5, dash: "dash" }
-                : lineStyle,
-          };
-        }),
-      ],
-      // While dragging, label the date the line will land on
-      annotations: draggingDate
-        ? [
-            {
-              x: shiftDateStringByDays(draggingDate, FORECAST_LINE_OFFSET_DAYS),
-              y: 1,
-              yref: "paper",
-              yanchor: "bottom",
-              text: draggingDate,
-              showarrow: false,
-              font: { ...getChartFont(colorScheme), size: 12 },
-              bgcolor: colorScheme === "dark" ? "#25262b" : "#ffffff",
-              borderpad: 2,
-            },
-          ]
-        : [],
+      shapes: [...seasonDividerShapes, ...dateMarks.shapes],
+      annotations: dateMarks.annotations,
     };
 
     if (layoutOverrides) {

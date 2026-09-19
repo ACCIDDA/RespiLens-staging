@@ -2,21 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
-  Button,
   Center,
   Group,
   Loader,
-  Paper,
   Stack,
   Text,
-  Title,
   useMantineColorScheme,
 } from "@mantine/core";
-import { IconAlertTriangle, IconArrowLeft } from "@tabler/icons-react";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import SeriesToggleChips from "../controls/SeriesToggleChips";
 import NSSPGeoMap from "../NSSPGeoMap";
-import TitleRow from "../TitleRow";
 import { assignSeriesColors } from "../../theme/pathogenColors";
 import { useView } from "../../hooks/useView";
 import { useChartReset } from "../../hooks/useChartReset";
@@ -37,7 +33,6 @@ import {
   fetchNsspCountyAssignments,
   fetchNsspStateCoverage,
   fetchNsspStatesGeoJson,
-  getCountyDisplayLabel,
   getCountySelectionForFeature,
   getNsspStateAbbreviationFromLocation,
   isNsspStatewideLocation,
@@ -60,8 +55,13 @@ import {
 } from "../../config/datasets";
 
 const NSSPView = ({ location, data }) => {
-  const { handleLocationSelect, locationMessage, chartScale, showLegend } =
-    useView();
+  const {
+    handleLocationSelect,
+    nsspCounty,
+    locationMessage,
+    chartScale,
+    showLegend,
+  } = useView();
   const normalizedChartScale = normalizeChartScale(chartScale);
   const { colorScheme } = useMantineColorScheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,7 +71,6 @@ const NSSPView = ({ location, data }) => {
   const [stateCoverage, setStateCoverage] = useState({});
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(null);
-  const [selectedCounty, setSelectedCounty] = useState(null);
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [dataRevision, setDataRevision] = useState(0);
   const [plotRevision, setPlotRevision] = useState(0);
@@ -177,12 +176,6 @@ const NSSPView = ({ location, data }) => {
     const padding = maxY < 1 ? 0.1 : maxY * 0.15;
     return [0, maxY + padding];
   }, []);
-
-  useEffect(() => {
-    if (isUnitedStates || isStatewide) {
-      setSelectedCounty(null);
-    }
-  }, [isStatewide, isUnitedStates, location]);
 
   useEffect(() => {
     let isActive = true;
@@ -412,14 +405,6 @@ const NSSPView = ({ location, data }) => {
     currentStateCoverage.hasAnyData &&
     !currentStateCoverage.hasCountyData;
   const shouldShowPlot = hasReachedCountyDetail || isStatewideOnlyDetail;
-  const detailHeading =
-    selectedCounty?.countyName ||
-    data?.metadata?.location_name ||
-    stateInfo?.name ||
-    "Selected county";
-  const plotTitle = isStatewideOnlyDetail
-    ? `${stateInfo?.name || stateAbbreviation} (All) — NSSP`
-    : `${getCountyDisplayLabel(detailHeading)} — NSSP`;
 
   const handleUnitedStatesStateClick = (feature) => {
     const nextStateAbbreviation = feature?.properties?.STUSAB;
@@ -429,7 +414,6 @@ const NSSPView = ({ location, data }) => {
     ) {
       return;
     }
-    setSelectedCounty(null);
     handleLocationSelect(`${nextStateAbbreviation}_All`);
   };
 
@@ -445,8 +429,7 @@ const NSSPView = ({ location, data }) => {
     if (!selection.hasData || !selection.locationId) {
       return;
     }
-    setSelectedCounty(selection);
-    handleLocationSelect(selection.locationId);
+    handleLocationSelect(selection.locationId, selection.countyName);
   };
 
   const getCountyFill = (feature) => {
@@ -464,9 +447,9 @@ const NSSPView = ({ location, data }) => {
 
     const isSelectedByLocation = selection.locationId === location;
     const isExplicitCountySelection =
-      selectedCounty &&
+      nsspCounty &&
       normalizeCountyBasename(selection.countyName) ===
-        normalizeCountyBasename(selectedCounty.countyName);
+        normalizeCountyBasename(nsspCounty);
 
     if (isExplicitCountySelection) {
       return MAP_COLORS.selected;
@@ -636,40 +619,13 @@ const NSSPView = ({ location, data }) => {
         </Alert>
       ) : null}
 
-      <Group gap="sm">
-        {!isUnitedStates && (
-          <Button
-            variant="light"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => {
-              setSelectedCounty(null);
-              handleLocationSelect("US_All");
-            }}
-          >
-            Back to United States
-          </Button>
-        )}
-        {!isUnitedStates && !isStatewide && (
-          <Button
-            variant="light"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => {
-              setSelectedCounty(null);
-              handleLocationSelect(`${stateAbbreviation}_All`);
-            }}
-          >
-            Back to {stateInfo?.name} counties
-          </Button>
-        )}
-      </Group>
-
       {shouldShowPlot ? (
         <Stack gap="md" w="100%">
-          <TitleRow title={plotTitle} />
-          {hasReachedCountyDetail ? (
-            <Text size="sm" c="dimmed" ta="center">
-              County selections resolve to their shared HSA grouping when
-              applicable.
+          {/* The header names the county; its data covers the whole HSA */}
+          {hasReachedCountyDetail && data?.metadata?.location_name ? (
+            <Text size="sm" c="dimmed">
+              Data for the health service area covering{" "}
+              {data.metadata.location_name}.
             </Text>
           ) : null}
           <div
@@ -707,56 +663,54 @@ const NSSPView = ({ location, data }) => {
           </Stack>
         </Stack>
       ) : (
-        <Paper withBorder radius="md" p="lg">
-          <Stack gap="md">
-            <Title order={4}>
-              {isUnitedStates
-                ? "United States map"
-                : `${stateInfo?.name || stateAbbreviation} county map`}
-            </Title>
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {isUnitedStates
+              ? "Pick a state on the map (or above) to see its data."
+              : "Pick a county on the map (or above) to see its data."}
+          </Text>
 
-            {mapLoading ? (
-              <Center py="xl">
-                <Loader />
-              </Center>
-            ) : mapError ? (
-              <Alert
-                color="red"
-                variant="light"
-                icon={<IconAlertTriangle size={16} />}
-              >
-                {mapError}
-              </Alert>
-            ) : isUnitedStates ? (
-              <NSSPGeoMap
-                featureCollection={usMapData}
-                height={NSSP_MAP_HEIGHTS.usa}
-                projectionKind="usa"
-                onFeatureClick={handleUnitedStatesStateClick}
-                isFeatureClickable={isStateClickable}
-                getFeatureKey={(feature) => feature.properties?.GEOID}
-                getFeatureLabel={(feature) => feature.properties?.NAME}
-                getFeatureFill={getStateFill}
-                getFeatureCallout={getNsspUsFeatureCallout}
-              />
-            ) : currentStateCoverage.hasCountyData ? (
-              <NSSPGeoMap
-                featureCollection={stateMapData}
-                height={NSSP_MAP_HEIGHTS.state}
-                projectionKind="state"
-                onFeatureClick={handleCountyClick}
-                isFeatureClickable={isCountyClickable}
-                getFeatureKey={(feature) => feature.properties?.GEOID}
-                getFeatureLabel={(feature) => feature.properties?.NAME}
-                getFeatureFill={getCountyFill}
-              />
-            ) : (
-              <Alert color="red" variant="light">
-                County-level NSSP data is not available for {stateInfo?.name}.
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
+          {mapLoading ? (
+            <Center py="xl">
+              <Loader />
+            </Center>
+          ) : mapError ? (
+            <Alert
+              color="red"
+              variant="light"
+              icon={<IconAlertTriangle size={16} />}
+            >
+              {mapError}
+            </Alert>
+          ) : isUnitedStates ? (
+            <NSSPGeoMap
+              featureCollection={usMapData}
+              height={NSSP_MAP_HEIGHTS.usa}
+              projectionKind="usa"
+              onFeatureClick={handleUnitedStatesStateClick}
+              isFeatureClickable={isStateClickable}
+              getFeatureKey={(feature) => feature.properties?.GEOID}
+              getFeatureLabel={(feature) => feature.properties?.NAME}
+              getFeatureFill={getStateFill}
+              getFeatureCallout={getNsspUsFeatureCallout}
+            />
+          ) : currentStateCoverage.hasCountyData ? (
+            <NSSPGeoMap
+              featureCollection={stateMapData}
+              height={NSSP_MAP_HEIGHTS.state}
+              projectionKind="state"
+              onFeatureClick={handleCountyClick}
+              isFeatureClickable={isCountyClickable}
+              getFeatureKey={(feature) => feature.properties?.GEOID}
+              getFeatureLabel={(feature) => feature.properties?.NAME}
+              getFeatureFill={getCountyFill}
+            />
+          ) : (
+            <Alert color="red" variant="light">
+              County-level NSSP data is not available for {stateInfo?.name}.
+            </Alert>
+          )}
+        </Stack>
       )}
     </Stack>
   );

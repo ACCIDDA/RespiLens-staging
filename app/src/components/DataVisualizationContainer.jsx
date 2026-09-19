@@ -14,6 +14,7 @@ import ChartHeader from "./ChartHeader";
 import { ChartAboutContext } from "../contexts/ChartAboutContext";
 import { ChartResetContext } from "../contexts/ChartResetContext";
 import LocationPicker from "./LocationPicker";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 import ViewSwitchboard from "./ViewSwitchboard";
 import ErrorBoundary from "./ErrorBoundary";
 import FrontPage, { FrontPageAnnouncements } from "./FrontPage";
@@ -599,6 +600,11 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
             </Title>
             <FrontPage />
           </Stack>
+          <KeyboardShortcutsModal
+            hasTargets={false}
+            hasDates={false}
+            hasModels={false}
+          />
         </Container>
       </ErrorBoundary>
     );

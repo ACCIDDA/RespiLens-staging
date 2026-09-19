@@ -8,9 +8,12 @@ const MAP_PADDING = {
   state: 72,
 };
 
+// `displayHeight`: a CSS height to fit the map into (it keeps its aspect
+// ratio, centred); by default it takes its natural height at full width
 const NSSPGeoMap = ({
   featureCollection,
   height,
+  displayHeight = "auto",
   projectionKind,
   onFeatureClick,
   isFeatureClickable,
@@ -77,7 +80,7 @@ const NSSPGeoMap = ({
   return (
     <svg
       viewBox={`0 0 ${MAP_WIDTH} ${height}`}
-      style={{ width: "100%", height: "auto", display: "block" }}
+      style={{ width: "100%", height: displayHeight, display: "block" }}
       role="img"
       aria-label="Interactive geographic map"
     >

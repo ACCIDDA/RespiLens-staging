@@ -18,12 +18,8 @@ import {
 } from "@tabler/icons-react";
 import { useView } from "../../hooks/useView";
 import { APP_CONFIG } from "../../config/app";
+import { isForecastPathname } from "../../utils/forecastRoutes";
 import ViewSelector from "../ViewSelector";
-
-const isForecastPath = (pathname) =>
-  pathname === "/" ||
-  pathname.startsWith("/forecasts") ||
-  pathname.startsWith("/surveillance");
 
 // Logo + wordmark; clicking it returns to the forecasts front page. `large`
 // fills the sidebar's width; the mobile header keeps the compact size.
@@ -81,7 +77,7 @@ const SidebarNav = ({ onNavigate }) => {
   const location = useLocation();
   const { viewType, setViewAndLocation } = useView();
   const path = location.pathname;
-  const onForecasts = isForecastPath(path);
+  const onForecasts = isForecastPathname(path);
   const onOverview = onForecasts && viewType === "frontpage";
 
   const tools = [

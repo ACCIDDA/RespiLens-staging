@@ -179,6 +179,58 @@ export const getForecastDateLineStyle = (colorScheme) => ({
   width: 1.25,
 });
 
+// Forecast date lines are drawn a few days before the reference date
+export const FORECAST_LINE_OFFSET_DAYS = -3;
+
+export const shiftDateStringByDays = (dateString, days) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
+  return shiftedDate.toISOString().slice(0, 10);
+};
+
+// Layout shapes and annotations marking forecast dates (see
+// useForecastDateDrag): a rule per date, the one being dragged dashed and
+// labelled with the date it will land on
+export const getForecastDateMarks = (
+  colorScheme,
+  dates,
+  draggingDate = null,
+  offsetDays = FORECAST_LINE_OFFSET_DAYS,
+) => {
+  const lineStyle = getForecastDateLineStyle(colorScheme);
+  const shapes = dates.map((date) => {
+    const x = shiftDateStringByDays(date, offsetDays);
+    return {
+      type: "line",
+      x0: x,
+      x1: x,
+      y0: 0,
+      y1: 1,
+      yref: "paper",
+      line:
+        date === draggingDate
+          ? { ...lineStyle, width: 2.5, dash: "dash" }
+          : lineStyle,
+    };
+  });
+  const annotations = draggingDate
+    ? [
+        {
+          x: shiftDateStringByDays(draggingDate, offsetDays),
+          y: 1,
+          yref: "paper",
+          yanchor: "bottom",
+          text: draggingDate,
+          showarrow: false,
+          font: { ...getChartFont(colorScheme), size: 12 },
+          bgcolor: colorScheme === "dark" ? "#25262b" : "#ffffff",
+          borderpad: 2,
+        },
+      ]
+    : [];
+  return { shapes, annotations };
+};
+
 // Preliminary NHSN releases are drawn dashed in each pathogen's colour and
 // share their pathogen's legend entry; this plain-text legend title explains
 // the dashes.

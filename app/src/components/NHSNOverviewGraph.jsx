@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
 import { useMantineColorScheme } from "@mantine/core";
 import { fetchJson, getDataPath } from "../utils/paths";
 import { useAsyncData } from "../hooks/useAsyncData";
@@ -132,8 +133,7 @@ const NHSNOverviewGraph = ({ location }) => {
     [layout],
   );
 
-  const locationLabel =
-    resolvedLocation === "US" ? "US national" : resolvedLocation;
+  const locationLabel = resolvePlotLocationDisplayName(resolvedLocation);
   const nhsnViewLocation =
     selectedLocation && selectedLocation !== "US_All" ? resolvedLocation : "US";
 
@@ -148,7 +148,6 @@ const NHSNOverviewGraph = ({ location }) => {
       traces={traces}
       layout={layoutWithFloor}
       emptyLabel={null}
-      actionLabel={isActive ? "Viewing" : "View NHSN data"}
       actionActive={isActive}
       onAction={() => setViewAndLocation("nhsnall", nhsnViewLocation)}
       locationLabel={locationLabel}

@@ -8,12 +8,11 @@ import {
   Button,
   Checkbox,
   Container,
-  Grid,
   Group,
   Loader,
   List,
   Paper,
-  Select,
+  Popover,
   SimpleGrid,
   Stack,
   Switch,
@@ -26,6 +25,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  IconAdjustmentsHorizontal,
   IconAlertCircle,
   IconArrowLeft,
   IconFileText,
@@ -33,11 +33,16 @@ import {
   IconInfoCircle,
   IconUpload,
   IconPlus,
+  IconZoomReset,
 } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import { parquetReadObjects } from "hyparquet";
 import DateSelector from "../DateSelector";
+import InlinePicker from "../InlinePicker";
+import { ChartInfoButton } from "../KeyboardShortcutsModal";
+import ShortcutHint from "../ShortcutHint";
+import { useKeyboardShortcut } from "../../hooks/useKeyboardShortcut";
 import ModelSelector from "../ModelSelector";
 import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
@@ -48,11 +53,13 @@ import {
   RANGESLIDER_STYLE,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CONFIG,
   getBaseChartLayout,
   getChartInk,
   getForecastDateLineStyle,
 } from "../../constants/chart";
 import { extendStableModelOrder } from "../../utils/modelColorUtils";
+import { targetDisplayNameMap } from "../../utils/mapUtils";
 import {
   getScaleYAxis,
   isPlotlyLogScale,
@@ -1364,7 +1371,7 @@ const getTargetOptions = (locationData) => {
   return [...targetSet]
     .map((target) => ({
       value: target,
-      label: target,
+      label: targetDisplayNameMap[target] || target,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
 };
@@ -2037,7 +2044,8 @@ const MyRespiVisualizationPanel = ({
           scale: normalizedChartScale,
           rawRange: combinedRawYRange,
           range: yAxisRange,
-          title: selectedTarget || "Value",
+          title:
+            targetDisplayNameMap[selectedTarget] || selectedTarget || "Value",
         }),
       },
       shapes: selectedDates.map((date) => {
@@ -2067,114 +2075,122 @@ const MyRespiVisualizationPanel = ({
     ],
   );
 
-  const config = useMemo(
-    () => ({
-      responsive: true,
-      displayModeBar: true,
-      displaylogo: false,
-      showSendToCloud: false,
-      scrollZoom: false,
-      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: (gd) => {
-            const range = getDefaultViewerRange(
-              locationData?.ground_truth?.dates,
-              selectedDates,
-              false,
-            );
-            const nextYRange =
-              isPlotlyLogScale(normalizedChartScale) || !range
-                ? null
-                : calculateYRange(allTraces, range);
-            isResettingRef.current = true;
-            setXAxisRange(null);
-            setYAxisRange(nextYRange);
-            Plotly.relayout(gd, {
-              "xaxis.range": range,
-              "yaxis.range": nextYRange,
-              "yaxis.autorange":
-                isPlotlyLogScale(normalizedChartScale) || nextYRange === null,
-            });
-          },
-        },
-      ],
-    }),
-    [
-      allTraces,
-      locationData,
+  const handleResetView = () => {
+    const gd = plotRef.current?.el;
+    if (!gd) return;
+    const range = getDefaultViewerRange(
+      locationData?.ground_truth?.dates,
       selectedDates,
-      normalizedChartScale,
-      calculateYRange,
-    ],
-  );
+      false,
+    );
+    const nextYRange =
+      isPlotlyLogScale(normalizedChartScale) || !range
+        ? null
+        : calculateYRange(allTraces, range);
+    isResettingRef.current = true;
+    setXAxisRange(null);
+    setYAxisRange(nextYRange);
+    Plotly.relayout(gd, {
+      "xaxis.range": range,
+      "yaxis.range": nextYRange,
+      "yaxis.autorange":
+        isPlotlyLogScale(normalizedChartScale) || nextYRange === null,
+    });
+  };
+
+  useKeyboardShortcut("r", handleResetView);
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {
     return null;
   }
 
+  const isComparing =
+    compareWithSubmittingModels && comparisonDataState.status === "success";
+
+  // Same layout as the forecast pages: the title sentence holds the
+  // pickers, display options and actions are quiet icons on the right
   return (
-    <Grid gutter="lg" align="flex-start">
-      <Grid.Col span={{ base: 12, lg: 4 }}>
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="md">
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 1 }} spacing="md">
-              {isMetrocast ? (
-                <Select
-                  label="State"
-                  data={metroHierarchy?.stateOptions ?? []}
-                  value={selectedMetroState}
-                  onChange={setSelectedMetroState}
-                  allowDeselect={false}
-                />
-              ) : (
-                <Select
-                  label="Location"
-                  data={locationOptions}
-                  value={selectedLocationFile}
-                  onChange={setSelectedLocationFile}
-                  allowDeselect={false}
-                />
-              )}
-              {isMetrocast ? (
-                <Select
-                  label="Location"
-                  data={scopedMetroLocationOptions}
-                  value={selectedLocationFile}
-                  onChange={setSelectedLocationFile}
-                  allowDeselect={false}
-                  disabled={!scopedMetroLocationOptions.length}
-                />
-              ) : (
-                <Select
-                  label="Target"
-                  data={targetOptions}
-                  value={selectedTarget}
-                  onChange={setSelectedTarget}
-                  allowDeselect={false}
-                  disabled={!targetOptions.length}
-                />
-              )}
-            </SimpleGrid>
-
+    <Stack gap="md">
+      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+        <Stack gap={6} style={{ minWidth: 0 }}>
+          <Title
+            order={2}
+            fz={{ base: 20, sm: 24 }}
+            fw={600}
+            lh={1.35}
+            style={{ textWrap: "balance" }}
+          >
+            <InlinePicker
+              value={selectedTarget}
+              data={targetOptions}
+              onChange={setSelectedTarget}
+              dropdownWidth={360}
+              shortcut="t"
+              shortcutLabel="Change target"
+              aria-label="Select target"
+            />{" "}
+            <Text span inherit c="dimmed" fw={400}>
+              in
+            </Text>{" "}
             {isMetrocast && (
-              <Select
-                label="Target"
-                data={targetOptions}
-                value={selectedTarget}
-                onChange={setSelectedTarget}
-                allowDeselect={false}
-                disabled={!targetOptions.length}
-              />
+              <>
+                <InlinePicker
+                  value={selectedMetroState}
+                  data={metroHierarchy?.stateOptions ?? []}
+                  onChange={setSelectedMetroState}
+                  searchable
+                  shortcut="l"
+                  shortcutLabel="Change state"
+                  stepKeys
+                  aria-label="Select state"
+                />
+                <Text span inherit c="dimmed" fw={400}>
+                  ,
+                </Text>{" "}
+              </>
             )}
+            <InlinePicker
+              value={selectedLocationFile}
+              data={isMetrocast ? scopedMetroLocationOptions : locationOptions}
+              onChange={setSelectedLocationFile}
+              searchable
+              shortcut={isMetrocast ? null : "l"}
+              shortcutLabel="Change location"
+              stepKeys={isMetrocast ? "first" : true}
+              aria-label="Select location"
+            />
+          </Title>
+          <Group gap={6} wrap="nowrap" fz="sm" c="dimmed">
+            <Text span size="sm" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+              Forecast date
+            </Text>
+            <DateSelector
+              compact
+              availableDates={availableDates}
+              selectedDates={selectedDates}
+              setSelectedDates={setSelectedDates}
+              activeDate={activeDate}
+              setActiveDate={setActiveDate}
+            />
+          </Group>
+        </Stack>
 
-            <Paper withBorder radius="md" p="sm">
-              <Stack gap="sm">
-                <Text fw={600} size="sm">
-                  Advanced controls (your model(s))
-                </Text>
+        <Group gap={2} wrap="nowrap">
+          <Popover position="bottom-end" shadow="md" width={380}>
+            <Popover.Target>
+              <Tooltip label="Display options" openDelay={300}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="lg"
+                  aria-label="Display options"
+                >
+                  <IconAdjustmentsHorizontal size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <Stack gap="md">
                 <ForecastChartControls
                   chartScale={chartScale}
                   setChartScale={setChartScale}
@@ -2184,143 +2200,131 @@ const MyRespiVisualizationPanel = ({
                   setShowLegend={setShowLegend}
                   intervalOptions={intervalOptions}
                 />
-              </Stack>
-            </Paper>
-
-            {comparisonEnabled && (
-              <>
-                <Paper withBorder radius="md" p="sm">
+                {comparisonEnabled && (
                   <Stack gap="xs">
-                    <Group justify="space-between" align="center">
-                      <Text fw={600} size="sm">
-                        Compare with submitting models
-                      </Text>
-                      <Switch
-                        checked={compareWithSubmittingModels}
-                        onChange={(event) =>
-                          setCompareWithSubmittingModels(
-                            event.currentTarget.checked,
-                          )
-                        }
-                        disabled={!comparisonEligibility?.isEligible}
-                        size="sm"
-                      />
-                    </Group>
-                    {compareWithSubmittingModels &&
-                      comparisonDataState.status === "loading" && (
-                        <Group gap="xs">
-                          <Loader size="sm" color="blue" />
-                          <Text size="sm" c="dimmed">
-                            Loading submitted model data for this location...
-                          </Text>
-                        </Group>
-                      )}
-                    {compareWithSubmittingModels &&
-                      comparisonDataState.status === "error" && (
-                        <Alert
-                          color="red"
-                          variant="light"
-                          radius="md"
-                          icon={<IconAlertCircle size={16} />}
+                    <Switch
+                      label="Compare with submitting models"
+                      checked={compareWithSubmittingModels}
+                      onChange={(event) =>
+                        setCompareWithSubmittingModels(
+                          event.currentTarget.checked,
+                        )
+                      }
+                      disabled={!comparisonEligibility?.isEligible}
+                      size="sm"
+                    />
+                    {isComparing && (
+                      <Group align="center" gap="md" wrap="wrap">
+                        <Text size="xs" c="dimmed">
+                          Their intervals
+                        </Text>
+                        <Checkbox.Group
+                          value={selectedSubmittedIntervals}
+                          onChange={(values) => {
+                            const nextVisibility = {};
+                            SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                              nextVisibility[option.value] = values.includes(
+                                option.value,
+                              );
+                            });
+                            setSubmittedIntervalVisibility(nextVisibility);
+                          }}
                         >
-                          {comparisonDataState.error}
-                        </Alert>
-                      )}
-                  </Stack>
-                </Paper>
-
-                {compareWithSubmittingModels &&
-                  comparisonDataState.status === "success" && (
-                    <>
-                      <Paper withBorder radius="md" p="sm">
-                        <Stack gap="sm">
-                          <Text fw={600} size="sm">
-                            Submitting models display
-                          </Text>
-                          <Group align="center" gap="md" wrap="wrap">
-                            <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
-                              Intervals
-                            </Text>
-                            <Checkbox.Group
-                              value={selectedSubmittedIntervals}
-                              onChange={(values) => {
-                                const nextVisibility = {};
-                                SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
-                                  nextVisibility[option.value] =
-                                    values.includes(option.value);
-                                });
-                                setSubmittedIntervalVisibility(nextVisibility);
-                              }}
-                            >
-                              <Group gap="sm" wrap="wrap">
-                                {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
-                                  <Checkbox
-                                    key={option.value}
-                                    value={option.value}
-                                    label={option.label}
-                                    size="xs"
-                                  />
-                                ))}
-                              </Group>
-                            </Checkbox.Group>
+                          <Group gap="sm" wrap="wrap">
+                            {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                              <Checkbox
+                                key={option.value}
+                                value={option.value}
+                                label={option.label}
+                                size="xs"
+                              />
+                            ))}
                           </Group>
-                        </Stack>
-                      </Paper>
-
-                      <ModelSelector
-                        models={submittedModels}
-                        selectedModels={selectedSubmittedModels}
-                        setSelectedModels={handleSubmittedModelSelectionChange}
-                        activeModels={activeSubmittedModels}
-                        modelColorFn={submittedModelColorFn}
-                      />
-                    </>
-                  )}
-              </>
-            )}
-          </Stack>
-        </Paper>
-      </Grid.Col>
-
-      <Grid.Col span={{ base: 12, lg: 8 }}>
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="lg">
-            <DateSelector
-              availableDates={availableDates}
-              selectedDates={selectedDates}
-              setSelectedDates={setSelectedDates}
-              activeDate={activeDate}
-              setActiveDate={setActiveDate}
-            />
-
-            <div
-              style={{
-                width: "100%",
-                height: "min(1000px, 69vh)",
-                minHeight: 320,
-              }}
+                        </Checkbox.Group>
+                      </Group>
+                    )}
+                  </Stack>
+                )}
+              </Stack>
+            </Popover.Dropdown>
+          </Popover>
+          <Tooltip label={<ShortcutHint label="Reset view" shortcut="r" />}>
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              color="gray"
+              onClick={handleResetView}
+              aria-label="Reset view"
             >
-              <Plot
-                ref={plotRef}
-                useResizeHandler
-                style={{ width: "100%", height: "100%" }}
-                data={allTraces}
-                layout={layout}
-                config={config}
-                onRelayout={handlePlotUpdate}
-              />
-            </div>
+              <IconZoomReset size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <ChartInfoButton dragDates={false} />
+        </Group>
+      </Group>
 
-            <ModelSelector
-              models={models}
-              selectedModels={selectedModels}
-              setSelectedModels={setSelectedModels}
-              activeModels={activeModels}
-            />
-          </Stack>
-        </Paper>
-      </Grid.Col>
-    </Grid>
+      {compareWithSubmittingModels &&
+        comparisonDataState.status === "loading" && (
+          <Group gap="xs">
+            <Loader size="sm" color="blue" />
+            <Text size="sm" c="dimmed">
+              Loading submitted model data for this location...
+            </Text>
+          </Group>
+        )}
+      {compareWithSubmittingModels &&
+        comparisonDataState.status === "error" && (
+          <Alert
+            color="red"
+            variant="light"
+            radius="md"
+            icon={<IconAlertCircle size={16} />}
+          >
+            {comparisonDataState.error}
+          </Alert>
+        )}
+
+      <div
+        style={{
+          width: "100%",
+          height: "min(780px, 66vh)",
+          minHeight: 320,
+        }}
+      >
+        <Plot
+          ref={plotRef}
+          useResizeHandler
+          style={{ width: "100%", height: "100%" }}
+          data={allTraces}
+          layout={layout}
+          config={PLOT_CONFIG}
+          onRelayout={handlePlotUpdate}
+        />
+      </div>
+
+      <ModelSelector
+        models={models}
+        selectedModels={selectedModels}
+        setSelectedModels={setSelectedModels}
+        activeModels={activeModels}
+        keyboardShortcut
+      />
+
+      {isComparing && (
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
+            Submitting models
+          </Text>
+          <ModelSelector
+            models={submittedModels}
+            selectedModels={selectedSubmittedModels}
+            setSelectedModels={handleSubmittedModelSelectionChange}
+            activeModels={activeSubmittedModels}
+            modelColorFn={submittedModelColorFn}
+          />
+        </Stack>
+      )}
+    </Stack>
   );
 };
 

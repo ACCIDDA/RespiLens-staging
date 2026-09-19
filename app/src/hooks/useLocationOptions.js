@@ -107,7 +107,9 @@ export const useLocationOptions = (viewType, currentDataset) => {
 
             const children = citiesOnly
               .filter((city) => city.location_name.endsWith(`, ${code}`))
-              .sort((a, b) => a.location_name.localeCompare(b.location_name));
+              .sort((a, b) => a.location_name.localeCompare(b.location_name))
+              // `parent`: the state's location id
+              .map((city) => ({ ...city, parent: stateObj.abbreviation }));
 
             finalOrderedList.push(...children);
           });

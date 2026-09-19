@@ -1,6 +1,6 @@
 import { Loader, Stack, Text } from "@mantine/core";
 import Plot from "react-plotly.js";
-import OverviewTile from "./OverviewTile";
+import OverviewTile, { OVERVIEW_CHART_HEIGHT } from "./OverviewTile";
 
 const OverviewGraphCard = ({
   title,
@@ -12,7 +12,6 @@ const OverviewGraphCard = ({
   traces,
   layout,
   emptyLabel = "No data available.",
-  actionLabel,
   actionActive = false,
   onAction,
   locationLabel,
@@ -24,7 +23,6 @@ const OverviewGraphCard = ({
     <OverviewTile
       title={title}
       subtitle={subtitle}
-      actionLabel={actionLabel}
       actionActive={actionActive}
       onAction={onAction}
       locationLabel={locationLabel}
@@ -43,7 +41,7 @@ const OverviewGraphCard = ({
         </Text>
       )}
       {!loading && !error && hasTraces && (
-        <div style={{ width: "100%", height: 240, minHeight: 200 }}>
+        <div style={{ width: "100%", height: OVERVIEW_CHART_HEIGHT }}>
           <Plot
             useResizeHandler
             style={{ width: "100%", height: "100%" }}

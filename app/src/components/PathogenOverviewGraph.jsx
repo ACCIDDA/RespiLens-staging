@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from "react";
+import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
 import { useMantineColorScheme } from "@mantine/core";
 import { useForecastData } from "../hooks/useForecastData";
 import { DATASETS } from "../config";
@@ -221,8 +222,7 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
     yMinFloor: 0,
   });
 
-  const locationLabel =
-    resolvedLocation === "US" ? "US national" : resolvedLocation;
+  const locationLabel = resolvePlotLocationDisplayName(resolvedLocation);
 
   return (
     <OverviewGraphCard
@@ -234,7 +234,6 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
       traces={traces}
       layout={layout}
       emptyLabel="No data available."
-      actionLabel={isActive ? "Viewing" : "View forecasts"}
       actionActive={isActive}
       onAction={() => setViewType(datasetConfig?.defaultView || viewType)}
       locationLabel={locationLabel}

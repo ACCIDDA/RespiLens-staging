@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import { IconBrandGithub, IconWorld } from "@tabler/icons-react";
 import Seo from "./Seo";
-import { ShortcutList } from "./KeyboardShortcutsModal";
+import { NavigationHelp } from "./KeyboardShortcutsModal";
 
 // Two type sizes only: section headings and body text. Every section heading
 // carries `data-toc`, which is what the table of contents lists.
@@ -147,7 +147,17 @@ const AboutPage = () => (
               <Text>
                 RespiLens is a responsive web app to visualize respiratory
                 disease forecasts in the US, focused on accessibility for state
-                health departments and the general public. Key features include:
+                health departments and the general public. It is made by Emily
+                Przykucki and{" "}
+                <ExternalLink href="https://josephlemaitre.com">
+                  Joseph Lemaitre
+                </ExternalLink>{" "}
+                (UNC Chapel Hill) at{" "}
+                <ExternalLink href="https://www.accidda.org">
+                  ACCIDDA
+                </ExternalLink>
+                , the Atlantic Coast Center for Infectious Disease Dynamics and
+                Analytics. Key features include:
               </Text>
               <List spacing="xs">
                 <List.Item>
@@ -161,6 +171,12 @@ const AboutPage = () => (
                 <List.Item>the Forecastle game!</List.Item>
                 <List.Item>
                   Forecast Checker: a safe visualization tool for your own data
+                </List.Item>
+                <List.Item>
+                  <ExternalLink href="https://github.com/ACCIDDA/RespiLens">
+                    Open source
+                  </ExternalLink>
+                  : we welcome contributions and reuse
                 </List.Item>
               </List>
             </Stack>
@@ -237,21 +253,6 @@ const AboutPage = () => (
               </List>
             </Section>
 
-            <Section title="Team">
-              <Text>
-                RespiLens is made by Emily Przykucki (UNC Chapel Hill),{" "}
-                <ExternalLink href="https://josephlemaitre.com">
-                  Joseph Lemaitre
-                </ExternalLink>{" "}
-                (UNC Chapel Hill) and others within{" "}
-                <ExternalLink href="https://www.accidda.org">
-                  ACCIDDA
-                </ExternalLink>
-                , the Atlantic Coast Center for Infectious Disease Dynamics and
-                Analytics.
-              </Text>
-            </Section>
-
             <Section title="Deployments">
               <List spacing="xs">
                 <Deployment
@@ -269,11 +270,12 @@ const AboutPage = () => (
               </List>
             </Section>
 
-            <Section title="Keyboard shortcuts">
+            <Section title="Navigating the charts">
               <Text c="dimmed">
-                On forecast pages. Press ? there to bring this list up.
+                On chart pages. Press ? (or the red info button) there to bring
+                this list up.
               </Text>
-              <ShortcutList size="md" maw={420} />
+              <NavigationHelp size="md" maw={480} />
             </Section>
           </Stack>
         </Grid.Col>

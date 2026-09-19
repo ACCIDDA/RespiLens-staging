@@ -378,6 +378,9 @@ export const ViewProvider = ({ children }) => {
   const [activeDate, setActiveDate] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [locationMessage, setLocationMessage] = useState(null);
+  // NSSP data comes per group of counties (HSA): remember which county the
+  // user picked so the county picker and map can name it
+  const [nsspCounty, setNsspCounty] = useState(null);
   const [locationCatalogs, setLocationCatalogs] = useState({});
   const [chartScale, setChartScale] = useState(
     () => urlManager.getAdvancedParams().chartScale,
@@ -554,10 +557,12 @@ export const ViewProvider = ({ children }) => {
       modelsToSet = [modelsForView[0]];
       needsModelUrlUpdate = true;
     }
+    // Drop a URL that only names the default model. Not one where other
+    // requested models just have no forecast here: they come back at the
+    // next location that has them.
     if (
-      params.models?.length > 0 &&
-      modelsToSet.length === 1 &&
-      modelsToSet[0] === currentDataset.defaultModel
+      params.models?.length === 1 &&
+      params.models[0] === currentDataset.defaultModel
     ) {
       needsModelUrlUpdate = true;
     }
@@ -662,9 +667,10 @@ export const ViewProvider = ({ children }) => {
     }
   }, [loading, availableTargets, selectedTarget]);
 
-  const handleLocationSelect = (newLocation) => {
+  const handleLocationSelect = (newLocation, county = null) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     setLocationMessage(null);
+    setNsspCounty(county);
     const nextUrl = buildForecastUrl({
       viewType,
       location:
@@ -967,6 +973,7 @@ export const ViewProvider = ({ children }) => {
     selectedLocation,
     locationMessage,
     handleLocationSelect,
+    nsspCounty,
     data,
     metadata,
     loading,

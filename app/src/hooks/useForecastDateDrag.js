@@ -9,7 +9,7 @@ const CLICK_SLOP_PX = 4;
 // A click only adds a date if an available forecast date is this close
 const MAX_CLICK_SNAP_DAYS = 7;
 // Same cap as the date selector's "Add date" button
-const MAX_SELECTED_DATES = 5;
+const DEFAULT_MAX_DATES = 5;
 // Two clicks on the same line within this window are a double-click
 const DOUBLE_CLICK_MS = 400;
 
@@ -55,6 +55,7 @@ const nearestDate = (dates, ms, maxDistanceMs = Infinity) => {
  * double-clicking a line removes that date (while more than one is shown).
  *
  * `lineOffsetDays` is how far the chart draws each date line from its date.
+ * With `maxDates` of 1 (a single-date chart) a click moves the date there.
  * `onBeforeCommit(gd)` runs before the selection changes (e.g. to pin the
  * current x range so the chart does not jump to re-centre on the dates).
  *
@@ -65,6 +66,7 @@ const nearestDate = (dates, ms, maxDistanceMs = Infinity) => {
 const useForecastDateDrag = ({
   selectedDates,
   lineOffsetDays = 0,
+  maxDates = DEFAULT_MAX_DATES,
   enabled = true,
   onBeforeCommit,
 }) => {
@@ -81,6 +83,7 @@ const useForecastDateDrag = ({
     setSelectedDates,
     setActiveDate,
     onBeforeCommit,
+    maxDates,
     offsetMs: lineOffsetDays * DAY_MS,
   };
 
@@ -183,6 +186,7 @@ const useForecastDateDrag = ({
         setSelectedDates: setDates,
         setActiveDate: setActive,
         onBeforeCommit: beforeCommit,
+        maxDates: max,
       } = latest.current;
       const gd = getGraph();
 
@@ -218,7 +222,11 @@ const useForecastDateDrag = ({
       if (!clicked) return;
       if (dates.includes(clicked)) {
         setActive(clicked);
-      } else if (dates.length < MAX_SELECTED_DATES) {
+      } else if (max === 1) {
+        beforeCommit?.(gd);
+        setDates([clicked]);
+        setActive(clicked);
+      } else if (dates.length < max) {
         beforeCommit?.(gd);
         setDates([...dates, clicked].sort());
         setActive(clicked);

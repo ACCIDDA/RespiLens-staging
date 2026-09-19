@@ -127,6 +127,8 @@ const AppLayout = () => {
           path="/reporting-triangle"
           element={<Navigate to="/toolbox/reporting-triangle" replace />}
         />
+        {/* Front page for a state: /AR (static routes rank first) */}
+        <Route path="/:location" element={<ForecastApp />} />
       </Routes>
     </UnifiedAppShell>
   );

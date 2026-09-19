@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Combobox, Tooltip, UnstyledButton, useCombobox } from "@mantine/core";
 import { IconChevronDown } from "@tabler/icons-react";
-import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
+import {
+  isOwnedKeyEvent,
+  useKeyboardShortcut,
+} from "../hooks/useKeyboardShortcut";
 import ShortcutHint from "./ShortcutHint";
 
 // A dropdown that reads as part of a sentence: the current value is plain
@@ -19,6 +22,10 @@ const InlinePicker = ({
   // the button's tooltip
   shortcut = null,
   shortcutLabel = "",
+  // `stepKeys`: ArrowUp / ArrowDown pick the previous / next option.
+  // "first": this picker takes the arrows before any other stepping picker
+  // (the finer of two location levels)
+  stepKeys = false,
   "aria-label": ariaLabel,
 }) => {
   const [search, setSearch] = useState("");
@@ -62,6 +69,23 @@ const InlinePicker = ({
     },
     Boolean(shortcut) && !isStatic,
   );
+
+  const stepEnabled = stepKeys && !isStatic;
+  useEffect(() => {
+    if (!stepEnabled) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      if (event.shiftKey || isOwnedKeyEvent(event)) return;
+      const index = data.findIndex((item) => item.value === value);
+      if (index === -1) return;
+      const next = data[index + (event.key === "ArrowUp" ? -1 : 1)];
+      event.preventDefault();
+      if (next) onChange(next.value);
+    };
+    const capture = stepKeys === "first";
+    window.addEventListener("keydown", handleKeyDown, capture);
+    return () => window.removeEventListener("keydown", handleKeyDown, capture);
+  }, [stepEnabled, stepKeys, data, value, onChange]);
 
   if (isStatic) {
     return <span>{current?.label ?? placeholder}</span>;

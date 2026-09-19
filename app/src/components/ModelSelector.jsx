@@ -17,8 +17,8 @@ import ShortcutHint from "./ShortcutHint";
 import { extendStableModelOrder } from "../utils/modelColorUtils";
 
 // Model picker under the chart: one filterable checklist, coloured like the
-// chart's lines. "Selected" shows what is plotted; "All" (or typing a search)
-// shows every model so any of them can be toggled.
+// chart's lines. "All" (the default, and while searching) lists every model
+// so any of them can be toggled; "Selected" narrows it to what is plotted.
 const ModelSelector = ({
   models = [],
   selectedModels = [],
@@ -33,7 +33,7 @@ const ModelSelector = ({
   // M jumps to the filter box (forecast pages only: one list per page)
   keyboardShortcut = false,
 }) => {
-  const [scope, setScope] = useState("selected");
+  const [scope, setScope] = useState("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef(null);
   useKeyboardShortcut(
@@ -122,57 +122,56 @@ const ModelSelector = ({
       pt="md"
       style={{ borderTop: "1px solid var(--respilens-hairline)" }}
     >
-      <Group justify="space-between" gap="sm" wrap="wrap">
-        <Group gap="sm" wrap="wrap">
-          <Text fw={600} size="sm">
-            Models{" "}
-            <Text span c="dimmed" size="sm" fw={400}>
-              {selectedModels.length} of {models.length}
-            </Text>
+      {/* One row: count, filter, scope, then the bulk actions beside them */}
+      <Group gap="sm" wrap="wrap">
+        <Text fw={600} size="sm">
+          Models{" "}
+          <Text span c="dimmed" size="sm" fw={400}>
+            {selectedModels.length} of {models.length}
           </Text>
-          <Tooltip
-            label={<ShortcutHint label="Filter models" shortcut="m" />}
-            disabled={!keyboardShortcut}
-            openDelay={400}
-          >
-            <TextInput
-              ref={searchRef}
-              w={240}
-              size="xs"
-              placeholder="Filter models…"
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
-              onKeyDown={handleSearchKeyDown}
-              leftSection={<IconSearch size={14} />}
-              rightSection={
-                search && (
-                  <CloseButton
-                    size="sm"
-                    onClick={() => setSearch("")}
-                    aria-label="Clear search"
-                  />
-                )
-              }
-              aria-label="Filter forecasting models"
-              aria-keyshortcuts={keyboardShortcut ? "M" : undefined}
-              disabled={disabled}
-            />
-          </Tooltip>
-          <SegmentedControl
+        </Text>
+        <Tooltip
+          label={<ShortcutHint label="Filter models" shortcut="m" />}
+          disabled={!keyboardShortcut}
+          openDelay={400}
+        >
+          <TextInput
+            ref={searchRef}
+            w={240}
             size="xs"
-            value={query ? "all" : scope}
-            onChange={setScope}
-            data={[
-              { value: "selected", label: "Selected" },
-              { value: "all", label: "All" },
-            ]}
-            disabled={disabled || Boolean(query)}
-            aria-label="Which models to list"
+            placeholder="Filter models…"
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            onKeyDown={handleSearchKeyDown}
+            leftSection={<IconSearch size={14} />}
+            rightSection={
+              search && (
+                <CloseButton
+                  size="sm"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                />
+              )
+            }
+            aria-label="Filter forecasting models"
+            aria-keyshortcuts={keyboardShortcut ? "M" : undefined}
+            disabled={disabled}
           />
-        </Group>
+        </Tooltip>
+        <SegmentedControl
+          size="xs"
+          value={query ? "all" : scope}
+          onChange={setScope}
+          data={[
+            { value: "selected", label: "Selected" },
+            { value: "all", label: "All" },
+          ]}
+          disabled={disabled || Boolean(query)}
+          aria-label="Which models to list"
+        />
 
         {allowMultiple && (
-          <Group gap="md">
+          <Group gap="md" ml="xs">
             <Tooltip
               label={
                 query

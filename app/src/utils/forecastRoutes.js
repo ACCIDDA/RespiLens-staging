@@ -36,6 +36,12 @@ const SURVEILLANCE_SOURCE_TO_VIEW = {
   nssp: "nsspall",
 };
 
+// The front page takes its location as a bare state code: /AR, /US
+const FRONTPAGE_LOCATION_PATTERN = /^\/([A-Za-z]{2})\/?$/;
+
+const parseFrontPageLocation = (pathname = "") =>
+  pathname.match(FRONTPAGE_LOCATION_PATTERN)?.[1]?.toUpperCase() || null;
+
 const RESERVED_VARIANTS = new Set(["detailed", "peak", "metrocast"]);
 
 const METROCAST_STATE_URL_TO_LOCATION = {
@@ -180,6 +186,7 @@ export const isPathBasedForecastView = (viewType) =>
 
 export const isForecastPathname = (pathname = "") =>
   pathname === "/" ||
+  Boolean(parseFrontPageLocation(pathname)) ||
   pathname === FORECAST_ROOT ||
   pathname.startsWith(`${FORECAST_ROOT}/`) ||
   pathname === SURVEILLANCE_ROOT ||
@@ -302,6 +309,15 @@ const parsePathBasedForecastState = (pathname) => {
 };
 
 export const parseForecastUrlState = (pathname, searchParams) => {
+  const frontPageLocation = parseFrontPageLocation(pathname);
+  if (frontPageLocation) {
+    return {
+      viewType: "frontpage",
+      location: frontPageLocation,
+      source: "path",
+    };
+  }
+
   if (
     pathname &&
     (pathname.startsWith(FORECAST_ROOT) ||
@@ -339,12 +355,12 @@ export const buildForecastUrl = ({ viewType, location, searchParams }) => {
   nextParams.delete("location");
 
   if (viewType === "frontpage") {
-    if (location && location !== APP_CONFIG.defaultLocation) {
-      nextParams.set("location", location);
-    }
     const search = nextParams.toString();
     return {
-      pathname: "/",
+      pathname:
+        location && location !== APP_CONFIG.defaultLocation
+          ? `/${encodeURIComponent(location)}`
+          : "/",
       search: search ? `?${search}` : "",
     };
   }

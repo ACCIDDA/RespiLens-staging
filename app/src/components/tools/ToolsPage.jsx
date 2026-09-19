@@ -1,11 +1,11 @@
 import {
   Badge,
-  Card,
   Container,
-  Group,
+  Paper,
   SimpleGrid,
   Stack,
   Text,
+  ThemeIcon,
   Title,
 } from "@mantine/core";
 import {
@@ -61,36 +61,34 @@ const ToolsPage = () => {
             </Text>
           </Stack>
 
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+          {/* Same cards as the Forecast Checker's hub picker */}
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
             {tools.map((tool) => (
-              // The whole tile is the link
-              <Card
+              // The whole card is the link
+              <Paper
                 key={tool.title}
                 component={Link}
                 to={tool.href}
                 withBorder
-                radius="md"
-                padding="lg"
-                className="respilens-tile-link"
+                radius="xl"
+                p="xl"
+                className="respilens-hub-card"
               >
-                <Stack gap="sm" h="100%">
-                  <Group justify="space-between">
-                    <Group>
-                      <tool.icon size={20} stroke={1.75} />
-                      <Title order={3}>{tool.title}</Title>
-                    </Group>
-                    <Badge variant="light" color="gray">
-                      {tool.badge}
-                    </Badge>
-                  </Group>
+                <Stack align="center" gap="sm" ta="center" h="100%">
+                  <ThemeIcon size={56} radius="xl" variant="light" color="blue">
+                    <tool.icon size={28} />
+                  </ThemeIcon>
+                  <Text fw={700} size="lg">
+                    {tool.title}
+                  </Text>
                   <Text size="sm" c="dimmed">
                     {tool.description}
                   </Text>
-                  <Text size="sm" c="blue.7" fw={500} mt="auto">
-                    Open tool →
-                  </Text>
+                  <Badge variant="light" color="gray" mt="auto">
+                    {tool.badge}
+                  </Badge>
                 </Stack>
-              </Card>
+              </Paper>
             ))}
           </SimpleGrid>
         </Stack>

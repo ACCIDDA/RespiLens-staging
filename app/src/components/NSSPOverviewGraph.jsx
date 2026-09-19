@@ -4,7 +4,7 @@ import { IconAlertTriangle } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
 import { useAsyncData } from "../hooks/useAsyncData";
 import NSSPGeoMap from "./NSSPGeoMap";
-import OverviewTile from "./OverviewTile";
+import OverviewTile, { OVERVIEW_CHART_HEIGHT } from "./OverviewTile";
 import {
   NSSP_STATE_ABBREVIATION_TO_INFO,
   fetchNsspCountiesGeoJson,
@@ -176,18 +176,16 @@ const NSSPOverviewGraph = () => {
   const nsspViewTarget = currentStateCoverage.hasAnyData
     ? resolvedNsspLocation
     : "US_All";
-  // The national entry map needs no caption; states name their county map
   const locationLabel = isUnitedStates
-    ? null
-    : currentStateCoverage.hasAnyData
-      ? `${stateInfo?.name || selectedStateAbbreviation} county map`
+    ? "United States"
+    : currentStateCoverage.hasAnyData || !usMap
+      ? stateInfo?.name || selectedStateAbbreviation
       : `No NSSP data for ${stateInfo?.name || selectedStateAbbreviation}`;
 
   return (
     <OverviewTile
       title="NSSP data"
       subtitle="Emergency department visits"
-      actionLabel={isActive ? "Viewing" : "View NSSP data"}
       actionActive={isActive}
       onAction={() => setViewAndLocation("nsspall", nsspViewTarget)}
       locationLabel={locationLabel}
@@ -209,10 +207,11 @@ const NSSPOverviewGraph = () => {
 
       {hasUsMap && isUnitedStates && (
         <Stack gap="xs">
-          <div style={{ width: "100%", minHeight: 200 }}>
+          <div style={{ width: "100%" }}>
             <NSSPGeoMap
               featureCollection={usMapData}
               height={NSSP_MAP_HEIGHTS.usa}
+              displayHeight={OVERVIEW_CHART_HEIGHT}
               projectionKind="usa"
               onFeatureClick={handleStateClick}
               isFeatureClickable={isStateClickable}
@@ -274,10 +273,11 @@ const NSSPOverviewGraph = () => {
                 </Text>
               </Stack>
             ) : hasStateMap ? (
-              <div style={{ width: "100%", minHeight: 200 }}>
+              <div style={{ width: "100%" }}>
                 <NSSPGeoMap
                   featureCollection={stateMapData}
                   height={NSSP_MAP_HEIGHTS.state}
+                  displayHeight={OVERVIEW_CHART_HEIGHT}
                   projectionKind="state"
                   onFeatureClick={handleCountyClick}
                   isFeatureClickable={isCountyClickable}

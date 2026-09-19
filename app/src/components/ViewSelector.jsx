@@ -108,7 +108,7 @@ const ViewSelector = ({ showActive = true, onNavigate }) => {
   const renderSection = (title, Icon, options) => (
     <Stack gap={1}>
       <div className="respilens-nav-heading">
-        <Icon size={15} stroke={2} />
+        <Icon size={17} stroke={1.75} />
         <span>{title}</span>
       </div>
       {options.map((option) => {
@@ -159,7 +159,7 @@ const ViewSelector = ({ showActive = true, onNavigate }) => {
   );
 
   return (
-    <Stack gap="md">
+    <Stack gap="xs">
       {renderSection("Forecasts", IconChartLine, forecastOptions)}
       {renderSection(
         "Surveillance data",
