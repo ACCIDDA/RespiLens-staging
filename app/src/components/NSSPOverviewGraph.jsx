@@ -172,7 +172,8 @@ const NSSPOverviewGraph = () => {
   };
 
   const hasUsMap = !loading && !error && usMapData?.features?.length;
-  const hasStateMap = !detailLoading && stateMapData?.features?.length;
+  // The previous state's map stays up (dimmed) while the next one loads
+  const hasStateMap = Boolean(stateMapData?.features?.length);
   const nsspViewTarget = currentStateCoverage.hasAnyData
     ? resolvedNsspLocation
     : "US_All";
@@ -191,7 +192,12 @@ const NSSPOverviewGraph = () => {
       locationLabel={locationLabel}
     >
       {loading && (
-        <Stack align="center" gap="xs" py="lg">
+        <Stack
+          align="center"
+          justify="center"
+          gap="xs"
+          h={OVERVIEW_CHART_HEIGHT}
+        >
           <Loader size="sm" />
           <Text size="sm" c="dimmed">
             Loading NSSP map...
@@ -265,15 +271,35 @@ const NSSPOverviewGraph = () => {
         currentStateCoverage.hasAnyData &&
         currentStateCoverage.hasCountyData && (
           <Stack gap="xs">
-            {detailLoading ? (
-              <Stack align="center" gap="xs" py="lg">
+            {detailLoading && !hasStateMap ? (
+              <Stack
+                align="center"
+                justify="center"
+                gap="xs"
+                h={OVERVIEW_CHART_HEIGHT}
+              >
                 <Loader size="sm" />
                 <Text size="sm" c="dimmed">
                   Loading {stateInfo?.name} NSSP map...
                 </Text>
               </Stack>
             ) : hasStateMap ? (
-              <div style={{ width: "100%" }}>
+              <div
+                className="respilens-view"
+                data-loading={detailLoading || undefined}
+                style={{
+                  width: "100%",
+                  pointerEvents: detailLoading ? "none" : undefined,
+                }}
+              >
+                {detailLoading && (
+                  <div
+                    className="respilens-chart-spinner"
+                    style={{ top: "50%" }}
+                  >
+                    <Loader size="sm" aria-label="Loading" />
+                  </div>
+                )}
                 <NSSPGeoMap
                   featureCollection={stateMapData}
                   height={NSSP_MAP_HEIGHTS.state}

@@ -18,6 +18,9 @@ const OverviewGraphCard = ({
 }) => {
   const hasTraces = Array.isArray(traces) && traces.length > 0;
   const showEmpty = !loading && !error && !hasTraces && emptyLabel;
+  // Loading another location: keep the chart up, dimmed under a spinner,
+  // so the tile does not collapse and reflow the page
+  const showChart = hasTraces && !error;
 
   return (
     <OverviewTile
@@ -27,8 +30,14 @@ const OverviewGraphCard = ({
       onAction={onAction}
       locationLabel={locationLabel}
     >
-      {loading && (
-        <Stack align="center" gap="xs" py="lg">
+      {loading && !showChart && (
+        // Takes the chart's height, so the chart replaces it in place
+        <Stack
+          align="center"
+          justify="center"
+          gap="xs"
+          h={OVERVIEW_CHART_HEIGHT}
+        >
           <Loader size="sm" />
           <Text size="sm" c="dimmed">
             {loadingLabel}
@@ -40,8 +49,12 @@ const OverviewGraphCard = ({
           {errorLabel || error}
         </Text>
       )}
-      {!loading && !error && hasTraces && (
-        <div style={{ width: "100%", height: OVERVIEW_CHART_HEIGHT }}>
+      {showChart && (
+        <div
+          className="respilens-view"
+          data-loading={loading || undefined}
+          style={{ width: "100%", height: OVERVIEW_CHART_HEIGHT }}
+        >
           <Plot
             useResizeHandler
             style={{ width: "100%", height: "100%" }}
@@ -49,6 +62,11 @@ const OverviewGraphCard = ({
             layout={layout}
             config={{ displayModeBar: false, responsive: true }}
           />
+          {loading && (
+            <div className="respilens-chart-spinner" style={{ top: "50%" }}>
+              <Loader size="sm" aria-label="Loading" />
+            </div>
+          )}
         </div>
       )}
       {showEmpty && (

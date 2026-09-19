@@ -542,11 +542,13 @@ body {
   position: relative;
 }
 
-.respilens-view .js-plotly-plot {
+.respilens-view .js-plotly-plot,
+.respilens-view > svg {
   transition: opacity 150ms ease;
 }
 
-.respilens-view[data-loading] .js-plotly-plot {
+.respilens-view[data-loading] .js-plotly-plot,
+.respilens-view[data-loading] > svg {
   opacity: 0.35;
   transition-delay: 120ms;
 }
