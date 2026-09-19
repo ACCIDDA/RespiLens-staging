@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Stack, Button, Paper, Text, Box } from "@mantine/core";
+import { Stack, Button, Text, Box } from "@mantine/core";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
 import { DATASETS } from "../config";
@@ -10,7 +10,7 @@ const ViewSelector = () => {
 
   const fluViews = [
     {
-      label: "Forecasts",
+      label: "Standard view",
       value: DATASETS.flu.defaultView,
     },
     {
@@ -67,41 +67,58 @@ const ViewSelector = () => {
     setViewType(value);
   };
 
+  // `isActive` is the selected view itself and gets a fill; `isParentActive`
+  // is a group holding the selected view and only needs a tint, so the two do
+  // not compete as a pair of solid blue blocks.
   const renderOptionButton = ({
     label,
     value,
-    isLast = false,
     nested = false,
     rightSection = null,
     onClick,
     isActive = false,
+    isParentActive = false,
   }) => (
     <Button
       key={value || label}
-      variant={isActive ? "light" : "subtle"}
-      color={isActive ? "blue" : "gray"}
+      variant={isActive ? "filled" : "subtle"}
+      color={isActive || isParentActive ? "blue" : "dark"}
       size="sm"
-      radius={0}
+      radius="sm"
       fullWidth
       justify="space-between"
       rightSection={rightSection}
       onClick={onClick}
       styles={{
         root: {
-          height: nested ? 34 : 36,
-          paddingInline: nested ? 20 : 14,
-          borderBottom: isLast
-            ? "none"
-            : "1px solid var(--mantine-color-gray-3)",
+          height: nested ? 32 : 34,
+          paddingLeft: nested ? 22 : 10,
+          paddingRight: 10,
+          // Active state is an accent bar, not a filled box.
+          backgroundColor: isParentActive
+            ? "var(--mantine-color-blue-1)"
+            : undefined,
+          boxShadow: isParentActive
+            ? "inset 3px 0 0 var(--mantine-color-blue-6)"
+            : "none",
         },
         inner: {
           width: "100%",
           justifyContent: "space-between",
         },
+        section: {
+          opacity: isActive ? 0.9 : isParentActive ? 0.7 : 0.35,
+        },
         label: {
           width: "100%",
           textAlign: "left",
-          fontWeight: nested ? 500 : 600,
+          fontWeight: isActive || isParentActive ? 600 : nested ? 450 : 500,
+          fontSize: nested ? "0.8125rem" : "0.875rem",
+          color: isActive
+            ? "var(--mantine-color-white)"
+            : isParentActive
+              ? "var(--mantine-color-blue-8)"
+              : "var(--respilens-ink)",
         },
       }}
     >
@@ -110,77 +127,61 @@ const ViewSelector = () => {
   );
 
   const renderSection = (title, options) => (
-    <Paper
-      shadow="sm"
-      radius="md"
-      withBorder
-      style={{ display: "inline-block" }}
-    >
-      <Text
-        size="xs"
-        fw={700}
-        c="dimmed"
-        px="sm"
-        pt="sm"
-        pb={6}
-        style={{ letterSpacing: "0.08em" }}
-      >
+    <Stack gap={2}>
+      <Text size="xs" fw={700} px={10} pb={4} className="respilens-eyebrow">
         {title}
       </Text>
-      <Stack
-        gap={0}
-        style={{ borderTop: "2px solid var(--mantine-color-gray-3)" }}
-      >
-        {options.map((option, index) => {
-          const isLastTopLevel = index === options.length - 1;
+      {options.map((option) => {
+        if (!option.children) {
+          return renderOptionButton({
+            label: option.label,
+            value: option.value,
+            isActive: viewType === option.value,
+            onClick: () => handleViewSelect(option.value),
+          });
+        }
 
-          if (!option.children) {
-            return renderOptionButton({
+        return (
+          <Box key={option.label}>
+            {renderOptionButton({
               label: option.label,
               value: option.value,
-              isLast: isLastTopLevel,
-              isActive: viewType === option.value,
-              rightSection: <IconChevronRight size={14} />,
-              onClick: () => handleViewSelect(option.value),
-            });
-          }
-
-          return (
-            <Box key={option.label}>
-              {renderOptionButton({
-                label: option.label,
-                value: option.value,
-                isLast: !isFluExpanded && isLastTopLevel,
-                isActive: isFluActive,
-                rightSection: <IconChevronDown size={14} />,
-                onClick: () => setIsFluExpanded((expanded) => !expanded),
-              })}
-              {isFluExpanded && (
-                <Stack gap={0}>
-                  {option.children.map((child, childIndex) =>
-                    renderOptionButton({
-                      label: child.label,
-                      value: child.value,
-                      nested: true,
-                      isLast: childIndex === option.children.length - 1,
-                      isActive: viewType === child.value,
-                      rightSection: <IconChevronRight size={14} />,
-                      onClick: () => handleViewSelect(child.value),
-                    }),
-                  )}
-                </Stack>
-              )}
-            </Box>
-          );
-        })}
-      </Stack>
-    </Paper>
+              isParentActive: isFluActive,
+              rightSection: isFluExpanded ? (
+                <IconChevronDown size={14} />
+              ) : (
+                <IconChevronRight size={14} />
+              ),
+              // Like COVID-19 and RSV, clicking Flu opens it. Only once a flu
+              // view is showing does the row fall back to folding the list.
+              onClick: () =>
+                isFluActive
+                  ? setIsFluExpanded((expanded) => !expanded)
+                  : handleViewSelect(DATASETS.flu.defaultView),
+            })}
+            {isFluExpanded && (
+              <Stack gap={2} mt={2}>
+                {option.children.map((child) =>
+                  renderOptionButton({
+                    label: child.label,
+                    value: child.value,
+                    nested: true,
+                    isActive: viewType === child.value,
+                    onClick: () => handleViewSelect(child.value),
+                  }),
+                )}
+              </Stack>
+            )}
+          </Box>
+        );
+      })}
+    </Stack>
   );
 
   return (
     <Stack gap="md">
-      {renderSection("FORECASTS", forecastOptions)}
-      {renderSection("SURVEILLANCE DATA", surveillanceOptions)}
+      {renderSection("Forecasts", forecastOptions)}
+      {renderSection("Surveillance data", surveillanceOptions)}
     </Stack>
   );
 };

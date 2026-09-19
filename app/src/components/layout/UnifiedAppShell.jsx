@@ -11,11 +11,9 @@ import { useDisclosure } from "@mantine/hooks";
 import {
   IconChartLine,
   IconTarget,
-  IconTrophy,
   IconTool,
   IconChartScatter,
 } from "@tabler/icons-react";
-import { ENABLED_TOURNAMENTS } from "../../config";
 import MainNavigation from "./MainNavigation";
 import StateSelector from "../StateSelector";
 
@@ -69,6 +67,7 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
     );
   };
 
+  // Mirrors the desktop header in MainNavigation - keep the two lists in sync.
   const navigationItems = [
     {
       href: "/",
@@ -85,12 +84,6 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       icon: IconTarget,
       active: location.pathname.startsWith("/forecastle"),
     },
-    ...ENABLED_TOURNAMENTS.map((tournament) => ({
-      href: tournament.path,
-      label: tournament.navLabel,
-      icon: IconTrophy,
-      active: location.pathname.startsWith(tournament.path),
-    })),
     {
       href: "/toolbox",
       label: "Toolbox",
@@ -120,7 +113,7 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
                 key={item.href}
                 component={Link}
                 to={item.href}
-                variant={item.active ? "filled" : "subtle"}
+                variant={item.active ? "light" : "subtle"}
                 leftSection={<item.icon size={18} />}
                 size="sm"
                 fullWidth
@@ -152,7 +145,7 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
               key={item.href}
               component={Link}
               to={item.href}
-              variant={item.active ? "filled" : "subtle"}
+              variant={item.active ? "light" : "subtle"}
               leftSection={<item.icon size={18} />}
               size="sm"
               fullWidth
@@ -184,11 +177,20 @@ const UnifiedAppShell = ({ children, forecastProps = {} }) => {
       }}
       padding={config.padding}
     >
-      <AppShell.Header p="md">{renderHeaderNavigation()}</AppShell.Header>
+      <AppShell.Header
+        p="md"
+        withBorder={false}
+        className="respilens-shell-header"
+      >
+        {renderHeaderNavigation()}
+      </AppShell.Header>
 
       {config.navbar && (
         <AppShell.Navbar
-          p="md"
+          px="sm"
+          py="md"
+          withBorder={false}
+          className="respilens-shell-navbar"
           style={{ overflow: "auto", display: "flex", flexDirection: "column" }}
         >
           {renderNavbar()}

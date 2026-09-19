@@ -100,7 +100,7 @@ const ModelSelector = ({
   }
 
   return (
-    <Paper withBorder radius="md" p="sm" mt="md">
+    <Paper radius="md" p="md" mt="md" shadow="xs" withBorder>
       <Stack gap="md">
         <Group gap="xs" align="center" wrap="wrap">
           <Text size="sm" fw={500}>

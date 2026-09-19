@@ -45,26 +45,31 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
   return (
     <Stack>
       <Paper
-        withBorder
-        p="xs"
+        p="sm"
+        pl="md"
         radius="md"
-        shadow="xs"
+        shadow="none"
         style={{
+          // A flat tint with a single accent edge, rather than a gradient
+          // inside a full outline.
           background: isAlert
-            ? "linear-gradient(45deg, #fef3c7, #fffbeb)"
-            : "linear-gradient(45deg, var(--mantine-color-blue-light), var(--mantine-color-cyan-light))",
-          borderColor: isAlert
-            ? "#f59e0b"
-            : "var(--mantine-color-blue-outline)",
+            ? "var(--mantine-color-yellow-0)"
+            : "var(--mantine-color-blue-0)",
+          borderLeft: `3px solid ${
+            isAlert
+              ? "var(--mantine-color-yellow-5)"
+              : "var(--mantine-color-blue-4)"
+          }`,
         }}
       >
-        <Group justify="space-between" wrap="nowrap">
-          <Group gap="sm">
+        <Group justify="space-between" wrap="nowrap" align="flex-start">
+          <Group gap="sm" wrap="nowrap" align="flex-start">
             <ThemeIcon
               variant="light"
               color={isAlert ? "yellow" : "blue"}
               radius="xl"
               size="sm"
+              style={{ flexShrink: 0, marginTop: 2 }}
             >
               {isAlert ? (
                 <IconAlertSquareRounded size={14} />
@@ -72,7 +77,12 @@ const Announcement = ({ id, startDate, endDate, text, announcementType }) => {
                 <IconSpeakerphone size={14} />
               )}
             </ThemeIcon>
-            <Text size="sm" fw={500} c={isAlert ? "yellow.9" : "blue.9"}>
+            <Text
+              size="sm"
+              fw={450}
+              lh={1.5}
+              c={isAlert ? "yellow.9" : "blue.9"}
+            >
               <strong>{isAlert ? "Alert" : "Update"}:</strong> {text}
             </Text>
           </Group>

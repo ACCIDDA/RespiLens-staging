@@ -1,0 +1,114 @@
+/*
+ * RespiLens global design tokens.
+ * Loaded after Mantine's stylesheets so it can soften their defaults.
+ */
+
+:root {
+  /* Structure comes from the layout, not from a page tint. The sidebar
+     carries a light brand-azure tint and gives the site its identity; the
+     work area stays white so charts sit on the brightest ground. A uniform
+     page colour was tried in every direction and always read as grey, cream,
+     sad or washed out - a two-zone layout avoids that trade-off. */
+  --respilens-chrome: #ffffff;
+  --respilens-sidebar: #f1f7fd;
+  --respilens-sidebar-edge: #dfeaf5;
+  --respilens-canvas: #ffffff;
+  --respilens-surface: #ffffff;
+
+  --respilens-hairline: rgba(15, 23, 42, 0.09);
+  --respilens-hairline-strong: rgba(15, 23, 42, 0.15);
+  --respilens-chrome-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --respilens-ink: #23262b;
+  --respilens-ink-soft: #5d6470;
+}
+
+/* Mantine defines these under :root[data-mantine-color-scheme="..."], which
+   outranks a plain :root block - the overrides below must match that
+   specificity or they are silently ignored. */
+:root[data-mantine-color-scheme="light"] {
+  /* Every `withBorder` in the app inherits this, so boxes recede everywhere
+     at once instead of needing a prop change per component. */
+  --mantine-color-default-border: var(--respilens-hairline);
+  --mantine-color-gray-outline: var(--respilens-hairline-strong);
+
+  /* Warmed to match the cream. Without this, every `c="dimmed"` in the app
+     stays cool grey against a warm background. */
+  --mantine-color-text: var(--respilens-ink);
+  --mantine-color-dimmed: var(--respilens-ink-soft);
+
+  /* Button `light` hover is too subtle to override here - the provider
+     rewrites these at runtime, so it lives in theme/mantine.js instead. */
+}
+
+body {
+  /* Set directly rather than via --mantine-color-body, which Paper/Card
+     also use for their own background. */
+  background-color: var(--respilens-canvas);
+  color: var(--respilens-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chrome (header, navbar) is the lightest warm tone; the content canvas
+   behind it sits a step deeper. */
+.respilens-shell-header,
+.respilens-shell-navbar {
+  background-color: var(--respilens-sidebar);
+}
+
+.respilens-shell-header {
+  border-bottom: 1px solid var(--respilens-hairline);
+  box-shadow: var(--respilens-chrome-shadow);
+}
+
+.respilens-shell-navbar {
+  border-right: 1px solid var(--respilens-sidebar-edge);
+}
+
+/* Unselected sidebar rows hover in the sidebar's own hue rather than grey,
+   so the hover reads as part of the tinted surface. */
+.respilens-shell-navbar .mantine-Button-root[data-variant="subtle"]:hover {
+  background-color: rgba(0, 118, 209, 0.07);
+}
+
+/* Cards that link somewhere lift slightly on hover. */
+.respilens-card-interactive {
+  transition:
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.respilens-card-interactive:hover {
+  box-shadow: var(--mantine-shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Section eyebrow used above content groups. */
+.respilens-eyebrow {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--respilens-ink-soft);
+}
+
+/* Plotly's rangeslider masks the unselected range with a hard 40% black,
+   which reads as a grey slab. Neutral and much lighter. */
+.js-plotly-plot .rangeslider-mask-min,
+.js-plotly-plot .rangeslider-mask-max {
+  fill: #1f2937 !important;
+  fill-opacity: 0.07 !important;
+}
+
+.js-plotly-plot .rangeslider-bg {
+  fill: transparent !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .respilens-card-interactive {
+    transition: none;
+  }
+
+  .respilens-card-interactive:hover {
+    transform: none;
+  }
+}

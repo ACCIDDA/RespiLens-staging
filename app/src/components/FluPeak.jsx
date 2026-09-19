@@ -4,7 +4,11 @@ import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
-import { CHART_CONSTANTS } from "../constants/chart";
+import {
+  CHART_CONSTANTS,
+  PLOT_CHROME,
+  RANGESLIDER_STYLE,
+} from "../constants/chart";
 import {
   buildLog2Ticks,
   buildSqrtTicks,
@@ -666,8 +670,7 @@ const FluPeak = ({
         : 500,
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      ...PLOT_CHROME,
       font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
       margin: { l: 60, r: 30, t: 30, b: 50 },
       showlegend: showLegend,
@@ -689,7 +692,9 @@ const FluPeak = ({
       dragmode: false,
       xaxis: {
         range: xAxisRange || defaultRange,
-        rangeslider: rangesliderRange ? { range: rangesliderRange } : undefined,
+        rangeslider: rangesliderRange
+          ? { ...RANGESLIDER_STYLE, range: rangesliderRange }
+          : undefined,
         rangeselector: {
           buttons: [
             { count: 1, label: "1m", step: "month", stepmode: "backward" },

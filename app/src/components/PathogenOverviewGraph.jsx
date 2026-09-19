@@ -6,6 +6,7 @@ import { DATASETS } from "../config";
 import { useView } from "../hooks/useView";
 import OverviewGraphCard from "./OverviewGraphCard";
 import useOverviewPlot from "../hooks/useOverviewPlot";
+import { ENSEMBLE_COLOR } from "../theme/mantine";
 
 const DEFAULT_TARGETS = {
   covid_forecasts: "wk inc covid hosp",
@@ -90,7 +91,7 @@ const buildIntervalTraces = (forecast, model) => {
       type: "scatter",
       mode: "lines",
       fill: "tonexty",
-      fillcolor: "rgba(34, 139, 230, 0.15)",
+      fillcolor: "rgba(13, 138, 230, 0.16)",
       line: { width: 0 },
       showlegend: false,
       hoverinfo: "skip",
@@ -112,7 +113,7 @@ const buildIntervalTraces = (forecast, model) => {
       type: "scatter",
       mode: "lines",
       fill: "tonexty",
-      fillcolor: "rgba(34, 139, 230, 0.25)",
+      fillcolor: "rgba(13, 138, 230, 0.28)",
       line: { width: 0 },
       showlegend: false,
       hoverinfo: "skip",
@@ -123,7 +124,7 @@ const buildIntervalTraces = (forecast, model) => {
       name: `${model} median`,
       type: "scatter",
       mode: "lines+markers",
-      line: { width: 2, color: "#228be6" },
+      line: { width: 2, color: ENSEMBLE_COLOR },
       marker: { size: 4 },
     },
   ];

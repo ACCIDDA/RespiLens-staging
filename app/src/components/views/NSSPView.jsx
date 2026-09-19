@@ -51,6 +51,7 @@ import {
   isNsspUnitedStatesLocation,
   normalizeCountyBasename,
 } from "../../utils/nsspGeo";
+import { PLOT_CHROME, RANGESLIDER_STYLE } from "../../constants/chart";
 
 const NSSP_COLUMN_LABELS = {
   percent_visits_covid: "COVID-19",
@@ -581,14 +582,14 @@ const NSSPView = ({ location, data, metadata }) => {
     () => ({
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      ...PLOT_CHROME,
       font: {
         color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
       },
       xaxis: {
         title: "Date",
         rangeslider: {
+          ...RANGESLIDER_STYLE,
           visible: true,
           range: fullRange,
         },
@@ -803,7 +804,7 @@ const NSSPView = ({ location, data, metadata }) => {
           <div
             style={{
               width: "100%",
-              height: "min(700px, 65vh)",
+              height: "min(880px, 75vh)",
               minHeight: 360,
             }}
           >

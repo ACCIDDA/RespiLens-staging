@@ -1,4 +1,4 @@
-import { SimpleGrid, Stack, Title, Paper, Anchor } from "@mantine/core";
+import { SimpleGrid, Stack, Title, Anchor } from "@mantine/core";
 import PathogenOverviewGraph from "./PathogenOverviewGraph";
 import NHSNOverviewGraph from "./NHSNOverviewGraph";
 import NSSPOverviewGraph from "./NSSPOverviewGraph";
@@ -48,12 +48,23 @@ const NsspViewLink = () => {
   );
 };
 
+// Sections are separated by headings and whitespace rather than by a box
+// drawn around each group.
+const Section = ({ title, children }) => (
+  <Stack gap="sm" mt="xs">
+    <Title order={3}>{title}</Title>
+    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+      {children}
+    </SimpleGrid>
+  </Stack>
+);
+
 const FrontPage = () => {
   const { selectedLocation } = useView();
   const overviewLocation = normalizeFrontPageLocation(selectedLocation);
 
   return (
-    <Stack>
+    <Stack gap="lg">
       <Announcement
         id="new-nssp-all-view"
         startDate="2026-05-20"
@@ -77,37 +88,28 @@ const FrontPage = () => {
           "Flu and RSV forecasts are currently paused because they are out of season. FluSight will resume influenza forecasts on October 7, 2026, while MetroCast (the local influenza forecast) will resume on November 4, 2026. The RSV Forecast Hub will start on September 23, 2026. COVID-19 forecasts are issued year-round and continue."
         }
       />
-      <Paper shadow="sm" p="lg" radius="md" withBorder>
-        <Stack gap="md">
-          <Title order={3}>Explore forecasts by pathogen</Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-            <PathogenOverviewGraph
-              viewType="covid_forecasts"
-              title="COVID-19"
-              location={overviewLocation}
-            />
-            <PathogenOverviewGraph
-              viewType="flu_forecasts"
-              title="Flu"
-              location={overviewLocation}
-            />
-            <PathogenOverviewGraph
-              viewType="rsv_forecasts"
-              title="RSV"
-              location={overviewLocation}
-            />
-          </SimpleGrid>
-        </Stack>
-      </Paper>
-      <Paper shadow="sm" p="lg" radius="md" withBorder>
-        <Stack gap="md">
-          <Title order={3}>Explore surveillance data by source</Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-            <NHSNOverviewGraph location={overviewLocation} />
-            <NSSPOverviewGraph />
-          </SimpleGrid>
-        </Stack>
-      </Paper>
+      <Section title="Explore forecasts by pathogen">
+        <PathogenOverviewGraph
+          viewType="covid_forecasts"
+          title="COVID-19"
+          location={overviewLocation}
+        />
+        <PathogenOverviewGraph
+          viewType="flu_forecasts"
+          title="Flu"
+          location={overviewLocation}
+        />
+        <PathogenOverviewGraph
+          viewType="rsv_forecasts"
+          title="RSV"
+          location={overviewLocation}
+        />
+      </Section>
+
+      <Section title="Explore surveillance data by source">
+        <NHSNOverviewGraph location={overviewLocation} />
+        <NSSPOverviewGraph />
+      </Section>
     </Stack>
   );
 };

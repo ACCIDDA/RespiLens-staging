@@ -4,7 +4,11 @@ import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import TitleRow from "./TitleRow";
-import { CHART_CONSTANTS } from "../constants/chart";
+import {
+  CHART_CONSTANTS,
+  PLOT_CHROME,
+  RANGESLIDER_STYLE,
+} from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
 import {
@@ -305,8 +309,7 @@ const ForecastPlotView = ({
     const baseLayout = {
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      ...PLOT_CHROME,
       font: {
         color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
       },
@@ -332,6 +335,7 @@ const ForecastPlotView = ({
       xaxis: {
         domain: [0, 1],
         rangeslider: {
+          ...RANGESLIDER_STYLE,
           range: getDefaultRange(true),
         },
         rangeselector: {
@@ -492,8 +496,8 @@ const ForecastPlotView = ({
       <div
         style={{
           width: "100%",
-          height: "min(800px, 60vh)",
-          minHeight: 320,
+          height: "min(1000px, 69vh)",
+          minHeight: 380,
           position: "relative", // Ensure the container is relative for absolute positioning
         }}
       >

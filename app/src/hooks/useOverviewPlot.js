@@ -77,6 +77,10 @@ const useOverviewPlot = ({
   const layout = useMemo(() => {
     const baseLayout = {
       autosize: true,
+      // Inherit the card's background instead of painting an opaque white
+      // rectangle over it.
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
       margin: DEFAULT_MARGIN,
       title: { text: "", font: { size: 13 } },
       xaxis: {

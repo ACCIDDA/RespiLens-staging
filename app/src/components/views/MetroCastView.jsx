@@ -14,7 +14,11 @@ import Plot from "react-plotly.js";
 import ModelSelector from "../ModelSelector";
 import TitleRow from "../TitleRow";
 import { useView } from "../../hooks/useView";
-import { CHART_CONSTANTS } from "../../constants/chart";
+import {
+  CHART_CONSTANTS,
+  PLOT_CHROME,
+  RANGESLIDER_STYLE,
+} from "../../constants/chart";
 import {
   targetDisplayNameMap,
   targetYAxisLabelMap,
@@ -200,8 +204,7 @@ const MetroPlotCard = ({
         layout={{
           autosize: true,
           template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-          paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-          plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+          ...PLOT_CHROME,
           font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
           margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
           showlegend: showLegend && !isSmall,
@@ -221,7 +224,11 @@ const MetroPlotCard = ({
           xaxis: {
             range: xAxisRange || defRange,
             showticklabels: !isSmall,
-            rangeslider: { visible: !isSmall, range: getDefaultRange(true) },
+            rangeslider: {
+              ...RANGESLIDER_STYLE,
+              visible: !isSmall,
+              range: getDefaultRange(true),
+            },
             showline: true,
             linewidth: 1,
             linecolor: colorScheme === "dark" ? "#aaa" : "#444",

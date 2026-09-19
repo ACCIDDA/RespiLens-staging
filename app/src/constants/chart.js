@@ -45,3 +45,25 @@ export const RATE_CHANGE_CATEGORIES = [
   "increase",
   "large_increase",
 ];
+
+// Plot chrome shared by every chart. Charts inherit the background of the
+// surface holding them rather than painting their own white rectangle, and
+// plotly's own furniture is tinted to match instead of falling back to its
+// opaque grey defaults.
+export const PLOT_CHROME = {
+  // Fully transparent: the chart sits on the page rather than on a panel of
+  // its own.
+  paper_bgcolor: "rgba(0,0,0,0)",
+  plot_bgcolor: "rgba(0,0,0,0)",
+  modebar: {
+    bgcolor: "rgba(255,255,255,0.85)",
+    color: "#9ca3af",
+    activecolor: "#316896",
+  },
+};
+
+export const RANGESLIDER_STYLE = {
+  bgcolor: "rgba(0,0,0,0)",
+  bordercolor: "rgba(15,23,42,0.10)",
+  borderwidth: 1,
+};

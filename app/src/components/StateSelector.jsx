@@ -5,7 +5,6 @@ import {
   Button,
   TextInput,
   Text,
-  Divider,
   Loader,
   Center,
   Alert,
@@ -275,20 +274,19 @@ const StateSelector = () => {
         <ViewSelector />
       </Stack>
 
-      <Divider />
-
-      <Stack>
+      <Stack px={10}>
         <TargetSelector />
       </Stack>
 
       {viewType !== "frontpage" && (
         <Accordion
-          variant="separated"
+          variant="filled"
           radius="md"
           styles={{
-            control: { padding: "6px 8px" },
-            label: { fontSize: "0.875rem", fontWeight: 500 },
-            panel: { padding: "6px 8px 8px" },
+            item: { backgroundColor: "transparent" },
+            control: { padding: "6px 10px" },
+            label: { fontSize: "0.8125rem", fontWeight: 500 },
+            panel: { padding: "2px 10px 8px" },
           }}
         >
           <Accordion.Item value="advanced-controls">
@@ -325,7 +323,7 @@ const StateSelector = () => {
         }}
       >
         <TextInput
-          label="Search locations"
+          px={10}
           placeholder="Search locations..."
           value={searchTerm}
           onChange={handleSearchChange}
@@ -335,7 +333,7 @@ const StateSelector = () => {
           aria-label="Search locations"
         />
         <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto">
-          <Stack gap="xs">
+          <Stack gap={1}>
             {filteredStates.map((state, index) => {
               const isSelected =
                 selectedTopLevelLocation === state.abbreviation;
@@ -349,15 +347,19 @@ const StateSelector = () => {
                 viewType === "metrocast_forecasts" &&
                 state.location_name.includes(",");
 
+              // Unselected rows stay neutral so the list reads as a list,
+              // not as a column of blue links.
               let variant = "subtle";
-              let color = "blue";
+              let color = "gray";
 
               if (isSelected) {
+                // A tint reads at ~1.05:1 against the sidebar, which is not a
+                // visible selection at all. A fill is unambiguous.
                 variant = "filled";
                 color = "blue";
               } else if (isKeyboardHighlighted) {
                 variant = "light";
-                color = "blue";
+                color = "gray";
               }
 
               return (
@@ -382,11 +384,18 @@ const StateSelector = () => {
                       setHighlightedIndex(index);
                     }
                   }}
-                  pl={isCity ? 28 : 10}
+                  pl={isCity ? 26 : 10}
+                  radius="sm"
                   styles={{
+                    root: {
+                      height: 30,
+                    },
                     label: {
-                      fontWeight: isCity ? 400 : 700,
-                      fontSize: isCity ? "13px" : "14px",
+                      fontWeight: isSelected ? 600 : isCity ? 400 : 500,
+                      fontSize: isCity ? "13px" : "13.5px",
+                      color: isSelected
+                        ? "var(--mantine-color-white)"
+                        : "var(--respilens-ink)",
                     },
                   }}
                 >

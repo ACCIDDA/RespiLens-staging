@@ -97,7 +97,10 @@ const MainNavigation = () => {
             key={item.href}
             component={Link}
             to={item.href}
-            variant={item.active ? "filled" : "subtle"}
+            // A tint rather than a fill: on the forecast page the sidebar's
+            // selections are the ones that matter, and a solid header tab
+            // competes with them.
+            variant={item.active ? "light" : "subtle"}
             leftSection={<item.icon size={16} />}
             size="sm"
             onClick={item.href === "/" ? handleForecastsNavigation : undefined}

@@ -18,7 +18,7 @@ const TargetSelector = () => {
   return (
     <Stack gap="xs">
       <Select
-        label="Select target metric"
+        label="Target"
         placeholder="None"
         data={selectData}
         value={isDisabled ? null : selectedTarget}

@@ -35,6 +35,7 @@ import {
   nhsnSlugToNameMap, // { shortform: longform } map
   nhsnNameToPrettyNameMap, // { longform: presentable name } map
 } from "../../utils/mapUtils";
+import { PLOT_CHROME, RANGESLIDER_STYLE } from "../../constants/chart";
 
 const nhsnYAxisLabelMap = {
   "Hospital Admissions (count)": "Patient Count",
@@ -527,14 +528,14 @@ const NHSNView = ({ location }) => {
     () => ({
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      ...PLOT_CHROME,
       font: {
         color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
       },
       xaxis: {
         title: "Date",
         rangeslider: {
+          ...RANGESLIDER_STYLE,
           visible: true,
           range: fullRange,
         },
@@ -706,7 +707,7 @@ const NHSNView = ({ location }) => {
         timestamp={metadata?.last_updated}
       />
       <div
-        style={{ width: "100%", height: "min(700px, 65vh)", minHeight: 360 }}
+        style={{ width: "100%", height: "min(880px, 75vh)", minHeight: 400 }}
       >
         <Plot
           ref={plotRef}

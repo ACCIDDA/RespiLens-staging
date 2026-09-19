@@ -21,10 +21,16 @@ const OverviewGraphCard = ({
   const showEmpty = !loading && !error && !hasTraces && emptyLabel;
 
   return (
-    <Card withBorder radius="md" padding="lg" shadow="xs">
+    <Card
+      radius="md"
+      padding="lg"
+      shadow="xs"
+      withBorder
+      className="respilens-card-interactive"
+    >
       <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={5}>{title}</Title>
+        <Group justify="space-between" align="center" wrap="nowrap">
+          <Title order={4}>{title}</Title>
           {meta}
         </Group>
         {loading && (

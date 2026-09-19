@@ -24,28 +24,80 @@ export const MODEL_COLORS = [
   "#9edae5",
 ];
 
+// Hub ensembles are the reference series rather than one model among many,
+// so they get their own dedicated colour instead of a palette slot.
+export const ENSEMBLE_COLOR = "#0d8ae6";
+
+export const isEnsembleModel = (model) =>
+  typeof model === "string" && /ensemble/i.test(model);
+
 // Model color helper function
 export const getModelColor = (model, modelOrder = []) => {
+  if (isEnsembleModel(model)) return ENSEMBLE_COLOR;
   const index = modelOrder.indexOf(model);
   return index >= 0 ? MODEL_COLORS[index % MODEL_COLORS.length] : null;
 };
 
+// The platform's own UI font: San Francisco on Apple, Segoe UI on Windows,
+// Roboto on Android. Platforms are named before `system-ui` because bare
+// `system-ui` resolves to a CJK face on Chinese/Japanese Windows installs.
+const SYSTEM_SANS =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", Arial, sans-serif';
+
 // Enhanced Mantine theme with overridden color palettes
 export const theme = createTheme({
   primaryColor: "blue",
+  primaryShade: { light: 6, dark: 5 },
+  defaultRadius: "md",
+
+  fontFamily: SYSTEM_SANS,
+  fontFamilyMonospace:
+    'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+
+  headings: {
+    fontFamily: SYSTEM_SANS,
+    fontWeight: "600",
+    sizes: {
+      h1: { fontSize: "1.875rem", lineHeight: "1.25", fontWeight: "650" },
+      h2: { fontSize: "1.5rem", lineHeight: "1.3", fontWeight: "620" },
+      h3: { fontSize: "1.1875rem", lineHeight: "1.35", fontWeight: "600" },
+      h4: { fontSize: "1.0625rem", lineHeight: "1.4", fontWeight: "600" },
+      h5: { fontSize: "0.9375rem", lineHeight: "1.45", fontWeight: "600" },
+      h6: { fontSize: "0.875rem", lineHeight: "1.45", fontWeight: "600" },
+    },
+  },
+
+  // Soft, low-contrast elevation. Depth should read as light, not as a box.
+  // The page is pure white, so shadow is the only thing separating a card
+  // from its background - hence a little more weight than a tinted page
+  // would need, and a tight contact shadow under a broader ambient one.
+  shadows: {
+    xs: "0 1px 2px rgba(15, 23, 42, 0.06)",
+    sm: "0 1px 2px rgba(15, 23, 42, 0.06), 0 3px 8px rgba(15, 23, 42, 0.07)",
+    md: "0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.09)",
+    lg: "0 4px 8px rgba(15, 23, 42, 0.06), 0 18px 36px rgba(15, 23, 42, 0.11)",
+    xl: "0 8px 16px rgba(15, 23, 42, 0.07), 0 30px 60px rgba(15, 23, 42, 0.13)",
+  },
+
   colors: {
-    // Override Mantine's blue palette to match our theme
+    // Vivid azure at Carolina Blue's own hue (205 deg), held at full
+    // saturation so the UI reads bright rather than muted.
+    //
+    // ACCESSIBILITY: saturation this high only clears 4.5:1 in a narrow
+    // lightness band. Shade 6 (#0076d1, 4.65:1) is the lightest step that
+    // carries white text; shades 4-5 are accent-only, and link text on white
+    // uses shade 7 (6.34:1).
     blue: [
-      "#eff6ff", // 0 - lightest
-      "#dbeafe", // 1
-      "#bfdbfe", // 2
-      "#93c5fd", // 3
-      "#60a5fa", // 4
-      "#3b82f6", // 5
-      "#2563eb", // 6 - primary (default Mantine primary)
-      "#1d4ed8", // 7
-      "#1e40af", // 8
-      "#1e3a8a", // 9 - darkest
+      "#f3fafe", // 0
+      "#e0f1fd", // 1
+      "#bce2fd", // 2
+      "#90d0fd", // 3
+      "#52b7ff", // 4
+      "#179eff", // 5
+      "#0076d1", // 6
+      "#0062a8", // 7
+      "#014d83", // 8
+      "#023a61", // 9
     ],
 
     // Override red palette for error states
@@ -119,9 +171,76 @@ export const theme = createTheme({
     ],
   },
 
+  components: {
+    Paper: {
+      defaultProps: { radius: "md" },
+    },
+    Card: {
+      defaultProps: { radius: "md" },
+    },
+    Button: {
+      defaultProps: { radius: "md" },
+      styles: {
+        root: {
+          fontWeight: 550,
+          // Hover is a colour change only. Motion is reserved for cards,
+          // which are large targets; on a toolbar button it reads as fidgety.
+          transition:
+            "background-color 120ms ease, border-color 120ms ease, color 120ms ease",
+        },
+      },
+    },
+    Title: {
+      styles: { root: { letterSpacing: "-0.011em" } },
+    },
+    Modal: {
+      defaultProps: { radius: "lg", shadow: "xl" },
+    },
+    Tooltip: {
+      defaultProps: { radius: "sm" },
+    },
+    Badge: {
+      defaultProps: { radius: "sm" },
+      styles: { label: { fontWeight: 600, letterSpacing: "0.01em" } },
+    },
+  },
+
   other: {
     // Keep model colors available for data visualizations
     modelColors: MODEL_COLORS,
     getModelColor: getModelColor,
+
+    // Surface tokens, mirrored from styles/global.css
+    canvas: "var(--respilens-canvas)",
+    surface: "var(--respilens-surface)",
+    hairline: "var(--respilens-hairline)",
   },
+});
+
+// MantineProvider injects its generated CSS variables at runtime, after any
+// stylesheet, so a plain CSS override of these tokens is always overwritten.
+// They have to go through the resolver to take effect.
+//
+// Mantine's `light` button variant hovers from 0.10 to 0.12 alpha, a step too
+// small to perceive; these give the hover enough travel to read as feedback.
+export const cssVariablesResolver = () => ({
+  variables: {},
+  light: {
+    // Base tint raised from 0.10 so the control reads as a control, and the
+    // hover given enough travel from it to register as feedback.
+    "--mantine-color-blue-light": "rgba(0, 118, 209, 0.16)",
+    "--mantine-color-blue-light-hover": "rgba(0, 118, 209, 0.28)",
+    // Label sits on that tint, so it uses shade 7 rather than 6 (4.99:1).
+    "--mantine-color-blue-light-color": "#0062a8",
+
+    "--mantine-color-green-light": "rgba(22, 163, 74, 0.16)",
+    "--mantine-color-green-light-hover": "rgba(22, 163, 74, 0.28)",
+    "--mantine-color-red-light": "rgba(220, 38, 38, 0.14)",
+    "--mantine-color-red-light-hover": "rgba(220, 38, 38, 0.26)",
+    "--mantine-color-yellow-light": "rgba(217, 119, 6, 0.16)",
+    "--mantine-color-yellow-light-hover": "rgba(217, 119, 6, 0.28)",
+    "--mantine-color-gray-light": "rgba(75, 85, 99, 0.10)",
+    "--mantine-color-gray-light-hover": "rgba(75, 85, 99, 0.18)",
+  },
+  dark: {},
 });

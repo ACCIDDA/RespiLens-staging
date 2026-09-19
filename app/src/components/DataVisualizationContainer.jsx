@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   Stack,
   Container,
-  Paper,
   Group,
   Button,
   Tooltip,
@@ -584,81 +583,34 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       )}
       <Container size="xl" py="xl" style={{ maxWidth: "1400px" }}>
         <Stack gap="lg">
-          <Paper shadow="sm" p="lg" radius="md" withBorder>
-            <Stack gap="md" style={{ minHeight: "70vh" }}>
+          <Stack gap="md" style={{ minHeight: "78vh" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  windowSize.width > 800 ? "auto 1fr auto" : "1fr",
+                gap: "0.5rem",
+                alignItems: "center",
+              }}
+            >
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    windowSize.width > 800 ? "auto 1fr auto" : "1fr",
-                  gap: "0.5rem",
+                  display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
+                  gridColumn: windowSize.width > 800 ? "auto" : "1",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gridColumn: windowSize.width > 800 ? "auto" : "1",
-                  }}
-                >
-                  {currentAboutConfig && (
-                    <AboutHubOverlay
-                      title={currentAboutConfig.title}
-                      buttonLabel={currentAboutConfig.buttonLabel}
-                    >
-                      {currentAboutConfig.content}
-                    </AboutHubOverlay>
-                  )}
-                  {windowSize.width <= 800 && (
-                    <Group gap="xs">
-                      <Button
-                        variant="light"
-                        size="xs"
-                        mr="xs"
-                        color={isAdded ? "green" : "blue"}
-                        className={isAdded ? "added-text-pulse" : ""}
-                        leftSection={<IconChartScatter size={16} />}
-                        onClick={handleSaveToMyPlots}
-                      >
-                        {isAdded ? "Added!" : "Add to My Plots"}
-                      </Button>
-                      <Tooltip
-                        label={
-                          clipboard.copied
-                            ? "Link copied"
-                            : "Copy link to this view"
-                        }
-                      >
-                        <Button
-                          variant="light"
-                          size="xs"
-                          color={clipboard.copied ? "green" : "blue"}
-                          leftSection={<IconShare size={16} />}
-                          onClick={handleShare}
-                        >
-                          {clipboard.copied ? "URL Copied!" : "Share View"}
-                        </Button>
-                      </Tooltip>
-                    </Group>
-                  )}
-                </div>
-                {currentDataset?.hasDateSelector && windowSize.width > 800 && (
-                  <div style={{ display: "flex", justifyContent: "center" }}>
-                    <DateSelector
-                      selectedDates={selectedDates}
-                      setSelectedDates={setSelectedDates}
-                      availableDates={availableDates}
-                      activeDate={activeDate}
-                      setActiveDate={setActiveDate}
-                      loading={loading}
-                      multi={viewType !== "flu_peak"}
-                    />
-                  </div>
+                {currentAboutConfig && (
+                  <AboutHubOverlay
+                    title={currentAboutConfig.title}
+                    buttonLabel={currentAboutConfig.buttonLabel}
+                  >
+                    {currentAboutConfig.content}
+                  </AboutHubOverlay>
                 )}
-                {windowSize.width > 800 && (
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                {windowSize.width <= 800 && (
+                  <Group gap="xs">
                     <Button
                       variant="light"
                       size="xs"
@@ -687,54 +639,99 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
                         {clipboard.copied ? "URL Copied!" : "Share View"}
                       </Button>
                     </Tooltip>
-                  </div>
+                  </Group>
                 )}
-                {currentDataset?.hasDateSelector && windowSize.width <= 800 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      marginTop: "0.5rem",
-                    }}
+              </div>
+              {currentDataset?.hasDateSelector && windowSize.width > 800 && (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <DateSelector
+                    selectedDates={selectedDates}
+                    setSelectedDates={setSelectedDates}
+                    availableDates={availableDates}
+                    activeDate={activeDate}
+                    setActiveDate={setActiveDate}
+                    loading={loading}
+                    multi={viewType !== "flu_peak"}
+                  />
+                </div>
+              )}
+              {windowSize.width > 800 && (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <Button
+                    variant="light"
+                    size="xs"
+                    mr="xs"
+                    color={isAdded ? "green" : "blue"}
+                    className={isAdded ? "added-text-pulse" : ""}
+                    leftSection={<IconChartScatter size={16} />}
+                    onClick={handleSaveToMyPlots}
                   >
-                    <DateSelector
-                      selectedDates={selectedDates}
-                      setSelectedDates={setSelectedDates}
-                      availableDates={availableDates}
-                      activeDate={activeDate}
-                      setActiveDate={setActiveDate}
-                      loading={loading}
-                      multi={viewType !== "flu_peak"} //this disables multi date select if flu peak
-                    />
-                  </div>
-                )}
-              </div>
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <ViewSwitchboard
-                  viewType={viewType}
-                  location={selectedLocation}
-                  data={data}
-                  metadata={metadata}
-                  loading={loading}
-                  error={error}
-                  availableDates={availableDates}
-                  models={models}
-                  selectedDates={selectedDates}
-                  selectedModels={selectedModels}
-                  setSelectedDates={setSelectedDates}
-                  setActiveDate={setActiveDate}
-                  setSelectedModels={setSelectedModels}
-                  selectedColumns={selectedColumns}
-                  setSelectedColumns={setSelectedColumns}
-                  windowSize={windowSize}
-                  selectedTarget={selectedTarget}
-                  peaks={peaks}
-                  availablePeakDates={availablePeakDates}
-                  availablePeakModels={availablePeakModels}
-                />
-              </div>
-            </Stack>
-          </Paper>
+                    {isAdded ? "Added!" : "Add to My Plots"}
+                  </Button>
+                  <Tooltip
+                    label={
+                      clipboard.copied
+                        ? "Link copied"
+                        : "Copy link to this view"
+                    }
+                  >
+                    <Button
+                      variant="light"
+                      size="xs"
+                      color={clipboard.copied ? "green" : "blue"}
+                      leftSection={<IconShare size={16} />}
+                      onClick={handleShare}
+                    >
+                      {clipboard.copied ? "URL Copied!" : "Share View"}
+                    </Button>
+                  </Tooltip>
+                </div>
+              )}
+              {currentDataset?.hasDateSelector && windowSize.width <= 800 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginTop: "0.5rem",
+                  }}
+                >
+                  <DateSelector
+                    selectedDates={selectedDates}
+                    setSelectedDates={setSelectedDates}
+                    availableDates={availableDates}
+                    activeDate={activeDate}
+                    setActiveDate={setActiveDate}
+                    loading={loading}
+                    multi={viewType !== "flu_peak"} //this disables multi date select if flu peak
+                  />
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ViewSwitchboard
+                viewType={viewType}
+                location={selectedLocation}
+                data={data}
+                metadata={metadata}
+                loading={loading}
+                error={error}
+                availableDates={availableDates}
+                models={models}
+                selectedDates={selectedDates}
+                selectedModels={selectedModels}
+                setSelectedDates={setSelectedDates}
+                setActiveDate={setActiveDate}
+                setSelectedModels={setSelectedModels}
+                selectedColumns={selectedColumns}
+                setSelectedColumns={setSelectedColumns}
+                windowSize={windowSize}
+                selectedTarget={selectedTarget}
+                peaks={peaks}
+                availablePeakDates={availablePeakDates}
+                availablePeakModels={availablePeakModels}
+              />
+            </div>
+          </Stack>
         </Stack>
       </Container>
     </ErrorBoundary>

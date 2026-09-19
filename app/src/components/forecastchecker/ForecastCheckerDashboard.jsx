@@ -43,7 +43,11 @@ import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
-import { CHART_CONSTANTS } from "../../constants/chart";
+import {
+  CHART_CONSTANTS,
+  PLOT_CHROME,
+  RANGESLIDER_STYLE,
+} from "../../constants/chart";
 import { extendStableModelOrder } from "../../utils/modelColorUtils";
 import {
   buildLog2Ticks,
@@ -2017,8 +2021,7 @@ const MyRespiVisualizationPanel = ({
     () => ({
       autosize: true,
       template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
+      ...PLOT_CHROME,
       font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
       showlegend: showLegend,
       legend: {
@@ -2035,6 +2038,7 @@ const MyRespiVisualizationPanel = ({
       margin: { l: 60, r: 30, t: 30, b: 30 },
       xaxis: {
         rangeslider: {
+          ...RANGESLIDER_STYLE,
           range: getDefaultViewerRange(
             locationData?.ground_truth?.dates,
             selectedDates,
@@ -2325,7 +2329,7 @@ const MyRespiVisualizationPanel = ({
             <div
               style={{
                 width: "100%",
-                height: "min(800px, 60vh)",
+                height: "min(1000px, 69vh)",
                 minHeight: 320,
               }}
             >
