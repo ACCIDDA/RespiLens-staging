@@ -147,17 +147,7 @@ const AboutPage = () => (
               <Text>
                 RespiLens is a responsive web app to visualize respiratory
                 disease forecasts in the US, focused on accessibility for state
-                health departments and the general public. It is made by Emily
-                Przykucki and{" "}
-                <ExternalLink href="https://josephlemaitre.com">
-                  Joseph Lemaitre
-                </ExternalLink>{" "}
-                (UNC Chapel Hill) at{" "}
-                <ExternalLink href="https://www.accidda.org">
-                  ACCIDDA
-                </ExternalLink>
-                , the Atlantic Coast Center for Infectious Disease Dynamics and
-                Analytics. Key features include:
+                health departments and the general public. Key features include:
               </Text>
               <List spacing="xs">
                 <List.Item>
@@ -193,6 +183,25 @@ const AboutPage = () => (
                   RespiLens is only a visualization layer, and contains no
                   original work.
                 </strong>
+              </Text>
+              <Text>
+                RespiLens is built and maintained by Emily Przykucki and{" "}
+                <ExternalLink href="https://josephlemaitre.com">
+                  Joseph Lemaitre
+                </ExternalLink>{" "}
+                (UNC Chapel Hill) at{" "}
+                <ExternalLink href="https://www.accidda.org">
+                  ACCIDDA
+                </ExternalLink>
+                , the Atlantic Coast Center for Infectious Disease Dynamics and
+                Analytics.
+              </Text>
+              <Text>
+                If RespiLens is useful, or not, or for any comment,{" "}
+                <Anchor href="mailto:jo.lemaitresamra@gmail.com">
+                  contact us
+                </Anchor>
+                .
               </Text>
             </Section>
 

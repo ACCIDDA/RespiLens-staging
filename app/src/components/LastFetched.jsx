@@ -4,7 +4,9 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 dayjs.extend(relativeTime);
 
-const LastFetched = ({ timestamp, label = "Updated" }) => {
+// "last fetched", not "updated": the timestamp is when RespiLens pulled
+// the data, which is not always when the source last changed.
+const LastFetched = ({ timestamp, label = "last fetched:" }) => {
   if (!timestamp) return null;
 
   const date = new Date(timestamp);

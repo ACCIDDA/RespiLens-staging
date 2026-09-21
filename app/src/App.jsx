@@ -23,9 +23,14 @@ import UnifiedAppShell from "./components/layout/UnifiedAppShell";
 import ReportingDelayPage from "./components/reporting/ReportingDelayPage";
 import ToolsPage from "./components/tools/ToolsPage";
 import AboutPage from "./components/AboutPage";
+import NotFoundPage from "./components/NotFoundPage";
 import MyPrivateHub from "./components/my-private-hub/MyPrivateHub";
 import { Center, Text } from "@mantine/core";
 import { ENABLED_TOURNAMENTS } from "./config";
+import {
+  getForecastRouteError,
+  isFrontPageLocation,
+} from "./utils/forecastRoutes";
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -41,6 +46,23 @@ const ForecastApp = () => {
     );
   }
   return <DataVisualizationContainer />;
+};
+
+// /forecasts/... and /surveillance/...: a mistyped hub, view or state used
+// to fall through to the front page under the address the reader typed.
+const ForecastRoute = () => {
+  const { pathname } = useLocation();
+  const routeError = getForecastRouteError(pathname);
+
+  return routeError ? <NotFoundPage {...routeError} /> : <ForecastApp />;
+};
+
+// /AR, /US: the front page for one location. A code no hub carries is not
+// an address, so it 404s instead of quietly showing the US front page.
+const FrontPageLocationRoute = () => {
+  const { location } = useParams();
+
+  return isFrontPageLocation(location) ? <ForecastApp /> : <NotFoundPage />;
 };
 
 const LegacyForecastCheckerHubRedirect = () => {
@@ -60,12 +82,12 @@ const AppLayout = () => {
       <Routes>
         <Route path="/" element={<ForecastApp />} />
         <Route path="/forecasts" element={<Navigate to="/" replace />} />
-        <Route path="/forecasts/*" element={<ForecastApp />} />
+        <Route path="/forecasts/*" element={<ForecastRoute />} />
         <Route
           path="/surveillance"
           element={<Navigate to="/surveillance/nhsn" replace />}
         />
-        <Route path="/surveillance/*" element={<ForecastApp />} />
+        <Route path="/surveillance/*" element={<ForecastRoute />} />
         <Route
           path="/narratives"
           element={
@@ -128,7 +150,8 @@ const AppLayout = () => {
           element={<Navigate to="/toolbox/reporting-triangle" replace />}
         />
         {/* Front page for a state: /AR (static routes rank first) */}
-        <Route path="/:location" element={<ForecastApp />} />
+        <Route path="/:location" element={<FrontPageLocationRoute />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </UnifiedAppShell>
   );

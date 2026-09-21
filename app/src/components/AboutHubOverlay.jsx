@@ -13,7 +13,17 @@ const AboutHubOverlay = ({
 
   return (
     <>
-      <Modal opened={opened} onClose={close} title={title} centered>
+      {/* The hub blurbs are prose with their own <p>, <List> and headings:
+          respilens-about-modal gives them one rhythm (see global.css) so the
+          text is not adrift in the box. */}
+      <Modal
+        opened={opened}
+        onClose={close}
+        title={title}
+        centered
+        size="lg"
+        className="respilens-about-modal"
+      >
         {children}
       </Modal>
 

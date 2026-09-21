@@ -8,6 +8,7 @@ import { getDataPath } from "../utils/paths";
 import {
   buildForecastPath,
   buildForecastUrl,
+  getForecastRouteError,
   isForecastPathname,
   isPathBasedForecastView,
   parseForecastUrlState,
@@ -347,7 +348,12 @@ export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const isForecastPage = isForecastPathname(location.pathname);
+  // An address that is not a page (a mistyped hub, view or state) is left
+  // exactly as typed: reconciling it would redirect to a working view and
+  // swallow the error the reader needs to see.
+  const isForecastPage =
+    isForecastPathname(location.pathname) &&
+    !getForecastRouteError(location.pathname);
 
   const urlManager = useMemo(
     () =>

@@ -1,4 +1,5 @@
 import { APP_CONFIG, DATASETS } from "../config";
+import { NSSP_STATE_INFO } from "./nsspGeo";
 
 const FORECAST_ROOT = "/forecasts";
 const SURVEILLANCE_ROOT = "/surveillance";
@@ -36,11 +37,24 @@ const SURVEILLANCE_SOURCE_TO_VIEW = {
   nssp: "nsspall",
 };
 
-// The front page takes its location as a bare state code: /AR, /US
+// The front page takes its location as a bare state code: /AR, /US. Only
+// codes the hubs actually carry are routes; anything else is a 404 rather
+// than a front page under a URL that means nothing.
+export const FRONT_PAGE_LOCATIONS = new Set([
+  ...NSSP_STATE_INFO.map((state) => state.abbreviation),
+  // Not in the NSSP map, but present in the forecast hubs
+  "PR",
+]);
+
 const FRONTPAGE_LOCATION_PATTERN = /^\/([A-Za-z]{2})\/?$/;
 
-const parseFrontPageLocation = (pathname = "") =>
-  pathname.match(FRONTPAGE_LOCATION_PATTERN)?.[1]?.toUpperCase() || null;
+export const isFrontPageLocation = (location) =>
+  FRONT_PAGE_LOCATIONS.has(String(location || "").toUpperCase());
+
+const parseFrontPageLocation = (pathname = "") => {
+  const code = pathname.match(FRONTPAGE_LOCATION_PATTERN)?.[1]?.toUpperCase();
+  return code && FRONT_PAGE_LOCATIONS.has(code) ? code : null;
+};
 
 const RESERVED_VARIANTS = new Set(["detailed", "peak", "metrocast"]);
 
@@ -383,4 +397,105 @@ export const buildForecastUrl = ({ viewType, location, searchParams }) => {
     pathname: "/",
     search: search ? `?${search}` : "",
   };
+};
+
+// Views whose location segment is a plain state code, so a wrong one can be
+// caught from the URL alone. MetroCast (city slugs) and NSSP (a state code
+// plus a county) are checked on their state part only.
+const STATE_CODED_VIEWS = new Set([
+  "flu_forecasts",
+  "fludetailed",
+  "flu_peak",
+  "covid_forecasts",
+  "rsv_forecasts",
+  "nhsnall",
+]);
+
+const KNOWN_PATHOGENS = Object.keys(PATHOGEN_VARIANT_TO_VIEW).join(", ");
+const KNOWN_SOURCES = Object.keys(SURVEILLANCE_SOURCE_TO_VIEW).join(", ");
+
+/**
+ * Why a /forecasts/... or /surveillance/... address is not a page, as
+ * something to show the reader: `{ title, detail }`, or null when the path
+ * is fine. Called before rendering a view so a mistyped hub or state says
+ * so, instead of quietly turning into the US front page.
+ */
+export const getForecastRouteError = (pathname = "") => {
+  const isSurveillance = pathname.startsWith(SURVEILLANCE_ROOT);
+  if (!isSurveillance && !pathname.startsWith(FORECAST_ROOT)) {
+    return null;
+  }
+
+  const segments = pathname
+    .replace(/\/+$/g, "")
+    .slice((isSurveillance ? SURVEILLANCE_ROOT : FORECAST_ROOT).length)
+    .replace(/^\/+/g, "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment));
+
+  // "/forecasts" and "/surveillance" alone are handled by their redirects
+  if (segments.length === 0) {
+    return null;
+  }
+
+  const [first, second, third] = segments;
+
+  if (isSurveillance) {
+    if (!SURVEILLANCE_SOURCE_TO_VIEW[first]) {
+      return {
+        title: "No such data source",
+        detail: `RespiLens has no surveillance source called "${first}". The sources are: ${KNOWN_SOURCES}.`,
+      };
+    }
+  } else if (!PATHOGEN_VARIANT_TO_VIEW[first]) {
+    return {
+      title: "No such forecast hub",
+      detail: `RespiLens has no forecast hub called "${first}". The hubs are: ${KNOWN_PATHOGENS}.`,
+    };
+  } else if (
+    second &&
+    RESERVED_VARIANTS.has(second) &&
+    !PATHOGEN_VARIANT_TO_VIEW[first][second]
+  ) {
+    return {
+      title: "No such view",
+      detail: `${first} has no "${second}" view.`,
+    };
+  }
+
+  const pathState = parsePathBasedForecastState(pathname);
+  if (!pathState) {
+    return {
+      title: "Page not found",
+      detail: "This address is not a RespiLens view.",
+    };
+  }
+
+  // The location segment, where there is one to check
+  const locationSegment = isSurveillance
+    ? second
+    : RESERVED_VARIANTS.has(second)
+      ? third
+      : second;
+
+  if (!locationSegment) {
+    return null;
+  }
+
+  const { viewType } = pathState;
+  const stateCode = STATE_CODED_VIEWS.has(viewType)
+    ? locationSegment
+    : viewType === "nsspall"
+      ? locationSegment.split("_")[0]
+      : null;
+
+  if (stateCode && !FRONT_PAGE_LOCATIONS.has(stateCode.toUpperCase())) {
+    return {
+      title: "No such location",
+      detail: `"${stateCode}" is not a US state or territory RespiLens covers. Pick a location from the chart's location menu.`,
+    };
+  }
+
+  return null;
 };

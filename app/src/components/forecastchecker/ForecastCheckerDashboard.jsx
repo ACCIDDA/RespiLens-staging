@@ -34,6 +34,7 @@ import {
   IconUpload,
   IconPlus,
   IconZoomReset,
+  IconDownload,
 } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
@@ -48,6 +49,7 @@ import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
+import { downloadChartPng } from "../../utils/downloadChartPng";
 import {
   CHART_CONSTANTS,
   RANGESLIDER_STYLE,
@@ -2098,6 +2100,10 @@ const MyRespiVisualizationPanel = ({
     });
   };
 
+  // Same PNG as the hub views' chart header (the Plotly toolbar is hidden)
+  const handleDownload = () =>
+    downloadChartPng(plotRef.current?.el, "forecast-checker");
+
   useKeyboardShortcut("r", handleResetView);
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {
@@ -2248,6 +2254,17 @@ const MyRespiVisualizationPanel = ({
               </Stack>
             </Popover.Dropdown>
           </Popover>
+          <Tooltip label="Download chart as PNG" openDelay={300}>
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              color="gray"
+              onClick={handleDownload}
+              aria-label="Download chart as PNG"
+            >
+              <IconDownload size={18} />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label={<ShortcutHint label="Reset view" shortcut="r" />}>
             <ActionIcon
               variant="subtle"

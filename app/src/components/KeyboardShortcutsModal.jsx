@@ -72,7 +72,7 @@ export const MouseList = ({
     hasDates &&
       (singleDate
         ? { keys: ["Click"], label: "Move the forecast date there" }
-        : { keys: ["Click"], label: "Add the nearest forecast date" }),
+        : { keys: ["Click"], label: "Add a forecast date" }),
     hasDates && { keys: ["Drag a date line"], label: "Move that date" },
     hasDates &&
       !singleDate && {
@@ -80,13 +80,12 @@ export const MouseList = ({
         label: "Remove that date",
       },
     { keys: ["Drag the minimap"], label: "Zoom and pan in time" },
-    { keys: ["1m", "6m", "All"], label: "Show the last month(s) or all" },
   ].filter(Boolean);
 
   return <HelpRows rows={rows} size={size} gestures {...props} />;
 };
 
-// Keyboard and mouse help, under two small headings. `dragDates`: the chart
+// Mouse and keyboard help, under two small headings. `dragDates`: the chart
 // takes clicks and drags on its date lines (useForecastDateDrag).
 export const NavigationHelp = ({
   hasTargets = true,
@@ -100,6 +99,12 @@ export const NavigationHelp = ({
   <Stack gap="md" {...props}>
     <Stack gap={6}>
       <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+        Mouse
+      </Text>
+      <MouseList hasDates={dragDates} singleDate={singleDate} size={size} />
+    </Stack>
+    <Stack gap={6}>
+      <Text size="xs" fw={700} c="dimmed" tt="uppercase">
         Keyboard
       </Text>
       <ShortcutList
@@ -108,12 +113,6 @@ export const NavigationHelp = ({
         hasModels={hasModels}
         size={size}
       />
-    </Stack>
-    <Stack gap={6}>
-      <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-        Mouse
-      </Text>
-      <MouseList hasDates={dragDates} singleDate={singleDate} size={size} />
     </Stack>
   </Stack>
 );

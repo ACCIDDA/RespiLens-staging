@@ -86,12 +86,7 @@ const ChartCaption = ({ forecastNote = false }) => {
   const { mt, pl, pr } = useMinimapAlignment(ref);
   const lastUpdated = metadata?.last_updated;
 
-  const updated = lastUpdated && (
-    <LastFetched
-      timestamp={lastUpdated}
-      label={about ? "updated" : "Updated"}
-    />
-  );
+  const updated = lastUpdated && <LastFetched timestamp={lastUpdated} />;
 
   return (
     <Group

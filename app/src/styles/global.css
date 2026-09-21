@@ -571,3 +571,70 @@ body {
     opacity: 1;
   }
 }
+
+/* Toolbox rows: one tool per line, square box, arrow nudges on hover */
+.respilens-tool-row {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.respilens-tool-row:hover {
+  border-color: var(--mantine-color-blue-4);
+  background-color: var(--mantine-color-blue-0);
+}
+
+.respilens-tool-row-arrow {
+  flex-shrink: 0;
+  color: var(--mantine-color-blue-6);
+  transition: transform 160ms ease;
+}
+
+.respilens-tool-row:hover .respilens-tool-row-arrow {
+  transform: translateX(4px);
+}
+
+[data-mantine-color-scheme="dark"] .respilens-tool-row:hover {
+  background-color: var(--mantine-color-dark-6);
+}
+
+/* "About the hub" overlays: the blurbs are raw prose (bare text, <p>, a
+   <List>, a heading per section), which left the text adrift between the
+   browser's 1em paragraph margins and Mantine's own spacing. One rhythm:
+   0.65em under every block, a little more between sections, and a list
+   that breathes the same above as below. */
+.respilens-about-modal .mantine-Modal-body {
+  padding-bottom: var(--mantine-spacing-md);
+  line-height: 1.55;
+}
+
+.respilens-about-modal .mantine-Modal-body p {
+  margin: 0 0 0.65em;
+}
+
+.respilens-about-modal .mantine-Modal-body ul,
+.respilens-about-modal .mantine-Modal-body ol {
+  margin: 0.55em 0 0.65em;
+}
+
+/* Two or three short items: Mantine's "xs" spacing is loose for them */
+.respilens-about-modal .mantine-Modal-body li + li {
+  margin-top: 4px;
+}
+
+/* Section headings ("Forecasts", "Targets"...) sit close to their text */
+.respilens-about-modal .mantine-Modal-body h4 {
+  margin-bottom: 0.3em;
+}
+
+/* Each section against the one before it */
+.respilens-about-modal .mantine-Modal-body > * + * {
+  margin-top: 0.9em;
+}
+
+.respilens-about-modal .mantine-Modal-body > :last-child > :last-child,
+.respilens-about-modal .mantine-Modal-body > :last-child {
+  margin-bottom: 0;
+}

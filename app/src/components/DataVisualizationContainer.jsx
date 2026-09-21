@@ -22,11 +22,7 @@ import FrontPage, { FrontPageAnnouncements } from "./FrontPage";
 import { IconBrandGithub } from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
 import Seo from "./Seo";
-import Plotly from "plotly.js/dist/plotly";
-import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../utils/plotDownloadName";
+import { downloadChartPng } from "../utils/downloadChartPng";
 
 const DataVisualizationContainer = ({ disableSeo = false }) => {
   const {
@@ -60,38 +56,8 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
   const clipboard = useClipboard({ timeout: 2000 });
   const chartAreaRef = useRef(null);
 
-  // Saves the main chart (the first plot in the view) as a PNG: a copy of
-  // the figure at the range on screen, without the minimap or the
-  // 1m / 6m / All buttons (controls, not part of the chart)
-  const handleDownload = () => {
-    const plot = chartAreaRef.current?.querySelector(".js-plotly-plot");
-    if (!plot?._fullLayout) return;
-    const full = plot._fullLayout;
-    const layout = { ...plot.layout };
-    Object.keys(full)
-      .filter((key) => /^[xy]axis\d*$/.test(key))
-      .forEach((key) => {
-        layout[key] = {
-          ...layout[key],
-          range: [...full[key].range],
-          autorange: false,
-          ...(key.startsWith("x") && {
-            rangeslider: { visible: false },
-            rangeselector: { visible: false },
-          }),
-        };
-      });
-    const figure = { data: plot.data, layout };
-    Plotly.downloadImage(figure, {
-      width: full.width,
-      height: full.height,
-      format: "png",
-      filename: buildPlotDownloadName(viewType),
-      scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      // Charts are transparent on the page; give the image a background
-      setBackground: "opaque",
-    });
-  };
+  // The chart header's download: the view's main chart, as a PNG
+  const handleDownload = () => downloadChartPng(chartAreaRef.current, viewType);
 
   // Each chart's zoomed time range, kept while views remount
   const rangeStore = useRef({});
@@ -129,7 +95,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       buttonLabel: "About COVID-19 Forecast Hub",
       content: (
         <>
-          <p>
+          <div>
             Data for the RespiLens COVID-19 Forecasts view is retrieved from the
             COVID-19 Forecast Hub, which is an open challenge organized by the{" "}
             <a
@@ -140,7 +106,6 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
               US CDC
             </a>{" "}
             designed to collect forecasts for the following two targets:
-            <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
               <List.Item>
@@ -148,7 +113,6 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
                 COVID-19
               </List.Item>
             </List>
-            <p></p>
             RespiLens displays forecasts for all models, dates and targets. For
             attribution and more information, please visit the COVID-19 Forecast
             Hub{" "}
@@ -160,7 +124,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
               GitHub repository
             </a>
             .
-          </p>
+          </div>
           <div>
             <Title order={4} mb="xs">
               Forecasts
@@ -192,11 +156,10 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       buttonLabel: "About RSV Forecast Hub",
       content: (
         <>
-          <p>
+          <div>
             Data for the RespiLens RSV Forecasts view is retrieved from the RSV
             Forecast Hub, which is an open challenge organized by the US CDC
             designed to collect forecasts for the following two targets:
-            <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to RSV</List.Item>
               <List.Item>
@@ -204,7 +167,6 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
                 RSV
               </List.Item>
             </List>
-            <p></p>
             RespiLens displays forecasts for all models, dates and targets. For
             attribution and more information, please visit the RSV Forecast Hub{" "}
             <a
@@ -215,7 +177,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
               GitHub repository
             </a>
             .
-          </p>
+          </div>
           <div>
             <Title order={4} mb="xs">
               Forecasts

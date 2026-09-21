@@ -5,13 +5,19 @@ import NHSNOverviewGraph from "./NHSNOverviewGraph";
 import NSSPOverviewGraph from "./NSSPOverviewGraph";
 import Announcement from "./Announcement";
 import { useView } from "../hooks/useView";
+import { isFrontPageLocation } from "../utils/forecastRoutes";
 
+// The tiles take a plain state code. A location carried over from another
+// view can be scoped (NSSP's "CO_Denver County"); one no hub covers (an old
+// ?location=ZZ link) falls back to the country rather than asking every
+// tile for a state that does not exist.
 const normalizeFrontPageLocation = (location) => {
   if (!location || location === "US_All") {
     return "US";
   }
 
-  return location.includes("_") ? location.split("_")[0] : location;
+  const code = location.includes("_") ? location.split("_")[0] : location;
+  return isFrontPageLocation(code) ? code : "US";
 };
 
 const MyPlotsLink = () => {
