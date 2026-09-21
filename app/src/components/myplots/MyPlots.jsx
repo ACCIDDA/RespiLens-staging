@@ -143,16 +143,19 @@ const MyPlots = () => {
   };
 
   const resolveLocationLabel = (plot) => {
+    // NSSP files name their location "All" for a statewide series, so the
+    // stored and metadata names are useless there; the label lookup spells
+    // out the state (or "State - County")
+    if (plot.viewType === "nsspall") {
+      return plotLocationLabels[plot.id] || plot.settings.location;
+    }
+
     if (plot.locationDisplayName) {
       return plot.locationDisplayName;
     }
 
     if (plotMetadata[plot.id]?.location_name) {
       return plotMetadata[plot.id].location_name;
-    }
-
-    if (plot.viewType === "nsspall") {
-      return plotLocationLabels[plot.id] || plot.settings.location;
     }
 
     if (plot.settings.location === "US") {
