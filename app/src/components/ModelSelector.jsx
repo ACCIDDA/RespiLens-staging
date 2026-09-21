@@ -30,15 +30,17 @@ const ModelSelector = ({
   getModelColor: legacyGetModelColor = null,
   // Only used to word the "not available" tooltip
   selectedDates = [],
-  // M jumps to the filter box (forecast pages only: one list per page)
+  // The key that jumps to the filter box: true is M, or pass another key
+  // (Shift+M is "M") for a page with a second list. Off by default.
   keyboardShortcut = false,
   title = "Models",
 }) => {
   const [scope, setScope] = useState("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef(null);
+  const shortcutKey = keyboardShortcut === true ? "m" : keyboardShortcut;
   useKeyboardShortcut(
-    "m",
+    shortcutKey,
     () => {
       searchRef.current?.scrollIntoView({
         block: "nearest",
@@ -46,7 +48,7 @@ const ModelSelector = ({
       });
       searchRef.current?.focus({ preventScroll: true });
     },
-    keyboardShortcut && !disabled && models.length > 0,
+    Boolean(shortcutKey) && !disabled && models.length > 0,
   );
   const stableModelOrderRef = useRef([]);
   const stableModelOrder = useMemo(() => {
@@ -132,8 +134,13 @@ const ModelSelector = ({
           </Text>
         </Text>
         <Tooltip
-          label={<ShortcutHint label="Filter models" shortcut="m" />}
-          disabled={!keyboardShortcut}
+          label={
+            <ShortcutHint
+              label="Filter models"
+              shortcut={shortcutKey === "M" ? "⇧M" : shortcutKey}
+            />
+          }
+          disabled={!shortcutKey}
           openDelay={400}
         >
           <TextInput
@@ -155,7 +162,9 @@ const ModelSelector = ({
               )
             }
             aria-label="Filter forecasting models"
-            aria-keyshortcuts={keyboardShortcut ? "M" : undefined}
+            aria-keyshortcuts={
+              shortcutKey ? shortcutKey.toUpperCase() : undefined
+            }
             disabled={disabled}
           />
         </Tooltip>

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActionIcon,
   Alert,
@@ -21,7 +21,6 @@ import {
   IconArrowLeft,
   IconFolder,
   IconInfoCircle,
-  IconRefresh,
 } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
 import Seo from "../Seo";
@@ -44,6 +43,13 @@ const TARGET_DATA_FILE_NAMES = new Set([
 ]);
 const MODEL_OUTPUT_FILE_EXTENSIONS = [".csv", ".parquet"];
 const SILENT_MODEL_OUTPUT_FILES = new Set([".ds_store", "readme.md"]);
+
+// Module-level so the panel's eligibility effect doesn't re-run every render
+const PRIVATE_HUB_COMPARISON = {
+  isEligible: false,
+  reason:
+    "Comparison with submitting models is not available for private hubs.",
+};
 
 const normalizePath = (path) =>
   String(path ?? "")
@@ -644,6 +650,11 @@ const MyPrivateHub = () => {
   const [outputs, setOutputs] = useState(null);
   const [progress, setProgress] = useState(null);
   const [filteredItems, setFilteredItems] = useState([]);
+  const folderInputRef = useRef(null);
+
+  const openFolderPicker = useCallback(() => {
+    if (!processing) folderInputRef.current?.click();
+  }, [processing]);
 
   const processHub = useCallback(async (hubContents) => {
     setProcessing(true);
@@ -722,10 +733,10 @@ const MyPrivateHub = () => {
         description="Process and visualize a private Hubverse folder in your browser."
         canonicalPath="/toolbox/my-private-hub"
       />
-      <Container size="xl" pt="md" pb="xl" fluid>
+      <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1500px" }}>
         <Stack gap="lg">
           <Group justify="space-between" align="center">
-            <Group gap="xs">
+            <Group gap="xs" wrap="nowrap">
               <Tooltip
                 label={
                   outputs ? "Choose another hub folder" : "Back to toolbox"
@@ -734,15 +745,13 @@ const MyPrivateHub = () => {
               >
                 <ActionIcon
                   variant="subtle"
-                  color="blue"
-                  size="xl"
-                  radius="xl"
+                  color="gray"
                   onClick={outputs ? reset : () => navigate("/toolbox")}
                   aria-label={
                     outputs ? "Choose another hub folder" : "Back to toolbox"
                   }
                 >
-                  <IconArrowLeft size={24} />
+                  <IconArrowLeft size={18} />
                 </ActionIcon>
               </Tooltip>
               <Title order={1}>My Private Hub</Title>
@@ -753,11 +762,7 @@ const MyPrivateHub = () => {
             <MyRespiVisualizationPanel
               projectionOutputs={outputs}
               hubConfig={OTHER_HUB_CONFIG}
-              comparisonEligibility={{
-                isEligible: false,
-                reason:
-                  "Comparison with submitting models is not available for private hubs.",
-              }}
+              comparisonEligibility={PRIVATE_HUB_COMPARISON}
             />
           ) : (
             <Group justify="center">
@@ -775,25 +780,32 @@ const MyPrivateHub = () => {
                     onDragLeave={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
-                      setDragActive(false);
+                      // Moving over a child element also fires dragleave
+                      if (!event.currentTarget.contains(event.relatedTarget)) {
+                        setDragActive(false);
+                      }
                     }}
                     onDragOver={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                     }}
                     onDrop={handleDrop}
-                    onClick={() => {
-                      if (!processing) {
-                        document
-                          .getElementById("my-private-hub-folder-input")
-                          ?.click();
+                    onClick={openFolderPicker}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openFolderPicker();
                       }
                     }}
+                    role="button"
+                    tabIndex={0}
+                    aria-busy={processing}
+                    aria-label="Select or drop a hub folder"
                     style={{
                       cursor: processing ? "progress" : "pointer",
                       border: dragActive
                         ? "2px dashed var(--mantine-color-blue-6)"
-                        : "2px dashed var(--mantine-color-gray-4)",
+                        : "2px dashed var(--mantine-color-default-border)",
                       backgroundColor: dragActive
                         ? "var(--mantine-color-blue-light)"
                         : "transparent",
@@ -829,7 +841,7 @@ const MyPrivateHub = () => {
                         </Text>
                       </Stack>
                       <input
-                        id="my-private-hub-folder-input"
+                        ref={folderInputRef}
                         type="file"
                         webkitdirectory=""
                         multiple
@@ -987,18 +999,6 @@ const MyPrivateHub = () => {
                 </Box>
               </details>
             </Alert>
-          )}
-
-          {outputs && (
-            <Group justify="center">
-              <Button
-                variant="light"
-                leftSection={<IconRefresh size={16} />}
-                onClick={reset}
-              >
-                Process another hub folder
-              </Button>
-            </Group>
           )}
         </Stack>
       </Container>

@@ -43,6 +43,7 @@ export const ShortcutList = ({
   hasTargets = true,
   hasDates = true,
   hasModels = true,
+  hasHubModels = false,
   hasIntervals = true,
   hasDownload = true,
   size = "sm",
@@ -53,7 +54,11 @@ export const ShortcutList = ({
     { keys: ["↑", "↓"], label: "Previous / next location" },
     hasTargets && { keys: ["T"], label: "Change target" },
     hasDates && { keys: ["←", "→"], label: "Earlier / later forecast date" },
-    hasModels && { keys: ["M"], label: "Filter models" },
+    hasModels && {
+      keys: ["M"],
+      label: hasHubModels ? "Filter user submitted models" : "Filter models",
+    },
+    hasHubModels && { keys: ["Shift", "M"], label: "Filter hub models" },
     hasIntervals && {
       keys: ["I"],
       label: "Cycle intervals: all, 50% + median, median",
@@ -98,6 +103,7 @@ export const NavigationHelp = ({
   hasTargets = true,
   hasDates = true,
   hasModels = true,
+  hasHubModels = false,
   hasIntervals = true,
   hasDownload = true,
   dragDates = hasDates,
@@ -120,6 +126,7 @@ export const NavigationHelp = ({
         hasTargets={hasTargets}
         hasDates={hasDates}
         hasModels={hasModels}
+        hasHubModels={hasHubModels}
         hasIntervals={hasIntervals}
         hasDownload={hasDownload}
         size={size}

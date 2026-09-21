@@ -2326,7 +2326,10 @@ const MyRespiVisualizationPanel = ({
               <IconZoomReset size={18} />
             </ActionIcon>
           </Tooltip>
-          <ChartInfoButton dragDates={false} />
+          <ChartInfoButton
+            dragDates={false}
+            hasHubModels={compareWithSubmittingModels}
+          />
         </Group>
       </Group>
 
@@ -2370,7 +2373,7 @@ const MyRespiVisualizationPanel = ({
       </div>
 
       <ModelSelector
-        title="User submitted models"
+        title={comparisonEnabled ? "User submitted models" : "Models"}
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
@@ -2381,6 +2384,7 @@ const MyRespiVisualizationPanel = ({
       {compareWithSubmittingModels && (
         <ModelSelector
           title="Hub models"
+          keyboardShortcut="M"
           models={submittedModels}
           selectedModels={selectedSubmittedModels}
           setSelectedModels={handleSubmittedModelSelectionChange}
