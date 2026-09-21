@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect } from "react";
 
-// Lets the active view hand its "reset view" action to the chart header
+// Lets the active view hand its "reset axes" action to the chart header
 // (see DataVisualizationContainer), which shows the button only while a view
 // has registered one.
 export const ChartResetContext = createContext(null);

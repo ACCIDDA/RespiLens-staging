@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef } from "react";
 import { ChartResetContext } from "../contexts/ChartResetContext";
 
-// Calls `onReset` each time the chart header's "Reset view" button is pressed
+// Calls `onReset` each time the chart header's "Reset axes" button is pressed
 // (not on mount).
 export const useChartReset = (onReset) => {
   const resetCount = useContext(ChartResetContext);

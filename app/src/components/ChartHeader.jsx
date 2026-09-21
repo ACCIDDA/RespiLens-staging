@@ -151,13 +151,13 @@ const ChartHeader = ({
             />
           </Popover.Dropdown>
         </Popover>
-        <Tooltip label={<ShortcutHint label="Reset view" shortcut="r" />}>
+        <Tooltip label={<ShortcutHint label="Reset axes" shortcut="r" />}>
           <ActionIcon
             variant="subtle"
             size="lg"
             color="gray"
             onClick={onResetView}
-            aria-label="Reset view"
+            aria-label="Reset axes"
           >
             <IconZoomReset size={18} />
           </ActionIcon>

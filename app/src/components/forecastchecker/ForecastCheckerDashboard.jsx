@@ -2278,13 +2278,13 @@ const MyRespiVisualizationPanel = ({
               <IconDownload size={18} />
             </ActionIcon>
           </Tooltip>
-          <Tooltip label={<ShortcutHint label="Reset view" shortcut="r" />}>
+          <Tooltip label={<ShortcutHint label="Reset axes" shortcut="r" />}>
             <ActionIcon
               variant="subtle"
               size="lg"
               color="gray"
               onClick={handleResetView}
-              aria-label="Reset view"
+              aria-label="Reset axes"
             >
               <IconZoomReset size={18} />
             </ActionIcon>

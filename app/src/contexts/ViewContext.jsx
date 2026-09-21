@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { URLParameterManager } from "../utils/urlManager";
 import { useForecastData } from "../hooks/useForecastData";
@@ -13,6 +13,8 @@ import {
   isPathBasedForecastView,
   parseForecastUrlState,
 } from "../utils/forecastRoutes";
+
+const DATE_URL_DELAY_MS = 250;
 
 const METRO_STATE_MAP = {
   Colorado: "CO",
@@ -382,6 +384,9 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
+  // Holding an arrow key steps dates far faster than browsers allow history
+  // writes (Safari throws past 100 per 10 s), so the URL trails the state
+  const dateUrlTimerRef = useRef(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [locationMessage, setLocationMessage] = useState(null);
   // NSSP data comes per group of counties (HSA): remember which county the
@@ -489,6 +494,9 @@ export const ViewProvider = ({ children }) => {
     }
     return availableDates || [];
   }, [viewType, availablePeakDates, availableDates]);
+
+  // A pending date write belongs to the view it was made in
+  useEffect(() => () => clearTimeout(dateUrlTimerRef.current), [viewType]);
 
   const updateDatasetParams = useCallback(
     (params) => {
@@ -1005,15 +1013,16 @@ export const ViewProvider = ({ children }) => {
     },
     selectedDates,
     setSelectedDates: (updater) => {
-      setSelectedDates((prevDates) => {
-        const nextDates =
-          typeof updater === "function" ? updater(prevDates) : updater;
+      const nextDates =
+        typeof updater === "function" ? updater(selectedDates) : updater;
+      setSelectedDates(nextDates);
+      clearTimeout(dateUrlTimerRef.current);
+      dateUrlTimerRef.current = setTimeout(() => {
         const latestDate =
           availableDatesToExpose[availableDatesToExpose.length - 1];
         const isDefault = nextDates.length === 1 && nextDates[0] === latestDate;
         updateDatasetParams({ dates: isDefault ? [] : nextDates });
-        return nextDates;
-      });
+      }, DATE_URL_DELAY_MS);
     },
     activeDate,
     setActiveDate,

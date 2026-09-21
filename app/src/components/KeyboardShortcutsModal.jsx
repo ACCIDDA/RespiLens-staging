@@ -58,7 +58,7 @@ export const ShortcutList = ({
       keys: ["I"],
       label: "Cycle intervals: all, 50% + median, median",
     },
-    { keys: ["R"], label: "Reset the view" },
+    { keys: ["R"], label: "Reset axes" },
     hasDownload && { keys: ["D"], label: "Download the chart" },
     { keys: ["Esc"], label: "Close a menu" },
     { keys: ["?"], label: "Show this help" },
