@@ -32,6 +32,7 @@ const ModelSelector = ({
   selectedDates = [],
   // M jumps to the filter box (forecast pages only: one list per page)
   keyboardShortcut = false,
+  title = "Models",
 }) => {
   const [scope, setScope] = useState("all");
   const [search, setSearch] = useState("");
@@ -125,7 +126,7 @@ const ModelSelector = ({
       {/* One row: count, filter, scope, then the bulk actions beside them */}
       <Group gap="sm" wrap="wrap">
         <Text fw={600} size="sm">
-          Models{" "}
+          {title}{" "}
           <Text span c="dimmed" size="sm" fw={400}>
             {selectedModels.length} of {models.length}
           </Text>

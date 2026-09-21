@@ -48,7 +48,8 @@ import ModelSelector from "../ModelSelector";
 import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
-import { MODEL_COLORS } from "../../config/datasets";
+import { APP_CONFIG } from "../../config/app";
+import { DATASETS, MODEL_COLORS } from "../../config/datasets";
 import { nextIntervalVisibility } from "../../utils/intervalCycle";
 import { downloadChartPng } from "../../utils/downloadChartPng";
 import {
@@ -1110,21 +1111,32 @@ const ValidationSummary = ({ summary }) => (
   </Group>
 );
 
+// Same order as the hub's location picker: the default location (US) first,
+// then the rest by name. The first option is therefore the default.
 const buildLocationOptions = (projectionOutputs) =>
   Object.entries(projectionOutputs)
     .filter(([fileName]) => fileName !== "metadata.json")
-    .map(([fileName, payload]) => ({
-      value: fileName,
-      label: (() => {
-        const locationName = payload?.metadata?.location_name;
-        const abbreviation = payload?.metadata?.abbreviation;
-        if (locationName && abbreviation && locationName !== abbreviation) {
-          return `${locationName} (${abbreviation})`;
-        }
-        return locationName || abbreviation || fileName;
-      })(),
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .map(([fileName, payload]) => {
+      const abbreviation = payload?.metadata?.abbreviation;
+      const isDefault = abbreviation === APP_CONFIG.defaultLocation;
+      const locationName = isDefault
+        ? "United States"
+        : payload?.metadata?.location_name;
+      return {
+        value: fileName,
+        isDefault,
+        name: locationName || abbreviation || fileName,
+        label:
+          locationName && abbreviation && locationName !== abbreviation
+            ? `${locationName} (${abbreviation})`
+            : locationName || abbreviation || fileName,
+      };
+    })
+    .sort((left, right) => {
+      if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1;
+      return left.name.localeCompare(right.name);
+    })
+    .map(({ value, label }) => ({ value, label }));
 
 const validateGroundTruthCsv = (
   records,
@@ -1349,8 +1361,19 @@ const buildMetroHierarchy = (projectionOutputs) => {
     ];
   });
 
+  // The state of the hub's default MetroCast location, else the first state
+  const defaultLocation = metadataLocations.find(
+    (location) => location.abbreviation === DATASETS.metrocast.defaultLocation,
+  );
+  const defaultState =
+    stateOptions.find((state) => state.value === defaultLocation?.state_abb)
+      ?.value ??
+    stateOptions[0]?.value ??
+    null;
+
   return {
     stateOptions,
+    defaultState,
     locationsByState,
   };
 };
@@ -1521,8 +1544,9 @@ const MyRespiVisualizationPanel = ({
   const [showLegend, setShowLegend] = useState(true);
   const [xAxisRange, setXAxisRange] = useState(null);
   const [yAxisRange, setYAxisRange] = useState(null);
+  // On by default whenever the upload is old enough to compare
   const [compareWithSubmittingModels, setCompareWithSubmittingModels] =
-    useState(false);
+    useState(Boolean(comparisonEligibility?.isEligible));
   const [comparisonDataState, setComparisonDataState] = useState({
     status: "idle",
     data: null,
@@ -1560,7 +1584,7 @@ const MyRespiVisualizationPanel = ({
     setSelectedMetroState((current) =>
       current && stateOptions.some((option) => option.value === current)
         ? current
-        : stateOptions[0].value,
+        : (metroHierarchy?.defaultState ?? stateOptions[0].value),
     );
   }, [isMetrocast, metroHierarchy]);
 
@@ -1600,9 +1624,7 @@ const MyRespiVisualizationPanel = ({
   );
 
   useEffect(() => {
-    if (!comparisonEligibility?.isEligible) {
-      setCompareWithSubmittingModels(false);
-    }
+    setCompareWithSubmittingModels(Boolean(comparisonEligibility?.isEligible));
   }, [comparisonEligibility]);
 
   useEffect(() => {
@@ -1762,11 +1784,9 @@ const MyRespiVisualizationPanel = ({
       return [];
     }
 
-    const stillValid = preferredSubmittedModels.filter((model) =>
+    return preferredSubmittedModels.filter((model) =>
       submittedModels.includes(model),
     );
-
-    return stillValid.length ? stillValid : [submittedModels[0]];
   }, [preferredSubmittedModels, submittedModels]);
 
   const handleSubmittedModelSelectionChange = useCallback((nextModels) => {
@@ -2107,13 +2127,23 @@ const MyRespiVisualizationPanel = ({
 
   useKeyboardShortcut("r", handleResetView);
   useKeyboardShortcut("d", handleDownload);
+  // I: every interval, then 95% + 50% + median, 50% + median, median alone
   useKeyboardShortcut("i", () =>
-    setIntervalVisibility((current) =>
-      nextIntervalVisibility(
-        current,
-        intervalOptions.map((option) => option.value),
-      ),
-    ),
+    setIntervalVisibility((current) => {
+      const keys = intervalOptions.map((option) => option.value);
+      const keyForWidth = (lower) =>
+        intervalDefinitions.find(
+          (definition) => Math.abs(definition.lowerQuantile - lower) < 1e-9,
+        )?.key;
+      const ci95 = keyForWidth(0.025);
+      const ci50 = keyForWidth(0.25);
+      return nextIntervalVisibility(current, keys, [
+        keys,
+        ["median", ci50, ci95],
+        ["median", ci50],
+        ["median"],
+      ]);
+    }),
   );
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {
@@ -2192,6 +2222,28 @@ const MyRespiVisualizationPanel = ({
         </Stack>
 
         <Group gap={2} wrap="nowrap">
+          {comparisonEnabled && (
+            <Tooltip
+              label={comparisonEligibility?.reason}
+              disabled={
+                comparisonEligibility?.isEligible || !comparisonEligibility
+              }
+              multiline
+              w={260}
+            >
+              <div style={{ marginRight: 8 }}>
+                <Switch
+                  label="Compare with hub models"
+                  checked={compareWithSubmittingModels}
+                  onChange={(event) =>
+                    setCompareWithSubmittingModels(event.currentTarget.checked)
+                  }
+                  disabled={!comparisonEligibility?.isEligible}
+                  size="sm"
+                />
+              </div>
+            </Tooltip>
+          )}
           <Popover position="bottom-end" shadow="md" width={380}>
             <Popover.Target>
               <Tooltip label="Display options" openDelay={300}>
@@ -2216,50 +2268,35 @@ const MyRespiVisualizationPanel = ({
                   setShowLegend={setShowLegend}
                   intervalOptions={intervalOptions}
                 />
-                {comparisonEnabled && (
-                  <Stack gap="xs">
-                    <Switch
-                      label="Compare with submitting models"
-                      checked={compareWithSubmittingModels}
-                      onChange={(event) =>
-                        setCompareWithSubmittingModels(
-                          event.currentTarget.checked,
-                        )
-                      }
-                      disabled={!comparisonEligibility?.isEligible}
-                      size="sm"
-                    />
-                    {isComparing && (
-                      <Group align="center" gap="md" wrap="wrap">
-                        <Text size="xs" c="dimmed">
-                          Their intervals
-                        </Text>
-                        <Checkbox.Group
-                          value={selectedSubmittedIntervals}
-                          onChange={(values) => {
-                            const nextVisibility = {};
-                            SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
-                              nextVisibility[option.value] = values.includes(
-                                option.value,
-                              );
-                            });
-                            setSubmittedIntervalVisibility(nextVisibility);
-                          }}
-                        >
-                          <Group gap="sm" wrap="wrap">
-                            {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
-                              <Checkbox
-                                key={option.value}
-                                value={option.value}
-                                label={option.label}
-                                size="xs"
-                              />
-                            ))}
-                          </Group>
-                        </Checkbox.Group>
+                {comparisonEnabled && isComparing && (
+                  <Group align="center" gap="md" wrap="wrap">
+                    <Text size="xs" c="dimmed">
+                      Hub model intervals
+                    </Text>
+                    <Checkbox.Group
+                      value={selectedSubmittedIntervals}
+                      onChange={(values) => {
+                        const nextVisibility = {};
+                        SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                          nextVisibility[option.value] = values.includes(
+                            option.value,
+                          );
+                        });
+                        setSubmittedIntervalVisibility(nextVisibility);
+                      }}
+                    >
+                      <Group gap="sm" wrap="wrap">
+                        {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                          <Checkbox
+                            key={option.value}
+                            value={option.value}
+                            label={option.label}
+                            size="xs"
+                          />
+                        ))}
                       </Group>
-                    )}
-                  </Stack>
+                    </Checkbox.Group>
+                  </Group>
                 )}
               </Stack>
             </Popover.Dropdown>
@@ -2333,6 +2370,7 @@ const MyRespiVisualizationPanel = ({
       </div>
 
       <ModelSelector
+        title="User submitted models"
         models={models}
         selectedModels={selectedModels}
         setSelectedModels={setSelectedModels}
@@ -2340,19 +2378,15 @@ const MyRespiVisualizationPanel = ({
         keyboardShortcut
       />
 
-      {isComparing && (
-        <Stack gap="xs">
-          <Text size="sm" fw={600}>
-            Submitting models
-          </Text>
-          <ModelSelector
-            models={submittedModels}
-            selectedModels={selectedSubmittedModels}
-            setSelectedModels={handleSubmittedModelSelectionChange}
-            activeModels={activeSubmittedModels}
-            modelColorFn={submittedModelColorFn}
-          />
-        </Stack>
+      {compareWithSubmittingModels && (
+        <ModelSelector
+          title="Hub models"
+          models={submittedModels}
+          selectedModels={selectedSubmittedModels}
+          setSelectedModels={handleSubmittedModelSelectionChange}
+          activeModels={activeSubmittedModels}
+          modelColorFn={submittedModelColorFn}
+        />
       )}
     </Stack>
   );

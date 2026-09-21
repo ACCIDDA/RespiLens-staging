@@ -6,12 +6,13 @@ const PRESETS = [["median", "ci50", "ci95"], ["median", "ci50"], ["median"]];
 const visibleKeys = (visibility, keys) =>
   keys.filter((key) => visibility?.[key]);
 
-// `keys`: the interval keys the chart offers. Any state that isn't one of
-// the sets (say, only the 95% band) goes to the first, so I always lands
-// somewhere predictable.
-export const nextIntervalVisibility = (current, keys) => {
+// `keys`: the interval keys the chart offers. `presets` swaps in other sets
+// for charts whose keys aren't median / ci50 / ci95. Any state that isn't
+// one of the sets (say, only the 95% band) goes to the first, so I always
+// lands somewhere predictable.
+export const nextIntervalVisibility = (current, keys, presets = PRESETS) => {
   const sets = [];
-  PRESETS.forEach((preset) => {
+  presets.forEach((preset) => {
     const set = preset.filter((key) => keys.includes(key));
     const seen = sets.some(
       (other) =>
