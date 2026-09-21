@@ -49,6 +49,7 @@ import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { MODEL_COLORS } from "../../config/datasets";
+import { nextIntervalVisibility } from "../../utils/intervalCycle";
 import { downloadChartPng } from "../../utils/downloadChartPng";
 import {
   CHART_CONSTANTS,
@@ -2105,6 +2106,15 @@ const MyRespiVisualizationPanel = ({
     downloadChartPng(plotRef.current?.el, "forecast-checker");
 
   useKeyboardShortcut("r", handleResetView);
+  useKeyboardShortcut("d", handleDownload);
+  useKeyboardShortcut("i", () =>
+    setIntervalVisibility((current) =>
+      nextIntervalVisibility(
+        current,
+        intervalOptions.map((option) => option.value),
+      ),
+    ),
+  );
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {
     return null;
@@ -2254,7 +2264,10 @@ const MyRespiVisualizationPanel = ({
               </Stack>
             </Popover.Dropdown>
           </Popover>
-          <Tooltip label="Download chart as PNG" openDelay={300}>
+          <Tooltip
+            label={<ShortcutHint label="Download chart as PNG" shortcut="d" />}
+            openDelay={300}
+          >
             <ActionIcon
               variant="subtle"
               size="lg"

@@ -24,6 +24,7 @@ import DateSelector from "./DateSelector";
 import { ChartInfoButton } from "./KeyboardShortcutsModal";
 import ShortcutHint from "./ShortcutHint";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
+import { nextIntervalVisibility } from "../utils/intervalCycle";
 import { ChartAboutContext } from "../contexts/ChartAboutContext";
 import ForecastChartControls from "./controls/ForecastChartControls";
 
@@ -60,8 +61,17 @@ const ChartHeader = ({
   } = useView();
 
   const about = useContext(ChartAboutContext);
-  useKeyboardShortcut("r", onResetView);
   const isSurveillance = viewType === "nhsnall" || viewType === "nsspall";
+  useKeyboardShortcut("r", onResetView);
+  useKeyboardShortcut("d", onDownload);
+  useKeyboardShortcut(
+    "i",
+    () =>
+      setIntervalVisibility(
+        nextIntervalVisibility(intervalVisibility, ["median", "ci50", "ci95"]),
+      ),
+    !isSurveillance,
+  );
   const hasTargets = availableTargets?.length > 0;
   const datasetTitle =
     getDatasetTitleFromView(viewType) || currentDataset?.fullName;
@@ -152,7 +162,9 @@ const ChartHeader = ({
             <IconZoomReset size={18} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Download chart as PNG">
+        <Tooltip
+          label={<ShortcutHint label="Download chart as PNG" shortcut="d" />}
+        >
           <ActionIcon
             variant="subtle"
             size="lg"
@@ -192,6 +204,7 @@ const ChartHeader = ({
           hasTargets={hasTargets}
           hasDates={Boolean(currentDataset?.hasDateSelector)}
           hasModels={Boolean(currentDataset?.hasModelSelector)}
+          hasIntervals={!isSurveillance}
           singleDate={viewType === "flu_peak"}
         />
       </Group>

@@ -43,6 +43,8 @@ export const ShortcutList = ({
   hasTargets = true,
   hasDates = true,
   hasModels = true,
+  hasIntervals = true,
+  hasDownload = true,
   size = "sm",
   ...props
 }) => {
@@ -52,7 +54,12 @@ export const ShortcutList = ({
     hasTargets && { keys: ["T"], label: "Change target" },
     hasDates && { keys: ["←", "→"], label: "Earlier / later forecast date" },
     hasModels && { keys: ["M"], label: "Filter models" },
+    hasIntervals && {
+      keys: ["I"],
+      label: "Cycle intervals: all, 50% + median, median",
+    },
     { keys: ["R"], label: "Reset the view" },
+    hasDownload && { keys: ["D"], label: "Download the chart" },
     { keys: ["Esc"], label: "Close a menu" },
     { keys: ["?"], label: "Show this help" },
   ].filter(Boolean);
@@ -91,6 +98,8 @@ export const NavigationHelp = ({
   hasTargets = true,
   hasDates = true,
   hasModels = true,
+  hasIntervals = true,
+  hasDownload = true,
   dragDates = hasDates,
   singleDate = false,
   size = "sm",
@@ -111,6 +120,8 @@ export const NavigationHelp = ({
         hasTargets={hasTargets}
         hasDates={hasDates}
         hasModels={hasModels}
+        hasIntervals={hasIntervals}
+        hasDownload={hasDownload}
         size={size}
       />
     </Stack>

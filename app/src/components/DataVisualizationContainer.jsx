@@ -590,6 +590,8 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
             hasTargets={false}
             hasDates={false}
             hasModels={false}
+            hasIntervals={false}
+            hasDownload={false}
           />
         </Container>
       </ErrorBoundary>
