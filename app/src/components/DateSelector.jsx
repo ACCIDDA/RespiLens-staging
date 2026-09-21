@@ -202,7 +202,7 @@ const DateSelector = ({
 
       {/* Add Date Button (icon-only in compact mode) */}
       {multi &&
-        selectedDates.length < 5 &&
+        selectedDates.length < 10 &&
         (compact ? (
           <Tooltip label="Add a date to compare" openDelay={300}>
             <ActionIcon

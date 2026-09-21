@@ -9,7 +9,7 @@ const CLICK_SLOP_PX = 4;
 // A click only adds a date if an available forecast date is this close
 const MAX_CLICK_SNAP_DAYS = 7;
 // Same cap as the date selector's "Add date" button
-const DEFAULT_MAX_DATES = 5;
+const DEFAULT_MAX_DATES = 10;
 // Two clicks on the same line within this window are a double-click
 const DOUBLE_CLICK_MS = 400;
 
