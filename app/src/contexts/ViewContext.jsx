@@ -6,11 +6,9 @@ import { ViewContext } from "./ViewContextObject";
 import { APP_CONFIG, DATASETS } from "../config";
 import { getDataPath } from "../utils/paths";
 import {
-  buildForecastPath,
   buildForecastUrl,
   getForecastRouteError,
   isForecastPathname,
-  isPathBasedForecastView,
   parseForecastUrlState,
 } from "../utils/forecastRoutes";
 
@@ -372,7 +370,6 @@ export const ViewProvider = ({ children }) => {
   const [selectedLocation, setSelectedLocation] = useState(() => {
     const { location: urlLoc, viewType: currentView } = parseForecastUrlState(
       location.pathname,
-      searchParams,
     );
     const dataset = urlManager.getDatasetFromView(currentView);
     if (dataset?.defaultLocation && urlLoc === APP_CONFIG.defaultLocation) {
@@ -913,30 +910,6 @@ export const ViewProvider = ({ children }) => {
     showLegend,
     showOtherGroundTruthSeasons,
   ]);
-
-  useEffect(() => {
-    if (location.pathname !== "/") {
-      return;
-    }
-
-    if (!isPathBasedForecastView(viewType)) {
-      return;
-    }
-
-    const nextUrl = buildForecastUrl({
-      viewType,
-      location: selectedLocation,
-      searchParams,
-    });
-    const canonicalPath = buildForecastPath(viewType, selectedLocation);
-
-    if (
-      nextUrl.pathname === canonicalPath &&
-      nextUrl.pathname !== location.pathname
-    ) {
-      navigate(nextUrl, { replace: true });
-    }
-  }, [location.pathname, navigate, searchParams, selectedLocation, viewType]);
 
   const setChartScaleWithUrl = useCallback(
     (nextScale) => {

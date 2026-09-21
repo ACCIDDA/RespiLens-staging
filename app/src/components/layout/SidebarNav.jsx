@@ -91,10 +91,7 @@ const SidebarNav = ({ onNavigate }) => {
       href: "/toolbox",
       label: "Toolbox",
       icon: IconTool,
-      active:
-        path.startsWith("/toolbox") ||
-        path.startsWith("/myrespilens") ||
-        path.startsWith("/documentation"),
+      active: path.startsWith("/toolbox"),
     },
     {
       href: "/myplots",

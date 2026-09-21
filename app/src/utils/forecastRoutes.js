@@ -195,7 +195,7 @@ const deserializeMetrocastLocationFromPath = (locationSegment) => {
   return sanitizedLocation;
 };
 
-export const isPathBasedForecastView = (viewType) =>
+const isPathBasedForecastView = (viewType) =>
   Object.prototype.hasOwnProperty.call(PATH_VIEW_CONFIG, viewType);
 
 export const isForecastPathname = (pathname = "") =>
@@ -322,14 +322,10 @@ const parsePathBasedForecastState = (pathname) => {
   };
 };
 
-export const parseForecastUrlState = (pathname, searchParams) => {
+export const parseForecastUrlState = (pathname) => {
   const frontPageLocation = parseFrontPageLocation(pathname);
   if (frontPageLocation) {
-    return {
-      viewType: "frontpage",
-      location: frontPageLocation,
-      source: "path",
-    };
+    return { viewType: "frontpage", location: frontPageLocation };
   }
 
   if (
@@ -339,64 +335,26 @@ export const parseForecastUrlState = (pathname, searchParams) => {
   ) {
     const pathState = parsePathBasedForecastState(pathname);
     if (pathState) {
-      return {
-        ...pathState,
-        source: "path",
-      };
+      return pathState;
     }
   }
 
-  const allViews = Object.values(DATASETS).flatMap((dataset) =>
-    dataset.views.map((view) => view.value),
-  );
-  const queryView = searchParams.get("view");
-  const viewType = allViews.includes(queryView)
-    ? queryView
-    : APP_CONFIG.defaultView;
-  const location =
-    searchParams.get("location") || getDefaultLocationForView(viewType);
-
   return {
-    viewType,
-    location,
-    source: "query",
+    viewType: APP_CONFIG.defaultView,
+    location: getDefaultLocationForView(APP_CONFIG.defaultView),
   };
 };
 
 export const buildForecastUrl = ({ viewType, location, searchParams }) => {
-  const nextParams = new URLSearchParams(searchParams);
-  nextParams.delete("view");
-  nextParams.delete("location");
+  const search = new URLSearchParams(searchParams).toString();
+  const pathname =
+    viewType === "frontpage"
+      ? location && location !== APP_CONFIG.defaultLocation
+        ? `/${encodeURIComponent(location)}`
+        : "/"
+      : buildForecastPath(viewType, location);
 
-  if (viewType === "frontpage") {
-    const search = nextParams.toString();
-    return {
-      pathname:
-        location && location !== APP_CONFIG.defaultLocation
-          ? `/${encodeURIComponent(location)}`
-          : "/",
-      search: search ? `?${search}` : "",
-    };
-  }
-
-  if (isPathBasedForecastView(viewType)) {
-    const search = nextParams.toString();
-    return {
-      pathname: buildForecastPath(viewType, location),
-      search: search ? `?${search}` : "",
-    };
-  }
-
-  const defaultLocation = getDefaultLocationForView(viewType);
-  nextParams.set("view", viewType);
-  if (location && location !== defaultLocation) {
-    nextParams.set("location", location);
-  }
-  const search = nextParams.toString();
-  return {
-    pathname: "/",
-    search: search ? `?${search}` : "",
-  };
+  return { pathname, search: search ? `?${search}` : "" };
 };
 
 // Views whose location segment is a plain state code, so a wrong one can be

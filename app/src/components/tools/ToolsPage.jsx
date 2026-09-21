@@ -44,7 +44,7 @@ const ToolsPage = () => {
   return (
     <>
       <Seo
-        title="RespiLens | Toolbox | Forecast Checker"
+        title="RespiLens | Toolbox"
         description="Browse the RespiLens Toolbox, including Forecast Checker for private forecast visualization and the reporting delay explorer for nowcasting preparation."
         canonicalPath="/toolbox"
       />

@@ -14,7 +14,7 @@ export const extractPlotData = (viewType, href, data) => {
   const url = new URL(href);
   const params = url.searchParams;
   const datesString = params.get("dates");
-  const urlState = parseForecastUrlState(url.pathname, params);
+  const urlState = parseForecastUrlState(url.pathname);
   const id = crypto.randomUUID();
   const currentDate = new Date().toISOString().split("T")[0];
   let dataSuffix = "";

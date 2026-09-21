@@ -22,6 +22,7 @@ import FrontPage, { FrontPageAnnouncements } from "./FrontPage";
 import { IconBrandGithub } from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
 import Seo from "./Seo";
+import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
 import { downloadChartPng } from "../utils/downloadChartPng";
 
 const DataVisualizationContainer = ({ disableSeo = false }) => {
@@ -566,12 +567,28 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
     }
   }, [viewType, selectedDates, activeDate, setSelectedDates]);
 
+  // "RespiLens | Flu Forecasts | Peak Forecasts | California": names, not
+  // codes, and one title per address so analytics can tell the pages apart
+  const locationName = resolvePlotLocationDisplayName(selectedLocation);
+  const variantLabel =
+    currentDataset && viewType !== currentDataset.defaultView
+      ? currentDataset.views.find((view) => view.value === viewType)?.label
+      : null;
+  const forecastTitle = [
+    "RespiLens",
+    currentDataset?.fullName || "Forecasts",
+    variantLabel,
+    locationName,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   if (viewType === "frontpage") {
     return (
       <ErrorBoundary onReset={() => window.location.reload()}>
         {!disableSeo && (
           <Seo
-            title="RespiLens | Forecasts"
+            title={`RespiLens | Forecasts | ${locationName}`}
             description="Explore respiratory disease forecasts and surveillance data for influenza, COVID-19, RSV, and hospital respiratory metrics across the United States."
           />
         )}
@@ -602,7 +619,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
     <ErrorBoundary onReset={() => window.location.reload()}>
       {!disableSeo && (
         <Seo
-          title={`RespiLens | ${currentDataset?.fullName || "Forecasts"}`}
+          title={forecastTitle}
           description={`View ${currentDataset?.fullName || "respiratory disease forecasts"} in RespiLens with model projections, observed trends, and state-level respiratory disease activity.`}
         />
       )}
