@@ -14,16 +14,8 @@ import {
 import { IconAlertCircle, IconTarget } from "@tabler/icons-react";
 import { TOURNAMENT_CONFIG, getMaskedForecastDate } from "../../config";
 import { getParticipant } from "../../utils/tournamentAPI";
+import { addWeeksToDate } from "../../utils/forecastleInputs";
 import ForecastleChartCanvas from "../forecastle/ForecastleChartCanvas";
-
-const addWeeksToDate = (dateString, weeks) => {
-  const base = new Date(`${dateString}T00:00:00Z`);
-  if (Number.isNaN(base.getTime())) {
-    return dateString;
-  }
-  base.setUTCDate(base.getUTCDate() + weeks * 7);
-  return base.toISOString().slice(0, 10);
-};
 
 const restoreForecastEntries = (forecasts = []) =>
   forecasts.map((forecast) => ({

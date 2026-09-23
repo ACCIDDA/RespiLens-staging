@@ -89,6 +89,14 @@ export const DATASETS = {
   },
 };
 
+export const NSSP_COLUMN_LABELS = {
+  percent_visits_covid: "COVID-19",
+  percent_visits_influenza: "Influenza",
+  percent_visits_rsv: "RSV",
+};
+
+export const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
+
 // Helper function to get all valid view values
 export const getAllViewValues = () => {
   return Object.values(DATASETS).flatMap((dataset) =>

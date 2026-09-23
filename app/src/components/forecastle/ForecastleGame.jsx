@@ -23,7 +23,6 @@ import {
 } from "@mantine/core";
 import {
   IconAlertTriangle,
-  IconTarget,
   IconTrophy,
   IconCopy,
   IconCheck,
@@ -31,12 +30,17 @@ import {
   IconRefresh,
 } from "@tabler/icons-react";
 import { useForecastleScenario } from "../../hooks/useForecastleScenario";
+import { useRankingReveal } from "../../hooks/useRankingReveal";
 import {
+  addWeeksToDate,
+  adjustForecastEntry,
   initialiseForecastInputs,
   convertToIntervals,
 } from "../../utils/forecastleInputs";
 import { validateForecastSubmission } from "../../utils/forecastleValidation";
-import { FORECASTLE_CONFIG } from "../../config";
+import { CHART_CONFIG, FORECASTLE_CONFIG } from "../../config";
+
+const FORECASTLE_COLORS = CHART_CONFIG.forecastleColors;
 import {
   addRelativeWISToScore,
   compareScores,
@@ -53,15 +57,6 @@ import ForecastleChartCanvas from "./ForecastleChartCanvas";
 import ForecastleInputControls from "./ForecastleInputControls";
 import ForecastleStatsModal from "./ForecastleStatsModal";
 import Seo from "../Seo";
-
-const addWeeksToDate = (dateString, weeks) => {
-  const base = new Date(`${dateString}T00:00:00Z`);
-  if (Number.isNaN(base.getTime())) {
-    return dateString;
-  }
-  base.setUTCDate(base.getUTCDate() + weeks * 7);
-  return base.toISOString().slice(0, 10);
-};
 
 const normalizeScoresForDisplay = (userScore, modelScores, datasetKey) => {
   const { ensemble: ensembleKey, baseline: baselineKey } =
@@ -127,10 +122,12 @@ const ForecastleGame = () => {
   const [scores, setScores] = useState(null);
   const [inputMode, setInputMode] = useState("median"); // 'median', 'intervals', or 'scoring'
   const [zoomedView, setZoomedView] = useState(false); // Start with full history visible by default
-  const [visibleRankings, setVisibleRankings] = useState(0); // For animated reveal
   const [copied, setCopied] = useState(false); // For copy button feedback
   const [statsModalOpened, setStatsModalOpened] = useState(false); // For stats modal
   const [saveError, setSaveError] = useState(null); // For storage save errors
+  const visibleRankings = useRankingReveal(
+    inputMode === "scoring" ? scores : null,
+  );
 
   // Check which challenges are already completed
   useEffect(() => {
@@ -154,7 +151,6 @@ const ForecastleGame = () => {
     setScores(null);
     setInputMode("median");
     setZoomedView(false);
-    setVisibleRankings(0);
 
     // If this challenge is already completed, load the saved data and show scoring
     // Allow loading even with play_date, but user can still resubmit
@@ -210,37 +206,8 @@ const ForecastleGame = () => {
     }
 
     // Only initialize with default values if no saved game was loaded
-    setForecastEntries(
-      initialiseForecastInputs(
-        scenario?.horizons || [],
-        latestObservationValue,
-      ),
-    );
-  }, [
-    scenario?.horizons,
-    latestObservationValue,
-    isCurrentChallengeCompleted,
-    scenario,
-    playDate,
-  ]);
-
-  // Animated reveal of leaderboard when entering scoring mode
-  useEffect(() => {
-    if (inputMode === "scoring" && scores) {
-      setVisibleRankings(0);
-      const totalEntries = scores.models.length + 1; // models + user
-      const interval = setInterval(() => {
-        setVisibleRankings((prev) => {
-          if (prev >= totalEntries) {
-            clearInterval(interval);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 150); // Reveal one every 150ms
-      return () => clearInterval(interval);
-    }
-  }, [inputMode, scores]);
+    setForecastEntries(initialInputs);
+  }, [initialInputs, isCurrentChallengeCompleted, scenario, playDate]);
 
   const handleSubmit = () => {
     // When using play_date, check if this game has already been saved
@@ -407,26 +374,24 @@ const ForecastleGame = () => {
     }
   };
 
+  const goToChallenge = (index) => {
+    setCurrentChallengeIndex(index);
+    setInputMode("median");
+    setSubmittedPayload(null);
+    setScores(null);
+    setSubmissionErrors({});
+    setSaveError(null);
+    setCopied(false);
+  };
+
   const handleNextChallenge = () => {
     if (currentChallengeIndex < scenarios.length - 1) {
-      setCurrentChallengeIndex((prev) => prev + 1);
-      setInputMode("median");
-      setSubmittedPayload(null);
-      setScores(null);
-      setSubmissionErrors({});
-      setSaveError(null);
-      setCopied(false);
-      setVisibleRankings(0);
+      goToChallenge(currentChallengeIndex + 1);
     }
   };
 
   const handleResetMedians = () => {
-    setForecastEntries(
-      initialiseForecastInputs(
-        scenario?.horizons || [],
-        latestObservationValue,
-      ),
-    );
+    setForecastEntries(initialInputs);
     setSubmissionErrors({});
   };
 
@@ -510,62 +475,9 @@ const ForecastleGame = () => {
 
     const handleMedianAdjust = (index, field, value) => {
       setForecastEntries((prevEntries) =>
-        prevEntries.map((entry, idx) => {
-          if (idx !== index) return entry;
-
-          const nextEntry = { ...entry };
-
-          if (field === "median") {
-            const oldMedian = entry.median;
-            const newMedian = Math.max(0, value);
-            const medianShift = newMedian - oldMedian;
-
-            nextEntry.median = newMedian;
-
-            // Shift intervals to maintain their widths relative to new median
-            if (entry.lower95 !== undefined && entry.upper95 !== undefined) {
-              nextEntry.lower95 = Math.max(0, entry.lower95 + medianShift);
-              nextEntry.upper95 = entry.upper95 + medianShift;
-            }
-            if (entry.lower50 !== undefined && entry.upper50 !== undefined) {
-              nextEntry.lower50 = Math.max(0, entry.lower50 + medianShift);
-              nextEntry.upper50 = entry.upper50 + medianShift;
-            }
-          } else if (field === "interval95") {
-            // Handle two-point interval adjustment
-            const [lower, upper] = value;
-            nextEntry.lower95 = Math.max(0, lower);
-            nextEntry.upper95 = Math.max(lower, upper);
-            // Ensure 50% interval stays within 95% bounds
-            if (nextEntry.lower50 < nextEntry.lower95)
-              nextEntry.lower50 = nextEntry.lower95;
-            if (nextEntry.upper50 > nextEntry.upper95)
-              nextEntry.upper50 = nextEntry.upper95;
-            // Update widths for backward compatibility
-            nextEntry.width95 = Math.max(
-              nextEntry.upper95 - entry.median,
-              entry.median - nextEntry.lower95,
-            );
-          } else if (field === "interval50") {
-            // Handle two-point interval adjustment
-            const [lower, upper] = value;
-            nextEntry.lower50 = Math.max(nextEntry.lower95 || 0, lower);
-            nextEntry.upper50 = Math.min(
-              nextEntry.upper95 || 99999,
-              Math.max(lower, upper),
-            );
-            // Update widths for backward compatibility
-            nextEntry.width50 = Math.max(
-              nextEntry.upper50 - entry.median,
-              entry.median - nextEntry.lower50,
-            );
-          } else {
-            // Legacy field support
-            nextEntry[field] = Math.max(0, value);
-          }
-
-          return nextEntry;
-        }),
+        prevEntries.map((entry, idx) =>
+          idx === index ? adjustForecastEntry(entry, field, value) : entry,
+        ),
       );
       setSubmissionErrors({});
       if (submittedPayload) {
@@ -575,15 +487,13 @@ const ForecastleGame = () => {
 
     return (
       <Stack gap="lg">
-        <Paper shadow="sm" p="lg" radius="md" withBorder>
+        {/* Flat page like the rest of the app: no card around the game */}
+        <Box>
           <Stack gap="md">
             <Group justify="space-between" wrap="wrap" align="center">
               <Group gap="sm">
-                <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                  <IconTarget size={20} />
-                </ThemeIcon>
                 <div>
-                  <Title order={2}>Forecastle Daily Challenge</Title>
+                  <Title order={1}>Forecastle Daily Challenge</Title>
                   <Text size="sm" c="dimmed">
                     {`Generated for ${scenario.challengeDate} (Eastern)`}
                   </Text>
@@ -612,7 +522,7 @@ const ForecastleGame = () => {
                             completedChallenges.has(index)
                               ? "green"
                               : index === currentChallengeIndex
-                                ? "cyan"
+                                ? "blue"
                                 : "gray"
                           }
                           style={{
@@ -623,16 +533,7 @@ const ForecastleGame = () => {
                                 ? "2px solid"
                                 : undefined,
                           }}
-                          onClick={() => {
-                            setCurrentChallengeIndex(index);
-                            setInputMode("median");
-                            setSubmittedPayload(null);
-                            setScores(null);
-                            setSubmissionErrors({});
-                            setSaveError(null);
-                            setCopied(false);
-                            setVisibleRankings(0);
-                          }}
+                          onClick={() => goToChallenge(index)}
                         >
                           {completedChallenges.has(index) ? (
                             <IconCheck size={16} />
@@ -689,20 +590,38 @@ const ForecastleGame = () => {
                   <Text size="sm" fw={400}>
                     Predict
                   </Text>
-                  <Badge size="md" variant="filled" color="blue" radius="sm">
+                  <Badge
+                    size="lg"
+                    variant="light"
+                    color="blue"
+                    radius="sm"
+                    tt="none"
+                  >
                     {scenario?.dataset?.label || "hospitalization"}
                   </Badge>
                   <Text size="sm" fw={400}>
                     in
                   </Text>
-                  <Badge size="md" variant="filled" color="grape" radius="sm">
+                  <Badge
+                    size="lg"
+                    variant="light"
+                    color="blue"
+                    radius="sm"
+                    tt="none"
+                  >
                     {scenario?.location?.name} (
                     {scenario?.location?.abbreviation})
                   </Badge>
                   <Text size="sm" fw={400}>
                     at
                   </Text>
-                  <Badge size="md" variant="filled" color="teal" radius="sm">
+                  <Badge
+                    size="lg"
+                    variant="light"
+                    color="blue"
+                    radius="sm"
+                    tt="none"
+                  >
                     {scenario?.forecastDate}
                   </Badge>
                 </Group>
@@ -884,7 +803,7 @@ const ForecastleGame = () => {
                                           p="xs"
                                           withBorder
                                           style={{
-                                            backgroundColor: "#f8f9fa",
+                                            backgroundColor: "transparent",
                                             borderStyle: "dashed",
                                             transform: `translateY(${visibleRankings > displayIdx ? 0 : 20}px)`,
                                             opacity:
@@ -921,17 +840,19 @@ const ForecastleGame = () => {
                                         withBorder
                                         style={{
                                           backgroundColor: entry.isUser
-                                            ? "#ffe0e6"
+                                            ? "#e0f1fd"
                                             : entry.isHub
-                                              ? "#e8f5e9"
+                                              ? "#f1f3f5"
                                               : undefined,
                                           borderColor: entry.isUser
-                                            ? "#dc143c"
+                                            ? FORECASTLE_COLORS.user
                                             : entry.isHub
-                                              ? "#228b22"
+                                              ? FORECASTLE_COLORS.hub
                                               : undefined,
                                           borderWidth:
-                                            entry.isUser || entry.isHub ? 2 : 1,
+                                            entry.isUser || entry.isHub
+                                              ? 1.5
+                                              : 1,
                                           transform: `translateY(${visibleRankings > displayIdx ? 0 : 20}px)`,
                                           opacity:
                                             visibleRankings > displayIdx
@@ -1036,8 +957,7 @@ const ForecastleGame = () => {
                               onChange={(event) =>
                                 setZoomedView(!event.currentTarget.checked)
                               }
-                              color="red"
-                              size="md"
+                              size="sm"
                             />
                           </Group>
 
@@ -1284,8 +1204,7 @@ const ForecastleGame = () => {
                         onChange={(event) =>
                           setZoomedView(!event.currentTarget.checked)
                         }
-                        color="red"
-                        size="md"
+                        size="sm"
                       />
                     </Group>
                     <Box style={{ width: "100%", height: 380 }}>
@@ -1437,7 +1356,7 @@ const ForecastleGame = () => {
               </Grid>
             )}
           </Stack>
-        </Paper>
+        </Box>
       </Stack>
     );
   };
@@ -1449,7 +1368,7 @@ const ForecastleGame = () => {
         description="Play Forecastle, an interactive respiratory disease forecasting challenge that lets you compare your predictions with official model forecasts."
         canonicalPath="/forecastle"
       />
-      <Container size="xl" py="xl" style={{ maxWidth: "1100px" }}>
+      <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1100px" }}>
         {renderContent()}
         <ForecastleStatsModal
           opened={statsModalOpened}

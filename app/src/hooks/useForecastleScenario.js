@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FORECASTLE_CONFIG } from "../config";
+import { fetchJson } from "../utils/paths";
+import { addWeeksToDate } from "../utils/forecastleInputs";
 
 const DATASET_DEFINITIONS = [
   {
@@ -50,16 +52,6 @@ const pickDeterministic = (items, rng) => {
   return items[index];
 };
 
-const fetchJson = async (path) => {
-  const response = await fetch(path);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch ${path}: ${response.status} ${response.statusText}`,
-    );
-  }
-  return response.json();
-};
-
 const getEasternDateKey = () => {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -92,15 +84,6 @@ const extractPositiveHorizons = (forecastsForDate, targetKey) => {
     });
   });
   return horizons;
-};
-
-const addWeeksToDate = (dateString, weeks) => {
-  const base = new Date(`${dateString}T00:00:00Z`);
-  if (Number.isNaN(base.getTime())) {
-    return null;
-  }
-  base.setUTCDate(base.getUTCDate() + weeks * 7);
-  return base.toISOString().slice(0, 10);
 };
 
 const countModelsForTarget = (targetForecasts) => {
@@ -180,11 +163,9 @@ const ensureValidScenario = async (rng, datasetMeta) => {
         }
 
         // Check if ground truth is available for all required horizons
-        const allHorizonsHaveGroundTruth = requiredHorizons.every((horizon) => {
-          const horizonDate = addWeeksToDate(forecastDate, horizon);
-          if (!horizonDate) return false;
-          return groundTruthMap.has(horizonDate);
-        });
+        const allHorizonsHaveGroundTruth = requiredHorizons.every((horizon) =>
+          groundTruthMap.has(addWeeksToDate(forecastDate, horizon)),
+        );
 
         return allHorizonsHaveGroundTruth;
       },

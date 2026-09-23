@@ -138,6 +138,39 @@ const buildLog2Ticks = ({
   return { tickvals, ticktext };
 };
 
+// The scale-dependent part of a Plotly y-axis. log10 uses Plotly's own log
+// axis; sqrt and log2 data arrive pre-transformed, so they get array ticks
+// labelled in raw units. A manual `range` only applies to non-log axes, and
+// the axis autoranges when there is none (or when `autorange` forces it).
+const getScaleYAxis = ({
+  scale,
+  rawRange,
+  range = null,
+  autorange = false,
+  title,
+  formatValue,
+}) => {
+  const normalizedScale = normalizeChartScale(scale);
+  const isLog = normalizedScale === "log10";
+  let ticks = null;
+  if (normalizedScale === "sqrt")
+    ticks = buildSqrtTicks({ rawRange, formatValue });
+  if (normalizedScale === "log2")
+    ticks = buildLog2Ticks({ rawRange, formatValue });
+
+  return {
+    ...(title !== undefined && {
+      title: `${title}${getScaleTitleSuffix(normalizedScale)}`,
+    }),
+    type: isLog ? "log" : "linear",
+    range: isLog ? undefined : range,
+    autorange: isLog || autorange || range === null,
+    tickmode: ticks ? "array" : undefined,
+    tickvals: ticks?.tickvals,
+    ticktext: ticks?.ticktext,
+  };
+};
+
 export {
   DEFAULT_CHART_SCALE,
   SUPPORTED_CHART_SCALES,
@@ -148,4 +181,5 @@ export {
   getYRangeFromTraces,
   buildSqrtTicks,
   buildLog2Ticks,
+  getScaleYAxis,
 };

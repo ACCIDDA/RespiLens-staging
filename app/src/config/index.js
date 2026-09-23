@@ -60,16 +60,3 @@ export {
   getChallengeDatasetLabel,
 };
 export { CHART_CONFIG };
-
-/**
- * Convenience function to get the entire configuration object
- * Useful for debugging or when you need access to all configs at once
- *
- * @returns {Object} Object containing all configuration modules
- */
-export const getConfig = () => ({
-  app: APP_CONFIG,
-  forecastle: FORECASTLE_CONFIG,
-  chart: CHART_CONFIG,
-  datasets: DATASETS,
-});

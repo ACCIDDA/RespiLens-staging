@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
-import { Stack, Button, Paper, Text, Box } from "@mantine/core";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { Stack, Box, UnstyledButton } from "@mantine/core";
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconChartLine,
+  IconActivityHeartbeat,
+} from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
 import { DATASETS } from "../config";
 
-const ViewSelector = () => {
+// Forecasts and surveillance data as two always-open groups, each with its
+// own heading and icon. `showActive`: highlight the current view (off on pages
+// that are not a chart, where the remembered view is not "where you are").
+const ViewSelector = ({ showActive = true, onNavigate }) => {
   const { viewType, setViewType } = useView();
   const [isFluExpanded, setIsFluExpanded] = useState(false);
 
   const fluViews = [
     {
-      label: "Forecasts",
+      label: "Standard view",
       value: DATASETS.flu.defaultView,
     },
     {
@@ -63,124 +71,101 @@ const ViewSelector = () => {
     }
   }, [isFluActive]);
 
+  // `onNavigate` lets the mobile drawer close once a view is picked
   const handleViewSelect = (value) => {
     setViewType(value);
+    onNavigate?.();
   };
 
+  // Rows share the sidebar's nav-row style. `isActive` is the selected view;
+  // `isParentActive` is the group holding it (Flu), which only gets the
+  // active text colour so a single row is highlighted.
   const renderOptionButton = ({
     label,
     value,
-    isLast = false,
     nested = false,
     rightSection = null,
     onClick,
     isActive = false,
+    isParentActive = false,
   }) => (
-    <Button
+    <UnstyledButton
       key={value || label}
-      variant={isActive ? "light" : "subtle"}
-      color={isActive ? "blue" : "gray"}
-      size="sm"
-      radius={0}
-      fullWidth
-      justify="space-between"
-      rightSection={rightSection}
+      className="respilens-nav-row"
+      data-indent={nested ? "2" : "1"}
+      data-active={isActive || undefined}
+      data-parent-active={isParentActive || undefined}
+      aria-current={isActive ? "page" : undefined}
       onClick={onClick}
-      styles={{
-        root: {
-          height: nested ? 34 : 36,
-          paddingInline: nested ? 20 : 14,
-          borderBottom: isLast
-            ? "none"
-            : "1px solid var(--mantine-color-gray-3)",
-        },
-        inner: {
-          width: "100%",
-          justifyContent: "space-between",
-        },
-        label: {
-          width: "100%",
-          textAlign: "left",
-          fontWeight: nested ? 500 : 600,
-        },
-      }}
     >
-      {label}
-    </Button>
+      <span className="respilens-nav-row-label">{label}</span>
+      {rightSection && (
+        <span className="respilens-nav-row-end">{rightSection}</span>
+      )}
+    </UnstyledButton>
   );
 
-  const renderSection = (title, options) => (
-    <Paper
-      shadow="sm"
-      radius="md"
-      withBorder
-      style={{ display: "inline-block" }}
-    >
-      <Text
-        size="xs"
-        fw={700}
-        c="dimmed"
-        px="sm"
-        pt="sm"
-        pb={6}
-        style={{ letterSpacing: "0.08em" }}
-      >
-        {title}
-      </Text>
-      <Stack
-        gap={0}
-        style={{ borderTop: "2px solid var(--mantine-color-gray-3)" }}
-      >
-        {options.map((option, index) => {
-          const isLastTopLevel = index === options.length - 1;
+  const renderSection = (title, Icon, options) => (
+    <Stack gap={1}>
+      <div className="respilens-nav-heading">
+        <Icon size={17} stroke={1.75} />
+        <span>{title}</span>
+      </div>
+      {options.map((option) => {
+        if (!option.children) {
+          return renderOptionButton({
+            label: option.label,
+            value: option.value,
+            isActive: showActive && viewType === option.value,
+            onClick: () => handleViewSelect(option.value),
+          });
+        }
 
-          if (!option.children) {
-            return renderOptionButton({
+        return (
+          <Box key={option.label}>
+            {renderOptionButton({
               label: option.label,
               value: option.value,
-              isLast: isLastTopLevel,
-              isActive: viewType === option.value,
-              rightSection: <IconChevronRight size={14} />,
-              onClick: () => handleViewSelect(option.value),
-            });
-          }
-
-          return (
-            <Box key={option.label}>
-              {renderOptionButton({
-                label: option.label,
-                value: option.value,
-                isLast: !isFluExpanded && isLastTopLevel,
-                isActive: isFluActive,
-                rightSection: <IconChevronDown size={14} />,
-                onClick: () => setIsFluExpanded((expanded) => !expanded),
-              })}
-              {isFluExpanded && (
-                <Stack gap={0}>
-                  {option.children.map((child, childIndex) =>
-                    renderOptionButton({
-                      label: child.label,
-                      value: child.value,
-                      nested: true,
-                      isLast: childIndex === option.children.length - 1,
-                      isActive: viewType === child.value,
-                      rightSection: <IconChevronRight size={14} />,
-                      onClick: () => handleViewSelect(child.value),
-                    }),
-                  )}
-                </Stack>
-              )}
-            </Box>
-          );
-        })}
-      </Stack>
-    </Paper>
+              isParentActive: showActive && isFluActive,
+              rightSection: isFluExpanded ? (
+                <IconChevronDown size={14} />
+              ) : (
+                <IconChevronRight size={14} />
+              ),
+              // Like COVID-19 and RSV, clicking Flu opens it. Only once a flu
+              // view is showing does the row fall back to folding the list.
+              onClick: () =>
+                isFluActive
+                  ? setIsFluExpanded((expanded) => !expanded)
+                  : handleViewSelect(DATASETS.flu.defaultView),
+            })}
+            {isFluExpanded && (
+              <Stack gap={1} mt={1}>
+                {option.children.map((child) =>
+                  renderOptionButton({
+                    label: child.label,
+                    value: child.value,
+                    nested: true,
+                    isActive: showActive && viewType === child.value,
+                    onClick: () => handleViewSelect(child.value),
+                  }),
+                )}
+              </Stack>
+            )}
+          </Box>
+        );
+      })}
+    </Stack>
   );
 
   return (
-    <Stack gap="md">
-      {renderSection("FORECASTS", forecastOptions)}
-      {renderSection("SURVEILLANCE DATA", surveillanceOptions)}
+    <Stack gap="xs">
+      {renderSection("Forecasts", IconChartLine, forecastOptions)}
+      {renderSection(
+        "Surveillance data",
+        IconActivityHeartbeat,
+        surveillanceOptions,
+      )}
     </Stack>
   );
 };

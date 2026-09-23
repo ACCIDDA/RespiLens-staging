@@ -1,4 +1,4 @@
-import { DATASETS, APP_CONFIG } from "../config";
+import { DATASETS } from "../config";
 import { parseForecastUrlState } from "./forecastRoutes";
 import { DEFAULT_CHART_SCALE, normalizeChartScale } from "./scaleUtils";
 const DEFAULT_INTERVAL_VISIBILITY = {
@@ -245,29 +245,14 @@ export class URLParameterManager {
     }
   }
 
-  updateLocation(location, effectiveDefault = APP_CONFIG.defaultLocation) {
-    const newParams = new URLSearchParams(this.searchParams);
-
-    // If the location matches the specific default for this view, remove it from URL
-    if (location && location !== effectiveDefault) {
-      newParams.set("location", location);
-    } else {
-      newParams.delete("location");
-    }
-
-    if (newParams.toString() !== this.searchParams.toString()) {
-      this.setSearchParams(newParams, { replace: true });
-    }
-  }
-
   // Get current location from URL
   getLocation() {
-    return parseForecastUrlState(this.pathname, this.searchParams).location;
+    return parseForecastUrlState(this.pathname).location;
   }
 
   // Get current view from URL
   getView() {
-    return parseForecastUrlState(this.pathname, this.searchParams).viewType;
+    return parseForecastUrlState(this.pathname).viewType;
   }
   initializeDefaults() {}
 }

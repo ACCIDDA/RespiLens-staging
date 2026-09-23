@@ -7,7 +7,6 @@ import {
   useLocation,
   useParams,
 } from "react-router-dom";
-import { useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { ViewProvider } from "./contexts/ViewContext";
 import { useView } from "./hooks/useView";
@@ -19,12 +18,19 @@ import ForecastleGame from "./components/forecastle/ForecastleGame";
 import ForecastCheckerDashboard from "./components/forecastchecker/ForecastCheckerDashboard";
 import Documentation from "./components/forecastchecker/Documentation";
 import TournamentDashboard from "./components/tournament/TournamentDashboard";
+import AnalyticsTracker from "./components/AnalyticsTracker";
 import UnifiedAppShell from "./components/layout/UnifiedAppShell";
 import ReportingDelayPage from "./components/reporting/ReportingDelayPage";
 import ToolsPage from "./components/tools/ToolsPage";
+import AboutPage from "./components/AboutPage";
+import NotFoundPage from "./components/NotFoundPage";
 import MyPrivateHub from "./components/my-private-hub/MyPrivateHub";
 import { Center, Text } from "@mantine/core";
 import { ENABLED_TOURNAMENTS } from "./config";
+import {
+  getForecastRouteError,
+  isFrontPageLocation,
+} from "./utils/forecastRoutes";
 
 const ForecastApp = () => {
   // This component uses the view context, so it must be inside the provider.
@@ -42,10 +48,21 @@ const ForecastApp = () => {
   return <DataVisualizationContainer />;
 };
 
-const LegacyForecastCheckerHubRedirect = () => {
-  const { hub } = useParams();
+// /forecasts/... and /surveillance/...: a mistyped hub, view or state used
+// to fall through to the front page under the address the reader typed.
+const ForecastRoute = () => {
+  const { pathname } = useLocation();
+  const routeError = getForecastRouteError(pathname);
 
-  return <Navigate to={`/toolbox/forecast-checker/${hub}`} replace />;
+  return routeError ? <NotFoundPage {...routeError} /> : <ForecastApp />;
+};
+
+// /AR, /US: the front page for one location. A code no hub carries is not
+// an address, so it 404s instead of quietly showing the US front page.
+const FrontPageLocationRoute = () => {
+  const { location } = useParams();
+
+  return isFrontPageLocation(location) ? <ForecastApp /> : <NotFoundPage />;
 };
 
 // We create this new component to hold our main layout.
@@ -59,12 +76,12 @@ const AppLayout = () => {
       <Routes>
         <Route path="/" element={<ForecastApp />} />
         <Route path="/forecasts" element={<Navigate to="/" replace />} />
-        <Route path="/forecasts/*" element={<ForecastApp />} />
+        <Route path="/forecasts/*" element={<ForecastRoute />} />
         <Route
           path="/surveillance"
           element={<Navigate to="/surveillance/nhsn" replace />}
         />
-        <Route path="/surveillance/*" element={<ForecastApp />} />
+        <Route path="/surveillance/*" element={<ForecastRoute />} />
         <Route
           path="/narratives"
           element={
@@ -83,6 +100,7 @@ const AppLayout = () => {
           />
         ))}
         <Route path="/myplots" element={<MyPlots />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/toolbox" element={<ToolsPage />} />
         <Route
           path="/toolbox/forecast-checker"
@@ -101,50 +119,15 @@ const AppLayout = () => {
           element={<ReportingDelayPage />}
         />
         <Route path="/toolbox/my-private-hub" element={<MyPrivateHub />} />
-        <Route
-          path="/myrespilens"
-          element={<Navigate to="/toolbox/forecast-checker" replace />}
-        />
-        <Route
-          path="/myrespilens/documentation"
-          element={
-            <Navigate to="/toolbox/forecast-checker/documentation" replace />
-          }
-        />
-        <Route
-          path="/myrespilens/:hub"
-          element={<LegacyForecastCheckerHubRedirect />}
-        />
-        <Route
-          path="/documentation"
-          element={
-            <Navigate to="/toolbox/forecast-checker/documentation" replace />
-          }
-        />
-        <Route
-          path="/reporting-triangle"
-          element={<Navigate to="/toolbox/reporting-triangle" replace />}
-        />
+        {/* Front page for a state: /AR (static routes rank first) */}
+        <Route path="/:location" element={<FrontPageLocationRoute />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </UnifiedAppShell>
   );
 };
 
 const App = () => {
-  const AnalyticsTracker = () => {
-    const location = useLocation();
-
-    useEffect(() => {
-      if (typeof window !== "undefined" && window.gtag) {
-        window.gtag("config", import.meta.env.VITE_GA_MEASUREMENT_ID, {
-          page_path: location.pathname + location.search,
-        });
-      }
-    }, [location]);
-
-    return null;
-  };
-
   return (
     <HelmetProvider>
       <Router>

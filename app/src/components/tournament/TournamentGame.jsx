@@ -24,9 +24,12 @@ import {
   IconTrophy,
 } from "@tabler/icons-react";
 import {
+  addWeeksToDate,
+  adjustForecastEntry,
   initialiseForecastInputs,
   convertToIntervals,
 } from "../../utils/forecastleInputs";
+import { useRankingReveal } from "../../hooks/useRankingReveal";
 import { validateForecastSubmission } from "../../utils/forecastleValidation";
 import {
   TOURNAMENT_CONFIG,
@@ -48,15 +51,6 @@ import {
 } from "../../utils/tournamentAPI";
 import ForecastleChartCanvas from "../forecastle/ForecastleChartCanvas";
 import ForecastleInputControls from "../forecastle/ForecastleInputControls";
-
-const addWeeksToDate = (dateString, weeks) => {
-  const base = new Date(`${dateString}T00:00:00Z`);
-  if (Number.isNaN(base.getTime())) {
-    return dateString;
-  }
-  base.setUTCDate(base.getUTCDate() + weeks * 7);
-  return base.toISOString().slice(0, 10);
-};
 
 const getSubmissionForecasts = (submissions, challenge) => {
   if (!submissions) return null;
@@ -117,7 +111,6 @@ const TournamentGame = ({
   const [scores, setScores] = useState(null);
   const [inputMode, setInputMode] = useState("median"); // 'median', 'intervals', or 'scoring'
   const [zoomedView, setZoomedView] = useState(false);
-  const [visibleRankings, setVisibleRankings] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [leaderboardData, setLeaderboardData] = useState(null);
@@ -330,7 +323,6 @@ const TournamentGame = ({
       setSubmissionErrors({});
       setScores(null);
       setInputMode("median");
-      setVisibleRankings(0);
       setError(null);
       return;
     }
@@ -394,53 +386,9 @@ const TournamentGame = ({
     }
 
     setForecastEntries((prevEntries) =>
-      prevEntries.map((entry, idx) => {
-        if (idx !== index) return entry;
-
-        const nextEntry = { ...entry };
-
-        if (field === "median") {
-          const oldMedian = entry.median;
-          const newMedian = Math.max(0, value);
-          const medianShift = newMedian - oldMedian;
-
-          nextEntry.median = newMedian;
-
-          if (entry.lower95 !== undefined && entry.upper95 !== undefined) {
-            nextEntry.lower95 = Math.max(0, entry.lower95 + medianShift);
-            nextEntry.upper95 = entry.upper95 + medianShift;
-          }
-          if (entry.lower50 !== undefined && entry.upper50 !== undefined) {
-            nextEntry.lower50 = Math.max(0, entry.lower50 + medianShift);
-            nextEntry.upper50 = entry.upper50 + medianShift;
-          }
-        } else if (field === "interval95") {
-          const [lower, upper] = value;
-          nextEntry.lower95 = Math.max(0, lower);
-          nextEntry.upper95 = Math.max(lower, upper);
-          if (nextEntry.lower50 < nextEntry.lower95)
-            nextEntry.lower50 = nextEntry.lower95;
-          if (nextEntry.upper50 > nextEntry.upper95)
-            nextEntry.upper50 = nextEntry.upper95;
-          nextEntry.width95 = Math.max(
-            nextEntry.upper95 - entry.median,
-            entry.median - nextEntry.lower95,
-          );
-        } else if (field === "interval50") {
-          const [lower, upper] = value;
-          nextEntry.lower50 = Math.max(nextEntry.lower95 || 0, lower);
-          nextEntry.upper50 = Math.min(
-            nextEntry.upper95 || 99999,
-            Math.max(lower, upper),
-          );
-          nextEntry.width50 = Math.max(
-            nextEntry.upper50 - entry.median,
-            entry.median - nextEntry.lower50,
-          );
-        }
-
-        return nextEntry;
-      }),
+      prevEntries.map((entry, idx) =>
+        idx === index ? adjustForecastEntry(entry, field, value) : entry,
+      ),
     );
     setSubmissionErrors({});
   };
@@ -560,19 +508,9 @@ const TournamentGame = ({
     }
   };
 
-  // Animate rankings reveal
-  useEffect(() => {
-    if (
-      inputMode === "scoring" &&
-      scores &&
-      visibleRankings < scores.models.length + 1
-    ) {
-      const timer = setTimeout(() => {
-        setVisibleRankings((prev) => prev + 1);
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [inputMode, scores, visibleRankings]);
+  const visibleRankings = useRankingReveal(
+    inputMode === "scoring" ? scores : null,
+  );
 
   if (loading) {
     return (

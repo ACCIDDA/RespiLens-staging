@@ -6,27 +6,43 @@ const AboutHubOverlay = ({
   title,
   children,
   buttonLabel = "About the Hub",
+  // Optional custom trigger: (open) => node. Defaults to a button.
+  renderTrigger,
 }) => {
   const [opened, { open, close }] = useDisclosure(false);
 
   return (
     <>
-      <Modal opened={opened} onClose={close} title={title} centered>
+      {/* The hub blurbs are prose with their own <p>, <List> and headings:
+          respilens-about-modal gives them one rhythm (see global.css) so the
+          text is not adrift in the box. */}
+      <Modal
+        opened={opened}
+        onClose={close}
+        title={title}
+        centered
+        size="lg"
+        className="respilens-about-modal"
+      >
         {children}
       </Modal>
 
-      <Group justify="flex-start">
-        <Button
-          variant="light"
-          size="xs"
-          color="red"
-          onClick={open}
-          leftSection={<IconInfoCircle size={16} />}
-        >
-          {/* Use the buttonLabel prop per view to name button */}
-          {buttonLabel}
-        </Button>
-      </Group>
+      {renderTrigger ? (
+        renderTrigger(open)
+      ) : (
+        <Group justify="flex-start">
+          <Button
+            variant="subtle"
+            size="xs"
+            color="gray"
+            onClick={open}
+            leftSection={<IconInfoCircle size={16} />}
+          >
+            {/* Use the buttonLabel prop per view to name button */}
+            {buttonLabel}
+          </Button>
+        </Group>
+      )}
     </>
   );
 };

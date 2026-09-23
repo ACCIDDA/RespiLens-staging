@@ -1,11 +1,16 @@
 import { useMemo, useCallback } from "react";
-import { Text } from "@mantine/core";
-import { IconChevronRight } from "@tabler/icons-react";
+import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
+import { useMantineColorScheme } from "@mantine/core";
 import { useForecastData } from "../hooks/useForecastData";
 import { DATASETS } from "../config";
 import { useView } from "../hooks/useView";
 import OverviewGraphCard from "./OverviewGraphCard";
 import useOverviewPlot from "../hooks/useOverviewPlot";
+import { ENSEMBLE_COLOR } from "../theme/mantine";
+import {
+  COMPACT_GROUND_TRUTH_LINE_WIDTH,
+  getChartInk,
+} from "../constants/chart";
 
 const DEFAULT_TARGETS = {
   covid_forecasts: "wk inc covid hosp",
@@ -90,7 +95,7 @@ const buildIntervalTraces = (forecast, model) => {
       type: "scatter",
       mode: "lines",
       fill: "tonexty",
-      fillcolor: "rgba(34, 139, 230, 0.15)",
+      fillcolor: "rgba(13, 138, 230, 0.16)",
       line: { width: 0 },
       showlegend: false,
       hoverinfo: "skip",
@@ -112,7 +117,7 @@ const buildIntervalTraces = (forecast, model) => {
       type: "scatter",
       mode: "lines",
       fill: "tonexty",
-      fillcolor: "rgba(34, 139, 230, 0.25)",
+      fillcolor: "rgba(13, 138, 230, 0.28)",
       line: { width: 0 },
       showlegend: false,
       hoverinfo: "skip",
@@ -123,7 +128,7 @@ const buildIntervalTraces = (forecast, model) => {
       name: `${model} median`,
       type: "scatter",
       mode: "lines+markers",
-      line: { width: 2, color: "#228be6" },
+      line: { width: 2, color: ENSEMBLE_COLOR },
       marker: { size: 4 },
     },
   ];
@@ -171,6 +176,9 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
     datasetConfig?.views?.some((view) => view.value === activeViewType) ??
     false;
 
+  const { colorScheme } = useMantineColorScheme();
+  const groundTruthColor = getChartInk(colorScheme).text;
+
   const buildTraces = useCallback(
     (forecastData) => {
       if (!forecastData || !selectedTarget) return [];
@@ -183,8 +191,11 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
             name: "Observed",
             type: "scatter",
             mode: "lines+markers",
-            line: { color: "#1f1f1f", width: 2, dash: "dash" },
-            marker: { size: 3 },
+            line: {
+              color: groundTruthColor,
+              width: COMPACT_GROUND_TRUTH_LINE_WIDTH,
+            },
+            marker: { size: 3, color: groundTruthColor },
           }
         : null;
 
@@ -199,7 +210,7 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
 
       return [groundTruthTrace, ...(intervalTraces || [])].filter(Boolean);
     },
-    [selectedDate, selectedTarget, selectedModel],
+    [selectedDate, selectedTarget, selectedModel, groundTruthColor],
   );
 
   const { traces, layout } = useOverviewPlot({
@@ -211,29 +222,20 @@ const PathogenOverviewGraph = ({ viewType, title, location }) => {
     yMinFloor: 0,
   });
 
-  const locationLabel =
-    resolvedLocation === "US" ? "US national view" : resolvedLocation;
+  const locationLabel = resolvePlotLocationDisplayName(resolvedLocation);
 
   return (
     <OverviewGraphCard
       title={title}
-      meta={
-        selectedDate ? (
-          <Text size="xs" c="dimmed">
-            {selectedDate}
-          </Text>
-        ) : null
-      }
+      subtitle={selectedDate ? `forecast ${selectedDate}` : null}
       loading={loading}
       loadingLabel="Loading data..."
       error={error}
       traces={traces}
       layout={layout}
       emptyLabel="No data available."
-      actionLabel={isActive ? "Viewing" : "View forecasts"}
       actionActive={isActive}
       onAction={() => setViewType(datasetConfig?.defaultView || viewType)}
-      actionIcon={<IconChevronRight size={14} />}
       locationLabel={locationLabel}
     />
   );

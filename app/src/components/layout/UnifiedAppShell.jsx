@@ -1,198 +1,61 @@
-import { useLocation, Link } from "react-router-dom";
-import {
-  AppShell,
-  Center,
-  Burger,
-  Stack,
-  Button,
-  Divider,
-} from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
-import {
-  IconChartLine,
-  IconTarget,
-  IconTrophy,
-  IconTool,
-  IconChartScatter,
-} from "@tabler/icons-react";
-import { ENABLED_TOURNAMENTS } from "../../config";
-import MainNavigation from "./MainNavigation";
-import StateSelector from "../StateSelector";
+import { AppShell, Burger, Group, Overlay } from "@mantine/core";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
+import SidebarNav, { BrandLink } from "./SidebarNav";
 
-const getShellConfig = (pathname) => {
-  // For forecast view (main page), show navbar with StateSelector
-  if (
-    pathname === "/" ||
-    pathname.startsWith("/forecasts") ||
-    pathname.startsWith("/surveillance")
-  ) {
-    return {
-      type: "forecast",
-      header: { height: 60 },
-      navbar: { width: 256, breakpoint: "sm" },
-      padding: 0,
-    };
-  }
-
-  // For all other pages, show navbar with just navigation
-  return {
-    type: "navigation",
-    header: { height: 60 },
-    navbar: { width: 256, breakpoint: "sm" },
-    padding: 0,
-  };
-};
-
-const UnifiedAppShell = ({ children, forecastProps = {} }) => {
-  const location = useLocation();
-  const config = getShellConfig(location.pathname);
-  const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
-  const [desktopOpened] = useDisclosure(true);
-
-  const renderHeaderNavigation = () => {
-    return (
-      <Center
-        h="100%"
-        px="md"
-        style={{ width: "100%", justifyContent: "space-between" }}
-      >
-        {/* Hamburger - always on mobile, left side */}
-        <Burger
-          opened={mobileOpened}
-          onClick={toggleMobile}
-          hiddenFrom="sm"
-          size="sm"
-          style={{ flexShrink: 0 }}
-        />
-        <MainNavigation />
-      </Center>
-    );
-  };
-
-  const navigationItems = [
-    {
-      href: "/",
-      label: "Forecasts",
-      icon: IconChartLine,
-      active:
-        location.pathname === "/" ||
-        location.pathname.startsWith("/forecasts") ||
-        location.pathname.startsWith("/surveillance"),
-    },
-    {
-      href: "/forecastle",
-      label: "Forecastle",
-      icon: IconTarget,
-      active: location.pathname.startsWith("/forecastle"),
-    },
-    ...ENABLED_TOURNAMENTS.map((tournament) => ({
-      href: tournament.path,
-      label: tournament.navLabel,
-      icon: IconTrophy,
-      active: location.pathname.startsWith(tournament.path),
-    })),
-    {
-      href: "/toolbox",
-      label: "Toolbox",
-      icon: IconTool,
-      active:
-        location.pathname.startsWith("/toolbox") ||
-        location.pathname.startsWith("/toolbox/forecast-checker") ||
-        location.pathname.startsWith("/myrespilens") ||
-        location.pathname.startsWith("/documentation"),
-    },
-    {
-      href: "/myplots",
-      label: "My Plots",
-      icon: IconChartScatter,
-      active: location.pathname.startsWith("/myplots"),
-    },
-  ];
-
-  const renderNavbar = () => {
-    if (config.type === "forecast") {
-      return (
-        <Stack gap="md">
-          {/* Navigation Links - only visible on mobile */}
-          <Stack gap="xs" hiddenFrom="sm">
-            {navigationItems.map((item) => (
-              <Button
-                key={item.href}
-                component={Link}
-                to={item.href}
-                variant={item.active ? "filled" : "subtle"}
-                leftSection={<item.icon size={18} />}
-                size="sm"
-                fullWidth
-                justify="start"
-                onClick={toggleMobile}
-              >
-                {item.label}
-              </Button>
-            ))}
-            <Divider />
-          </Stack>
-
-          {/* State Selector */}
-          <StateSelector
-            onStateSelect={forecastProps.onStateSelect}
-            currentLocation={forecastProps.currentLocation}
-            appShellMode={true}
-          />
-        </Stack>
-      );
-    }
-
-    if (config.type === "navigation") {
-      return (
-        <Stack gap="xs">
-          {/* Navigation Links for other pages */}
-          {navigationItems.map((item) => (
-            <Button
-              key={item.href}
-              component={Link}
-              to={item.href}
-              variant={item.active ? "filled" : "subtle"}
-              leftSection={<item.icon size={18} />}
-              size="sm"
-              fullWidth
-              justify="start"
-              onClick={toggleMobile}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </Stack>
-      );
-    }
-
-    return null;
-  };
+// Sidebar-only shell: all navigation (site sections, the forecast datasets
+// and views, About) lives in the sidebar. Phones get a slim bar with a
+// burger that opens the same sidebar as a drawer.
+const UnifiedAppShell = ({ children }) => {
+  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] =
+    useDisclosure();
+  // Mantine's "sm" breakpoint (48em): below it the sidebar becomes a drawer
+  const isMobile = useMediaQuery("(max-width: 48em)");
 
   return (
     <AppShell
-      header={config.header}
+      header={{ height: 52, collapsed: !isMobile }}
       navbar={{
-        ...config.navbar,
-        ...(config.navbar && {
-          collapsed: {
-            mobile: !mobileOpened,
-            // Only show sidebar on desktop for forecast page
-            desktop: config.type === "forecast" ? !desktopOpened : true,
-          },
-        }),
+        width: 218,
+        breakpoint: "sm",
+        collapsed: { mobile: !mobileOpened, desktop: false },
       }}
-      padding={config.padding}
+      padding={0}
     >
-      <AppShell.Header p="md">{renderHeaderNavigation()}</AppShell.Header>
+      <AppShell.Header
+        px="md"
+        withBorder={false}
+        className="respilens-shell-header"
+      >
+        <Group h="100%" gap="sm" wrap="nowrap">
+          <Burger
+            opened={mobileOpened}
+            onClick={toggleMobile}
+            size="sm"
+            aria-label="Open navigation"
+          />
+          <BrandLink onNavigate={closeMobile} />
+        </Group>
+      </AppShell.Header>
 
-      {config.navbar && (
-        <AppShell.Navbar
-          p="md"
-          style={{ overflow: "auto", display: "flex", flexDirection: "column" }}
-        >
-          {renderNavbar()}
-        </AppShell.Navbar>
+      <AppShell.Navbar
+        px="sm"
+        py="md"
+        withBorder={false}
+        className="respilens-shell-navbar"
+        style={{ overflow: "auto", display: "flex", flexDirection: "column" }}
+      >
+        <SidebarNav onNavigate={closeMobile} />
+      </AppShell.Navbar>
+
+      {isMobile && mobileOpened && (
+        // Tapping the page beside the narrow drawer closes it
+        <Overlay
+          fixed
+          color="#0f172a"
+          backgroundOpacity={0.3}
+          zIndex={99}
+          onClick={closeMobile}
+        />
       )}
 
       <AppShell.Main>{children}</AppShell.Main>

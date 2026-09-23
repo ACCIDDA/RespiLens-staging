@@ -1,45 +1,4 @@
 /**
- * Calculate RMSE (Root Mean Squared Error) for a set of predictions
- * @param {Array} predictions - Array of predicted values
- * @param {Array} observations - Array of observed (ground truth) values
- * @returns {number} RMSE value
- */
-export const calculateRMSE = (predictions, observations) => {
-  if (
-    !predictions ||
-    !observations ||
-    predictions.length === 0 ||
-    observations.length === 0
-  ) {
-    return null;
-  }
-
-  if (predictions.length !== observations.length) {
-    return null;
-  }
-
-  let sumSquaredErrors = 0;
-  let count = 0;
-
-  for (let i = 0; i < predictions.length; i += 1) {
-    const pred = predictions[i];
-    const obs = observations[i];
-
-    if (Number.isFinite(pred) && Number.isFinite(obs)) {
-      const error = pred - obs;
-      sumSquaredErrors += error * error;
-      count += 1;
-    }
-  }
-
-  if (count === 0) {
-    return null;
-  }
-
-  return Math.sqrt(sumSquaredErrors / count);
-};
-
-/**
  * Calculate interval score for a single prediction interval
  * @param {number} observed - Observed value
  * @param {number} lower - Lower bound of prediction interval

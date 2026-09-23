@@ -1,24 +1,33 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback } from "react";
+import { usePersistentXRange } from "../hooks/usePersistentXRange";
 import { Stack, useMantineColorScheme } from "@mantine/core";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
-import { CHART_CONSTANTS } from "../constants/chart";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  CHART_CONSTANTS,
+  FORECAST_LINE_OFFSET_DAYS,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CONFIG,
+  RANGESLIDER_STYLE,
+  getBaseChartLayout,
+  getChartInk,
+  getForecastDateMarks,
+  getRangeSelector,
+  shiftDateStringByDays,
+} from "../constants/chart";
+import {
+  getScaleYAxis,
   getYRangeFromTraces,
-  isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
 } from "../utils/scaleUtils";
-import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../utils/plotDownloadName";
-import { extendStableModelOrder } from "../utils/modelColorUtils";
+import { useChartReset } from "../hooks/useChartReset";
+import useForecastDateDrag from "../hooks/useForecastDateDrag";
+import { extendStableModelOrder, hexToRgba } from "../utils/modelColorUtils";
+import { copyRange, getRelayoutXRange } from "../utils/plotRange";
+import ChartCaption from "./ChartCaption";
 
 const FLU_PEAK_SEASON_START_MONTH_INDEX = 7;
 const FLU_PEAK_SEASON_START_MONTH = 8;
@@ -134,32 +143,11 @@ const buildHistoricalPeakGroundTruthTraces = ({
   return traces;
 };
 
-// helper to convert Hex to RGBA for opacity control
-const hexToRgba = (hex, alpha) => {
-  let c;
-  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-    c = hex.substring(1).split("");
-    if (c.length === 3) {
-      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-    }
-    c = "0x" + c.join("");
-    return (
-      "rgba(" +
-      [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(",") +
-      "," +
-      alpha +
-      ")"
-    );
-  }
-  return hex;
-};
-
 const FluPeak = ({
   data,
   peaks,
   peakDates,
   peakModels,
-  windowSize,
   selectedModels,
   setSelectedModels,
   selectedDates,
@@ -170,11 +158,22 @@ const FluPeak = ({
 }) => {
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations (the view remounts while one loads)
+  const [xAxisRange, setXAxisRange] = usePersistentXRange("flu_peak");
   const plotRef = useRef(null);
-  const getDefaultRangeRef = useRef(() => null);
-  const plotDataRef = useRef([]);
-  const isResettingRef = useRef(false);
+  useChartReset(() => setXAxisRange(null));
+  // Click the chart or drag the date line to move the (single) forecast
+  // date, like the standard view. Pin the visible window first so the chart
+  // does not re-centre under the pointer.
+  const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
+    selectedDates,
+    lineOffsetDays: FORECAST_LINE_OFFSET_DAYS,
+    maxDates: 1,
+    onBeforeCommit: (gd) => {
+      const range = gd?._fullLayout?.xaxis?.range;
+      if (!xAxisRange && range) setXAxisRange([...range]);
+    },
+  });
   const showMedian = intervalVisibility?.median ?? true;
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
@@ -295,9 +294,15 @@ const FluPeak = ({
           name: "Observed",
           type: "scatter",
           mode: "lines+markers",
-          line: { color: "black", width: 2, dash: "dash" },
+          line: {
+            color: getChartInk(colorScheme).text,
+            width: GROUND_TRUTH_LINE_WIDTH,
+          },
           showlegend: true,
-          marker: { size: 4, color: "black" },
+          marker: {
+            size: GROUND_TRUTH_MARKER_SIZE,
+            color: getChartInk(colorScheme).text,
+          },
           hovertemplate:
             "<b>Observed</b><br>" +
             "Hospitalizations: %{y}<br>" +
@@ -604,12 +609,8 @@ const FluPeak = ({
     showOtherGroundTruthSeasons,
     normalizedChartScale,
     stableModelOrder,
+    colorScheme,
   ]);
-
-  useEffect(() => {
-    getDefaultRangeRef.current = () => defaultRange;
-    plotDataRef.current = plotData;
-  }, [defaultRange, plotData]);
 
   const displayedYRange = useMemo(() => {
     const currentRange = xAxisRange || defaultRange;
@@ -622,244 +623,111 @@ const FluPeak = ({
 
   const handlePlotUpdate = useCallback(
     (figure) => {
-      if (isResettingRef.current) {
-        isResettingRef.current = false;
-        return;
-      }
-
-      if (figure && figure["xaxis.range"]) {
-        const nextXRange = figure["xaxis.range"];
-        if (JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(nextXRange);
-        }
+      const nextXRange = getRelayoutXRange(figure, plotData);
+      if (
+        nextXRange &&
+        JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(nextXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, setXAxisRange, plotData],
   );
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({
-      rawRange: rawYRange,
-      formatValue: (value) => Number(value).toLocaleString(),
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({
-      rawRange: rawYRange,
-      formatValue: (value) => Number(value).toLocaleString(),
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const layout = useMemo(
-    () => ({
-      width: windowSize
-        ? Math.min(
-            CHART_CONSTANTS.MAX_WIDTH,
-            windowSize.width * CHART_CONSTANTS.WIDTH_RATIO,
-          )
-        : undefined,
-      height: windowSize
-        ? Math.min(CHART_CONSTANTS.MAX_HEIGHT, windowSize.height * 0.5)
-        : 500,
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+  const layout = useMemo(() => {
+    const base = getBaseChartLayout(colorScheme);
+    const dateMarks = getForecastDateMarks(
+      colorScheme,
+      displayDates,
+      draggingDate,
+    );
+    return {
+      ...base,
+      // Sized by its container (like the standard view), not the window,
+      // so it never spills past the content column
       margin: { l: 60, r: 30, t: 30, b: 50 },
       showlegend: showLegend,
-      legend: {
-        x: 0,
-        y: 1,
-        xanchor: "left",
-        yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: { size: 10 },
-      },
       hovermode: "closest",
       hoverlabel: { namelength: -1 },
       dragmode: false,
       xaxis: {
-        range: xAxisRange || defaultRange,
-        rangeslider: rangesliderRange ? { range: rangesliderRange } : undefined,
-        rangeselector: {
-          buttons: [
-            { count: 1, label: "1m", step: "month", stepmode: "backward" },
-            { count: 6, label: "6m", step: "month", stepmode: "backward" },
-            { step: "all", label: "all" },
-          ],
-        },
-        showline: true,
-        linewidth: 1,
-        linecolor: colorScheme === "dark" ? "#aaa" : "#444",
+        ...base.xaxis,
+        range: copyRange(xAxisRange || defaultRange),
+        rangeslider: rangesliderRange
+          ? { ...RANGESLIDER_STYLE, range: rangesliderRange }
+          : undefined,
+        rangeselector: getRangeSelector(colorScheme),
       },
       yaxis: {
-        title: (() => {
-          const baseTitle = "Flu Hospitalizations";
-          return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
-        })(),
-        range: isPlotlyLogScale(normalizedChartScale)
-          ? undefined
-          : displayedYRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : displayedYRange === null,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
+        ...base.yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: rawYRange,
+          range: displayedYRange,
+          title: "Flu Hospitalizations",
+          formatValue: (value) => Number(value).toLocaleString(),
+        }),
       },
 
-      // dynamic gray shading section
-      shapes: selectedDates.flatMap((dateStr) => {
-        const seasonStart = getFluPeakSeasonStartDate(dateStr);
-        return [
-          {
-            type: "rect",
-            xref: "x",
-            yref: "paper",
-            x0: seasonStart,
-            x1: dateStr,
-            y0: 0,
-            y1: 1,
-            fillcolor:
-              colorScheme === "dark"
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(128, 128, 128, 0.1)",
-            line: { width: 0 },
-            layer: "below",
-          },
-          {
-            type: "line",
-            x0: dateStr,
-            x1: dateStr,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line: {
-              color: "rgba(255, 255, 255, 0.05)",
-              width: 2,
-            },
-          },
-        ];
-      }),
-    }),
-    [
-      colorScheme,
-      windowSize,
-      selectedDates,
-      defaultRange,
-      rangesliderRange,
-      xAxisRange,
-      displayedYRange,
-      normalizedChartScale,
-      sqrtTicks,
-      log2Ticks,
-      showLegend,
-    ],
-  );
-
-  const config = useMemo(
-    () => ({
-      responsive: true,
-      displayModeBar: true,
-      displaylogo: false,
-      modeBarPosition: "left",
-      scrollZoom: false,
-      doubleClick: "reset",
-      modeBarButtonsToRemove: ["select2d", "lasso2d", "resetScale2d"],
-      toImageButtonOptions: {
-        format: "png",
-        filename: buildPlotDownloadName("peak-plot"),
-        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      },
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: function (gd) {
-            const currentDefaultRange = getDefaultRangeRef.current();
-            const currentPlotData = plotDataRef.current;
-
-            if (!currentDefaultRange) return;
-
-            const nextYRange = calculateYRange(
-              currentPlotData,
-              currentDefaultRange,
-            );
-            isResettingRef.current = true;
-            setXAxisRange(null);
-
-            Plotly.relayout(gd, {
-              "xaxis.range": currentDefaultRange,
-              "yaxis.range": nextYRange,
-              "yaxis.autorange": nextYRange === null,
-            });
-          },
-        },
+      // The season so far is shaded up to the forecast date's line
+      shapes: [
+        ...displayDates.map((dateStr) => ({
+          type: "rect",
+          xref: "x",
+          yref: "paper",
+          x0: getFluPeakSeasonStartDate(dateStr),
+          x1: shiftDateStringByDays(dateStr, FORECAST_LINE_OFFSET_DAYS),
+          y0: 0,
+          y1: 1,
+          fillcolor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.05)"
+              : "rgba(128, 128, 128, 0.1)",
+          line: { width: 0 },
+          layer: "below",
+        })),
+        ...dateMarks.shapes,
       ],
-    }),
-    [calculateYRange],
-  );
+      annotations: dateMarks.annotations,
+    };
+  }, [
+    colorScheme,
+    displayDates,
+    draggingDate,
+    defaultRange,
+    rangesliderRange,
+    xAxisRange,
+    displayedYRange,
+    normalizedChartScale,
+    rawYRange,
+    showLegend,
+  ]);
 
   return (
-    <Stack gap="md" style={{ padding: "20px" }}>
-      <style>{`
-                .js-plotly-plot .plotly .nsewdrag {
-                    cursor: default !important;
-                }
-            `}</style>
-      <div style={{ width: "100%", minHeight: "400px" }}>
+    <Stack gap="md">
+      <div
+        ref={containerRef}
+        style={{ width: "100%", height: "min(880px, 60vh)", minHeight: 340 }}
+      >
         <Plot
           ref={plotRef}
           data={plotData}
           layout={layout}
-          config={config}
+          config={PLOT_CONFIG}
           style={{ width: "100%", height: "100%" }}
           useResizeHandler={true}
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
       <Stack gap={2}>
-        <p
-          style={{
-            fontStyle: "italic",
-            fontSize: "12px",
-            color: "#868e96",
-            textAlign: "right",
-            margin: 0,
-          }}
-        >
-          Note that forecasts should be interpreted with great caution and may
-          not reliably predict rapid changes in disease trends.
-        </p>
+        <ChartCaption forecastNote />
         <ModelSelector
           models={peakModels}
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activePeakModels}
+          selectedDates={selectedDates}
+          keyboardShortcut
         />
       </Stack>
     </Stack>

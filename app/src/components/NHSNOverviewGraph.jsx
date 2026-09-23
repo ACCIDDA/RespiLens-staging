@@ -1,9 +1,13 @@
-import { useMemo, useState, useEffect } from "react";
-import { IconChevronRight } from "@tabler/icons-react";
-import { getDataPath } from "../utils/paths";
+import { useMemo } from "react";
+import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
+import { useMantineColorScheme } from "@mantine/core";
+import { fetchJson, getDataPath } from "../utils/paths";
+import { useAsyncData } from "../hooks/useAsyncData";
 import { useView } from "../hooks/useView";
 import OverviewGraphCard from "./OverviewGraphCard";
 import useOverviewPlot from "../hooks/useOverviewPlot";
+import { detectPathogen, getPathogenColor } from "../theme/pathogenColors";
+import { getPreliminaryLegendTitle } from "../constants/chart";
 
 const DEFAULT_COLS = [
   "Total COVID-19 Admissions",
@@ -11,51 +15,24 @@ const DEFAULT_COLS = [
   "Total RSV Admissions",
 ];
 
-const PATHOGEN_COLORS = {
-  "Total COVID-19 Admissions": "#e377c2",
-  "Total Influenza Admissions": "#1f77b4",
-  "Total RSV Admissions": "#7f7f7f",
-};
-
 const NHSNOverviewGraph = ({ location }) => {
   const {
     setViewAndLocation,
     viewType: activeViewType,
     selectedLocation,
   } = useView();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
+  const { colorScheme } = useMantineColorScheme();
   const resolvedLocation = location || "US";
   const isActive = activeViewType === "nhsnall";
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(
-          getDataPath(`nhsn/${resolvedLocation}_nhsn.json`),
-        );
-
-        if (!response.ok) {
-          throw new Error("Data not available");
-        }
-
-        const json = await response.json();
-        setData(json);
-      } catch (err) {
-        console.error("Failed to fetch NHSN snapshot", err);
-        setError(err.message);
-        setData(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [resolvedLocation]);
+  const { data, loading, error } = useAsyncData(
+    () =>
+      fetchJson(
+        getDataPath(`nhsn/${resolvedLocation}_nhsn.json`),
+        "Data not available",
+      ),
+    [resolvedLocation],
+  );
 
   const { buildTraces, xRange } = useMemo(() => {
     if (!data?.series?.dates) {
@@ -86,7 +63,7 @@ const NHSNOverviewGraph = ({ location }) => {
             type: "scatter",
             mode: "lines",
             line: {
-              color: PATHOGEN_COLORS[col],
+              color: getPathogenColor(detectPathogen(col)),
               width: 2,
             },
             legendgroup: label,
@@ -102,11 +79,12 @@ const NHSNOverviewGraph = ({ location }) => {
             type: "scatter",
             mode: "lines",
             line: {
-              color: PATHOGEN_COLORS[col],
+              color: getPathogenColor(detectPathogen(col)),
               width: 2,
               dash: "dash",
             },
             legendgroup: label,
+            showlegend: false,
             hovertemplate: "%{y}<extra></extra>",
           });
         }
@@ -116,6 +94,10 @@ const NHSNOverviewGraph = ({ location }) => {
 
     return { buildTraces: tracesBuilder, xRange: range };
   }, [data]);
+
+  const hasPreliminary = DEFAULT_COLS.some((col) =>
+    Array.isArray(data?.preliminary_series?.[col]),
+  );
 
   const { traces, layout } = useOverviewPlot({
     data,
@@ -133,6 +115,9 @@ const NHSNOverviewGraph = ({ location }) => {
         x: 0.5,
         xanchor: "center",
         font: { size: 9 },
+        ...(hasPreliminary && {
+          title: getPreliminaryLegendTitle(colorScheme),
+        }),
       },
     },
   });
@@ -148,14 +133,14 @@ const NHSNOverviewGraph = ({ location }) => {
     [layout],
   );
 
-  const locationLabel =
-    resolvedLocation === "US" ? "US national view" : resolvedLocation;
+  const locationLabel = resolvePlotLocationDisplayName(resolvedLocation);
   const nhsnViewLocation =
     selectedLocation && selectedLocation !== "US_All" ? resolvedLocation : "US";
 
   return (
     <OverviewGraphCard
       title="NHSN data"
+      subtitle="Weekly hospital admissions"
       loading={loading}
       loadingLabel="Loading CDC data..."
       error={error}
@@ -163,10 +148,8 @@ const NHSNOverviewGraph = ({ location }) => {
       traces={traces}
       layout={layoutWithFloor}
       emptyLabel={null}
-      actionLabel={isActive ? "Viewing" : "View NHSN data"}
       actionActive={isActive}
       onAction={() => setViewAndLocation("nhsnall", nhsnViewLocation)}
-      actionIcon={<IconChevronRight size={14} />}
       locationLabel={locationLabel}
     />
   );
