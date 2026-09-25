@@ -7,6 +7,9 @@ import {
   IconPlus,
 } from "@tabler/icons-react";
 
+// Same cap as the forecast-date drag/click interaction
+const MAX_DATES = 20;
+
 const DateSelector = ({
   availableDates,
   selectedDates,
@@ -107,7 +110,10 @@ const DateSelector = ({
     <Group
       gap={compact ? 6 : { base: "xs", sm: "md" }}
       justify={compact ? "flex-start" : "center"}
-      wrap={compact ? "nowrap" : "wrap"}
+      wrap="wrap"
+      // In compact mode the selector sits beside a label: let it shrink and
+      // wrap onto extra lines instead of widening the page
+      style={compact ? { flex: "1 1 0", minWidth: 0, rowGap: 2 } : undefined}
     >
       {selectedDates.map((date, index) => (
         <Group key={date} gap={compact ? 2 : "xs"} align="center" wrap="nowrap">
@@ -202,7 +208,7 @@ const DateSelector = ({
 
       {/* Add Date Button (icon-only in compact mode) */}
       {multi &&
-        selectedDates.length < 10 &&
+        selectedDates.length < MAX_DATES &&
         (compact ? (
           <Tooltip label="Add a date to compare" openDelay={300}>
             <ActionIcon

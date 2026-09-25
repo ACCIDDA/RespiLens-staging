@@ -2206,7 +2206,7 @@ const MyRespiVisualizationPanel = ({
               aria-label="Select location"
             />
           </Title>
-          <Group gap={6} wrap="nowrap" fz="sm" c="dimmed">
+          <Group gap={6} wrap="nowrap" align="flex-start" fz="sm" c="dimmed">
             <Text span size="sm" c="dimmed" style={{ whiteSpace: "nowrap" }}>
               Forecast date
             </Text>

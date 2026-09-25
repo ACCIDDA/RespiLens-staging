@@ -103,7 +103,7 @@ const ChartHeader = ({
           style={{ columnGap: "var(--mantine-spacing-lg)", rowGap: 2 }}
         >
           {currentDataset?.hasDateSelector && (
-            <Group gap={6} wrap="nowrap">
+            <Group gap={6} wrap="nowrap" align="flex-start">
               <Text span size="sm" c="dimmed" style={{ whiteSpace: "nowrap" }}>
                 Forecast date
               </Text>
