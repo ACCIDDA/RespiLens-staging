@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from "react";
-import { Group, Text, ActionIcon, Button, Box } from "@mantine/core";
+import { Group, Text, ActionIcon, Button, Box, Tooltip } from "@mantine/core";
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -14,6 +14,9 @@ const DateSelector = ({
   activeDate,
   setActiveDate,
   multi = true,
+  // Compact: inline in a subtitle line (smaller, no remove button for a
+  // single date, quieter "compare" button)
+  compact = false,
 }) => {
   const [keyMovementAnchor, setKeyMovementAnchor] = useState(activeDate); // keyMovement responsible for date keydown movement
   const firstDateBoxRef = useRef(null);
@@ -81,10 +84,33 @@ const DateSelector = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleMove, keyMovementAnchor]);
 
+  const handleAddDate = () => {
+    const sorted = [...selectedDates].sort();
+    const latestIdx = availableDates.indexOf(sorted[sorted.length - 1]);
+    const earliestIdx = availableDates.indexOf(sorted[0]);
+
+    let dateToAdd;
+    if (latestIdx < availableDates.length - 1) {
+      dateToAdd = availableDates[latestIdx + 1];
+    } else if (earliestIdx > 0) {
+      dateToAdd = availableDates[earliestIdx - 1];
+    }
+
+    if (dateToAdd && !selectedDates.includes(dateToAdd)) {
+      setSelectedDates([...selectedDates, dateToAdd].sort());
+      setActiveDate(dateToAdd);
+      setKeyMovementAnchor(dateToAdd);
+    }
+  };
+
   return (
-    <Group gap={{ base: "xs", sm: "md" }} justify="center" wrap="wrap">
+    <Group
+      gap={compact ? 6 : { base: "xs", sm: "md" }}
+      justify={compact ? "flex-start" : "center"}
+      wrap={compact ? "nowrap" : "wrap"}
+    >
       {selectedDates.map((date, index) => (
-        <Group key={date} gap="xs" align="center" wrap="nowrap">
+        <Group key={date} gap={compact ? 2 : "xs"} align="center" wrap="nowrap">
           <ActionIcon
             onClick={() => handleMove(date, -1)}
             disabled={
@@ -94,7 +120,9 @@ const DateSelector = ({
               )
             }
             variant="subtle"
-            size={{ base: "sm", sm: "md" }}
+            color={compact ? "gray" : undefined}
+            className={compact ? "respilens-quiet-icon" : undefined}
+            size={compact ? "sm" : { base: "sm", sm: "md" }}
           >
             <IconChevronLeft size={18} />
           </ActionIcon>
@@ -116,19 +144,22 @@ const DateSelector = ({
               <Text
                 fw={500}
                 c={date === activeDate ? "blue" : "dimmed"}
-                size={{ base: "xs", sm: "sm" }}
+                size={compact ? "sm" : { base: "xs", sm: "sm" }}
                 style={{
                   minWidth: "fit-content",
                   whiteSpace: "nowrap",
                   textDecoration:
-                    date === keyMovementAnchor ? "underline" : "none",
+                    date === keyMovementAnchor &&
+                    (!compact || selectedDates.length > 1)
+                      ? "underline"
+                      : "none",
                   textUnderlineOffset: "4px",
                 }}
               >
                 {date}
               </Text>
 
-              {multi && (
+              {multi && !(compact && selectedDates.length === 1) && (
                 <ActionIcon
                   onClick={(e) => {
                     e.stopPropagation();
@@ -160,41 +191,39 @@ const DateSelector = ({
               )
             }
             variant="subtle"
-            size={{ base: "sm", sm: "md" }}
+            color={compact ? "gray" : undefined}
+            className={compact ? "respilens-quiet-icon" : undefined}
+            size={compact ? "sm" : { base: "sm", sm: "md" }}
           >
             <IconChevronRight size={18} />
           </ActionIcon>
         </Group>
       ))}
 
-      {/* Add Date Button */}
-      {multi && selectedDates.length < 5 && (
-        <Button
-          onClick={() => {
-            const sorted = [...selectedDates].sort();
-            const latestIdx = availableDates.indexOf(sorted[sorted.length - 1]);
-            const earliestIdx = availableDates.indexOf(sorted[0]);
-
-            let dateToAdd;
-            if (latestIdx < availableDates.length - 1) {
-              dateToAdd = availableDates[latestIdx + 1];
-            } else if (earliestIdx > 0) {
-              dateToAdd = availableDates[earliestIdx - 1];
-            }
-
-            if (dateToAdd && !selectedDates.includes(dateToAdd)) {
-              setSelectedDates([...selectedDates, dateToAdd].sort());
-              setActiveDate(dateToAdd);
-              setKeyMovementAnchor(dateToAdd);
-            }
-          }}
-          variant="light"
-          size="xs"
-          leftSection={<IconPlus size={14} />}
-        >
-          Add Date
-        </Button>
-      )}
+      {/* Add Date Button (icon-only in compact mode) */}
+      {multi &&
+        selectedDates.length < 10 &&
+        (compact ? (
+          <Tooltip label="Add a date to compare" openDelay={300}>
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              onClick={handleAddDate}
+              aria-label="Add a date to compare"
+            >
+              <IconPlus size={16} />
+            </ActionIcon>
+          </Tooltip>
+        ) : (
+          <Button
+            onClick={handleAddDate}
+            variant="light"
+            size="xs"
+            leftSection={<IconPlus size={14} />}
+          >
+            Add Date
+          </Button>
+        ))}
     </Group>
   );
 };

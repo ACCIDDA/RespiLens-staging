@@ -1,32 +1,38 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { usePersistentXRange } from "../hooks/usePersistentXRange";
 import { useMantineColorScheme, Stack, Text, Box, Center } from "@mantine/core";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js/dist/plotly";
 import ModelSelector from "./ModelSelector";
-import TitleRow from "./TitleRow";
-import { CHART_CONSTANTS } from "../constants/chart";
+import {
+  CHART_CONSTANTS,
+  FORECAST_LINE_OFFSET_DAYS,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CONFIG,
+  RANGESLIDER_STYLE,
+  getBaseChartLayout,
+  getChartInk,
+  getForecastDateMarks,
+  getRangeSelector,
+} from "../constants/chart";
 import { targetDisplayNameMap, targetYAxisLabelMap } from "../utils/mapUtils";
 import useQuantileForecastTraces from "../hooks/useQuantileForecastTraces";
+import useForecastDateDrag from "../hooks/useForecastDateDrag";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
-  isPlotlyLogScale,
+  getScaleYAxis,
   normalizeChartScale,
   transformValueForScale,
 } from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
-import { getDatasetTitleFromView } from "../utils/datasetUtils";
-import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../utils/plotDownloadName";
+import { useChartReset } from "../hooks/useChartReset";
 import { getOfficialModels } from "../utils/forecastleScoring";
 import {
   getEarliestGroundTruthSeasonStartDate,
   getSeasonDateRange,
   getSeasonStartYear,
 } from "../utils/forecastSeasons";
+import { copyRange, getRelayoutXRange } from "../utils/plotRange";
+import ChartCaption from "./ChartCaption";
 
 const FORECAST_DATASET_KEYS_BY_VIEW = {
   fludetailed: "flusight",
@@ -35,15 +41,8 @@ const FORECAST_DATASET_KEYS_BY_VIEW = {
   covid_forecasts: "covid19",
 };
 
-const shiftDateStringByDays = (dateString, days) => {
-  const [year, month, day] = dateString.split("-").map(Number);
-  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
-  return shiftedDate.toISOString().slice(0, 10);
-};
-
 const ForecastPlotView = ({
   data,
-  metadata,
   selectedDates,
   selectedModels,
   models,
@@ -56,13 +55,10 @@ const ForecastPlotView = ({
   activeModels: activeModelsOverride = null,
   extraTraces = null,
   layoutOverrides = null,
-  configOverrides = null,
   groundTruthValueFormat = "%{y}",
 }) => {
   const [yAxisRange, setYAxisRange] = useState(null);
-  const [xAxisRange, setXAxisRange] = useState(null);
   const plotRef = useRef(null);
-  const isResettingRef = useRef(false);
   const { colorScheme } = useMantineColorScheme();
   const {
     chartScale,
@@ -71,15 +67,16 @@ const ForecastPlotView = ({
     showOtherGroundTruthSeasons,
     viewType,
   } = useView();
-  const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
 
-  const getDefaultRangeRef = useRef(getDefaultRange);
-  const projectionsDataRef = useRef([]);
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
   const resolvedForecastTarget = forecastTarget || selectedTarget;
+  // Kept across locations (the view remounts while one loads); each target
+  // has its own window
+  const [xAxisRange, setXAxisRange] = usePersistentXRange(
+    `${viewType}:${resolvedForecastTarget}`,
+  );
   const resolvedDisplayTarget =
     displayTarget || selectedTarget || resolvedForecastTarget;
   const showMedian = intervalVisibility?.median ?? true;
@@ -151,8 +148,9 @@ const ForecastPlotView = ({
     valueSuffix: "",
     modelLineWidth: 2,
     modelMarkerSize: 6,
-    groundTruthLineWidth: 1.5,
-    groundTruthMarkerSize: 4,
+    groundTruthLineWidth: GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: GROUND_TRUTH_MARKER_SIZE,
+    groundTruthColor: getChartInk(colorScheme).text,
     showLegendForFirstDate: showLegend,
     fillMissingQuantiles: false,
     showMedian,
@@ -185,11 +183,6 @@ const ForecastPlotView = ({
     return [...projectionsData, ...appendedTraces];
   }, [projectionsData, appendedTraces]);
 
-  useEffect(() => {
-    getDefaultRangeRef.current = getDefaultRange;
-    projectionsDataRef.current = projectionsData;
-  }, [getDefaultRange, projectionsData]);
-
   const activeModels = useMemo(() => {
     if (activeModelsOverride) {
       return activeModelsOverride;
@@ -216,9 +209,19 @@ const ForecastPlotView = ({
 
   const defaultRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [selectedTarget, resolvedForecastTarget]);
+  // Click the chart to add a forecast date, drag a date line to move it.
+  // Pin the visible window first so the chart does not re-centre on the
+  // new dates under the pointer.
+  const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
+    selectedDates,
+    lineOffsetDays: FORECAST_LINE_OFFSET_DAYS,
+    onBeforeCommit: (gd) => {
+      const range = gd?._fullLayout?.xaxis?.range;
+      if (!xAxisRange && range) setXAxisRange([...range]);
+    },
+  });
+
+  useChartReset(() => setXAxisRange(null));
 
   useEffect(() => {
     const currentXRange = xAxisRange || defaultRange;
@@ -232,29 +235,16 @@ const ForecastPlotView = ({
 
   const handlePlotUpdate = useCallback(
     (figure) => {
-      if (isResettingRef.current) {
-        isResettingRef.current = false;
-        return;
-      }
-      if (figure && figure["xaxis.range"]) {
-        const newXRange = figure["xaxis.range"];
-        if (JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(newXRange);
-        }
+      const newXRange = getRelayoutXRange(figure, projectionsData);
+      if (
+        newXRange &&
+        JSON.stringify(newXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(newXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, setXAxisRange, projectionsData],
   );
-
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({ rawRange: rawYRange });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({ rawRange: rawYRange });
-  }, [normalizedChartScale, rawYRange]);
 
   const seasonDividerShapes = useMemo(() => {
     if (!showOtherGroundTruthSeasons || !groundTruth?.dates?.length) {
@@ -302,102 +292,41 @@ const ForecastPlotView = ({
   ]);
 
   const layout = useMemo(() => {
+    const dateMarks = getForecastDateMarks(
+      colorScheme,
+      displayDates,
+      draggingDate,
+    );
+    const base = getBaseChartLayout(colorScheme);
+    const longName = targetDisplayNameMap[resolvedDisplayTarget];
     const baseLayout = {
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      font: {
-        color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-      },
+      ...base,
       showlegend: showLegend,
-      legend: {
-        x: 0,
-        y: 1,
-        xanchor: "left",
-        yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: {
-          size: 10,
-        },
-      },
       hovermode: "closest",
       dragmode: false,
-      margin: { l: 60, r: 30, t: 30, b: 30 },
+      margin: { l: 64, r: 30, t: 36, b: 30 },
       xaxis: {
+        ...base.xaxis,
         domain: [0, 1],
-        rangeslider: {
-          range: getDefaultRange(true),
-        },
-        rangeselector: {
-          buttons: [
-            { count: 1, label: "1m", step: "month", stepmode: "backward" },
-            { count: 6, label: "6m", step: "month", stepmode: "backward" },
-            { step: "all", label: "all" },
-          ],
-        },
-        range: xAxisRange || defaultRange,
-        showline: true,
-        linewidth: 1,
-        linecolor: colorScheme === "dark" ? "#aaa" : "#444",
+        rangeslider: { ...RANGESLIDER_STYLE, range: getDefaultRange(true) },
+        rangeselector: getRangeSelector(colorScheme),
+        range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
-        title: (() => {
-          const longName = targetDisplayNameMap[resolvedDisplayTarget];
-          const baseTitle =
+        ...base.yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: rawYRange,
+          range: yAxisRange,
+          title:
             targetYAxisLabelMap[longName] ||
             longName ||
             resolvedDisplayTarget ||
-            "Value";
-          return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
-        })(),
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : yAxisRange === null,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
-      },
-      shapes: [
-        ...seasonDividerShapes,
-        ...selectedDates.map((date) => {
-          const shiftedDate = shiftDateStringByDays(date, -3);
-          return {
-            type: "line",
-            x0: shiftedDate,
-            x1: shiftedDate,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line: {
-              color: "red",
-              width: 1,
-              dash: "dash",
-            },
-          };
+            "Value",
         }),
-      ],
+      },
+      shapes: [...seasonDividerShapes, ...dateMarks.shapes],
+      annotations: dateMarks.annotations,
     };
 
     if (layoutOverrides) {
@@ -409,70 +338,17 @@ const ForecastPlotView = ({
     colorScheme,
     defaultRange,
     resolvedDisplayTarget,
-    selectedDates,
+    displayDates,
+    draggingDate,
     yAxisRange,
     xAxisRange,
     getDefaultRange,
     layoutOverrides,
     normalizedChartScale,
-    sqrtTicks,
-    log2Ticks,
+    rawYRange,
     showLegend,
     seasonDividerShapes,
   ]);
-
-  const config = useMemo(() => {
-    const baseConfig = {
-      responsive: true,
-      displayModeBar: true,
-      displaylogo: false,
-      showSendToCloud: false,
-      plotlyServerURL: "",
-      scrollZoom: false,
-      doubleClick: "reset",
-      toImageButtonOptions: {
-        format: "png",
-        filename: buildPlotDownloadName("forecast-plot"),
-        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      },
-      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: function (gd) {
-            const currentGetDefaultRange = getDefaultRangeRef.current;
-            const currentProjectionsData = projectionsDataRef.current;
-
-            const range = currentGetDefaultRange();
-            if (!range) return;
-
-            const newYRange =
-              currentProjectionsData.length > 0
-                ? calculateYRange(currentProjectionsData, range)
-                : null;
-
-            isResettingRef.current = true;
-
-            setXAxisRange(null);
-            setYAxisRange(newYRange);
-
-            Plotly.relayout(gd, {
-              "xaxis.range": range,
-              "yaxis.range": newYRange,
-              "yaxis.autorange": newYRange === null,
-            });
-          },
-        },
-      ],
-    };
-
-    if (configOverrides) {
-      return configOverrides(baseConfig);
-    }
-
-    return baseConfig;
-  }, [calculateYRange, configOverrides]);
 
   const hasForecasts = hasForecastTraces;
   if (requireTarget && !selectedTarget) {
@@ -485,15 +361,12 @@ const ForecastPlotView = ({
 
   return (
     <Stack>
-      <TitleRow
-        title={hubName ? `${stateName} — ${hubName}` : stateName}
-        timestamp={metadata?.last_updated}
-      />
       <div
+        ref={containerRef}
         style={{
           width: "100%",
-          height: "min(800px, 60vh)",
-          minHeight: 320,
+          height: "min(880px, 60vh)",
+          minHeight: 340,
           position: "relative", // Ensure the container is relative for absolute positioning
         }}
       >
@@ -526,28 +399,19 @@ const ForecastPlotView = ({
           }}
           data={finalTraces}
           layout={layout}
-          config={config}
+          config={PLOT_CONFIG}
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />
       </div>
       <Stack gap={2}>
-        <p
-          style={{
-            fontStyle: "italic",
-            fontSize: "12px",
-            color: "#868e96",
-            textAlign: "right",
-            margin: 0,
-          }}
-        >
-          Note that forecasts should be interpreted with great caution and may
-          not reliably predict rapid changes in disease trends.
-        </p>
+        <ChartCaption forecastNote />
         <ModelSelector
           models={models}
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
+          selectedDates={selectedDates}
+          keyboardShortcut
         />
       </Stack>
     </Stack>

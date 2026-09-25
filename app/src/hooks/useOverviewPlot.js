@@ -1,6 +1,9 @@
 import { useMemo } from "react";
+import { useMantineColorScheme } from "@mantine/core";
+import { getBaseChartLayout } from "../constants/chart";
 
-const DEFAULT_MARGIN = { l: 40, r: 20, t: 40, b: 40 };
+// Small top margin: overview charts have no title or legend above the plot
+const DEFAULT_MARGIN = { l: 40, r: 20, t: 10, b: 40 };
 
 const isValidDate = (dateValue) => {
   const date = new Date(dateValue);
@@ -31,6 +34,7 @@ const useOverviewPlot = ({
   layoutOverrides = null,
   layoutDefaults = null,
 }) => {
+  const { colorScheme } = useMantineColorScheme();
   const traces = useMemo(() => {
     if (!data || typeof buildTraces !== "function") return [];
     return buildTraces(data) || [];
@@ -75,26 +79,34 @@ const useOverviewPlot = ({
   }, [traces, xRange, yPaddingTopRatio, yPaddingBottomRatio, yMinFloor]);
 
   const layout = useMemo(() => {
+    // Same base as every other chart in the app, at the compact size
+    const shared = getBaseChartLayout(colorScheme, { compact: true });
     const baseLayout = {
-      autosize: true,
+      ...shared,
       margin: DEFAULT_MARGIN,
-      title: { text: "", font: { size: 13 } },
       xaxis: {
+        ...shared.xaxis,
         range: xRange || undefined,
         showgrid: false,
-        tickfont: { size: 10 },
       },
       yaxis: {
-        automargin: true,
-        tickfont: { size: 10 },
+        ...shared.yaxis,
         range: yRange,
       },
       showlegend: false,
       hovermode: "x unified",
     };
 
+    // Callers' defaults refine the shared axes and legend rather than
+    // replacing them wholesale
     const mergedLayout = layoutDefaults
-      ? { ...baseLayout, ...layoutDefaults }
+      ? {
+          ...baseLayout,
+          ...layoutDefaults,
+          xaxis: { ...baseLayout.xaxis, ...layoutDefaults.xaxis },
+          yaxis: { ...baseLayout.yaxis, ...layoutDefaults.yaxis },
+          legend: { ...baseLayout.legend, ...layoutDefaults.legend },
+        }
       : baseLayout;
 
     if (layoutOverrides) {
@@ -102,7 +114,7 @@ const useOverviewPlot = ({
     }
 
     return mergedLayout;
-  }, [xRange, yRange, layoutDefaults, layoutOverrides, traces]);
+  }, [xRange, yRange, layoutDefaults, layoutOverrides, traces, colorScheme]);
 
   return { traces, yRange, layout };
 };

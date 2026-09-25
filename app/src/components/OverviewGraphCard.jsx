@@ -1,9 +1,10 @@
-import { Button, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
+import { Loader, Stack, Text } from "@mantine/core";
 import Plot from "react-plotly.js";
+import OverviewTile, { OVERVIEW_CHART_HEIGHT } from "./OverviewTile";
 
 const OverviewGraphCard = ({
   title,
-  meta = null,
+  subtitle = null,
   loading,
   loadingLabel = "Loading data...",
   error,
@@ -11,66 +12,69 @@ const OverviewGraphCard = ({
   traces,
   layout,
   emptyLabel = "No data available.",
-  actionLabel,
   actionActive = false,
   onAction,
-  actionIcon,
   locationLabel,
 }) => {
   const hasTraces = Array.isArray(traces) && traces.length > 0;
   const showEmpty = !loading && !error && !hasTraces && emptyLabel;
+  // Loading another location: keep the chart up, dimmed under a spinner,
+  // so the tile does not collapse and reflow the page
+  const showChart = hasTraces && !error;
 
   return (
-    <Card withBorder radius="md" padding="lg" shadow="xs">
-      <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={5}>{title}</Title>
-          {meta}
-        </Group>
-        {loading && (
-          <Stack align="center" gap="xs" py="lg">
-            <Loader size="sm" />
-            <Text size="sm" c="dimmed">
-              {loadingLabel}
-            </Text>
-          </Stack>
-        )}
-        {!loading && error && (
-          <Text size="sm" c="red">
-            {errorLabel || error}
-          </Text>
-        )}
-        {!loading && !error && hasTraces && (
-          <div style={{ width: "100%", height: 240, minHeight: 200 }}>
-            <Plot
-              useResizeHandler
-              style={{ width: "100%", height: "100%" }}
-              data={traces}
-              layout={layout}
-              config={{ displayModeBar: false, responsive: true }}
-            />
-          </div>
-        )}
-        {showEmpty && (
+    <OverviewTile
+      title={title}
+      subtitle={subtitle}
+      actionActive={actionActive}
+      onAction={onAction}
+      locationLabel={locationLabel}
+    >
+      {loading && !showChart && (
+        // Takes the chart's height, so the chart replaces it in place
+        <Stack
+          align="center"
+          justify="center"
+          gap="xs"
+          h={OVERVIEW_CHART_HEIGHT}
+        >
+          <Loader size="sm" />
           <Text size="sm" c="dimmed">
-            {emptyLabel}
+            {loadingLabel}
           </Text>
-        )}
-        <Group justify="space-between" align="center">
-          <Button
-            size="xs"
-            variant={actionActive ? "light" : "filled"}
-            onClick={onAction}
-            rightSection={actionIcon}
-          >
-            {actionLabel}
-          </Button>
-          <Text size="xs" c="dimmed">
-            {locationLabel}
-          </Text>
-        </Group>
-      </Stack>
-    </Card>
+        </Stack>
+      )}
+      {!loading && error && (
+        <Text size="sm" c="red">
+          {errorLabel || error}
+        </Text>
+      )}
+      {showChart && (
+        <div
+          className="respilens-view"
+          data-loading={loading || undefined}
+          style={{ width: "100%", height: OVERVIEW_CHART_HEIGHT }}
+        >
+          <Plot
+            useResizeHandler
+            style={{ width: "100%", height: "100%" }}
+            data={traces}
+            layout={layout}
+            config={{ displayModeBar: false, responsive: true }}
+          />
+          {loading && (
+            <div className="respilens-chart-spinner" style={{ top: "50%" }}>
+              <Loader size="sm" aria-label="Loading" />
+            </div>
+          )}
+        </div>
+      )}
+      {showEmpty && (
+        <Text size="sm" c="dimmed">
+          {emptyLabel}
+        </Text>
+      )}
+    </OverviewTile>
   );
 };
 

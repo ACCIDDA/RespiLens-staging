@@ -87,15 +87,8 @@ const extractPredictionSummary = (prediction, fillMissingQuantiles = false) => {
     findQuantileValue(normalizedQuantiles, values, 0.975) ??
     (fillMissingQuantiles ? median : null);
 
-  if (
-    !Number.isFinite(lower50) ||
-    !Number.isFinite(upper50) ||
-    !Number.isFinite(lower95) ||
-    !Number.isFinite(upper95)
-  ) {
-    return null;
-  }
-
+  // The 50% / 95% bounds are only needed for scoring (hasScoringBounds); a
+  // prediction with a median and other quantiles still plots without them.
   return {
     quantiles: normalizedQuantiles,
     values,
@@ -106,6 +99,12 @@ const extractPredictionSummary = (prediction, fillMissingQuantiles = false) => {
     upper95,
   };
 };
+
+const hasScoringBounds = (summary) =>
+  Number.isFinite(summary?.lower50) &&
+  Number.isFinite(summary?.upper50) &&
+  Number.isFinite(summary?.lower95) &&
+  Number.isFinite(summary?.upper95);
 
 const buildIntervalFillColor = (modelColor, intervalIndex, intervalCount) => {
   const alphaStart = 0.1;
@@ -138,6 +137,7 @@ const useQuantileForecastTraces = ({
   modelMarkerSize = 6,
   groundTruthLineWidth = 1.5,
   groundTruthMarkerSize = 4,
+  groundTruthColor = "black",
   showLegendForFirstDate = true,
   fillMissingQuantiles = false,
   showMedian = true,
@@ -199,8 +199,12 @@ const useQuantileForecastTraces = ({
       name: groundTruthLabel,
       type: "scatter",
       mode: "lines+markers",
-      line: { color: "black", width: groundTruthLineWidth, dash: "solid" },
-      marker: { size: groundTruthMarkerSize, color: "black" },
+      line: {
+        color: groundTruthColor,
+        width: groundTruthLineWidth,
+        dash: "solid",
+      },
+      marker: { size: groundTruthMarkerSize, color: groundTruthColor },
     };
 
     if (groundTruthHoverFormatter) {
@@ -332,7 +336,10 @@ const useQuantileForecastTraces = ({
           const observedValue = observedValueByDate.get(pointDate);
           let formattedRelativeWis = null;
 
-          if (predictionSummary && Number.isFinite(observedValue)) {
+          if (
+            hasScoringBounds(predictionSummary) &&
+            Number.isFinite(observedValue)
+          ) {
             const pointWis = calculateWIS(
               observedValue,
               predictionSummary.median,
@@ -345,7 +352,7 @@ const useQuantileForecastTraces = ({
               baselinePredictionsByDate.get(pointDate),
               fillMissingQuantiles,
             );
-            const baselineWis = baselinePredictionSummary
+            const baselineWis = hasScoringBounds(baselinePredictionSummary)
               ? calculateWIS(
                   observedValue,
                   baselinePredictionSummary.median,
@@ -509,6 +516,7 @@ const useQuantileForecastTraces = ({
     modelMarkerSize,
     groundTruthLineWidth,
     groundTruthMarkerSize,
+    groundTruthColor,
     showLegendForFirstDate,
     fillMissingQuantiles,
     showMedian,

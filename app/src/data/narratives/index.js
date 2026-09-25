@@ -52,21 +52,6 @@ export const narrativeRegistry = [
   },
 ].filter(Boolean); // Remove any null entries
 
-// Helper to get narrative by ID
-export const getNarrativeById = (id) => {
-  return narrativeRegistry.find((narrative) => narrative.id === id);
-};
-
-// Helper to get featured narratives
-export const getFeaturedNarratives = () => {
-  return narrativeRegistry.filter((narrative) => narrative.featured);
-};
-
-// Helper to get regular (non-featured) narratives
-export const getRegularNarratives = () => {
-  return narrativeRegistry.filter((narrative) => !narrative.featured);
-};
-
 // Helper to get all unique tags
 export const getAllTags = () => {
   const allTags = new Set();

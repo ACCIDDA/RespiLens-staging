@@ -1,35 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePersistentXRange } from "../../hooks/usePersistentXRange";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
-  Button,
   Center,
   Group,
   Loader,
-  Paper,
   Stack,
   Text,
-  Title,
   useMantineColorScheme,
 } from "@mantine/core";
-import { IconAlertTriangle, IconArrowLeft } from "@tabler/icons-react";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js/dist/plotly";
-import NSSPColumnSelector from "../NSSPColumnSelector";
+import SeriesToggleChips from "../controls/SeriesToggleChips";
 import NSSPGeoMap from "../NSSPGeoMap";
-import TitleRow from "../TitleRow";
-import { MODEL_COLORS } from "../../config/datasets";
+import { assignSeriesColors } from "../../theme/pathogenColors";
 import { useView } from "../../hooks/useView";
+import { useChartReset } from "../../hooks/useChartReset";
 import {
-  buildPlotDownloadName,
-  PLOT_DOWNLOAD_IMAGE_SCALE,
-} from "../../utils/plotDownloadName";
-import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  getScaleYAxis,
   getYRangeFromTraces,
-  isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
@@ -44,25 +34,35 @@ import {
   fetchNsspCountyAssignments,
   fetchNsspStateCoverage,
   fetchNsspStatesGeoJson,
-  getCountyDisplayLabel,
   getCountySelectionForFeature,
   getNsspStateAbbreviationFromLocation,
   isNsspStatewideLocation,
   isNsspUnitedStatesLocation,
   normalizeCountyBasename,
 } from "../../utils/nsspGeo";
+import {
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CONFIG,
+  RANGESLIDER_STYLE,
+  getBaseChartLayout,
+  getRangeSelector,
+} from "../../constants/chart";
+import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
+import ChartCaption from "../ChartCaption";
+import {
+  NSSP_COLUMN_LABELS,
+  NSSP_DEFAULT_COLUMNS,
+} from "../../config/datasets";
 
-const NSSP_COLUMN_LABELS = {
-  percent_visits_covid: "COVID-19",
-  percent_visits_influenza: "Influenza",
-  percent_visits_rsv: "RSV",
-};
-
-const NSSP_DEFAULT_COLUMNS = Object.keys(NSSP_COLUMN_LABELS);
-
-const NSSPView = ({ location, data, metadata }) => {
-  const { handleLocationSelect, locationMessage, chartScale, showLegend } =
-    useView();
+const NSSPView = ({ location, data }) => {
+  const {
+    handleLocationSelect,
+    nsspCounty,
+    locationMessage,
+    chartScale,
+    showLegend,
+  } = useView();
   const normalizedChartScale = normalizeChartScale(chartScale);
   const { colorScheme } = useMantineColorScheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,15 +72,13 @@ const NSSPView = ({ location, data, metadata }) => {
   const [stateCoverage, setStateCoverage] = useState({});
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(null);
-  const [selectedCounty, setSelectedCounty] = useState(null);
-  const [selectedColumns, setSelectedColumns] = useState([]);
   const [dataRevision, setDataRevision] = useState(0);
   const [plotRevision, setPlotRevision] = useState(0);
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations
+  const [xAxisRange, setXAxisRange] = usePersistentXRange("nsspall");
   const [yAxisRange, setYAxisRange] = useState(null);
 
-  const hasInteractedRef = useRef(false);
-  const isResettingRef = useRef(false);
+  useChartReset(() => setXAxisRange(null));
 
   const stateAbbreviation = getNsspStateAbbreviationFromLocation(location);
   const stateInfo = NSSP_STATE_ABBREVIATION_TO_INFO[stateAbbreviation];
@@ -94,6 +92,10 @@ const NSSPView = ({ location, data, metadata }) => {
     () =>
       Object.keys(data?.series || {}).filter((key) => key !== "dates" && key),
     [data],
+  );
+  const seriesColors = useMemo(
+    () => assignSeriesColors(availableColumns),
+    [availableColumns],
   );
 
   const getProcessedYValues = useCallback(
@@ -174,12 +176,6 @@ const NSSPView = ({ location, data, metadata }) => {
     const padding = maxY < 1 ? 0.1 : maxY * 0.15;
     return [0, maxY + padding];
   }, []);
-
-  useEffect(() => {
-    if (isUnitedStates || isStatewide) {
-      setSelectedCounty(null);
-    }
-  }, [isStatewide, isUnitedStates, location]);
 
   useEffect(() => {
     let isActive = true;
@@ -282,70 +278,22 @@ const NSSPView = ({ location, data, metadata }) => {
     };
   }, [currentStateCoverage.hasCountyData, isUnitedStates, stateAbbreviation]);
 
-  useEffect(() => {
-    if (!availableColumns.length) {
-      setSelectedColumns([]);
-      return;
-    }
-
+  // The URL is the one source of the pathogen selection: read here, written
+  // only when the user toggles a chip (two-way syncing through state made
+  // the two overwrite each other after a location change). Pathogens this
+  // location lacks stay in the URL for the next one.
+  const selectedColumns = useMemo(() => {
+    if (!availableColumns.length) return [];
     const urlColumns = searchParams.getAll("nssp_cols");
-    const isExplicitlyEmpty = urlColumns.includes("none");
+    if (urlColumns.includes("none")) return [];
     const validUrlColumns = urlColumns.filter((column) =>
       availableColumns.includes(column),
     );
-
-    let nextColumns;
-    if (validUrlColumns.length > 0) {
-      nextColumns = validUrlColumns;
-    } else if (isExplicitlyEmpty) {
-      nextColumns = [];
-    } else {
-      nextColumns = NSSP_DEFAULT_COLUMNS.filter((column) =>
-        availableColumns.includes(column),
-      );
-    }
-
-    setSelectedColumns((currentColumns) => {
-      const sortedCurrent = [...currentColumns].sort();
-      const sortedNext = [...nextColumns].sort();
-      if (JSON.stringify(sortedCurrent) === JSON.stringify(sortedNext)) {
-        return currentColumns;
-      }
-
-      return nextColumns;
-    });
-  }, [availableColumns, searchParams]);
-
-  useEffect(() => {
-    const nextParams = new URLSearchParams(window.location.search);
-    nextParams.delete("nssp_cols");
-
-    const defaultColumns = NSSP_DEFAULT_COLUMNS.filter((column) =>
+    if (validUrlColumns.length > 0) return validUrlColumns;
+    return NSSP_DEFAULT_COLUMNS.filter((column) =>
       availableColumns.includes(column),
     );
-    const isDefaultSelection =
-      JSON.stringify([...selectedColumns].sort()) ===
-      JSON.stringify([...defaultColumns].sort());
-
-    if (!isDefaultSelection) {
-      if (selectedColumns.length > 0) {
-        selectedColumns.forEach((column) => {
-          nextParams.append("nssp_cols", column);
-        });
-      } else if (hasInteractedRef.current) {
-        nextParams.set("nssp_cols", "none");
-      }
-    }
-
-    const currentParams = new URLSearchParams(window.location.search);
-    if (nextParams.toString() !== currentParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [availableColumns, selectedColumns, setSearchParams]);
-
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [location]);
+  }, [availableColumns, searchParams]);
 
   useEffect(() => {
     if (data) {
@@ -386,21 +334,19 @@ const NSSPView = ({ location, data, metadata }) => {
     xAxisRange,
   ]);
 
+  // Filled after the traces are built below; read lazily on relayout
+  const plotTracesRef = useRef([]);
   const handleRelayout = useCallback(
     (figure) => {
-      if (isResettingRef.current) {
-        isResettingRef.current = false;
-        return;
-      }
-
-      if (figure && figure["xaxis.range"]) {
-        const nextXRange = figure["xaxis.range"];
-        if (JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)) {
-          setXAxisRange(nextXRange);
-        }
+      const nextXRange = getRelayoutXRange(figure, plotTracesRef.current);
+      if (
+        nextXRange &&
+        JSON.stringify(nextXRange) !== JSON.stringify(xAxisRange)
+      ) {
+        setXAxisRange(nextXRange);
       }
     },
-    [xAxisRange],
+    [xAxisRange, setXAxisRange],
   );
 
   const hasReachedCountyDetail =
@@ -411,14 +357,6 @@ const NSSPView = ({ location, data, metadata }) => {
     currentStateCoverage.hasAnyData &&
     !currentStateCoverage.hasCountyData;
   const shouldShowPlot = hasReachedCountyDetail || isStatewideOnlyDetail;
-  const detailHeading =
-    selectedCounty?.countyName ||
-    data?.metadata?.location_name ||
-    stateInfo?.name ||
-    "Selected county";
-  const plotTitle = isStatewideOnlyDetail
-    ? `${stateInfo?.name || stateAbbreviation} (All) — NSSP`
-    : `${getCountyDisplayLabel(detailHeading)} — NSSP`;
 
   const handleUnitedStatesStateClick = (feature) => {
     const nextStateAbbreviation = feature?.properties?.STUSAB;
@@ -428,7 +366,6 @@ const NSSPView = ({ location, data, metadata }) => {
     ) {
       return;
     }
-    setSelectedCounty(null);
     handleLocationSelect(`${nextStateAbbreviation}_All`);
   };
 
@@ -444,8 +381,7 @@ const NSSPView = ({ location, data, metadata }) => {
     if (!selection.hasData || !selection.locationId) {
       return;
     }
-    setSelectedCounty(selection);
-    handleLocationSelect(selection.locationId);
+    handleLocationSelect(selection.locationId, selection.countyName);
   };
 
   const getCountyFill = (feature) => {
@@ -463,9 +399,9 @@ const NSSPView = ({ location, data, metadata }) => {
 
     const isSelectedByLocation = selection.locationId === location;
     const isExplicitCountySelection =
-      selectedCounty &&
+      nsspCounty &&
       normalizeCountyBasename(selection.countyName) ===
-        normalizeCountyBasename(selectedCounty.countyName);
+        normalizeCountyBasename(nsspCounty);
 
     if (isExplicitCountySelection) {
       return MAP_COLORS.selected;
@@ -511,34 +447,6 @@ const NSSPView = ({ location, data, metadata }) => {
   );
 
   const rawYRange = useMemo(() => getYRangeFromTraces(rawTraces), [rawTraces]);
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") {
-      return null;
-    }
-
-    return buildSqrtTicks({
-      rawRange: rawYRange,
-      formatValue: (value) =>
-        `${value.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") {
-      return null;
-    }
-
-    return buildLog2Ticks({
-      rawRange: rawYRange,
-      formatValue: (value) =>
-        `${value.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
   const plotTraces = useMemo(() => {
     if (!data?.series?.dates?.length) {
       return [];
@@ -557,8 +465,6 @@ const NSSPView = ({ location, data, metadata }) => {
     }
 
     return selectedColumns.map((column) => {
-      const columnIndex = availableColumns.indexOf(column);
-
       return {
         x: data.series.dates,
         y: getProcessedYValues(data.series[column]),
@@ -566,92 +472,46 @@ const NSSPView = ({ location, data, metadata }) => {
         type: "scatter",
         mode: "lines+markers",
         line: {
-          color: MODEL_COLORS[columnIndex % MODEL_COLORS.length],
-          width: 2.5,
+          color: seriesColors[column],
+          width: GROUND_TRUTH_LINE_WIDTH,
         },
-        marker: { size: 6 },
+        marker: { size: GROUND_TRUTH_MARKER_SIZE },
         hovertemplate:
           "%{x}<br>%{fullData.name}: %{customdata:.2f}%<extra></extra>",
         customdata: data.series[column],
       };
     });
-  }, [availableColumns, data, getProcessedYValues, selectedColumns]);
+  }, [data, getProcessedYValues, selectedColumns, seriesColors]);
+  plotTracesRef.current = plotTraces;
 
-  const plotLayout = useMemo(
-    () => ({
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      font: {
-        color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-      },
+  const plotLayout = useMemo(() => {
+    const base = getBaseChartLayout(colorScheme);
+    const isTransformedScale =
+      normalizedChartScale === "sqrt" || normalizedChartScale === "log2";
+    return {
+      ...base,
       xaxis: {
-        title: "Date",
-        rangeslider: {
-          visible: true,
-          range: fullRange,
-        },
-        rangeselector: {
-          buttons: [
-            { count: 1, label: "1m", step: "month", stepmode: "backward" },
-            { count: 6, label: "6m", step: "month", stepmode: "backward" },
-            { count: 1, label: "1y", step: "year", stepmode: "backward" },
-            { step: "all", label: "All" },
-          ],
-          activecolor: colorScheme === "dark" ? "#4c6ef5" : "#228be6",
-          bgcolor: colorScheme === "dark" ? "#2c2e33" : "#f1f3f5",
-        },
-        range: xAxisRange || defaultRange,
+        ...base.xaxis,
+        rangeslider: { ...RANGESLIDER_STYLE, visible: true, range: fullRange },
+        rangeselector: getRangeSelector(colorScheme, { includeYear: true }),
+        range: copyRange(xAxisRange || defaultRange),
       },
       yaxis: {
-        title: `Percent of visits${getScaleTitleSuffix(normalizedChartScale)}`,
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : yAxisRange === null || selectedColumns.length === 0,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
-        tickformat:
-          normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
-            ? undefined
-            : ".2f",
-        ticksuffix:
-          normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
-            ? undefined
-            : "%",
+        ...base.yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: rawYRange,
+          range: yAxisRange,
+          autorange: selectedColumns.length === 0,
+          title: "Percent of visits",
+          formatValue: (value) =>
+            `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`,
+        }),
+        tickformat: isTransformedScale ? undefined : ".2f",
+        ticksuffix: isTransformedScale ? undefined : "%",
       },
       showlegend: showLegend ?? true,
-      legend: {
-        x: 0,
-        y: 1,
-        xanchor: "left",
-        yanchor: "top",
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255, 255, 255, 0.8)",
-        bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-        borderwidth: 1,
-        font: { size: 10 },
-      },
-      margin: { t: 56, r: 10, l: 72, b: 120 },
+      margin: { t: 56, r: 10, l: 72, b: 40 },
       uirevision: plotRevision,
       annotations:
         selectedColumns.length === 0
@@ -668,77 +528,43 @@ const NSSPView = ({ location, data, metadata }) => {
               },
             ]
           : [],
-    }),
-    [
-      normalizedChartScale,
-      colorScheme,
-      defaultRange,
-      fullRange,
-      plotRevision,
-      selectedColumns.length,
-      showLegend,
-      sqrtTicks,
-      log2Ticks,
-      xAxisRange,
-      yAxisRange,
-    ],
+    };
+  }, [
+    normalizedChartScale,
+    colorScheme,
+    defaultRange,
+    fullRange,
+    plotRevision,
+    rawYRange,
+    selectedColumns.length,
+    showLegend,
+    xAxisRange,
+    yAxisRange,
+  ]);
+
+  const handleSetSelectedColumns = useCallback(
+    (nextColumns) => {
+      const nextParams = new URLSearchParams(window.location.search);
+      nextParams.delete("nssp_cols");
+      const defaultColumns = NSSP_DEFAULT_COLUMNS.filter((column) =>
+        availableColumns.includes(column),
+      );
+      const isDefaultSelection =
+        JSON.stringify([...nextColumns].sort()) ===
+        JSON.stringify([...defaultColumns].sort());
+      if (!isDefaultSelection) {
+        if (nextColumns.length === 0) {
+          nextParams.set("nssp_cols", "none");
+        } else {
+          nextColumns.forEach((column) =>
+            nextParams.append("nssp_cols", column),
+          );
+        }
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [availableColumns, setSearchParams],
   );
-
-  const plotConfig = useMemo(
-    () => ({
-      responsive: true,
-      displayModeBar: true,
-      displaylogo: false,
-      showSendToCloud: false,
-      plotlyServerURL: "",
-      toImageButtonOptions: {
-        format: "png",
-        filename: buildPlotDownloadName("nssp-plot"),
-        scale: PLOT_DOWNLOAD_IMAGE_SCALE,
-      },
-      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: function (graphDiv) {
-            if (!data) return;
-
-            const nextDefaultRange = getDefaultXRange();
-            if (!nextDefaultRange?.[0]) return;
-
-            const currentTraces = selectedColumns.map((column) => ({
-              x: data.series.dates,
-              y: getProcessedYValues(data.series[column]),
-            }));
-            const nextYRange = calculateYRange(currentTraces, nextDefaultRange);
-
-            isResettingRef.current = true;
-            setXAxisRange(null);
-            setYAxisRange(nextYRange);
-
-            Plotly.relayout(graphDiv, {
-              "xaxis.range": nextDefaultRange,
-              "yaxis.range": nextYRange,
-              "yaxis.autorange": nextYRange === null,
-            });
-          },
-        },
-      ],
-    }),
-    [
-      calculateYRange,
-      data,
-      getDefaultXRange,
-      getProcessedYValues,
-      selectedColumns,
-    ],
-  );
-
-  const handleSetSelectedColumns = useCallback((nextColumns) => {
-    hasInteractedRef.current = true;
-    setSelectedColumns(nextColumns);
-  }, []);
 
   if (!data?.series?.dates) {
     return (
@@ -764,46 +590,19 @@ const NSSPView = ({ location, data, metadata }) => {
         </Alert>
       ) : null}
 
-      <Group gap="sm">
-        {!isUnitedStates && (
-          <Button
-            variant="light"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => {
-              setSelectedCounty(null);
-              handleLocationSelect("US_All");
-            }}
-          >
-            Back to United States
-          </Button>
-        )}
-        {!isUnitedStates && !isStatewide && (
-          <Button
-            variant="light"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => {
-              setSelectedCounty(null);
-              handleLocationSelect(`${stateAbbreviation}_All`);
-            }}
-          >
-            Back to {stateInfo?.name} counties
-          </Button>
-        )}
-      </Group>
-
       {shouldShowPlot ? (
         <Stack gap="md" w="100%">
-          <TitleRow title={plotTitle} timestamp={metadata?.last_updated} />
-          {hasReachedCountyDetail ? (
-            <Text size="sm" c="dimmed" ta="center">
-              County selections resolve to their shared HSA grouping when
-              applicable.
+          {/* The header names the county; its data covers the whole HSA */}
+          {hasReachedCountyDetail && data?.metadata?.location_name ? (
+            <Text size="sm" c="dimmed">
+              Data for the health service area covering{" "}
+              {data.metadata.location_name}.
             </Text>
           ) : null}
           <div
             style={{
               width: "100%",
-              height: "min(700px, 65vh)",
+              height: "min(780px, 66vh)",
               minHeight: 360,
             }}
           >
@@ -811,71 +610,78 @@ const NSSPView = ({ location, data, metadata }) => {
               useResizeHandler
               data={plotTraces}
               layout={plotLayout}
-              config={plotConfig}
+              config={PLOT_CONFIG}
               style={{ width: "100%", height: "100%" }}
               revision={dataRevision}
               onRelayout={handleRelayout}
             />
           </div>
+          <ChartCaption />
 
-          <NSSPColumnSelector
-            availableColumns={availableColumns}
-            selectedColumns={selectedColumns}
-            setSelectedColumns={handleSetSelectedColumns}
-            columnLabelMap={NSSP_COLUMN_LABELS}
-          />
+          <Stack gap="sm">
+            <Text size="sm" fw={700}>
+              Select a pathogen(s)
+            </Text>
+            <Group gap="xs">
+              <SeriesToggleChips
+                columns={availableColumns}
+                selectedColumns={selectedColumns}
+                setSelectedColumns={handleSetSelectedColumns}
+                colors={seriesColors}
+                labels={NSSP_COLUMN_LABELS}
+              />
+            </Group>
+          </Stack>
         </Stack>
       ) : (
-        <Paper withBorder radius="md" p="lg">
-          <Stack gap="md">
-            <Title order={4}>
-              {isUnitedStates
-                ? "United States map"
-                : `${stateInfo?.name || stateAbbreviation} county map`}
-            </Title>
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {isUnitedStates
+              ? "Pick a state on the map (or above) to see its data."
+              : "Pick a county on the map (or above) to see its data."}
+          </Text>
 
-            {mapLoading ? (
-              <Center py="xl">
-                <Loader />
-              </Center>
-            ) : mapError ? (
-              <Alert
-                color="red"
-                variant="light"
-                icon={<IconAlertTriangle size={16} />}
-              >
-                {mapError}
-              </Alert>
-            ) : isUnitedStates ? (
-              <NSSPGeoMap
-                featureCollection={usMapData}
-                height={NSSP_MAP_HEIGHTS.usa}
-                projectionKind="usa"
-                onFeatureClick={handleUnitedStatesStateClick}
-                isFeatureClickable={isStateClickable}
-                getFeatureKey={(feature) => feature.properties?.GEOID}
-                getFeatureLabel={(feature) => feature.properties?.NAME}
-                getFeatureFill={getStateFill}
-                getFeatureCallout={getNsspUsFeatureCallout}
-              />
-            ) : currentStateCoverage.hasCountyData ? (
-              <NSSPGeoMap
-                featureCollection={stateMapData}
-                height={NSSP_MAP_HEIGHTS.state}
-                projectionKind="state"
-                onFeatureClick={handleCountyClick}
-                isFeatureClickable={isCountyClickable}
-                getFeatureKey={(feature) => feature.properties?.GEOID}
-                getFeatureLabel={(feature) => feature.properties?.NAME}
-                getFeatureFill={getCountyFill}
-              />
-            ) : (
-              <Alert color="red" variant="light">
-                County-level NSSP data is not available for {stateInfo?.name}.
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
+          {mapLoading ? (
+            <Center py="xl">
+              <Loader />
+            </Center>
+          ) : mapError ? (
+            <Alert
+              color="red"
+              variant="light"
+              icon={<IconAlertTriangle size={16} />}
+            >
+              {mapError}
+            </Alert>
+          ) : isUnitedStates ? (
+            <NSSPGeoMap
+              featureCollection={usMapData}
+              height={NSSP_MAP_HEIGHTS.usa}
+              projectionKind="usa"
+              onFeatureClick={handleUnitedStatesStateClick}
+              isFeatureClickable={isStateClickable}
+              getFeatureKey={(feature) => feature.properties?.GEOID}
+              getFeatureLabel={(feature) => feature.properties?.NAME}
+              getFeatureFill={getStateFill}
+              getFeatureCallout={getNsspUsFeatureCallout}
+            />
+          ) : currentStateCoverage.hasCountyData ? (
+            <NSSPGeoMap
+              featureCollection={stateMapData}
+              height={NSSP_MAP_HEIGHTS.state}
+              projectionKind="state"
+              onFeatureClick={handleCountyClick}
+              isFeatureClickable={isCountyClickable}
+              getFeatureKey={(feature) => feature.properties?.GEOID}
+              getFeatureLabel={(feature) => feature.properties?.NAME}
+              getFeatureFill={getCountyFill}
+            />
+          ) : (
+            <Alert color="red" variant="light">
+              County-level NSSP data is not available for {stateInfo?.name}.
+            </Alert>
+          )}
+        </Stack>
       )}
     </Stack>
   );

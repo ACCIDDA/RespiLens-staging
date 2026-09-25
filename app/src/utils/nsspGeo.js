@@ -1,4 +1,4 @@
-import { getDataPath } from "./paths";
+import { fetchJson, getDataPath } from "./paths";
 import { feature as topojsonFeature } from "topojson-client";
 
 export const NSSP_STATE_INFO = [
@@ -72,14 +72,6 @@ const NSSP_STATE_FIPS_TO_ABBREVIATION = Object.fromEntries(
 );
 
 const NATIVE_HAWAIIAN = "native hawaiian";
-
-const fetchJson = async (pathOrUrl) => {
-  const response = await fetch(pathOrUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${pathOrUrl}: ${response.status}`);
-  }
-  return response.json();
-};
 
 const getPublicAssetPath = (path) => {
   const baseUrl = import.meta.env.BASE_URL || "";

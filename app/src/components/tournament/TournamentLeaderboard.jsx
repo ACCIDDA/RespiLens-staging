@@ -13,6 +13,7 @@ import {
 } from "@mantine/core";
 import { IconTrophy, IconAlertCircle } from "@tabler/icons-react";
 import { getLeaderboard } from "../../utils/tournamentAPI";
+import { addWeeksToDate } from "../../utils/forecastleInputs";
 import { TOURNAMENT_CONFIG } from "../../config";
 import {
   calculateRelativeWIS,
@@ -20,15 +21,6 @@ import {
   scoreModels,
   scoreUserForecast,
 } from "../../utils/forecastleScoring";
-
-const addWeeksToDate = (dateString, weeks) => {
-  const base = new Date(`${dateString}T00:00:00Z`);
-  if (Number.isNaN(base.getTime())) {
-    return dateString;
-  }
-  base.setUTCDate(base.getUTCDate() + weeks * 7);
-  return base.toISOString().slice(0, 10);
-};
 
 const getSubmissionForecasts = (submissions, challenge) => {
   if (!submissions) return null;

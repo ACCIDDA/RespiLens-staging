@@ -22,9 +22,8 @@ export const buildPlotDownloadName = (fallback = "plot") => {
     return `${DEFAULT_PREFIX}-${fallback}`;
   }
 
-  const { pathname, search } = window.location;
-  const params = new URLSearchParams(search);
-  const { viewType, location } = parseForecastUrlState(pathname, params);
+  const { pathname } = window.location;
+  const { viewType, location } = parseForecastUrlState(pathname);
 
   const viewPart = viewType
     ? viewType.replace(/_/g, "-")

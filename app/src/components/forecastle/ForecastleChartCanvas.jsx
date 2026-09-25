@@ -15,6 +15,11 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import { CHART_CONFIG } from "../../config";
+import {
+  GROUND_TRUTH_LINE_WIDTH,
+  getChartAxisStyle,
+  getChartInk,
+} from "../../constants/chart";
 
 ChartJS.register(
   CategoryScale,
@@ -30,11 +35,21 @@ ChartJS.register(
   Filler,
 );
 
-const INTERVAL95_COLOR = CHART_CONFIG.forecastleColors.interval95;
-const INTERVAL50_COLOR = CHART_CONFIG.forecastleColors.interval50;
-const MEDIAN_COLOR = "#000000";
-const HANDLE_MEDIAN = "#dc143c"; // Crimson
-const HANDLE_OUTLINE = "#000000";
+const FORECASTLE_COLORS = CHART_CONFIG.forecastleColors;
+const INTERVAL95_COLOR = FORECASTLE_COLORS.interval95;
+const INTERVAL50_COLOR = FORECASTLE_COLORS.interval50;
+const USER_COLOR = FORECASTLE_COLORS.user;
+// Chart furniture and the observed series use the app's chart ink, so this
+// Chart.js chart matches the Plotly charts elsewhere
+const INK = getChartInk("light");
+const AXIS = getChartAxisStyle("light");
+const OBSERVED_COLOR = INK.text;
+// Draggable handles: white with a blue ring (reads as "grab me"); the 50%
+// bounds filled blue, the 95% bounds a lighter tint
+const HANDLE_FILL = "#ffffff";
+const HANDLE_OUTLINE = USER_COLOR;
+const HANDLE_50_FILL = USER_COLOR;
+const HANDLE_95_FILL = "#bce2fd";
 
 const buildLabels = (groundTruthSeries, horizonDates) => {
   const observedLabels = groundTruthSeries.map((entry) => entry.date);
@@ -433,14 +448,12 @@ const ForecastleChartCanvasInner = ({
               y: modelMedians[horizonIdx],
             }))
             .filter((point) => point.y !== null && Number.isFinite(point.y)),
-          // Green for ensemble/hub, otherwise use other colors
+          // Slate for the hub ensemble, otherwise the model's rank slot
           color: isHub
-            ? "rgba(34, 139, 34, 0.8)" // Forest green for ensemble
-            : idx === 0
-              ? "rgba(30, 144, 255, 0.8)" // Blue for best
-              : idx === 1
-                ? "rgba(255, 99, 71, 0.6)" // Tomato for 2nd
-                : "rgba(255, 165, 0, 0.6)", // Orange for 3rd
+            ? FORECASTLE_COLORS.hub
+            : FORECASTLE_COLORS.topModels[
+                idx % FORECASTLE_COLORS.topModels.length
+              ],
         };
       })
       .filter((model) => model !== null);
@@ -455,12 +468,12 @@ const ForecastleChartCanvasInner = ({
         parsing: false,
         tension: 0, // No smoothing - straight lines between points
         spanGaps: true,
-        borderColor: MEDIAN_COLOR,
-        backgroundColor: MEDIAN_COLOR,
-        borderWidth: 2,
-        pointRadius: 4, // Show dots
-        pointHoverRadius: 6,
-        pointBackgroundColor: MEDIAN_COLOR,
+        borderColor: OBSERVED_COLOR,
+        backgroundColor: OBSERVED_COLOR,
+        borderWidth: GROUND_TRUTH_LINE_WIDTH,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: OBSERVED_COLOR,
         pointBorderColor: "#ffffff",
         pointBorderWidth: 1,
       },
@@ -537,12 +550,12 @@ const ForecastleChartCanvasInner = ({
         parsing: false,
         tension: 0,
         spanGaps: false,
-        borderColor: MEDIAN_COLOR,
-        backgroundColor: MEDIAN_COLOR,
-        borderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        pointBackgroundColor: MEDIAN_COLOR,
+        borderColor: OBSERVED_COLOR,
+        backgroundColor: OBSERVED_COLOR,
+        borderWidth: GROUND_TRUTH_LINE_WIDTH,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: OBSERVED_COLOR,
         pointBorderColor: "#ffffff",
         pointBorderWidth: 1,
       });
@@ -555,13 +568,13 @@ const ForecastleChartCanvasInner = ({
       data: medianData,
       parsing: false,
       tension: 0, // No smoothing - straight lines
-      borderColor: showScoring ? "#dc143c" : MEDIAN_COLOR,
-      backgroundColor: showScoring ? "#dc143c" : MEDIAN_COLOR,
-      borderWidth: showScoring ? 3 : 3,
-      pointRadius: showScoring ? 5 : 0,
-      pointBackgroundColor: showScoring ? "#dc143c" : HANDLE_MEDIAN,
-      pointBorderColor: showScoring ? "#ffffff" : "#000000",
-      pointBorderWidth: showScoring ? 1 : 2,
+      borderColor: USER_COLOR,
+      backgroundColor: USER_COLOR,
+      borderWidth: 2.5,
+      pointRadius: showScoring ? 4 : 0,
+      pointBackgroundColor: USER_COLOR,
+      pointBorderColor: "#ffffff",
+      pointBorderWidth: 1,
       borderDash: [5, 5], // Always dashed for forecasts
     });
 
@@ -577,7 +590,7 @@ const ForecastleChartCanvasInner = ({
           borderColor: model.color,
           backgroundColor: model.color,
           borderWidth: 2,
-          pointRadius: 4,
+          pointRadius: 3,
           pointBackgroundColor: model.color,
           pointBorderColor: "#ffffff",
           pointBorderWidth: 1,
@@ -594,11 +607,12 @@ const ForecastleChartCanvasInner = ({
         label: "Median Handles",
         data: medianHandles,
         parsing: false,
-        pointBackgroundColor: HANDLE_MEDIAN,
+        pointBackgroundColor: HANDLE_FILL,
         pointBorderColor: HANDLE_OUTLINE,
-        pointBorderWidth: 2,
-        pointHoverRadius: 10,
-        pointRadius: 8,
+        pointBorderWidth: 2.5,
+        pointHoverRadius: 9,
+        pointHoverBorderWidth: 3,
+        pointRadius: 7,
         showLine: false,
         hitRadius: 15,
       });
@@ -612,12 +626,12 @@ const ForecastleChartCanvasInner = ({
           parsing: false,
           pointBackgroundColor: (context) => {
             const meta = intervalHandles[context.dataIndex]?.meta;
-            if (!meta) return "rgba(220, 20, 60, 0.8)";
-            // Color-code by interval type - lighter for 95%
+            if (!meta) return HANDLE_50_FILL;
+            // Lighter for the 95% bounds than for the 50% ones
             if (meta.type === "upper95" || meta.type === "lower95") {
-              return "rgba(255, 182, 193, 0.9)"; // Light pink for 95%
+              return HANDLE_95_FILL;
             }
-            return "rgba(220, 20, 60, 0.9)"; // Crimson for 50%
+            return HANDLE_50_FILL;
           },
           pointBorderColor: HANDLE_OUTLINE,
           pointBorderWidth: 2,
@@ -670,8 +684,9 @@ const ForecastleChartCanvasInner = ({
             },
             usePointStyle: true,
             padding: 12,
+            color: INK.text,
             font: {
-              size: 11,
+              size: 12,
             },
           },
         },
@@ -708,29 +723,43 @@ const ForecastleChartCanvasInner = ({
           },
         },
       },
+      // Same furniture as the Plotly charts: spined axes with outside ticks
+      // in the chart ink, a faint horizontal grid, level date labels
       scales: {
         x: {
           type: "category",
+          border: { display: true, color: AXIS.linecolor, width: 1.5 },
           ticks: {
-            color: "#000000",
+            color: AXIS.tickfont.color,
+            font: { size: 12 },
             autoSkip: true,
-            maxRotation: 45,
-            minRotation: 45,
+            maxTicksLimit: 7,
+            maxRotation: 0,
+            minRotation: 0,
             callback: (value) => dateLabelFormatter(labels[value] ?? value),
           },
           grid: {
-            display: false,
+            drawOnChartArea: false,
+            drawTicks: true,
+            tickLength: 5,
+            tickWidth: 1.5,
+            tickColor: AXIS.linecolor,
           },
         },
         y: {
           beginAtZero: true,
           suggestedMax: displayedMax,
+          border: { display: true, color: AXIS.linecolor, width: 1.5 },
           ticks: {
-            color: "#000000",
+            color: AXIS.tickfont.color,
+            font: { size: 12 },
             callback: (value) => Math.round(value).toLocaleString("en-US"),
           },
           grid: {
-            color: "rgba(0, 0, 0, 0.08)",
+            color: INK.grid,
+            tickLength: 5,
+            tickWidth: 1.5,
+            tickColor: AXIS.linecolor,
           },
         },
       },

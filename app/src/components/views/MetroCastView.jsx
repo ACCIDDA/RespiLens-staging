@@ -1,35 +1,44 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useLayoutEffect, useMemo, useCallback, useRef } from "react";
+import { usePersistentXRange } from "../../hooks/usePersistentXRange";
 import {
   useMantineColorScheme,
   Stack,
   Text,
   Center,
-  SimpleGrid,
-  Paper,
-  Loader,
   Box,
   UnstyledButton,
 } from "@mantine/core";
 import Plot from "react-plotly.js";
 import ModelSelector from "../ModelSelector";
-import TitleRow from "../TitleRow";
 import { useView } from "../../hooks/useView";
-import { CHART_CONSTANTS } from "../../constants/chart";
+import { useChartReset } from "../../hooks/useChartReset";
+import {
+  CHART_CONSTANTS,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CONFIG,
+  RANGESLIDER_STYLE,
+  COMPACT_GROUND_TRUTH_LINE_WIDTH,
+  getBaseChartLayout,
+  getChartInk,
+  getForecastDateMarks,
+  getRangeSelector,
+} from "../../constants/chart";
 import {
   targetDisplayNameMap,
   targetYAxisLabelMap,
 } from "../../utils/mapUtils";
-import { getDataPath } from "../../utils/paths";
+import { fetchJson, getDataPath } from "../../utils/paths";
+import { useAsyncData } from "../../hooks/useAsyncData";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
+import useForecastDateDrag from "../../hooks/useForecastDateDrag";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
-  isPlotlyLogScale,
+  getScaleYAxis,
   normalizeChartScale,
   transformValueForScale,
 } from "../../utils/scaleUtils";
-import { getDatasetTitleFromView } from "../../utils/datasetUtils";
+import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
+import ChartCaption from "../ChartCaption";
 
 const METRO_STATE_MAP = {
   Colorado: "CO",
@@ -45,6 +54,51 @@ const METRO_STATE_MAP = {
   Virginia: "VA",
   "North Carolina": "NC",
   Oregon: "OR",
+};
+
+// Same height as the other forecast charts
+const MAIN_PLOT_HEIGHT = "min(880px, 60vh)";
+const TILE_PLOT_HEIGHT = 150;
+
+// State view: the state's chart (and its model list) takes the left two
+// thirds; the city tiles fill the column beside it, two per row, then wrap
+// into full rows below. The main block spans as many tile rows as its
+// height needs, measured as it resizes.
+const MetroStateLayout = ({ main, tiles }) => {
+  const mainRef = useRef(null);
+  const tilesRef = useRef(null);
+  const [rows, setRows] = useState(1);
+
+  useLayoutEffect(() => {
+    const mainEl = mainRef.current;
+    const layoutEl = tilesRef.current;
+    if (!mainEl || !layoutEl) return undefined;
+    const measure = () => {
+      const tile = layoutEl.querySelector(".respilens-metro-tile-cell");
+      if (!tile) return;
+      const gap = parseFloat(getComputedStyle(layoutEl).rowGap) || 0;
+      const tileHeight = tile.getBoundingClientRect().height;
+      const mainHeight = mainEl.getBoundingClientRect().height;
+      setRows(Math.max(1, Math.round((mainHeight + gap) / (tileHeight + gap))));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(mainEl);
+    measure();
+    return () => observer.disconnect();
+  }, [tiles.length]);
+
+  return (
+    <div
+      ref={tilesRef}
+      className="respilens-metro-layout"
+      style={{ "--metro-main-rows": rows }}
+    >
+      <div ref={mainRef} className="respilens-metro-main">
+        {main}
+      </div>
+      {tiles}
+    </div>
+  );
 };
 
 const MetroPlotCard = ({
@@ -121,10 +175,13 @@ const MetroPlotCard = ({
     groundTruthValueFormat: "%{y:.2f}",
     valueSuffix: "%",
     formatValue: (value) => value.toFixed(2),
-    modelLineWidth: isSmall ? 1 : 2,
+    modelLineWidth: isSmall ? 1.5 : 2,
     modelMarkerSize: isSmall ? 3 : 6,
-    groundTruthLineWidth: 1.5,
-    groundTruthMarkerSize: isSmall ? 2 : 4,
+    groundTruthLineWidth: isSmall
+      ? COMPACT_GROUND_TRUTH_LINE_WIDTH
+      : GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: isSmall ? 2 : GROUND_TRUTH_MARKER_SIZE,
+    groundTruthColor: getChartInk(colorScheme).text,
     showLegendForFirstDate: showLegend && !isSmall,
     fillMissingQuantiles: true,
     showMedian,
@@ -140,33 +197,37 @@ const MetroPlotCard = ({
 
   const defRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
 
+  // On the main chart: click to add a forecast date, drag a line to move it
+  const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
+    selectedDates,
+    enabled: !isSmall,
+    onBeforeCommit: (gd) => {
+      const range = gd?._fullLayout?.xaxis?.range;
+      if (!xAxisRange && range) setXAxisRange([...range]);
+    },
+  });
+
   const yAxisRange = useMemo(() => {
     const range = xAxisRange || defRange;
     return calculateYRange(projectionsData, range);
   }, [projectionsData, xAxisRange, defRange, calculateYRange]);
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({
-      rawRange: rawYRange,
-      formatValue: (value) => `${value.toFixed(2)}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({
-      rawRange: rawYRange,
-      formatValue: (value) => `${value.toFixed(2)}%`,
-    });
-  }, [normalizedChartScale, rawYRange]);
-
   const hasForecasts = hasForecastTraces;
+  const base = getBaseChartLayout(colorScheme, { compact: isSmall });
+  const isTransformedScale =
+    normalizedChartScale === "sqrt" || normalizedChartScale === "log2";
+  const longName = targetDisplayNameMap[selectedTarget];
 
   const PlotContent = (
     <>
       {title && (
-        <Text fw={400} size={isSmall ? "xs" : "sm"} mb={5} ta="center">
+        <Text
+          fw={600}
+          size="sm"
+          mb={4}
+          ta="left"
+          className="respilens-metro-tile-title"
+        >
           {title}
         </Text>
       )}
@@ -193,166 +254,76 @@ const MetroPlotCard = ({
       <Plot
         style={{
           width: "100%",
-          height: isSmall ? "240px" : "450px",
+          height: isSmall ? TILE_PLOT_HEIGHT : MAIN_PLOT_HEIGHT,
+          minHeight: isSmall ? undefined : 340,
           opacity: hasForecasts ? 1 : 0.6,
         }}
         data={projectionsData}
         layout={{
-          autosize: true,
-          template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-          paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-          plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-          font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
-          margin: { l: isSmall ? 45 : 60, r: 20, t: 10, b: isSmall ? 25 : 80 },
+          ...base,
+          // Full size: same frame as the other forecast charts
+          margin: isSmall
+            ? { l: 45, r: 12, t: 10, b: 30 }
+            : { l: 64, r: 30, t: 36, b: 30 },
           showlegend: showLegend && !isSmall,
-          legend: {
-            x: 0,
-            y: 1,
-            xanchor: "left",
-            yanchor: "top",
-            bgcolor:
-              colorScheme === "dark"
-                ? "rgba(26, 27, 30, 0.8)"
-                : "rgba(255, 255, 255, 0.8)",
-            bordercolor: colorScheme === "dark" ? "#444" : "#ccc",
-            borderwidth: 1,
-            font: { size: 10 },
-          },
+          dragmode: false,
           xaxis: {
-            range: xAxisRange || defRange,
-            showticklabels: !isSmall,
-            rangeslider: { visible: !isSmall, range: getDefaultRange(true) },
-            showline: true,
-            linewidth: 1,
-            linecolor: colorScheme === "dark" ? "#aaa" : "#444",
+            ...base.xaxis,
+            range: copyRange(xAxisRange || defRange),
+            ...(isSmall && { nticks: 4 }),
+            ...(!isSmall && { rangeselector: getRangeSelector(colorScheme) }),
+            rangeslider: {
+              ...RANGESLIDER_STYLE,
+              visible: !isSmall,
+              range: getDefaultRange(true),
+            },
           },
           yaxis: {
-            title: !isSmall
-              ? {
-                  text: (() => {
-                    const longName = targetDisplayNameMap[selectedTarget];
-                    const baseTitle =
-                      targetYAxisLabelMap[longName] ||
-                      longName ||
-                      selectedTarget ||
-                      "Value";
-                    return `${baseTitle}${getScaleTitleSuffix(normalizedChartScale)}`;
-                  })(),
-                  font: {
-                    color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-                    size: 12,
-                  },
-                }
-              : undefined,
-            range: isPlotlyLogScale(normalizedChartScale)
-              ? undefined
-              : yAxisRange,
-            autorange: isPlotlyLogScale(normalizedChartScale)
-              ? true
-              : yAxisRange === null,
-            type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-            tickfont: {
-              size: 9,
-              color: colorScheme === "dark" ? "#c1c2c5" : "#000000",
-            },
-            tickformat:
-              normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
+            ...base.yaxis,
+            ...getScaleYAxis({
+              scale: normalizedChartScale,
+              rawRange: rawYRange,
+              range: yAxisRange,
+              title: isSmall
                 ? undefined
-                : ".2f",
-            ticksuffix:
-              normalizedChartScale === "sqrt" || normalizedChartScale === "log2"
-                ? undefined
-                : "%",
-            tickmode:
-              (normalizedChartScale === "sqrt" && sqrtTicks) ||
-              (normalizedChartScale === "log2" && log2Ticks)
-                ? "array"
-                : undefined,
-            tickvals:
-              normalizedChartScale === "sqrt" && sqrtTicks
-                ? sqrtTicks.tickvals
-                : normalizedChartScale === "log2" && log2Ticks
-                  ? log2Ticks.tickvals
-                  : undefined,
-            ticktext:
-              normalizedChartScale === "sqrt" && sqrtTicks
-                ? sqrtTicks.ticktext
-                : normalizedChartScale === "log2" && log2Ticks
-                  ? log2Ticks.ticktext
-                  : undefined,
+                : targetYAxisLabelMap[longName] ||
+                  longName ||
+                  selectedTarget ||
+                  "Value",
+              formatValue: (value) => `${value.toFixed(2)}%`,
+            }),
+            tickformat: isTransformedScale ? undefined : ".2f",
+            ticksuffix: isTransformedScale ? undefined : "%",
           },
           hovermode: isSmall ? false : "closest",
           hoverlabel: {
             namelength: -1,
           },
-          shapes: selectedDates.map((d) => ({
-            type: "line",
-            x0: d,
-            x1: d,
-            y0: 0,
-            y1: 1,
-            yref: "paper",
-            line: { color: "red", width: 1, dash: "dash" },
-          })),
+          ...getForecastDateMarks(colorScheme, displayDates, draggingDate, 0),
         }}
-        config={{
-          displayModeBar: !isSmall,
-          responsive: true,
-          displaylogo: false,
-          staticPlot: isSmall,
-        }}
+        config={{ ...PLOT_CONFIG, staticPlot: isSmall }}
         onRelayout={(e) => {
-          const newRange = e["xaxis.range"];
-          if (newRange) {
-            if (JSON.stringify(xAxisRange) !== JSON.stringify(newRange)) {
-              setXAxisRange(newRange);
-            }
-          } else if (e["xaxis.autorange"]) {
-            if (xAxisRange !== null) setXAxisRange(null);
+          const newRange = getRelayoutXRange(e, projectionsData);
+          if (
+            newRange &&
+            JSON.stringify(xAxisRange) !== JSON.stringify(newRange)
+          ) {
+            setXAxisRange(newRange);
           }
         }}
       />
     </>
   );
 
+  // Small city charts are tiles like the front page's: no card, a hairline
+  // along the top, the title turning blue on hover (the whole tile opens the
+  // city).
   return isSmall ? (
-    <Paper
-      withBorder
-      p="xs"
-      radius="md"
-      shadow="xs"
-      style={{
-        position: "relative",
-        cursor: "pointer",
-        border: "1px solid #dee2e6",
-      }}
-    >
-      {PlotContent}
-      <Box
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 5,
-          borderRadius: "8px",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.parentElement.style.transform = "translateY(-4px)";
-          e.currentTarget.parentElement.style.borderColor = "#2563eb";
-          e.currentTarget.parentElement.style.boxShadow =
-            "0 10px 15px -3px rgba(0, 0, 0, 0.1)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.parentElement.style.transform = "translateY(0)";
-          e.currentTarget.parentElement.style.borderColor = "#dee2e6";
-          e.currentTarget.parentElement.style.boxShadow = "none";
-        }}
-      />
-    </Paper>
+    <Box className="respilens-tile respilens-metro-tile">{PlotContent}</Box>
   ) : (
-    <Box style={{ position: "relative" }}>{PlotContent}</Box>
+    <Box ref={containerRef} style={{ position: "relative" }}>
+      {PlotContent}
+    </Box>
   );
 };
 
@@ -374,14 +345,15 @@ const MetroCastView = ({
     intervalVisibility,
     showLegend,
     showOtherGroundTruthSeasons,
-    viewType,
   } = useView();
-  const [childData, setChildData] = useState({});
-  const [loadingChildren, setLoadingChildren] = useState(false);
-  const [xAxisRange, setXAxisRange] = useState(null);
+  // Kept across locations (the view remounts while one loads); each target
+  // has its own window
+  const [xAxisRange, setXAxisRange] = usePersistentXRange(
+    `metrocast:${selectedTarget}`,
+  );
+  useChartReset(() => setXAxisRange(null));
 
   const stateName = data?.metadata?.location_name;
-  const hubName = getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
   const stateCode = METRO_STATE_MAP[stateName];
   const forecasts = data?.forecasts;
 
@@ -397,46 +369,32 @@ const MetroCastView = ({
     return activeModelSet;
   }, [forecasts, selectedDates, selectedTarget]);
 
-  useEffect(() => {
-    setXAxisRange(null);
-  }, [selectedTarget]);
-
-  useEffect(() => {
-    if (!stateCode || !metadata?.locations) {
-      setChildData({});
-      return;
-    }
-
-    const fetchChildren = async () => {
-      setLoadingChildren(true);
-      const results = {};
-      const cityList = metadata.locations.filter((l) =>
-        l.location_name.includes(`, ${stateCode}`),
-      );
-
-      await Promise.all(
-        cityList.map(async (city) => {
-          try {
-            const res = await fetch(
-              getDataPath(
-                `flumetrocast/${city.abbreviation}_flu_metrocast.json`,
+  const { data: childData, loading: loadingChildren } = useAsyncData(
+    stateCode && metadata?.locations
+      ? async () => {
+          const cityList = metadata.locations.filter((l) =>
+            l.location_name.includes(`, ${stateCode}`),
+          );
+          const entries = await Promise.all(
+            cityList.map((city) =>
+              fetchJson(
+                getDataPath(
+                  `flumetrocast/${city.abbreviation}_flu_metrocast.json`,
+                ),
+              ).then(
+                (json) => [city.abbreviation, json],
+                (e) => {
+                  console.error(e);
+                  return null;
+                },
               ),
-            );
-            if (res.ok) {
-              results[city.abbreviation] = await res.json();
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }),
-      );
-
-      setChildData(results);
-      setLoadingChildren(false);
-    };
-
-    fetchChildren();
-  }, [stateCode, metadata, selectedTarget]);
+            ),
+          );
+          return Object.fromEntries(entries.filter(Boolean));
+        }
+      : null,
+    [stateCode, metadata],
+  );
 
   if (!selectedTarget)
     return (
@@ -445,13 +403,8 @@ const MetroCastView = ({
       </Center>
     );
 
-  return (
+  const main = (
     <Stack gap="xl">
-      <TitleRow
-        title={hubName ? `${stateName} — ${hubName}` : stateName}
-        timestamp={metadata?.last_updated}
-      />
-
       <MetroPlotCard
         locationData={data}
         title={null}
@@ -469,67 +422,53 @@ const MetroCastView = ({
         showLegend={showLegend}
         showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
       />
-      {stateCode && (
-        <Stack gap="md">
-          {loadingChildren ? (
-            <Center p="xl">
-              <Loader size="sm" />
-            </Center>
-          ) : (
-            <>
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} gap="md">
-                {Object.entries(childData).map(([abbr, cityData]) => (
-                  <UnstyledButton
-                    key={abbr}
-                    onClick={() => handleLocationSelect(abbr)}
-                    style={{ width: "100%" }}
-                  >
-                    <MetroPlotCard
-                      locationData={cityData}
-                      title={cityData.metadata?.location_name}
-                      isSmall={true}
-                      colorScheme={colorScheme}
-                      windowSize={windowSize}
-                      selectedTarget={selectedTarget}
-                      selectedModels={selectedModels}
-                      selectedDates={selectedDates}
-                      getDefaultRange={getDefaultRange}
-                      xAxisRange={xAxisRange}
-                      setXAxisRange={setXAxisRange}
-                      chartScale={chartScale}
-                      intervalVisibility={intervalVisibility}
-                      showLegend={showLegend}
-                      showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
-                    />
-                  </UnstyledButton>
-                ))}
-              </SimpleGrid>
-            </>
-          )}
-        </Stack>
-      )}
       <Stack gap={2}>
-        <p
-          style={{
-            fontStyle: "italic",
-            fontSize: "12px",
-            color: "#868e96",
-            textAlign: "right",
-            margin: 0,
-          }}
-        >
-          Note that forecasts should be interpreted with great caution and may
-          not reliably predict rapid changes in disease trends.
-        </p>
+        <ChartCaption forecastNote />
         <ModelSelector
           models={models}
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
+          selectedDates={selectedDates}
+          keyboardShortcut
         />
       </Stack>
     </Stack>
   );
+
+  // A city: just its chart, like the other forecast pages
+  if (!stateCode) return main;
+
+  const tiles = loadingChildren
+    ? []
+    : Object.entries(childData ?? {}).map(([abbr, cityData]) => (
+        <UnstyledButton
+          key={abbr}
+          className="respilens-metro-tile-cell"
+          onClick={() => handleLocationSelect(abbr)}
+          style={{ width: "100%", display: "block", minWidth: 0 }}
+        >
+          <MetroPlotCard
+            locationData={cityData}
+            title={cityData.metadata?.location_name}
+            isSmall={true}
+            colorScheme={colorScheme}
+            windowSize={windowSize}
+            selectedTarget={selectedTarget}
+            selectedModels={selectedModels}
+            selectedDates={selectedDates}
+            getDefaultRange={getDefaultRange}
+            xAxisRange={xAxisRange}
+            setXAxisRange={setXAxisRange}
+            chartScale={chartScale}
+            intervalVisibility={intervalVisibility}
+            showLegend={showLegend}
+            showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
+          />
+        </UnstyledButton>
+      ));
+
+  return <MetroStateLayout main={main} tiles={tiles} />;
 };
 
 export default MetroCastView;

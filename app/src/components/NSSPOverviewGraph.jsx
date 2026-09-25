@@ -1,17 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-import { IconAlertTriangle, IconChevronRight } from "@tabler/icons-react";
+import { useMemo } from "react";
+import { Alert, Loader, Stack, Text } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { useView } from "../hooks/useView";
+import { useAsyncData } from "../hooks/useAsyncData";
 import NSSPGeoMap from "./NSSPGeoMap";
+import OverviewTile, { OVERVIEW_CHART_HEIGHT } from "./OverviewTile";
 import {
   NSSP_STATE_ABBREVIATION_TO_INFO,
   fetchNsspCountiesGeoJson,
@@ -29,19 +22,27 @@ import {
   getNsspUsFeatureCallout,
 } from "../utils/nsspMap";
 
+const EMPTY_COVERAGE = {};
+
 const NSSPOverviewGraph = () => {
   const {
     selectedLocation,
     viewType: activeViewType,
     setViewAndLocation,
   } = useView();
-  const [usMapData, setUsMapData] = useState(null);
-  const [stateMapData, setStateMapData] = useState(null);
-  const [countyAssignmentData, setCountyAssignmentData] = useState(null);
-  const [stateCoverage, setStateCoverage] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    data: usMap,
+    loading,
+    error,
+  } = useAsyncData(async () => {
+    const [coverage, statesGeoJson] = await Promise.all([
+      fetchNsspStateCoverage(),
+      fetchNsspStatesGeoJson(),
+    ]);
+    return { coverage, statesGeoJson };
+  }, []);
+  const usMapData = usMap?.statesGeoJson ?? null;
+  const stateCoverage = usMap?.coverage ?? EMPTY_COVERAGE;
 
   const resolvedNsspLocation = useMemo(() => {
     if (
@@ -76,99 +77,28 @@ const NSSPOverviewGraph = () => {
   };
   const isActive = activeViewType === "nsspall";
 
-  useEffect(() => {
-    let isActiveRequest = true;
+  const needsStateMap =
+    !loading &&
+    !isUnitedStates &&
+    Boolean(selectedStateAbbreviation) &&
+    selectedStateAbbreviation !== "US" &&
+    currentStateCoverage.hasAnyData &&
+    currentStateCoverage.hasCountyData;
 
-    const loadMap = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [coverage, statesGeoJson] = await Promise.all([
-          fetchNsspStateCoverage(),
-          fetchNsspStatesGeoJson(),
-        ]);
-
-        if (!isActiveRequest) {
-          return;
+  const { data: stateMap, loading: detailLoading } = useAsyncData(
+    needsStateMap
+      ? async () => {
+          const [countiesGeoJson, assignments] = await Promise.all([
+            fetchNsspCountiesGeoJson(selectedStateAbbreviation),
+            fetchNsspCountyAssignments(selectedStateAbbreviation),
+          ]);
+          return { countiesGeoJson, assignments };
         }
-
-        setStateCoverage(coverage);
-        setUsMapData(statesGeoJson);
-      } catch (err) {
-        console.error("Failed to load NSSP front page map", err);
-        if (isActiveRequest) {
-          setError(err.message);
-          setUsMapData(null);
-        }
-      } finally {
-        if (isActiveRequest) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadMap();
-    return () => {
-      isActiveRequest = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isActiveRequest = true;
-
-    const loadStateMap = async () => {
-      if (
-        loading ||
-        isUnitedStates ||
-        !selectedStateAbbreviation ||
-        selectedStateAbbreviation === "US" ||
-        !currentStateCoverage.hasAnyData ||
-        !currentStateCoverage.hasCountyData
-      ) {
-        setStateMapData(null);
-        setCountyAssignmentData(null);
-        setDetailLoading(false);
-        return;
-      }
-
-      try {
-        setDetailLoading(true);
-        const [countiesGeoJson, assignments] = await Promise.all([
-          fetchNsspCountiesGeoJson(selectedStateAbbreviation),
-          fetchNsspCountyAssignments(selectedStateAbbreviation),
-        ]);
-
-        if (!isActiveRequest) {
-          return;
-        }
-
-        setStateMapData(countiesGeoJson);
-        setCountyAssignmentData(assignments);
-      } catch (err) {
-        console.error("Failed to load NSSP state map", err);
-        if (isActiveRequest) {
-          setStateMapData(null);
-          setCountyAssignmentData(null);
-        }
-      } finally {
-        if (isActiveRequest) {
-          setDetailLoading(false);
-        }
-      }
-    };
-
-    loadStateMap();
-    return () => {
-      isActiveRequest = false;
-    };
-  }, [
-    currentStateCoverage.hasAnyData,
-    currentStateCoverage.hasCountyData,
-    isUnitedStates,
-    loading,
-    selectedStateAbbreviation,
-  ]);
+      : null,
+    [needsStateMap, selectedStateAbbreviation],
+  );
+  const stateMapData = stateMap?.countiesGeoJson ?? null;
+  const countyAssignmentData = stateMap?.assignments ?? null;
 
   const isStateClickable = (feature) =>
     Boolean(stateCoverage[feature.properties?.STUSAB]?.hasAnyData);
@@ -242,160 +172,172 @@ const NSSPOverviewGraph = () => {
   };
 
   const hasUsMap = !loading && !error && usMapData?.features?.length;
-  const hasStateMap = !detailLoading && stateMapData?.features?.length;
+  // The previous state's map stays up (dimmed) while the next one loads
+  const hasStateMap = Boolean(stateMapData?.features?.length);
   const nsspViewTarget = currentStateCoverage.hasAnyData
     ? resolvedNsspLocation
     : "US_All";
   const locationLabel = isUnitedStates
-    ? "U.S. entry map"
-    : currentStateCoverage.hasAnyData
-      ? `${stateInfo?.name || selectedStateAbbreviation} county map`
+    ? "United States"
+    : currentStateCoverage.hasAnyData || !usMap
+      ? stateInfo?.name || selectedStateAbbreviation
       : `No NSSP data for ${stateInfo?.name || selectedStateAbbreviation}`;
 
   return (
-    <Card withBorder radius="md" padding="lg" shadow="xs">
-      <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={5}>NSSP data</Title>
-        </Group>
-
-        {loading && (
-          <Stack align="center" gap="xs" py="lg">
-            <Loader size="sm" />
-            <Text size="sm" c="dimmed">
-              Loading NSSP map...
-            </Text>
-          </Stack>
-        )}
-
-        {!loading && error && (
-          <Text size="sm" c="red">
-            No NSSP map available
+    <OverviewTile
+      title="NSSP data"
+      subtitle="Emergency department visits"
+      actionActive={isActive}
+      onAction={() => setViewAndLocation("nsspall", nsspViewTarget)}
+      locationLabel={locationLabel}
+    >
+      {loading && (
+        <Stack
+          align="center"
+          justify="center"
+          gap="xs"
+          h={OVERVIEW_CHART_HEIGHT}
+        >
+          <Loader size="sm" />
+          <Text size="sm" c="dimmed">
+            Loading NSSP map...
           </Text>
-        )}
+        </Stack>
+      )}
 
-        {hasUsMap && isUnitedStates && (
-          <Stack gap="xs">
-            <div style={{ width: "100%", minHeight: 200 }}>
-              <NSSPGeoMap
-                featureCollection={usMapData}
-                height={NSSP_MAP_HEIGHTS.usa}
-                projectionKind="usa"
-                onFeatureClick={handleStateClick}
-                isFeatureClickable={isStateClickable}
-                getFeatureKey={(feature) => feature.properties?.STUSAB}
-                getFeatureLabel={(feature) => {
-                  const stateAbbreviation = feature.properties?.STUSAB;
-                  const stateName =
-                    feature.properties?.NAME || stateAbbreviation || "State";
-                  return stateCoverage[stateAbbreviation]?.hasAnyData
-                    ? stateName
-                    : `${stateName}: no NSSP data available`;
-                }}
-                getFeatureFill={getStateFill}
-                getFeatureCallout={getNsspUsFeatureCallout}
-              />
-            </div>
-          </Stack>
-        )}
+      {!loading && error && (
+        <Text size="sm" c="red">
+          No NSSP map available
+        </Text>
+      )}
 
-        {!loading &&
-          !error &&
-          !isUnitedStates &&
-          !currentStateCoverage.hasAnyData && (
-            <Alert
-              icon={<IconAlertTriangle size={16} />}
-              color="yellow"
-              variant="light"
-            >
-              No NSSP data is available for{" "}
-              {stateInfo?.name || selectedStateAbbreviation}.
-            </Alert>
-          )}
+      {hasUsMap && isUnitedStates && (
+        <Stack gap="xs">
+          <div style={{ width: "100%" }}>
+            <NSSPGeoMap
+              featureCollection={usMapData}
+              height={NSSP_MAP_HEIGHTS.usa}
+              displayHeight={OVERVIEW_CHART_HEIGHT}
+              projectionKind="usa"
+              onFeatureClick={handleStateClick}
+              isFeatureClickable={isStateClickable}
+              getFeatureKey={(feature) => feature.properties?.STUSAB}
+              getFeatureLabel={(feature) => {
+                const stateAbbreviation = feature.properties?.STUSAB;
+                const stateName =
+                  feature.properties?.NAME || stateAbbreviation || "State";
+                return stateCoverage[stateAbbreviation]?.hasAnyData
+                  ? stateName
+                  : `${stateName}: no NSSP data available`;
+              }}
+              getFeatureFill={getStateFill}
+              getFeatureCallout={getNsspUsFeatureCallout}
+            />
+          </div>
+        </Stack>
+      )}
 
-        {!loading &&
-          !error &&
-          !isUnitedStates &&
-          currentStateCoverage.hasAnyData &&
-          !currentStateCoverage.hasCountyData && (
-            <Alert
-              icon={<IconAlertTriangle size={16} />}
-              color="yellow"
-              variant="light"
-            >
-              County-level NSSP data is not available for {stateInfo?.name}.
-            </Alert>
-          )}
-
-        {!loading &&
-          !error &&
-          !isUnitedStates &&
-          currentStateCoverage.hasAnyData &&
-          currentStateCoverage.hasCountyData && (
-            <Stack gap="xs">
-              {detailLoading ? (
-                <Stack align="center" gap="xs" py="lg">
-                  <Loader size="sm" />
-                  <Text size="sm" c="dimmed">
-                    Loading {stateInfo?.name} NSSP map...
-                  </Text>
-                </Stack>
-              ) : hasStateMap ? (
-                <div style={{ width: "100%", minHeight: 200 }}>
-                  <NSSPGeoMap
-                    featureCollection={stateMapData}
-                    height={NSSP_MAP_HEIGHTS.state}
-                    projectionKind="state"
-                    onFeatureClick={handleCountyClick}
-                    isFeatureClickable={isCountyClickable}
-                    getFeatureKey={(feature) => feature.properties?.GEOID}
-                    getFeatureLabel={(feature) => {
-                      const selection = getCountySelectionForFeature(
-                        feature,
-                        countyAssignmentData,
-                      );
-                      const countyName = feature.properties?.NAME || "County";
-
-                      if (!selection.hasData) {
-                        return `${countyName}: no NSSP data available`;
-                      }
-
-                      return selection.isStatewideFallback
-                        ? `${countyName}: uses statewide NSSP data`
-                        : countyName;
-                    }}
-                    getFeatureFill={getCountyFill}
-                  />
-                </div>
-              ) : (
-                <Alert
-                  icon={<IconAlertTriangle size={16} />}
-                  color="yellow"
-                  variant="light"
-                >
-                  County-level NSSP data is not available for {stateInfo?.name}.
-                </Alert>
-              )}
-            </Stack>
-          )}
-
-        <Group justify="space-between" align="center">
-          <Button
-            size="xs"
-            variant={isActive ? "light" : "filled"}
-            onClick={() => {
-              setViewAndLocation("nsspall", nsspViewTarget);
-            }}
-            rightSection={<IconChevronRight size={14} />}
+      {!loading &&
+        !error &&
+        !isUnitedStates &&
+        !currentStateCoverage.hasAnyData && (
+          <Alert
+            icon={<IconAlertTriangle size={16} />}
+            color="yellow"
+            variant="light"
           >
-            {isActive ? "Viewing" : "View NSSP data"}
-          </Button>
-          <Text size="xs" c="dimmed">
-            {locationLabel}
-          </Text>
-        </Group>
-      </Stack>
-    </Card>
+            No NSSP data is available for{" "}
+            {stateInfo?.name || selectedStateAbbreviation}.
+          </Alert>
+        )}
+
+      {!loading &&
+        !error &&
+        !isUnitedStates &&
+        currentStateCoverage.hasAnyData &&
+        !currentStateCoverage.hasCountyData && (
+          <Alert
+            icon={<IconAlertTriangle size={16} />}
+            color="yellow"
+            variant="light"
+          >
+            County-level NSSP data is not available for {stateInfo?.name}.
+          </Alert>
+        )}
+
+      {!loading &&
+        !error &&
+        !isUnitedStates &&
+        currentStateCoverage.hasAnyData &&
+        currentStateCoverage.hasCountyData && (
+          <Stack gap="xs">
+            {detailLoading && !hasStateMap ? (
+              <Stack
+                align="center"
+                justify="center"
+                gap="xs"
+                h={OVERVIEW_CHART_HEIGHT}
+              >
+                <Loader size="sm" />
+                <Text size="sm" c="dimmed">
+                  Loading {stateInfo?.name} NSSP map...
+                </Text>
+              </Stack>
+            ) : hasStateMap ? (
+              <div
+                className="respilens-view"
+                data-loading={detailLoading || undefined}
+                style={{
+                  width: "100%",
+                  pointerEvents: detailLoading ? "none" : undefined,
+                }}
+              >
+                {detailLoading && (
+                  <div
+                    className="respilens-chart-spinner"
+                    style={{ top: "50%" }}
+                  >
+                    <Loader size="sm" aria-label="Loading" />
+                  </div>
+                )}
+                <NSSPGeoMap
+                  featureCollection={stateMapData}
+                  height={NSSP_MAP_HEIGHTS.state}
+                  displayHeight={OVERVIEW_CHART_HEIGHT}
+                  projectionKind="state"
+                  onFeatureClick={handleCountyClick}
+                  isFeatureClickable={isCountyClickable}
+                  getFeatureKey={(feature) => feature.properties?.GEOID}
+                  getFeatureLabel={(feature) => {
+                    const selection = getCountySelectionForFeature(
+                      feature,
+                      countyAssignmentData,
+                    );
+                    const countyName = feature.properties?.NAME || "County";
+
+                    if (!selection.hasData) {
+                      return `${countyName}: no NSSP data available`;
+                    }
+
+                    return selection.isStatewideFallback
+                      ? `${countyName}: uses statewide NSSP data`
+                      : countyName;
+                  }}
+                  getFeatureFill={getCountyFill}
+                />
+              </div>
+            ) : (
+              <Alert
+                icon={<IconAlertTriangle size={16} />}
+                color="yellow"
+                variant="light"
+              >
+                County-level NSSP data is not available for {stateInfo?.name}.
+              </Alert>
+            )}
+          </Stack>
+        )}
+    </OverviewTile>
   );
 };
 

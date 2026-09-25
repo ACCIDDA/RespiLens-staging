@@ -25,6 +25,7 @@ import {
   ThemeIcon,
   Tooltip as MantineTooltip,
   Title,
+  useMantineColorScheme,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -47,6 +48,7 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import Plot from "react-plotly.js";
+import { getBaseChartLayout, getChartInk } from "../../constants/chart";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import Seo from "../Seo";
@@ -581,6 +583,7 @@ const ReportingDelayPage = () => {
     ];
   }, [displayReferenceDates, displayReportDates, triangle.valueMap]);
 
+  const { colorScheme } = useMantineColorScheme();
   const heatmapLayout = useMemo(() => {
     const diagonalLine =
       diagonalDates.length > 1
@@ -591,14 +594,17 @@ const ReportingDelayPage = () => {
               y0: formatDateLabel(diagonalDates[0]),
               x1: formatDateLabel(diagonalDates[diagonalDates.length - 1]),
               y1: formatDateLabel(diagonalDates[diagonalDates.length - 1]),
-              line: { color: "#1a1b1e", width: 2 },
+              line: { color: getChartInk(colorScheme).text, width: 2 },
             },
           ]
         : [];
+    const shared = getBaseChartLayout(colorScheme);
     return {
+      ...shared,
       margin: { l: 80, r: 20, t: 20, b: 60 },
-      xaxis: { title: "Report date", type: "category" },
+      xaxis: { ...shared.xaxis, title: "Report date", type: "category" },
       yaxis: {
+        ...shared.yaxis,
         title: "Reference date",
         type: "category",
         autorange: "reversed",
@@ -606,7 +612,7 @@ const ReportingDelayPage = () => {
       shapes: diagonalLine,
       height: 520,
     };
-  }, [diagonalDates]);
+  }, [diagonalDates, colorScheme]);
 
   const canAnalyze = mappingComplete;
   const showFilters = extraColumnOptions.length > 0;
@@ -660,7 +666,7 @@ const ReportingDelayPage = () => {
         description="Upload reporting data to explore delay distributions, build reporting triangles, and assess nowcasting needs in RespiLens."
         canonicalPath="/toolbox/reporting-triangle"
       />
-      <Container size="xl" py="xl">
+      <Container size="xl" pt="md" pb="xl">
         <Stack gap="xl">
           <Stack gap="xs">
             <Group align="center" gap="xs" wrap="nowrap">

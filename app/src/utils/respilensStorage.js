@@ -198,28 +198,6 @@ export function getForecastleGame(id) {
 }
 
 /**
- * Delete a specific game
- * @param {string} id - Game ID to delete
- * @returns {boolean} Success status
- */
-export function deleteForecastleGame(id) {
-  if (!isLocalStorageAvailable()) {
-    console.error("localStorage is not available");
-    return false;
-  }
-
-  try {
-    const games = getForecastleGames();
-    const filtered = games.filter((g) => g.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-    return true;
-  } catch (error) {
-    console.error("Error deleting Forecastle game:", error);
-    return false;
-  }
-}
-
-/**
  * Clear all Forecastle game data
  * @returns {boolean} Success status
  */
@@ -245,42 +223,4 @@ export function clearForecastleGames() {
 export function exportForecastleData() {
   const games = getForecastleGames();
   return JSON.stringify(games, null, 2);
-}
-
-/**
- * Import game data from JSON
- * @param {string} jsonData - JSON string of games to import
- * @returns {boolean} Success status
- */
-export function importForecastleData(jsonData) {
-  if (!isLocalStorageAvailable()) {
-    console.error("localStorage is not available");
-    return false;
-  }
-
-  try {
-    const imported = JSON.parse(jsonData);
-    if (!Array.isArray(imported)) {
-      throw new Error("Invalid data format: expected array");
-    }
-
-    // Validate all games
-    const validGames = imported.filter((game) => {
-      const valid = isValidGame(game);
-      if (!valid) {
-        console.warn("Skipping invalid game during import:", game);
-      }
-      return valid;
-    });
-
-    if (validGames.length === 0) {
-      throw new Error("No valid games found in import data");
-    }
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(validGames));
-    return true;
-  } catch (error) {
-    console.error("Error importing Forecastle data:", error);
-    throw error; // Re-throw so caller can handle
-  }
 }

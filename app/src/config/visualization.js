@@ -40,11 +40,17 @@ export const CHART_CONFIG = {
   yAxisPaddingPercent: 15,
 
   /**
-   * Forecastle game-specific colors
-   * Colors used in the Forecastle game for user-drawn forecasts
+   * Forecastle game colours, shared by the chart and the results list.
+   * The player's forecast is the brand blue; the hub ensemble a neutral
+   * slate (it is the reference, like observed data); the top-ranked models
+   * take the next three slots. As a line set (user + top models) these pass
+   * the dataviz validator's adjacent checks on white.
    */
   forecastleColors: {
-    interval95: "rgba(220, 20, 60, 0.25)", // Crimson with transparency
-    interval50: "rgba(220, 20, 60, 0.45)", // Crimson with more opacity
+    user: "#0076d1",
+    interval95: "rgba(0, 118, 209, 0.14)",
+    interval50: "rgba(0, 118, 209, 0.3)",
+    hub: "#495057",
+    topModels: ["#c2255c", "#e67700", "#1098ad"],
   },
 };

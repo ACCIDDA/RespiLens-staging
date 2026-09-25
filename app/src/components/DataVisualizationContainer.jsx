@@ -1,29 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Stack,
   Container,
-  Paper,
   Group,
-  Button,
-  Tooltip,
   Title,
   Anchor,
   List,
+  Text,
 } from "@mantine/core";
 import { useView } from "../hooks/useView";
 import { extractPlotData } from "../hooks/extractPlotDataFromURL";
-import DateSelector from "./DateSelector";
+import ChartHeader from "./ChartHeader";
+import { ChartAboutContext } from "../contexts/ChartAboutContext";
+import { ChartResetContext } from "../contexts/ChartResetContext";
+import { ChartRangeContext } from "../contexts/ChartRangeContext";
+import LocationPicker from "./LocationPicker";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 import ViewSwitchboard from "./ViewSwitchboard";
 import ErrorBoundary from "./ErrorBoundary";
-import AboutHubOverlay from "./AboutHubOverlay";
-import FrontPage from "./FrontPage";
-import {
-  IconShare,
-  IconBrandGithub,
-  IconChartScatter,
-} from "@tabler/icons-react";
+import FrontPage, { FrontPageAnnouncements } from "./FrontPage";
+import { IconBrandGithub } from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
 import Seo from "./Seo";
+import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
+import { downloadChartPng } from "../utils/downloadChartPng";
 
 const DataVisualizationContainer = ({ disableSeo = false }) => {
   const {
@@ -55,6 +55,16 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
     height: window.innerHeight,
   });
   const clipboard = useClipboard({ timeout: 2000 });
+  const chartAreaRef = useRef(null);
+
+  // The chart header's download: the view's main chart, as a PNG
+  const handleDownload = () => downloadChartPng(chartAreaRef.current, viewType);
+
+  // Each chart's zoomed time range, kept while views remount
+  const rangeStore = useRef({});
+
+  const [resetCount, setResetCount] = useState(0);
+  const handleResetView = () => setResetCount((count) => count + 1);
 
   const [isAdded, setIsAdded] = useState(false);
   const handleSaveToMyPlots = () => {
@@ -86,7 +96,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       buttonLabel: "About COVID-19 Forecast Hub",
       content: (
         <>
-          <p>
+          <div>
             Data for the RespiLens COVID-19 Forecasts view is retrieved from the
             COVID-19 Forecast Hub, which is an open challenge organized by the{" "}
             <a
@@ -97,7 +107,6 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
               US CDC
             </a>{" "}
             designed to collect forecasts for the following two targets:
-            <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to COVID-19</List.Item>
               <List.Item>
@@ -105,7 +114,6 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
                 COVID-19
               </List.Item>
             </List>
-            <p></p>
             RespiLens displays forecasts for all models, dates and targets. For
             attribution and more information, please visit the COVID-19 Forecast
             Hub{" "}
@@ -117,7 +125,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
               GitHub repository
             </a>
             .
-          </p>
+          </div>
           <div>
             <Title order={4} mb="xs">
               Forecasts
@@ -149,11 +157,10 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
       buttonLabel: "About RSV Forecast Hub",
       content: (
         <>
-          <p>
+          <div>
             Data for the RespiLens RSV Forecasts view is retrieved from the RSV
             Forecast Hub, which is an open challenge organized by the US CDC
             designed to collect forecasts for the following two targets:
-            <p></p>
             <List spacing="xs" size="sm">
               <List.Item>Weekly new hospitalizations due to RSV</List.Item>
               <List.Item>
@@ -161,7 +168,6 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
                 RSV
               </List.Item>
             </List>
-            <p></p>
             RespiLens displays forecasts for all models, dates and targets. For
             attribution and more information, please visit the RSV Forecast Hub{" "}
             <a
@@ -172,7 +178,7 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
               GitHub repository
             </a>
             .
-          </p>
+          </div>
           <div>
             <Title order={4} mb="xs">
               Forecasts
@@ -534,6 +540,11 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
   };
 
   const currentAboutConfig = aboutHubConfig[viewType];
+  const chartAbout = currentAboutConfig && {
+    title: currentAboutConfig.title,
+    content: currentAboutConfig.content,
+    sourceLabel: currentAboutConfig.buttonLabel.replace(/^About\s+/, ""),
+  };
 
   useEffect(() => {
     const handleResize = () =>
@@ -556,19 +567,49 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
     }
   }, [viewType, selectedDates, activeDate, setSelectedDates]);
 
+  // "RespiLens | Flu Forecasts | Peak Forecasts | California": names, not
+  // codes, and one title per address so analytics can tell the pages apart
+  const locationName = resolvePlotLocationDisplayName(selectedLocation);
+  const variantLabel =
+    currentDataset && viewType !== currentDataset.defaultView
+      ? currentDataset.views.find((view) => view.value === viewType)?.label
+      : null;
+  const forecastTitle = [
+    "RespiLens",
+    currentDataset?.fullName || "Forecasts",
+    variantLabel,
+    locationName,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   if (viewType === "frontpage") {
     return (
       <ErrorBoundary onReset={() => window.location.reload()}>
         {!disableSeo && (
           <Seo
-            title="RespiLens | Forecasts"
+            title={`RespiLens | Forecasts | ${locationName}`}
             description="Explore respiratory disease forecasts and surveillance data for influenza, COVID-19, RSV, and hospital respiratory metrics across the United States."
           />
         )}
-        <Container size="xl" py="xl" style={{ maxWidth: "1400px" }}>
+        <FrontPageAnnouncements />
+        <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
           <Stack gap="lg">
+            <Title order={2} fz={{ base: 20, sm: 24 }} fw={600}>
+              <Text span inherit c="dimmed" fw={400}>
+                Overview for
+              </Text>{" "}
+              <LocationPicker />
+            </Title>
             <FrontPage />
           </Stack>
+          <KeyboardShortcutsModal
+            hasTargets={false}
+            hasDates={false}
+            hasModels={false}
+            hasIntervals={false}
+            hasDownload={false}
+          />
         </Container>
       </ErrorBoundary>
     );
@@ -578,165 +619,54 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
     <ErrorBoundary onReset={() => window.location.reload()}>
       {!disableSeo && (
         <Seo
-          title={`RespiLens | ${currentDataset?.fullName || "Forecasts"}`}
+          title={forecastTitle}
           description={`View ${currentDataset?.fullName || "respiratory disease forecasts"} in RespiLens with model projections, observed trends, and state-level respiratory disease activity.`}
         />
       )}
-      <Container size="xl" py="xl" style={{ maxWidth: "1400px" }}>
-        <Stack gap="lg">
-          <Paper shadow="sm" p="lg" radius="md" withBorder>
-            <Stack gap="md" style={{ minHeight: "70vh" }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    windowSize.width > 800 ? "auto 1fr auto" : "1fr",
-                  gap: "0.5rem",
-                  alignItems: "center",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gridColumn: windowSize.width > 800 ? "auto" : "1",
-                  }}
-                >
-                  {currentAboutConfig && (
-                    <AboutHubOverlay
-                      title={currentAboutConfig.title}
-                      buttonLabel={currentAboutConfig.buttonLabel}
-                    >
-                      {currentAboutConfig.content}
-                    </AboutHubOverlay>
-                  )}
-                  {windowSize.width <= 800 && (
-                    <Group gap="xs">
-                      <Button
-                        variant="light"
-                        size="xs"
-                        mr="xs"
-                        color={isAdded ? "green" : "blue"}
-                        className={isAdded ? "added-text-pulse" : ""}
-                        leftSection={<IconChartScatter size={16} />}
-                        onClick={handleSaveToMyPlots}
-                      >
-                        {isAdded ? "Added!" : "Add to My Plots"}
-                      </Button>
-                      <Tooltip
-                        label={
-                          clipboard.copied
-                            ? "Link copied"
-                            : "Copy link to this view"
-                        }
-                      >
-                        <Button
-                          variant="light"
-                          size="xs"
-                          color={clipboard.copied ? "green" : "blue"}
-                          leftSection={<IconShare size={16} />}
-                          onClick={handleShare}
-                        >
-                          {clipboard.copied ? "URL Copied!" : "Share View"}
-                        </Button>
-                      </Tooltip>
-                    </Group>
-                  )}
-                </div>
-                {currentDataset?.hasDateSelector && windowSize.width > 800 && (
-                  <div style={{ display: "flex", justifyContent: "center" }}>
-                    <DateSelector
-                      selectedDates={selectedDates}
-                      setSelectedDates={setSelectedDates}
-                      availableDates={availableDates}
-                      activeDate={activeDate}
-                      setActiveDate={setActiveDate}
+      <ChartAboutContext.Provider value={chartAbout}>
+        <ChartResetContext.Provider value={resetCount}>
+          <ChartRangeContext.Provider value={rangeStore}>
+            <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
+              <Stack gap="lg">
+                <Stack gap="md" style={{ minHeight: "78vh" }}>
+                  <ChartHeader
+                    onSave={handleSaveToMyPlots}
+                    isAdded={isAdded}
+                    onShare={handleShare}
+                    shareCopied={clipboard.copied}
+                    onDownload={handleDownload}
+                    onResetView={handleResetView}
+                  />
+                  <div ref={chartAreaRef} style={{ flex: 1, minHeight: 0 }}>
+                    <ViewSwitchboard
+                      viewType={viewType}
+                      location={selectedLocation}
+                      data={data}
+                      metadata={metadata}
                       loading={loading}
-                      multi={viewType !== "flu_peak"}
+                      error={error}
+                      availableDates={availableDates}
+                      models={models}
+                      selectedDates={selectedDates}
+                      selectedModels={selectedModels}
+                      setSelectedDates={setSelectedDates}
+                      setActiveDate={setActiveDate}
+                      setSelectedModels={setSelectedModels}
+                      selectedColumns={selectedColumns}
+                      setSelectedColumns={setSelectedColumns}
+                      windowSize={windowSize}
+                      selectedTarget={selectedTarget}
+                      peaks={peaks}
+                      availablePeakDates={availablePeakDates}
+                      availablePeakModels={availablePeakModels}
                     />
                   </div>
-                )}
-                {windowSize.width > 800 && (
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <Button
-                      variant="light"
-                      size="xs"
-                      mr="xs"
-                      color={isAdded ? "green" : "blue"}
-                      className={isAdded ? "added-text-pulse" : ""}
-                      leftSection={<IconChartScatter size={16} />}
-                      onClick={handleSaveToMyPlots}
-                    >
-                      {isAdded ? "Added!" : "Add to My Plots"}
-                    </Button>
-                    <Tooltip
-                      label={
-                        clipboard.copied
-                          ? "Link copied"
-                          : "Copy link to this view"
-                      }
-                    >
-                      <Button
-                        variant="light"
-                        size="xs"
-                        color={clipboard.copied ? "green" : "blue"}
-                        leftSection={<IconShare size={16} />}
-                        onClick={handleShare}
-                      >
-                        {clipboard.copied ? "URL Copied!" : "Share View"}
-                      </Button>
-                    </Tooltip>
-                  </div>
-                )}
-                {currentDataset?.hasDateSelector && windowSize.width <= 800 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      marginTop: "0.5rem",
-                    }}
-                  >
-                    <DateSelector
-                      selectedDates={selectedDates}
-                      setSelectedDates={setSelectedDates}
-                      availableDates={availableDates}
-                      activeDate={activeDate}
-                      setActiveDate={setActiveDate}
-                      loading={loading}
-                      multi={viewType !== "flu_peak"} //this disables multi date select if flu peak
-                    />
-                  </div>
-                )}
-              </div>
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <ViewSwitchboard
-                  viewType={viewType}
-                  location={selectedLocation}
-                  data={data}
-                  metadata={metadata}
-                  loading={loading}
-                  error={error}
-                  availableDates={availableDates}
-                  models={models}
-                  selectedDates={selectedDates}
-                  selectedModels={selectedModels}
-                  setSelectedDates={setSelectedDates}
-                  setActiveDate={setActiveDate}
-                  setSelectedModels={setSelectedModels}
-                  selectedColumns={selectedColumns}
-                  setSelectedColumns={setSelectedColumns}
-                  windowSize={windowSize}
-                  selectedTarget={selectedTarget}
-                  peaks={peaks}
-                  availablePeakDates={availablePeakDates}
-                  availablePeakModels={availablePeakModels}
-                />
-              </div>
-            </Stack>
-          </Paper>
-        </Stack>
-      </Container>
+                </Stack>
+              </Stack>
+            </Container>
+          </ChartRangeContext.Provider>
+        </ChartResetContext.Provider>
+      </ChartAboutContext.Provider>
     </ErrorBoundary>
   );
 };

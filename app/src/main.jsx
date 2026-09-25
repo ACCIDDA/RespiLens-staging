@@ -7,12 +7,18 @@ import "@mantine/notifications/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/spotlight/styles.css";
 import "@mantine/carousel/styles.css";
+import "./styles/global.css";
 import App from "./App.jsx";
-import { theme } from "./theme/mantine.js";
+import { theme, cssVariablesResolver } from "./theme/mantine.js";
+import { applyChartJsDefaults } from "./constants/chart";
+
+// Chart.js charts (Forecastle, reporting delays) use the same type as the
+// Plotly ones
+applyChartJsDefaults();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver}>
       <Notifications />
       <App />
     </MantineProvider>

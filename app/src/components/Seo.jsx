@@ -25,6 +25,8 @@ const Seo = ({
   imageAlt = DEFAULT_IMAGE_ALT,
   type = "website",
   structuredData,
+  // Addresses that are not pages (a 404) ask to stay out of the index
+  noindex = false,
 }) => {
   const location = useLocation();
   const path = canonicalPath || location.pathname || "/";
@@ -51,7 +53,12 @@ const Seo = ({
     <Helmet>
       <title>{pageTitle}</title>
       <meta name="description" content={description} />
-      <meta name="robots" content="index,follow,max-image-preview:large" />
+      <meta
+        name="robots"
+        content={
+          noindex ? "noindex,follow" : "index,follow,max-image-preview:large"
+        }
+      />
       <link rel="canonical" href={canonicalUrl} />
 
       <meta property="og:type" content={type} />

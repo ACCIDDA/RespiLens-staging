@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { URLParameterManager } from "../utils/urlManager";
 import { useForecastData } from "../hooks/useForecastData";
@@ -6,12 +6,13 @@ import { ViewContext } from "./ViewContextObject";
 import { APP_CONFIG, DATASETS } from "../config";
 import { getDataPath } from "../utils/paths";
 import {
-  buildForecastPath,
   buildForecastUrl,
+  getForecastRouteError,
   isForecastPathname,
-  isPathBasedForecastView,
   parseForecastUrlState,
 } from "../utils/forecastRoutes";
+
+const DATE_URL_DELAY_MS = 250;
 
 const METRO_STATE_MAP = {
   Colorado: "CO",
@@ -347,7 +348,12 @@ export const ViewProvider = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const isForecastPage = isForecastPathname(location.pathname);
+  // An address that is not a page (a mistyped hub, view or state) is left
+  // exactly as typed: reconciling it would redirect to a working view and
+  // swallow the error the reader needs to see.
+  const isForecastPage =
+    isForecastPathname(location.pathname) &&
+    !getForecastRouteError(location.pathname);
 
   const urlManager = useMemo(
     () =>
@@ -364,7 +370,6 @@ export const ViewProvider = ({ children }) => {
   const [selectedLocation, setSelectedLocation] = useState(() => {
     const { location: urlLoc, viewType: currentView } = parseForecastUrlState(
       location.pathname,
-      searchParams,
     );
     const dataset = urlManager.getDatasetFromView(currentView);
     if (dataset?.defaultLocation && urlLoc === APP_CONFIG.defaultLocation) {
@@ -376,8 +381,14 @@ export const ViewProvider = ({ children }) => {
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [activeDate, setActiveDate] = useState(null);
+  // Holding an arrow key steps dates far faster than browsers allow history
+  // writes (Safari throws past 100 per 10 s), so the URL trails the state
+  const dateUrlTimerRef = useRef(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [locationMessage, setLocationMessage] = useState(null);
+  // NSSP data comes per group of counties (HSA): remember which county the
+  // user picked so the county picker and map can name it
+  const [nsspCounty, setNsspCounty] = useState(null);
   const [locationCatalogs, setLocationCatalogs] = useState({});
   const [chartScale, setChartScale] = useState(
     () => urlManager.getAdvancedParams().chartScale,
@@ -416,25 +427,35 @@ export const ViewProvider = ({ children }) => {
               return null;
             }
 
-            const response = await fetch(
-              getDataPath(`${dataset.dataPath}/metadata.json`),
-            );
-
-            if (!response.ok) {
-              throw new Error(
-                `Failed to fetch location metadata for ${dataset.shortName}: ${response.status}`,
+            // One missing dataset shouldn't wipe every catalog (which would
+            // snap all views back to their default location).
+            try {
+              const response = await fetch(
+                getDataPath(`${dataset.dataPath}/metadata.json`),
               );
+
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to fetch location metadata for ${dataset.shortName}: ${response.status}`,
+                );
+              }
+
+              const metadata = await response.json();
+              const catalog =
+                dataset.shortName === "nssp"
+                  ? buildNsspLocationCatalog(metadata)
+                  : dataset.shortName === "metrocast"
+                    ? buildMetroLocationCatalog(metadata)
+                    : buildStandardLocationCatalog(metadata);
+
+              return [dataset.shortName, catalog];
+            } catch (datasetError) {
+              console.error(
+                `Error loading location catalog for ${dataset.shortName}:`,
+                datasetError,
+              );
+              return null;
             }
-
-            const metadata = await response.json();
-            const catalog =
-              dataset.shortName === "nssp"
-                ? buildNsspLocationCatalog(metadata)
-                : dataset.shortName === "metrocast"
-                  ? buildMetroLocationCatalog(metadata)
-                  : buildStandardLocationCatalog(metadata);
-
-            return [dataset.shortName, catalog];
           }),
         );
 
@@ -470,6 +491,9 @@ export const ViewProvider = ({ children }) => {
     }
     return availableDates || [];
   }, [viewType, availablePeakDates, availableDates]);
+
+  // A pending date write belongs to the view it was made in
+  useEffect(() => () => clearTimeout(dateUrlTimerRef.current), [viewType]);
 
   const updateDatasetParams = useCallback(
     (params) => {
@@ -544,10 +568,12 @@ export const ViewProvider = ({ children }) => {
       modelsToSet = [modelsForView[0]];
       needsModelUrlUpdate = true;
     }
+    // Drop a URL that only names the default model. Not one where other
+    // requested models just have no forecast here: they come back at the
+    // next location that has them.
     if (
-      params.models?.length > 0 &&
-      modelsToSet.length === 1 &&
-      modelsToSet[0] === currentDataset.defaultModel
+      params.models?.length === 1 &&
+      params.models[0] === currentDataset.defaultModel
     ) {
       needsModelUrlUpdate = true;
     }
@@ -652,9 +678,10 @@ export const ViewProvider = ({ children }) => {
     }
   }, [loading, availableTargets, selectedTarget]);
 
-  const handleLocationSelect = (newLocation) => {
+  const handleLocationSelect = (newLocation, county = null) => {
     const currentDataset = urlManager.getDatasetFromView(viewType);
     setLocationMessage(null);
+    setNsspCounty(county);
     const nextUrl = buildForecastUrl({
       viewType,
       location:
@@ -752,10 +779,12 @@ export const ViewProvider = ({ children }) => {
 
   const handleViewChange = useCallback(
     (newView) => {
-      if (viewType === newView) return;
+      // Off the chart pages (Forecastle, My Plots...) the remembered view is
+      // not on screen, so picking it again still has to navigate there
+      if (isForecastPage && viewType === newView) return;
       handleViewLocationChange(newView);
     },
-    [handleViewLocationChange, viewType],
+    [handleViewLocationChange, viewType, isForecastPage],
   );
 
   useEffect(() => {
@@ -765,6 +794,12 @@ export const ViewProvider = ({ children }) => {
 
     const currentDataset = urlManager.getDatasetFromView(viewType);
     if (!currentDataset) {
+      return;
+    }
+
+    // Wait for this view's catalog: validating against a missing one sends
+    // every deep link (e.g. /forecasts/flusight/MA) back to the default.
+    if (!locationCatalogs[viewType]) {
       return;
     }
 
@@ -876,30 +911,6 @@ export const ViewProvider = ({ children }) => {
     showOtherGroundTruthSeasons,
   ]);
 
-  useEffect(() => {
-    if (location.pathname !== "/") {
-      return;
-    }
-
-    if (!isPathBasedForecastView(viewType)) {
-      return;
-    }
-
-    const nextUrl = buildForecastUrl({
-      viewType,
-      location: selectedLocation,
-      searchParams,
-    });
-    const canonicalPath = buildForecastPath(viewType, selectedLocation);
-
-    if (
-      nextUrl.pathname === canonicalPath &&
-      nextUrl.pathname !== location.pathname
-    ) {
-      navigate(nextUrl, { replace: true });
-    }
-  }, [location.pathname, navigate, searchParams, selectedLocation, viewType]);
-
   const setChartScaleWithUrl = useCallback(
     (nextScale) => {
       setChartScale(nextScale);
@@ -949,6 +960,7 @@ export const ViewProvider = ({ children }) => {
     selectedLocation,
     locationMessage,
     handleLocationSelect,
+    nsspCounty,
     data,
     metadata,
     loading,
@@ -974,15 +986,16 @@ export const ViewProvider = ({ children }) => {
     },
     selectedDates,
     setSelectedDates: (updater) => {
-      setSelectedDates((prevDates) => {
-        const nextDates =
-          typeof updater === "function" ? updater(prevDates) : updater;
+      const nextDates =
+        typeof updater === "function" ? updater(selectedDates) : updater;
+      setSelectedDates(nextDates);
+      clearTimeout(dateUrlTimerRef.current);
+      dateUrlTimerRef.current = setTimeout(() => {
         const latestDate =
           availableDatesToExpose[availableDatesToExpose.length - 1];
         const isDefault = nextDates.length === 1 && nextDates[0] === latestDate;
         updateDatasetParams({ dates: isDefault ? [] : nextDates });
-        return nextDates;
-      });
+      }, DATE_URL_DELAY_MS);
     },
     activeDate,
     setActiveDate,

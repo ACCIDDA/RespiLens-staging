@@ -8,12 +8,11 @@ import {
   Button,
   Checkbox,
   Container,
-  Grid,
   Group,
   Loader,
   List,
   Paper,
-  Select,
+  Popover,
   SimpleGrid,
   Stack,
   Switch,
@@ -26,6 +25,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  IconAdjustmentsHorizontal,
   IconAlertCircle,
   IconArrowLeft,
   IconFileText,
@@ -33,22 +33,39 @@ import {
   IconInfoCircle,
   IconUpload,
   IconPlus,
+  IconZoomReset,
+  IconDownload,
 } from "@tabler/icons-react";
 import Plot from "react-plotly.js";
 import Plotly from "plotly.js/dist/plotly";
 import { parquetReadObjects } from "hyparquet";
 import DateSelector from "../DateSelector";
+import InlinePicker from "../InlinePicker";
+import { ChartInfoButton } from "../KeyboardShortcutsModal";
+import ShortcutHint from "../ShortcutHint";
+import { useKeyboardShortcut } from "../../hooks/useKeyboardShortcut";
 import ModelSelector from "../ModelSelector";
 import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
-import { MODEL_COLORS } from "../../config/datasets";
-import { CHART_CONSTANTS } from "../../constants/chart";
-import { extendStableModelOrder } from "../../utils/modelColorUtils";
+import { APP_CONFIG } from "../../config/app";
+import { DATASETS, MODEL_COLORS } from "../../config/datasets";
+import { nextIntervalVisibility } from "../../utils/intervalCycle";
+import { downloadChartPng } from "../../utils/downloadChartPng";
 import {
-  buildLog2Ticks,
-  buildSqrtTicks,
-  getScaleTitleSuffix,
+  CHART_CONSTANTS,
+  RANGESLIDER_STYLE,
+  GROUND_TRUTH_LINE_WIDTH,
+  GROUND_TRUTH_MARKER_SIZE,
+  PLOT_CONFIG,
+  getBaseChartLayout,
+  getChartInk,
+  getForecastDateLineStyle,
+} from "../../constants/chart";
+import { extendStableModelOrder } from "../../utils/modelColorUtils";
+import { targetDisplayNameMap } from "../../utils/mapUtils";
+import {
+  getScaleYAxis,
   isPlotlyLogScale,
   normalizeChartScale,
   transformValueForScale,
@@ -1094,21 +1111,32 @@ const ValidationSummary = ({ summary }) => (
   </Group>
 );
 
+// Same order as the hub's location picker: the default location (US) first,
+// then the rest by name. The first option is therefore the default.
 const buildLocationOptions = (projectionOutputs) =>
   Object.entries(projectionOutputs)
     .filter(([fileName]) => fileName !== "metadata.json")
-    .map(([fileName, payload]) => ({
-      value: fileName,
-      label: (() => {
-        const locationName = payload?.metadata?.location_name;
-        const abbreviation = payload?.metadata?.abbreviation;
-        if (locationName && abbreviation && locationName !== abbreviation) {
-          return `${locationName} (${abbreviation})`;
-        }
-        return locationName || abbreviation || fileName;
-      })(),
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .map(([fileName, payload]) => {
+      const abbreviation = payload?.metadata?.abbreviation;
+      const isDefault = abbreviation === APP_CONFIG.defaultLocation;
+      const locationName = isDefault
+        ? "United States"
+        : payload?.metadata?.location_name;
+      return {
+        value: fileName,
+        isDefault,
+        name: locationName || abbreviation || fileName,
+        label:
+          locationName && abbreviation && locationName !== abbreviation
+            ? `${locationName} (${abbreviation})`
+            : locationName || abbreviation || fileName,
+      };
+    })
+    .sort((left, right) => {
+      if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1;
+      return left.name.localeCompare(right.name);
+    })
+    .map(({ value, label }) => ({ value, label }));
 
 const validateGroundTruthCsv = (
   records,
@@ -1333,8 +1361,19 @@ const buildMetroHierarchy = (projectionOutputs) => {
     ];
   });
 
+  // The state of the hub's default MetroCast location, else the first state
+  const defaultLocation = metadataLocations.find(
+    (location) => location.abbreviation === DATASETS.metrocast.defaultLocation,
+  );
+  const defaultState =
+    stateOptions.find((state) => state.value === defaultLocation?.state_abb)
+      ?.value ??
+    stateOptions[0]?.value ??
+    null;
+
   return {
     stateOptions,
+    defaultState,
     locationsByState,
   };
 };
@@ -1358,7 +1397,7 @@ const getTargetOptions = (locationData) => {
   return [...targetSet]
     .map((target) => ({
       value: target,
-      label: target,
+      label: targetDisplayNameMap[target] || target,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
 };
@@ -1505,8 +1544,9 @@ const MyRespiVisualizationPanel = ({
   const [showLegend, setShowLegend] = useState(true);
   const [xAxisRange, setXAxisRange] = useState(null);
   const [yAxisRange, setYAxisRange] = useState(null);
+  // On by default whenever the upload is old enough to compare
   const [compareWithSubmittingModels, setCompareWithSubmittingModels] =
-    useState(false);
+    useState(Boolean(comparisonEligibility?.isEligible));
   const [comparisonDataState, setComparisonDataState] = useState({
     status: "idle",
     data: null,
@@ -1544,7 +1584,7 @@ const MyRespiVisualizationPanel = ({
     setSelectedMetroState((current) =>
       current && stateOptions.some((option) => option.value === current)
         ? current
-        : stateOptions[0].value,
+        : (metroHierarchy?.defaultState ?? stateOptions[0].value),
     );
   }, [isMetrocast, metroHierarchy]);
 
@@ -1584,9 +1624,7 @@ const MyRespiVisualizationPanel = ({
   );
 
   useEffect(() => {
-    if (!comparisonEligibility?.isEligible) {
-      setCompareWithSubmittingModels(false);
-    }
+    setCompareWithSubmittingModels(Boolean(comparisonEligibility?.isEligible));
   }, [comparisonEligibility]);
 
   useEffect(() => {
@@ -1746,11 +1784,9 @@ const MyRespiVisualizationPanel = ({
       return [];
     }
 
-    const stillValid = preferredSubmittedModels.filter((model) =>
+    return preferredSubmittedModels.filter((model) =>
       submittedModels.includes(model),
     );
-
-    return stillValid.length ? stillValid : [submittedModels[0]];
   }, [preferredSubmittedModels, submittedModels]);
 
   const handleSubmittedModelSelectionChange = useCallback((nextModels) => {
@@ -1878,6 +1914,9 @@ const MyRespiVisualizationPanel = ({
     selectedModels,
     target: selectedTarget,
     showLegendForFirstDate: showLegend,
+    groundTruthLineWidth: GROUND_TRUTH_LINE_WIDTH,
+    groundTruthMarkerSize: GROUND_TRUTH_MARKER_SIZE,
+    groundTruthColor: getChartInk(colorScheme).text,
     showMedian: intervalVisibility.median ?? hasMedian,
     fillMissingQuantiles: false,
     intervalDefinitions,
@@ -1993,16 +2032,6 @@ const MyRespiVisualizationPanel = ({
     normalizedChartScale,
   ]);
 
-  const sqrtTicks = useMemo(() => {
-    if (normalizedChartScale !== "sqrt") return null;
-    return buildSqrtTicks({ rawRange: combinedRawYRange });
-  }, [normalizedChartScale, combinedRawYRange]);
-
-  const log2Ticks = useMemo(() => {
-    if (normalizedChartScale !== "log2") return null;
-    return buildLog2Ticks({ rawRange: combinedRawYRange });
-  }, [normalizedChartScale, combinedRawYRange]);
-
   const handlePlotUpdate = useCallback((figure) => {
     if (isResettingRef.current) {
       isResettingRef.current = false;
@@ -2015,26 +2044,15 @@ const MyRespiVisualizationPanel = ({
 
   const layout = useMemo(
     () => ({
-      autosize: true,
-      template: colorScheme === "dark" ? "plotly_dark" : "plotly_white",
-      paper_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      plot_bgcolor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-      font: { color: colorScheme === "dark" ? "#c1c2c5" : "#000000" },
+      ...getBaseChartLayout(colorScheme),
       showlegend: showLegend,
-      legend: {
-        x: 0,
-        y: 1,
-        bgcolor:
-          colorScheme === "dark"
-            ? "rgba(26, 27, 30, 0.8)"
-            : "rgba(255,255,255,0.8)",
-        font: { size: 10 },
-      },
       hovermode: "closest",
       dragmode: false,
       margin: { l: 60, r: 30, t: 30, b: 30 },
       xaxis: {
+        ...getBaseChartLayout(colorScheme).xaxis,
         rangeslider: {
+          ...RANGESLIDER_STYLE,
           range: getDefaultViewerRange(
             locationData?.ground_truth?.dates,
             selectedDates,
@@ -2044,29 +2062,14 @@ const MyRespiVisualizationPanel = ({
         range: xAxisRange || defaultRange,
       },
       yaxis: {
-        title: `${selectedTarget || "Value"}${getScaleTitleSuffix(normalizedChartScale)}`,
-        range: isPlotlyLogScale(normalizedChartScale) ? undefined : yAxisRange,
-        autorange: isPlotlyLogScale(normalizedChartScale)
-          ? true
-          : yAxisRange === null,
-        type: isPlotlyLogScale(normalizedChartScale) ? "log" : "linear",
-        tickmode:
-          (normalizedChartScale === "sqrt" && sqrtTicks) ||
-          (normalizedChartScale === "log2" && log2Ticks)
-            ? "array"
-            : undefined,
-        tickvals:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.tickvals
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.tickvals
-              : undefined,
-        ticktext:
-          normalizedChartScale === "sqrt" && sqrtTicks
-            ? sqrtTicks.ticktext
-            : normalizedChartScale === "log2" && log2Ticks
-              ? log2Ticks.ticktext
-              : undefined,
+        ...getBaseChartLayout(colorScheme).yaxis,
+        ...getScaleYAxis({
+          scale: normalizedChartScale,
+          rawRange: combinedRawYRange,
+          range: yAxisRange,
+          title:
+            targetDisplayNameMap[selectedTarget] || selectedTarget || "Value",
+        }),
       },
       shapes: selectedDates.map((date) => {
         const shiftedDate = shiftDateStringByDays(date, -3);
@@ -2077,7 +2080,7 @@ const MyRespiVisualizationPanel = ({
           y0: 0,
           y1: 1,
           yref: "paper",
-          line: { color: "red", width: 1, dash: "dash" },
+          line: getForecastDateLineStyle(colorScheme),
         };
       }),
     }),
@@ -2091,119 +2094,171 @@ const MyRespiVisualizationPanel = ({
       selectedTarget,
       normalizedChartScale,
       yAxisRange,
-      sqrtTicks,
-      log2Ticks,
+      combinedRawYRange,
     ],
   );
 
-  const config = useMemo(
-    () => ({
-      responsive: true,
-      displayModeBar: true,
-      displaylogo: false,
-      showSendToCloud: false,
-      scrollZoom: false,
-      modeBarButtonsToRemove: ["resetScale2d", "select2d", "lasso2d"],
-      modeBarButtonsToAdd: [
-        {
-          name: "Reset view",
-          icon: Plotly.Icons.home,
-          click: (gd) => {
-            const range = getDefaultViewerRange(
-              locationData?.ground_truth?.dates,
-              selectedDates,
-              false,
-            );
-            const nextYRange =
-              isPlotlyLogScale(normalizedChartScale) || !range
-                ? null
-                : calculateYRange(allTraces, range);
-            isResettingRef.current = true;
-            setXAxisRange(null);
-            setYAxisRange(nextYRange);
-            Plotly.relayout(gd, {
-              "xaxis.range": range,
-              "yaxis.range": nextYRange,
-              "yaxis.autorange":
-                isPlotlyLogScale(normalizedChartScale) || nextYRange === null,
-            });
-          },
-        },
-      ],
-    }),
-    [
-      allTraces,
-      locationData,
+  const handleResetView = () => {
+    const gd = plotRef.current?.el;
+    if (!gd) return;
+    const range = getDefaultViewerRange(
+      locationData?.ground_truth?.dates,
       selectedDates,
-      normalizedChartScale,
-      calculateYRange,
-    ],
+      false,
+    );
+    const nextYRange =
+      isPlotlyLogScale(normalizedChartScale) || !range
+        ? null
+        : calculateYRange(allTraces, range);
+    isResettingRef.current = true;
+    setXAxisRange(null);
+    setYAxisRange(nextYRange);
+    Plotly.relayout(gd, {
+      "xaxis.range": range,
+      "yaxis.range": nextYRange,
+      "yaxis.autorange":
+        isPlotlyLogScale(normalizedChartScale) || nextYRange === null,
+    });
+  };
+
+  // Same PNG as the hub views' chart header (the Plotly toolbar is hidden)
+  const handleDownload = () =>
+    downloadChartPng(plotRef.current?.el, "forecast-checker");
+
+  useKeyboardShortcut("r", handleResetView);
+  useKeyboardShortcut("d", handleDownload);
+  // I: every interval, then 95% + 50% + median, 50% + median, median alone
+  useKeyboardShortcut("i", () =>
+    setIntervalVisibility((current) => {
+      const keys = intervalOptions.map((option) => option.value);
+      const keyForWidth = (lower) =>
+        intervalDefinitions.find(
+          (definition) => Math.abs(definition.lowerQuantile - lower) < 1e-9,
+        )?.key;
+      const ci95 = keyForWidth(0.025);
+      const ci50 = keyForWidth(0.25);
+      return nextIntervalVisibility(current, keys, [
+        keys,
+        ["median", ci50, ci95],
+        ["median", ci50],
+        ["median"],
+      ]);
+    }),
   );
 
   if ((!isMetrocast && !locationOptions.length) || !locationData) {
     return null;
   }
 
+  const isComparing =
+    compareWithSubmittingModels && comparisonDataState.status === "success";
+
+  // Same layout as the forecast pages: the title sentence holds the
+  // pickers, display options and actions are quiet icons on the right
   return (
-    <Grid gutter="lg" align="flex-start">
-      <Grid.Col span={{ base: 12, lg: 4 }}>
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="md">
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 1 }} spacing="md">
-              {isMetrocast ? (
-                <Select
-                  label="State"
-                  data={metroHierarchy?.stateOptions ?? []}
-                  value={selectedMetroState}
-                  onChange={setSelectedMetroState}
-                  allowDeselect={false}
-                />
-              ) : (
-                <Select
-                  label="Location"
-                  data={locationOptions}
-                  value={selectedLocationFile}
-                  onChange={setSelectedLocationFile}
-                  allowDeselect={false}
-                />
-              )}
-              {isMetrocast ? (
-                <Select
-                  label="Location"
-                  data={scopedMetroLocationOptions}
-                  value={selectedLocationFile}
-                  onChange={setSelectedLocationFile}
-                  allowDeselect={false}
-                  disabled={!scopedMetroLocationOptions.length}
-                />
-              ) : (
-                <Select
-                  label="Target"
-                  data={targetOptions}
-                  value={selectedTarget}
-                  onChange={setSelectedTarget}
-                  allowDeselect={false}
-                  disabled={!targetOptions.length}
-                />
-              )}
-            </SimpleGrid>
-
+    <Stack gap="md">
+      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+        <Stack gap={6} style={{ minWidth: 0 }}>
+          <Title
+            order={2}
+            fz={{ base: 20, sm: 24 }}
+            fw={600}
+            lh={1.35}
+            style={{ textWrap: "balance" }}
+          >
+            <InlinePicker
+              value={selectedTarget}
+              data={targetOptions}
+              onChange={setSelectedTarget}
+              dropdownWidth={360}
+              shortcut="t"
+              shortcutLabel="Change target"
+              aria-label="Select target"
+            />{" "}
+            <Text span inherit c="dimmed" fw={400}>
+              in
+            </Text>{" "}
             {isMetrocast && (
-              <Select
-                label="Target"
-                data={targetOptions}
-                value={selectedTarget}
-                onChange={setSelectedTarget}
-                allowDeselect={false}
-                disabled={!targetOptions.length}
-              />
+              <>
+                <InlinePicker
+                  value={selectedMetroState}
+                  data={metroHierarchy?.stateOptions ?? []}
+                  onChange={setSelectedMetroState}
+                  searchable
+                  shortcut="l"
+                  shortcutLabel="Change state"
+                  stepKeys
+                  aria-label="Select state"
+                />
+                <Text span inherit c="dimmed" fw={400}>
+                  ,
+                </Text>{" "}
+              </>
             )}
+            <InlinePicker
+              value={selectedLocationFile}
+              data={isMetrocast ? scopedMetroLocationOptions : locationOptions}
+              onChange={setSelectedLocationFile}
+              searchable
+              shortcut={isMetrocast ? null : "l"}
+              shortcutLabel="Change location"
+              stepKeys={isMetrocast ? "first" : true}
+              aria-label="Select location"
+            />
+          </Title>
+          <Group gap={6} wrap="nowrap" fz="sm" c="dimmed">
+            <Text span size="sm" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+              Forecast date
+            </Text>
+            <DateSelector
+              compact
+              availableDates={availableDates}
+              selectedDates={selectedDates}
+              setSelectedDates={setSelectedDates}
+              activeDate={activeDate}
+              setActiveDate={setActiveDate}
+            />
+          </Group>
+        </Stack>
 
-            <Paper withBorder radius="md" p="sm">
-              <Stack gap="sm">
-                <Text fw={600} size="sm">
-                  Advanced controls (your model(s))
-                </Text>
+        <Group gap={2} wrap="nowrap">
+          {comparisonEnabled && (
+            <Tooltip
+              label={comparisonEligibility?.reason}
+              disabled={
+                comparisonEligibility?.isEligible || !comparisonEligibility
+              }
+              multiline
+              w={260}
+            >
+              <div style={{ marginRight: 8 }}>
+                <Switch
+                  label="Compare with hub models"
+                  checked={compareWithSubmittingModels}
+                  onChange={(event) =>
+                    setCompareWithSubmittingModels(event.currentTarget.checked)
+                  }
+                  disabled={!comparisonEligibility?.isEligible}
+                  size="sm"
+                />
+              </div>
+            </Tooltip>
+          )}
+          <Popover position="bottom-end" shadow="md" width={380}>
+            <Popover.Target>
+              <Tooltip label="Display options" openDelay={300}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="lg"
+                  aria-label="Display options"
+                >
+                  <IconAdjustmentsHorizontal size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <Stack gap="md">
                 <ForecastChartControls
                   chartScale={chartScale}
                   setChartScale={setChartScale}
@@ -2213,143 +2268,131 @@ const MyRespiVisualizationPanel = ({
                   setShowLegend={setShowLegend}
                   intervalOptions={intervalOptions}
                 />
+                {comparisonEnabled && isComparing && (
+                  <Group align="center" gap="md" wrap="wrap">
+                    <Text size="xs" c="dimmed">
+                      Hub model intervals
+                    </Text>
+                    <Checkbox.Group
+                      value={selectedSubmittedIntervals}
+                      onChange={(values) => {
+                        const nextVisibility = {};
+                        SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
+                          nextVisibility[option.value] = values.includes(
+                            option.value,
+                          );
+                        });
+                        setSubmittedIntervalVisibility(nextVisibility);
+                      }}
+                    >
+                      <Group gap="sm" wrap="wrap">
+                        {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
+                          <Checkbox
+                            key={option.value}
+                            value={option.value}
+                            label={option.label}
+                            size="xs"
+                          />
+                        ))}
+                      </Group>
+                    </Checkbox.Group>
+                  </Group>
+                )}
               </Stack>
-            </Paper>
-
-            {comparisonEnabled && (
-              <>
-                <Paper withBorder radius="md" p="sm">
-                  <Stack gap="xs">
-                    <Group justify="space-between" align="center">
-                      <Text fw={600} size="sm">
-                        Compare with submitting models
-                      </Text>
-                      <Switch
-                        checked={compareWithSubmittingModels}
-                        onChange={(event) =>
-                          setCompareWithSubmittingModels(
-                            event.currentTarget.checked,
-                          )
-                        }
-                        disabled={!comparisonEligibility?.isEligible}
-                        size="sm"
-                      />
-                    </Group>
-                    {compareWithSubmittingModels &&
-                      comparisonDataState.status === "loading" && (
-                        <Group gap="xs">
-                          <Loader size="sm" color="blue" />
-                          <Text size="sm" c="dimmed">
-                            Loading submitted model data for this location...
-                          </Text>
-                        </Group>
-                      )}
-                    {compareWithSubmittingModels &&
-                      comparisonDataState.status === "error" && (
-                        <Alert
-                          color="red"
-                          variant="light"
-                          radius="md"
-                          icon={<IconAlertCircle size={16} />}
-                        >
-                          {comparisonDataState.error}
-                        </Alert>
-                      )}
-                  </Stack>
-                </Paper>
-
-                {compareWithSubmittingModels &&
-                  comparisonDataState.status === "success" && (
-                    <>
-                      <Paper withBorder radius="md" p="sm">
-                        <Stack gap="sm">
-                          <Text fw={600} size="sm">
-                            Submitting models display
-                          </Text>
-                          <Group align="center" gap="md" wrap="wrap">
-                            <Text size="xs" c="dimmed" style={{ minWidth: 90 }}>
-                              Intervals
-                            </Text>
-                            <Checkbox.Group
-                              value={selectedSubmittedIntervals}
-                              onChange={(values) => {
-                                const nextVisibility = {};
-                                SUBMITTED_INTERVAL_OPTIONS.forEach((option) => {
-                                  nextVisibility[option.value] =
-                                    values.includes(option.value);
-                                });
-                                setSubmittedIntervalVisibility(nextVisibility);
-                              }}
-                            >
-                              <Group gap="sm" wrap="wrap">
-                                {SUBMITTED_INTERVAL_OPTIONS.map((option) => (
-                                  <Checkbox
-                                    key={option.value}
-                                    value={option.value}
-                                    label={option.label}
-                                    size="xs"
-                                  />
-                                ))}
-                              </Group>
-                            </Checkbox.Group>
-                          </Group>
-                        </Stack>
-                      </Paper>
-
-                      <ModelSelector
-                        models={submittedModels}
-                        selectedModels={selectedSubmittedModels}
-                        setSelectedModels={handleSubmittedModelSelectionChange}
-                        activeModels={activeSubmittedModels}
-                        modelColorFn={submittedModelColorFn}
-                      />
-                    </>
-                  )}
-              </>
-            )}
-          </Stack>
-        </Paper>
-      </Grid.Col>
-
-      <Grid.Col span={{ base: 12, lg: 8 }}>
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="lg">
-            <DateSelector
-              availableDates={availableDates}
-              selectedDates={selectedDates}
-              setSelectedDates={setSelectedDates}
-              activeDate={activeDate}
-              setActiveDate={setActiveDate}
-            />
-
-            <div
-              style={{
-                width: "100%",
-                height: "min(800px, 60vh)",
-                minHeight: 320,
-              }}
+            </Popover.Dropdown>
+          </Popover>
+          <Tooltip
+            label={<ShortcutHint label="Download chart as PNG" shortcut="d" />}
+            openDelay={300}
+          >
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              color="gray"
+              onClick={handleDownload}
+              aria-label="Download chart as PNG"
             >
-              <Plot
-                ref={plotRef}
-                useResizeHandler
-                style={{ width: "100%", height: "100%" }}
-                data={allTraces}
-                layout={layout}
-                config={config}
-                onRelayout={handlePlotUpdate}
-              />
-            </div>
+              <IconDownload size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label={<ShortcutHint label="Reset axes" shortcut="r" />}>
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              color="gray"
+              onClick={handleResetView}
+              aria-label="Reset axes"
+            >
+              <IconZoomReset size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <ChartInfoButton
+            dragDates={false}
+            hasHubModels={compareWithSubmittingModels}
+          />
+        </Group>
+      </Group>
 
-            <ModelSelector
-              models={models}
-              selectedModels={selectedModels}
-              setSelectedModels={setSelectedModels}
-              activeModels={activeModels}
-            />
-          </Stack>
-        </Paper>
-      </Grid.Col>
-    </Grid>
+      {compareWithSubmittingModels &&
+        comparisonDataState.status === "loading" && (
+          <Group gap="xs">
+            <Loader size="sm" color="blue" />
+            <Text size="sm" c="dimmed">
+              Loading submitted model data for this location...
+            </Text>
+          </Group>
+        )}
+      {compareWithSubmittingModels &&
+        comparisonDataState.status === "error" && (
+          <Alert
+            color="red"
+            variant="light"
+            radius="md"
+            icon={<IconAlertCircle size={16} />}
+          >
+            {comparisonDataState.error}
+          </Alert>
+        )}
+
+      <div
+        style={{
+          width: "100%",
+          height: "min(780px, 66vh)",
+          minHeight: 320,
+        }}
+      >
+        <Plot
+          ref={plotRef}
+          useResizeHandler
+          style={{ width: "100%", height: "100%" }}
+          data={allTraces}
+          layout={layout}
+          config={PLOT_CONFIG}
+          onRelayout={handlePlotUpdate}
+        />
+      </div>
+
+      <ModelSelector
+        title={comparisonEnabled ? "User submitted models" : "Models"}
+        models={models}
+        selectedModels={selectedModels}
+        setSelectedModels={setSelectedModels}
+        activeModels={activeModels}
+        keyboardShortcut
+      />
+
+      {compareWithSubmittingModels && (
+        <ModelSelector
+          title="Hub models"
+          keyboardShortcut="M"
+          models={submittedModels}
+          selectedModels={selectedSubmittedModels}
+          setSelectedModels={handleSubmittedModelSelectionChange}
+          activeModels={activeSubmittedModels}
+          modelColorFn={submittedModelColorFn}
+        />
+      )}
+    </Stack>
   );
 };
 
@@ -2365,28 +2408,24 @@ const HubSelectionScreen = () => {
         description="Validate and prepare Hubverse forecast CSV files for use in Forecast Checker."
         canonicalPath="/toolbox/forecast-checker"
       />
-      <Container size="xl" py="xl" style={{ maxWidth: "1500px" }}>
-        <Stack gap="xl" maw={1320} mx="auto">
-          <Stack gap="sm">
-            <Group justify="center" align="center" wrap="nowrap">
+      <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1500px" }}>
+        <Stack gap="xl" maw={1320}>
+          <Stack gap={4}>
+            <Group gap="xs" align="center" wrap="nowrap">
               <Tooltip label="Back to toolbox" withArrow>
                 <ActionIcon
                   variant="subtle"
-                  color="blue"
-                  size="xl"
-                  radius="xl"
+                  color="gray"
                   onClick={() => navigate("/toolbox")}
                   aria-label="Back to toolbox"
                 >
-                  <IconArrowLeft size={24} stroke={2.25} />
+                  <IconArrowLeft size={18} />
                 </ActionIcon>
               </Tooltip>
-              <Title order={1} c="blue" ta="center">
-                Forecast Checker
-              </Title>
+              <Title order={1}>Forecast Checker</Title>
             </Group>
-            <Text size="lg" ta="center">
-              Select a hub and drop your data for instant visualization!
+            <Text size="sm" c="dimmed">
+              Select a hub and drop your data for instant visualization.
             </Text>
           </Stack>
 
@@ -2864,7 +2903,7 @@ const OtherHubScreen = () => {
         description="Provide ground truth and forecast data for a hub that is not currently listed in Forecast Checker."
         canonicalPath="/toolbox/forecast-checker/other-hub"
       />
-      <Container size="xl" py="xl" fluid>
+      <Container size="xl" pt="md" pb="xl" fluid>
         <Stack gap="lg">
           {isShowingVisualization ? (
             <Group justify="space-between" align="center">
@@ -3587,7 +3626,7 @@ const HubUploadScreen = () => {
         description={`Validate Hubverse CSV data for ${hubConfig.label} before Forecast Checker conversion.`}
         canonicalPath={`/toolbox/forecast-checker/${hubConfig.slug}`}
       />
-      <Container size="xl" py="xl" fluid>
+      <Container size="xl" pt="md" pb="xl" fluid>
         <Stack gap="lg">
           {isShowingVisualization ? (
             <Group justify="space-between" align="center">

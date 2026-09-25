@@ -1,11 +1,14 @@
 import { useMemo, useCallback, useRef } from "react";
 import ForecastPlotView from "../ForecastPlotView";
 import FluPeak from "../FluPeak";
-import TitleRow from "../TitleRow";
 import { getModelColor } from "../../config/datasets";
-import { RATE_CHANGE_CATEGORIES } from "../../constants/chart";
+import { useMantineColorScheme } from "@mantine/core";
+import {
+  RATE_CHANGE_CATEGORIES,
+  getChartAxisStyle,
+  getChartInk,
+} from "../../constants/chart";
 import { useView } from "../../hooks/useView";
-import { getDatasetTitleFromView } from "../../utils/datasetUtils";
 import { extendStableModelOrder } from "../../utils/modelColorUtils";
 
 const FluView = ({
@@ -145,13 +148,12 @@ const FluView = ({
   const displayTarget = selectedTarget || forecastTarget;
   const requireTarget = viewType === "flu";
 
+  const { colorScheme } = useMantineColorScheme();
+
   const layoutOverrides = useCallback(
     (baseLayout) => {
       const baseXAxis = {
         ...baseLayout.xaxis,
-        showline: false,
-        linewidth: undefined,
-        linecolor: undefined,
         domain: viewType === "fludetailed" ? [0, 0.8] : baseLayout.xaxis.domain,
       };
 
@@ -175,50 +177,42 @@ const FluView = ({
           xgap: 0.15,
         },
         xaxis2: {
+          ...getChartAxisStyle(colorScheme),
           title: {
             text: `displaying date ${lastSelectedDate || "N/A"}`,
-            font: {
-              family: "Arial, sans-serif",
-              size: 13,
-              color: "#1f77b4",
-            },
+            font: { size: 12, color: getChartInk(colorScheme).soft },
             standoff: 10,
           },
           domain: [0.85, 1],
+          anchor: "y2",
           showgrid: false,
         },
         yaxis2: {
+          ...getChartAxisStyle(colorScheme),
           title: "",
           showticklabels: true,
           type: "category",
-          side: "right",
-          automargin: true,
-          tickfont: { align: "right" },
+          // Spine along the bars' left edge, labels outside it (in the gap
+          // between the two charts), like every other axis
+          anchor: "x2",
+          side: "left",
+          // Category names run along the bars, so they never wrap or overlap
+          tickangle: -90,
+          tickfont: {
+            ...getChartAxisStyle(colorScheme).tickfont,
+            size: 13,
+            color: getChartInk(colorScheme).text,
+          },
+          showgrid: false,
         },
       };
     },
-    [viewType, lastSelectedDate],
-  );
-
-  const configOverrides = useCallback(
-    (baseConfig) => ({
-      ...baseConfig,
-      modeBarPosition: "left",
-      modeBarButtonsToRemove: ["select2d", "lasso2d", "resetScale2d"],
-    }),
-    [],
+    [viewType, lastSelectedDate, colorScheme],
   );
 
   if (viewType === "flu_peak") {
-    const stateName = data?.metadata?.location_name;
-    const hubName =
-      getDatasetTitleFromView(viewType) || data?.metadata?.dataset;
     return (
       <>
-        <TitleRow
-          title={hubName ? `${stateName} — ${hubName}` : stateName}
-          timestamp={metadata?.last_updated}
-        />
         <FluPeak
           data={data}
           peaks={peaks}
@@ -254,7 +248,6 @@ const FluView = ({
       activeModels={activeModels}
       extraTraces={extraTraces}
       layoutOverrides={layoutOverrides}
-      configOverrides={configOverrides}
       groundTruthValueFormat="%{y}"
     />
   );
