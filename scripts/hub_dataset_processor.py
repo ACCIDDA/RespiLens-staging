@@ -10,6 +10,7 @@ import datetime
 import pandas as pd
 
 from helper import get_location_info
+from hub_config import read_forecast_line_offset
 
 
 logger = logging.getLogger(__name__)
@@ -40,13 +41,17 @@ class HubDataProcessorBase:
         locations_data: pd.DataFrame,
         target_data: pd.DataFrame,
         config: HubDatasetConfig,
-        is_metro_cast: bool = False
+        is_metro_cast: bool = False,
+        hub_path: Optional[str] = None,
     ) -> None:
         self.output_dict: Dict[str, Dict[str, Any]] = {}
         self.df_data = data
         self.locations_data = locations_data
         self.target_data = target_data
         self.config = config
+        self.forecast_line_offset_days = (
+            read_forecast_line_offset(hub_path) if hub_path is not None else None
+        )
         self.locations_in_this_dump = set(self.df_data['location'])
         self.is_metro_cast = is_metro_cast
         if self.is_metro_cast: # necessary date filter for metrocast data
@@ -156,6 +161,8 @@ class HubDataProcessorBase:
                     ],
                 },
             }
+        if self.forecast_line_offset_days is not None:
+            metadata["forecast_line_offset_days"] = self.forecast_line_offset_days
         return metadata
 
     def _prepare_ground_truth_df(self, location: str) -> pd.DataFrame:
@@ -358,4 +365,6 @@ class HubDataProcessorBase:
                 }
                 metadata_file_contents["locations"].append(location_info)
 
+        if self.forecast_line_offset_days is not None:
+            metadata_file_contents["forecast_line_offset_days"] = self.forecast_line_offset_days
         return metadata_file_contents

@@ -55,3 +55,26 @@ def test_flusight_processor_matches_expected():
     expected_meta = _sanitize(_load_expected("metadata.json"))
     assert actual_meta["models"] == expected_meta["models"]
     assert actual_meta["locations"] == expected_meta["locations"]
+
+
+def test_flusight_processor_exports_hub_cutoff(tmp_path):
+    config = tmp_path / "hub-config"
+    config.mkdir()
+    (config / "tasks.json").write_text(json.dumps({
+        "rounds": [{"submissions_due": {"relative_to": "reference_date", "end": 0}}]
+    }))
+    base = Path(__file__).resolve().parent / "samples" / "flusight"
+    inputs = load_inputs(
+        pathogen="flu",
+        data_path=base / "forecast_data.csv",
+        target_data_path=base / "target_data.csv",
+        locations_data_path=base / "locations.csv",
+    )
+    processor = FlusightDataProcessor(
+        data=inputs.data,
+        locations_data=inputs.locations_data,
+        target_data=inputs.target_data,
+        hub_path=tmp_path,
+    )
+    assert processor.output_dict["CA_flu.json"]["metadata"]["forecast_line_offset_days"] == 0
+    assert processor.output_dict["metadata.json"]["forecast_line_offset_days"] == 0
