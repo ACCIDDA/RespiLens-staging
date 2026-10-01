@@ -6,7 +6,7 @@ import ModelSelector from "./ModelSelector";
 import { getModelColor } from "../config/datasets";
 import {
   CHART_CONSTANTS,
-  FORECAST_LINE_OFFSET_DAYS,
+  getForecastLineOffsetDays,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
   PLOT_CONFIG,
@@ -157,6 +157,7 @@ const FluPeak = ({
   showOtherGroundTruthSeasons = false,
 }) => {
   const { colorScheme } = useMantineColorScheme();
+  const lineOffsetDays = getForecastLineOffsetDays(data?.metadata);
   const groundTruth = data?.ground_truth;
   // Kept across locations (the view remounts while one loads)
   const [xAxisRange, setXAxisRange] = usePersistentXRange("flu_peak");
@@ -167,7 +168,7 @@ const FluPeak = ({
   // does not re-centre under the pointer.
   const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
     selectedDates,
-    lineOffsetDays: FORECAST_LINE_OFFSET_DAYS,
+    lineOffsetDays,
     maxDates: 1,
     onBeforeCommit: (gd) => {
       const range = gd?._fullLayout?.xaxis?.range;
@@ -640,6 +641,7 @@ const FluPeak = ({
       colorScheme,
       displayDates,
       draggingDate,
+      lineOffsetDays,
     );
     return {
       ...base,
@@ -676,7 +678,7 @@ const FluPeak = ({
           xref: "x",
           yref: "paper",
           x0: getFluPeakSeasonStartDate(dateStr),
-          x1: shiftDateStringByDays(dateStr, FORECAST_LINE_OFFSET_DAYS),
+          x1: shiftDateStringByDays(dateStr, lineOffsetDays),
           y0: 0,
           y1: 1,
           fillcolor:
@@ -694,6 +696,7 @@ const FluPeak = ({
     colorScheme,
     displayDates,
     draggingDate,
+    lineOffsetDays,
     defaultRange,
     rangesliderRange,
     xAxisRange,
