@@ -122,11 +122,8 @@ def get_location_info(
     else:
         return str(current_df[value_needed].iloc[0])
     
-def retrieve_data_from_endpoint_aslist(data_url: str, query_params: dict | None = None) -> list[dict]:
-    """Downloads CDC data from API endpoint with pagination and retries.
-
-    `query_params` are extra SoQL parameters (e.g. `$select`, `$where`) sent with every page.
-    """
+def retrieve_data_from_endpoint_aslist(data_url: str) -> list[dict]:
+    """Downloads CDC data from API endpoint with pagination and retries."""
         
     session = requests.Session()
     retries = Retry(total=5,
@@ -137,10 +134,9 @@ def retrieve_data_from_endpoint_aslist(data_url: str, query_params: dict | None 
     all_data = []
     offset = 0
     batch_size = 50000 # Socrata's documented max page size
-    # paging with $offset needs a stable order, otherwise rows can be skipped or repeated
-    query_params = {"$order": ":id", **(query_params or {})}
     while True:
-        params = {**query_params, "$limit": batch_size, "$offset": offset}
+        # paging with $offset needs a stable $order, otherwise rows can be skipped or repeated
+        params = {"$order": ":id", "$limit": batch_size, "$offset": offset}
         try:
             # Use the configured session to make the request
             data_response = session.get(data_url, params=params, timeout=300)

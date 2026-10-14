@@ -45,32 +45,30 @@ class NSSPDataProcessor:
         """Fetches, processes, and structures NSSP data into self.output_dict"""
         # Get data set up 
         logger.info(f"Retrieving NSSP data from {self.data_url}...")
-        numeric_cols = ['percent_visits_covid', 'percent_visits_influenza', 'percent_visits_rsv']
-        # The endpoint has one row per county, repeating the same HSA-level values for every
-        # county of an HSA. Ask for DISTINCT HSA-level rows so each (geography, hsa_nci_id, week_end)
-        # appears once, and only keep rows that have at least one 'percent_visits_...' value.
-        query_params = {
-            "$select": "DISTINCT " + ", ".join(
-                ['week_end', 'geography', 'hsa_nci_id', 'hsa_counties', 'buildnumber'] + numeric_cols
-            ),
-            "$where": " OR ".join(f"{col} IS NOT NULL" for col in numeric_cols),
-            "$order": "geography, hsa_nci_id, week_end",
-        }
-        data_list = retrieve_data_from_endpoint_aslist(data_url=self.data_url, query_params=query_params) # read from endpoint
-        data = pd.DataFrame(data_list)
-        for col in numeric_cols: # null values are omitted from the JSON response
-            if col not in data.columns:
-                data[col] = None
+        data_list = retrieve_data_from_endpoint_aslist(data_url=self.data_url) # read from endpoint
+        pruned_data_list = []
+        for entry in data_list:
+            if any(key.startswith('percent_visits_') for key in entry): # only keep entries that have at least one 'percent_visits_...' col
+                pruned_data_list.append(entry)
+        data = pd.DataFrame(pruned_data_list)
+        # drop cols we don't want (smoothed cols, trend cols, combined visits, 'hsa')
+        smooth_cols = [col for col in data.columns if 'smooth' in col.lower()] 
+        trend_cols = [col for col in data.columns if 'trend' in col.lower()]
+        specific_drops = ['percent_visits_combined', 'hsa']
+        data = data.drop(columns=smooth_cols + trend_cols + specific_drops, errors='ignore')
         # ensure there is only one unique build in the data
         most_recent_build = data.sort_values(by='buildnumber', ascending=False)['buildnumber'].iloc[0]
         data = data[data['buildnumber'] == most_recent_build]
         # put dates in YYYY-MM-DD format
         data['week_end'] = pd.to_datetime(data['week_end']).dt.strftime('%Y-%m-%d')
-        # guard against duplicated weeks so values stay aligned with dates
+        # the endpoint has one row per county, repeating the HSA-level values for every county
+        # of an HSA: keep one row per HSA and week so values stay aligned with dates
         data = data.drop_duplicates(subset=['geography', 'hsa_nci_id', 'week_end'], keep='first')
         # cast numeric cols as numeric
-        for col in numeric_cols:
-            data[col] = pd.to_numeric(data[col], errors='raise')
+        numeric_cols = ['percent_visits_covid', 'percent_visits_influenza', 'percent_visits_rsv']
+        for col in data.columns:
+            if col in numeric_cols:
+                data[col] = pd.to_numeric(data[col], errors='raise')
         # cleanse NaN values
         data = data.replace(np.nan, value=None) # cleanse NaN values 
         # --- patch for easier frontend display: build file with all counties for which there is data -- 
