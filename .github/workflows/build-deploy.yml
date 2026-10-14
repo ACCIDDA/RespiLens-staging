@@ -22,10 +22,12 @@ jobs:
       
     - name: Clone Forecast Hubs
       run: |
-        git clone https://github.com/cdcepi/FluSight-forecast-hub.git
-        git clone https://github.com/CDCgov/rsv-forecast-hub.git 
-        git clone https://github.com/CDCgov/covid19-forecast-hub.git
-        git clone https://github.com/reichlab/flu-metrocast.git
+        # Shallow clones in parallel: only the current hub contents are needed, not history
+        git clone --depth 1 https://github.com/cdcepi/FluSight-forecast-hub.git &
+        git clone --depth 1 https://github.com/CDCgov/rsv-forecast-hub.git &
+        git clone --depth 1 https://github.com/CDCgov/covid19-forecast-hub.git &
+        git clone --depth 1 https://github.com/reichlab/flu-metrocast.git &
+        for job in $(jobs -p); do wait "$job"; done
         echo "Forecast hubs cloned successfully."
 
     - name: Set up Python
