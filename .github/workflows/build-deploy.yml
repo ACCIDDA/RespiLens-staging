@@ -26,11 +26,7 @@ jobs:
         git clone --depth 1 https://github.com/cdcepi/FluSight-forecast-hub.git &
         git clone --depth 1 https://github.com/CDCgov/rsv-forecast-hub.git &
         git clone --depth 1 https://github.com/CDCgov/covid19-forecast-hub.git &
-        # flu-metrocast pinned to the last 2025-26 season data update (2026-07-09): the hub's 2026-27
-        # season changes (locations.csv rework, Utah cities removed) break processing. Unpin once the season starts.
-        (git init -q flu-metrocast \
-          && git -C flu-metrocast fetch -q --depth 1 https://github.com/reichlab/flu-metrocast.git 2397ad27233c5ec5a62a15341af2d77541647ee6 \
-          && git -C flu-metrocast checkout -q FETCH_HEAD) &
+        git clone --depth 1 https://github.com/reichlab/flu-metrocast.git &
         for job in $(jobs -p); do wait "$job"; done
         echo "Forecast hubs cloned successfully."
 
