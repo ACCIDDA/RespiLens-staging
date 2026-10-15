@@ -47,10 +47,15 @@ class HubDataProcessorBase:
         self.locations_data = locations_data
         self.target_data = target_data
         self.config = config
-        self.locations_in_this_dump = set(self.df_data['location'])
         self.is_metro_cast = is_metro_cast
-        if self.is_metro_cast: # necessary date filter for metrocast data
-            self.df_data = self.df_data[self.df_data['reference_date'] >= datetime.date(2025, 11, 19)]
+        if self.is_metro_cast:
+            # The hub's current location table defines which locations we display,
+            # even when historical forecasts still contain retired locations.
+            self.df_data = self.df_data[
+                self.df_data['location'].isin(self.locations_data['location'])
+                & (self.df_data['reference_date'] >= datetime.date(2025, 11, 19))
+            ].copy()
+        self.locations_in_this_dump = set(self.df_data['location'])
 
         self.logger = logging.getLogger(self.__class__.__name__)
         self.location_dataframes: Dict[str, pd.DataFrame] = {}
