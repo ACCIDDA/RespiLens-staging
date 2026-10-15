@@ -208,32 +208,6 @@ const FluPeak = ({
     return activeModelSet;
   }, [peaks, selectedDates, peakDates]);
 
-  const fullDataRange = useMemo(() => {
-    const dateCandidates = [
-      ...(groundTruth?.dates || []),
-      ...(peakDates || []),
-    ].sort();
-
-    if (!dateCandidates.length) {
-      return null;
-    }
-
-    return [dateCandidates[0], dateCandidates[dateCandidates.length - 1]];
-  }, [groundTruth, peakDates]);
-
-  const defaultRange = useMemo(() => {
-    if (!fullDataRange) {
-      return null;
-    }
-
-    const end = fullDataRange[1];
-    const start = shiftUtcDateByMonths(end, -9);
-
-    return [start < fullDataRange[0] ? fullDataRange[0] : start, end];
-  }, [fullDataRange]);
-
-  const rangesliderRange = useMemo(() => fullDataRange, [fullDataRange]);
-
   const calculateYRange = useCallback((chartData, xRange) => {
     if (!chartData?.length || !xRange) {
       return null;
@@ -611,6 +585,51 @@ const FluPeak = ({
     stableModelOrder,
     colorScheme,
   ]);
+
+  // Observed data and forecast dates, extended to the latest plotted peak
+  // (peak weeks lie months after the last observation)
+  const fullDataRange = useMemo(() => {
+    const dateCandidates = [
+      ...(groundTruth?.dates || []),
+      ...(peakDates || []),
+    ].sort();
+
+    if (!dateCandidates.length) {
+      return null;
+    }
+
+    const lastDate = dateCandidates[dateCandidates.length - 1];
+    let lastPlotted = lastDate;
+    plotData.forEach((trace) => {
+      if (trace.legendgroup === "history") return;
+      (trace.x || []).forEach((x) => {
+        const date = typeof x === "string" ? x.slice(0, 10) : null;
+        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date > lastPlotted) {
+          lastPlotted = date;
+        }
+      });
+    });
+
+    return [
+      dateCandidates[0],
+      lastPlotted > lastDate
+        ? shiftDateStringByDays(lastPlotted, 14)
+        : lastDate,
+    ];
+  }, [groundTruth, peakDates, plotData]);
+
+  const defaultRange = useMemo(() => {
+    if (!fullDataRange) {
+      return null;
+    }
+
+    const end = fullDataRange[1];
+    const start = shiftUtcDateByMonths(end, -9);
+
+    return [start < fullDataRange[0] ? fullDataRange[0] : start, end];
+  }, [fullDataRange]);
+
+  const rangesliderRange = useMemo(() => fullDataRange, [fullDataRange]);
 
   const displayedYRange = useMemo(() => {
     const currentRange = xAxisRange || defaultRange;
