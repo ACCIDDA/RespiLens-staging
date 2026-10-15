@@ -5,7 +5,7 @@ import Plot from "react-plotly.js";
 import ModelSelector from "./ModelSelector";
 import {
   CHART_CONSTANTS,
-  FORECAST_LINE_OFFSET_DAYS,
+  getForecastLineOffsetDays,
   GROUND_TRUTH_LINE_WIDTH,
   GROUND_TRUTH_MARKER_SIZE,
   PLOT_CONFIG,
@@ -68,6 +68,7 @@ const ForecastPlotView = ({
     viewType,
   } = useView();
 
+  const lineOffsetDays = getForecastLineOffsetDays(data?.metadata);
   const groundTruth = data?.ground_truth;
   const forecasts = data?.forecasts;
 
@@ -214,7 +215,7 @@ const ForecastPlotView = ({
   // new dates under the pointer.
   const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
     selectedDates,
-    lineOffsetDays: FORECAST_LINE_OFFSET_DAYS,
+    lineOffsetDays,
     onBeforeCommit: (gd) => {
       const range = gd?._fullLayout?.xaxis?.range;
       if (!xAxisRange && range) setXAxisRange([...range]);
@@ -296,6 +297,7 @@ const ForecastPlotView = ({
       colorScheme,
       displayDates,
       draggingDate,
+      lineOffsetDays,
     );
     const base = getBaseChartLayout(colorScheme);
     const longName = targetDisplayNameMap[resolvedDisplayTarget];
@@ -340,6 +342,7 @@ const ForecastPlotView = ({
     resolvedDisplayTarget,
     displayDates,
     draggingDate,
+    lineOffsetDays,
     yAxisRange,
     xAxisRange,
     getDefaultRange,

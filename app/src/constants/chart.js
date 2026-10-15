@@ -180,8 +180,13 @@ export const getForecastDateLineStyle = (colorScheme) => ({
   width: 1.25,
 });
 
-// Forecast date lines are drawn a few days before the reference date
-export const FORECAST_LINE_OFFSET_DAYS = -3;
+// Legacy/uploaded data without hub metadata keeps the historical offset.
+const FORECAST_LINE_OFFSET_DAYS = -3;
+
+export const getForecastLineOffsetDays = (metadata) =>
+  Number.isInteger(metadata?.forecast_line_offset_days)
+    ? metadata.forecast_line_offset_days
+    : FORECAST_LINE_OFFSET_DAYS;
 
 export const shiftDateStringByDays = (dateString, days) => {
   const [year, month, day] = dateString.split("-").map(Number);

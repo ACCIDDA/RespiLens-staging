@@ -6,7 +6,7 @@ from hub_dataset_processor import HubDataProcessorBase, HubDatasetConfig
 
 
 class FluMetrocastDataProcessor(HubDataProcessorBase):
-    def __init__(self, data: pd.DataFrame, locations_data: pd.DataFrame, target_data: pd.DataFrame):
+    def __init__(self, data: pd.DataFrame, locations_data: pd.DataFrame, target_data: pd.DataFrame, hub_path=None):
         config = HubDatasetConfig(
             file_suffix="flu_metrocast",
             dataset_label="flu metrocast forecasts",
@@ -17,5 +17,6 @@ class FluMetrocastDataProcessor(HubDataProcessorBase):
             locations_data=locations_data,
             target_data=target_data,
             config=config,
+            hub_path=hub_path,
             is_metro_cast=True
         )

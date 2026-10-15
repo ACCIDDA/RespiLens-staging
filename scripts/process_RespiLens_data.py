@@ -78,6 +78,7 @@ def main():
         flu_processor_object = FlusightDataProcessor(
             data=flu_hubverse_df,
             locations_data=LOCATIONS_DATA,
+            hub_path=args.flusight_hub_path,
             target_data=flu_target_data,
         )
         # Iteratively save output files
@@ -108,6 +109,7 @@ def main():
         rsv_processor_object = RSVDataProcessor(
             data=rsv_hubverse_df,
             locations_data=LOCATIONS_DATA,
+            hub_path=args.rsv_hub_path,
             target_data=rsv_target_data,
         )
         # Iteratively save output files
@@ -137,6 +139,7 @@ def main():
         covid_processor_object = COVIDDataProcessor(
             data=covid_hubverse_df,
             locations_data=LOCATIONS_DATA,
+            hub_path=args.covid_hub_path,
             target_data=covid_target_data,
         )
         # Iteratively save output files
@@ -167,6 +170,7 @@ def main():
         flu_metrocast_processor_object = FluMetrocastDataProcessor(
             data=flu_metrocast_hubverse_df,
             locations_data=flu_metrocast_locations_data,
+            hub_path=args.flu_metrocast_hub_path,
             target_data=flu_metrocast_target_data
         )
         # Iteratively save output files
