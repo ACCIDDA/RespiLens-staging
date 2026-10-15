@@ -38,14 +38,6 @@ const toUtcDate = (dateString) => {
   return new Date(Date.UTC(year, month - 1, day));
 };
 
-const toIsoDate = (date) => date.toISOString().slice(0, 10);
-
-const shiftUtcDateByMonths = (dateString, months) => {
-  const date = toUtcDate(dateString);
-  date.setUTCMonth(date.getUTCMonth() + months);
-  return toIsoDate(date);
-};
-
 const padNumber = (value) => String(value).padStart(2, "0");
 
 const getFluPeakSeasonStartYear = (dateString) => {
@@ -60,6 +52,10 @@ const getFluPeakSeasonStartDate = (dateString) => {
   const seasonStartYear = getFluPeakSeasonStartYear(dateString);
   return `${seasonStartYear}-${padNumber(FLU_PEAK_SEASON_START_MONTH)}-${padNumber(FLU_PEAK_SEASON_START_DAY)}`;
 };
+
+// The peak view's season runs through June 30 of its second year
+const getFluPeakSeasonEndDate = (dateString) =>
+  `${getFluPeakSeasonStartYear(dateString) + 1}-06-30`;
 
 const alignDateToFluPeakSeason = (dateString, anchorSeasonStartYear) => {
   const date = toUtcDate(dateString);
@@ -586,8 +582,8 @@ const FluPeak = ({
     colorScheme,
   ]);
 
-  // Observed data and forecast dates, extended to the latest plotted peak
-  // (peak weeks lie months after the last observation)
+  // Observed data and forecast dates, extended to the end of the current
+  // season (June 30) and to any plotted peak lying beyond it
   const fullDataRange = useMemo(() => {
     const dateCandidates = [
       ...(groundTruth?.dates || []),
@@ -599,35 +595,37 @@ const FluPeak = ({
     }
 
     const lastDate = dateCandidates[dateCandidates.length - 1];
-    let lastPlotted = lastDate;
+    let end = getFluPeakSeasonEndDate(lastDate);
+    if (lastDate > end) end = lastDate;
     plotData.forEach((trace) => {
       if (trace.legendgroup === "history") return;
       (trace.x || []).forEach((x) => {
         const date = typeof x === "string" ? x.slice(0, 10) : null;
-        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date > lastPlotted) {
-          lastPlotted = date;
-        }
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+        const plottedEnd = shiftDateStringByDays(date, 14);
+        if (plottedEnd > end) end = plottedEnd;
       });
     });
 
-    return [
-      dateCandidates[0],
-      lastPlotted > lastDate
-        ? shiftDateStringByDays(lastPlotted, 14)
-        : lastDate,
-    ];
+    return [dateCandidates[0], end];
   }, [groundTruth, peakDates, plotData]);
 
+  // The current season, from its start through its end
   const defaultRange = useMemo(() => {
     if (!fullDataRange) {
       return null;
     }
 
-    const end = fullDataRange[1];
-    const start = shiftUtcDateByMonths(end, -9);
+    const lastDate = [...(groundTruth?.dates || []), ...(peakDates || [])]
+      .sort()
+      .at(-1);
+    const start = getFluPeakSeasonStartDate(lastDate);
 
-    return [start < fullDataRange[0] ? fullDataRange[0] : start, end];
-  }, [fullDataRange]);
+    return [
+      start < fullDataRange[0] ? fullDataRange[0] : start,
+      fullDataRange[1],
+    ];
+  }, [fullDataRange, groundTruth, peakDates]);
 
   const rangesliderRange = useMemo(() => fullDataRange, [fullDataRange]);
 
