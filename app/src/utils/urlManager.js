@@ -8,6 +8,8 @@ const DEFAULT_INTERVAL_VISIBILITY = {
 };
 const DEFAULT_SHOW_LEGEND = true;
 const DEFAULT_SHOW_OTHER_GT = false;
+// Past seasons give the peak view its context, so it shows them by default
+const VIEWS_SHOWING_OTHER_GT_BY_DEFAULT = new Set(["flu_peak"]);
 
 export class URLParameterManager {
   constructor(
@@ -67,6 +69,12 @@ export class URLParameterManager {
     return params;
   }
 
+  getDefaultShowOtherGroundTruthSeasons() {
+    return VIEWS_SHOWING_OTHER_GT_BY_DEFAULT.has(this.getView())
+      ? true
+      : DEFAULT_SHOW_OTHER_GT;
+  }
+
   getAdvancedParams() {
     const scaleParam = this.searchParams.get("scale");
     const intervalsParam = this.searchParams.get("intervals");
@@ -99,7 +107,8 @@ export class URLParameterManager {
       showLegend = true;
     }
 
-    let showOtherGroundTruthSeasons = DEFAULT_SHOW_OTHER_GT;
+    let showOtherGroundTruthSeasons =
+      this.getDefaultShowOtherGroundTruthSeasons();
     if (otherGtParam === "1" || otherGtParam === "true") {
       showOtherGroundTruthSeasons = true;
     } else if (otherGtParam === "0" || otherGtParam === "false") {
@@ -178,7 +187,10 @@ export class URLParameterManager {
     }
 
     if (typeof showOtherGroundTruthSeasons === "boolean") {
-      if (showOtherGroundTruthSeasons !== DEFAULT_SHOW_OTHER_GT) {
+      if (
+        showOtherGroundTruthSeasons !==
+        this.getDefaultShowOtherGroundTruthSeasons()
+      ) {
         updatedParams.set("other_gt", showOtherGroundTruthSeasons ? "1" : "0");
       } else {
         updatedParams.delete("other_gt");
