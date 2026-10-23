@@ -139,7 +139,7 @@ export const FrontPageAnnouncements = () => (
       endDate={"2026-11-03T23:59:59"}
       announcementType={"status"}
       text={
-        "COVID-19 forecasts are ongoing year-round. FluSight, the RSV Forecast Hub and MetroCast (local influenza forecasts) have resumed operation for the 2026–27 season."
+        "COVID-19 forecasts are ongoing year-round. FluSight and the RSV Forecast Hub have resumed operation for the 2026–27 season. MetroCast (local influenza forecasts) started on Wednesday, October 21, 2026."
       }
     />
   </>
