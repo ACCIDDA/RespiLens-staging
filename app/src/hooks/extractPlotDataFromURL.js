@@ -193,7 +193,7 @@ export const extractPlotData = (viewType, href, data) => {
       const metrocastModelsString = params.get("metrocast_models");
       models = metrocastModelsString
         ? metrocastModelsString.split(",")
-        : ["epiENGAGE-ensemble_mean"];
+        : ["epiENGAGE-ensemble_short"];
       if (datesString) {
         dates = datesString.split(",");
       } else {

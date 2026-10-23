@@ -66,7 +66,7 @@ export const DATASETS = {
       { key: "forecasts", label: "Forecasts", value: "metrocast_forecasts" },
     ],
     defaultView: "metrocast_forecasts",
-    defaultModel: "epiENGAGE-ensemble_mean",
+    defaultModel: "epiENGAGE-ensemble_short",
     defaultLocation: "colorado",
     hasDateSelector: true,
     hasModelSelector: true,

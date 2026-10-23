@@ -41,6 +41,7 @@ import { copyRange, getRelayoutXRange } from "../../utils/plotRange";
 import ChartCaption from "../ChartCaption";
 
 const METRO_STATE_MAP = {
+  California: "CA",
   Colorado: "CO",
   Georgia: "GA",
   Indiana: "IN",
@@ -48,6 +49,7 @@ const METRO_STATE_MAP = {
   Maryland: "MD",
   Massachusetts: "MA",
   Minnesota: "MN",
+  "New York": "NY",
   "South Carolina": "SC",
   Texas: "TX",
   Utah: "UT",
@@ -153,6 +155,10 @@ const MetroPlotCard = ({
   const show50 = intervalVisibility?.ci50 ?? true;
   const show95 = intervalVisibility?.ci95 ?? true;
   const normalizedChartScale = normalizeChartScale(chartScale);
+  // ED visit targets are percentages; hospital admissions are counts
+  const isPercentTarget = selectedTarget?.endsWith("pct") ?? true;
+  const valueSuffix = isPercentTarget ? "%" : "";
+  const valueDecimals = isPercentTarget ? 2 : 0;
 
   const manualScaleTransform = useMemo(() => {
     if (normalizedChartScale !== "sqrt" && normalizedChartScale !== "log2") {
@@ -172,9 +178,9 @@ const MetroPlotCard = ({
     selectedModels,
     target: selectedTarget,
     groundTruthLabel: "Ground Truth Data",
-    groundTruthValueFormat: "%{y:.2f}",
-    valueSuffix: "%",
-    formatValue: (value) => value.toFixed(2),
+    groundTruthValueFormat: `%{y:.${valueDecimals}f}`,
+    valueSuffix,
+    formatValue: (value) => value.toFixed(valueDecimals),
     modelLineWidth: isSmall ? 1.5 : 2,
     modelMarkerSize: isSmall ? 3 : 6,
     groundTruthLineWidth: isSmall
@@ -191,7 +197,7 @@ const MetroPlotCard = ({
     viewType: "metrocast_forecasts",
     transformY: manualScaleTransform,
     groundTruthHoverFormatter: manualScaleTransform
-      ? (value) => Number(value).toFixed(2)
+      ? (value) => Number(value).toFixed(valueDecimals)
       : null,
   });
 
@@ -290,10 +296,11 @@ const MetroPlotCard = ({
                   longName ||
                   selectedTarget ||
                   "Value",
-              formatValue: (value) => `${value.toFixed(2)}%`,
+              formatValue: (value) =>
+                `${value.toFixed(valueDecimals)}${valueSuffix}`,
             }),
-            tickformat: isTransformedScale ? undefined : ".2f",
-            ticksuffix: isTransformedScale ? undefined : "%",
+            tickformat: isTransformedScale ? undefined : `.${valueDecimals}f`,
+            ticksuffix: isTransformedScale ? undefined : valueSuffix,
           },
           hovermode: isSmall ? false : "closest",
           hoverlabel: {

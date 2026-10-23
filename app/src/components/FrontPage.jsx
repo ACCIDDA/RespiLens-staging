@@ -88,17 +88,6 @@ export const FluSightStartAnnouncement = () => (
   />
 );
 
-// Red banner on the MetroCast view while it is out of season
-export const MetroCastPausedAnnouncement = () => (
-  <Announcement
-    id="metrocast-paused-2026"
-    startDate="2026-06-01T00:00:00"
-    endDate="2026-11-03T23:59:59"
-    announcementType="paused"
-    text="MetroCast (local influenza forecasts) is currently off for the season and will resume on November 4, 2026."
-  />
-);
-
 // Site notices, rendered full width above the page title (outside the
 // content container) by DataVisualizationContainer
 export const FrontPageAnnouncements = () => (
