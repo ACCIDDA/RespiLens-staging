@@ -21,6 +21,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import FrontPage, {
   FrontPageAnnouncements,
   FluSightStartAnnouncement,
+  MetroCastStartAnnouncement,
 } from "./FrontPage";
 import { IconBrandGithub } from "@tabler/icons-react";
 import { useClipboard } from "@mantine/hooks";
@@ -627,6 +628,9 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
         />
       )}
       {currentDataset?.shortName === "flu" && <FluSightStartAnnouncement />}
+      {currentDataset?.shortName === "metrocast" && (
+        <MetroCastStartAnnouncement />
+      )}
       <ChartAboutContext.Provider value={chartAbout}>
         <ChartResetContext.Provider value={resetCount}>
           <ChartRangeContext.Provider value={rangeStore}>

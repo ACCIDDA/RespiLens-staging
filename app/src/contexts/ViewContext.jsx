@@ -403,6 +403,9 @@ export const ViewProvider = ({ children }) => {
   );
   const [showOtherGroundTruthSeasons, setShowOtherGroundTruthSeasons] =
     useState(() => urlManager.getAdvancedParams().showOtherGroundTruthSeasons);
+  // MetroCast forecast span: the 4-week horizons, or the long-term models'
+  // forecasts through the end of the season
+  const [metrocastSpan, setMetrocastSpan] = useState("4wk");
   const [showHistogram, setShowHistogram] = useState(
     () => urlManager.getAdvancedParams().showHistogram,
   );
@@ -1040,6 +1043,8 @@ export const ViewProvider = ({ children }) => {
     setShowOtherGroundTruthSeasons: setShowOtherGroundTruthSeasonsWithUrl,
     showHistogram,
     setShowHistogram: setShowHistogramWithUrl,
+    metrocastSpan,
+    setMetrocastSpan,
   };
 
   return (

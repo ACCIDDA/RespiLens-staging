@@ -24,6 +24,8 @@ const ModelSelector = ({
   selectedModels = [],
   setSelectedModels,
   activeModels = null,
+  // Models marked with an "LT" superscript (MetroCast long-term forecasts)
+  longTermModels = null,
   allowMultiple = true,
   disabled = false,
   modelColorFn = null,
@@ -255,7 +257,26 @@ const ModelSelector = ({
                     cursor: active ? "pointer" : "not-allowed",
                   },
                 }}
-                label={model}
+                label={
+                  longTermModels?.has(model) ? (
+                    <>
+                      {model}
+                      <Text
+                        component="sup"
+                        span
+                        c="dimmed"
+                        fz={9}
+                        fw={600}
+                        ml={2}
+                        title="Long-term forecast through the end of the season"
+                      >
+                        LT
+                      </Text>
+                    </>
+                  ) : (
+                    model
+                  )
+                }
                 title={active ? model : undefined}
               />
             );

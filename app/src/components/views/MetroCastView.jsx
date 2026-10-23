@@ -1,4 +1,11 @@
-import { useState, useLayoutEffect, useMemo, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { usePersistentXRange } from "../../hooks/usePersistentXRange";
 import {
   useMantineColorScheme,
@@ -57,6 +64,9 @@ const METRO_STATE_MAP = {
   "North Carolina": "NC",
   Oregon: "OR",
 };
+
+// The "4 weeks" span shows horizons 0-3; long-term models go further
+const SHORT_TERM_MAX_HORIZON = 3;
 
 // Same height as the other forecast charts
 const MAIN_PLOT_HEIGHT = "min(880px, 60vh)";
@@ -118,9 +128,61 @@ const MetroPlotCard = ({
   intervalVisibility,
   showLegend = true,
   showOtherGroundTruthSeasons = false,
+  span = "4wk",
 }) => {
   const groundTruth = locationData?.ground_truth;
-  const forecasts = locationData?.forecasts;
+  const allForecasts = locationData?.forecasts;
+
+  // "4 weeks" cuts every model to horizons 0-3; "Full season" keeps the
+  // long-term models' later horizons
+  const forecasts = useMemo(() => {
+    if (!allForecasts || span !== "4wk") return allForecasts;
+    const trimmed = {};
+    selectedDates.forEach((date) => {
+      const targetData = allForecasts[date]?.[selectedTarget];
+      if (!targetData) return;
+      const models = {};
+      Object.entries(targetData).forEach(([model, forecast]) => {
+        const predictions = Object.fromEntries(
+          Object.entries(forecast.predictions || {}).filter(
+            ([horizon]) => Number(horizon) <= SHORT_TERM_MAX_HORIZON,
+          ),
+        );
+        models[model] = { ...forecast, predictions };
+      });
+      trimmed[date] = { [selectedTarget]: models };
+    });
+    return trimmed;
+  }, [allForecasts, span, selectedDates, selectedTarget]);
+
+  // Last plotted forecast date, so the full season window reaches it
+  const lastForecastDate = useMemo(() => {
+    if (span !== "season" || !forecasts) return null;
+    let last = null;
+    selectedDates.forEach((date) => {
+      const targetData = forecasts[date]?.[selectedTarget];
+      selectedModels.forEach((model) => {
+        Object.values(targetData?.[model]?.predictions || {}).forEach(
+          (prediction) => {
+            if (!last || prediction.date > last) last = prediction.date;
+          },
+        );
+      });
+    });
+    return last;
+  }, [span, forecasts, selectedDates, selectedTarget, selectedModels]);
+
+  const getRange = useCallback(
+    (forRangeslider = false) => {
+      const range = getDefaultRange(forRangeslider);
+      if (!range || !lastForecastDate) return range;
+      const end = new Date(lastForecastDate);
+      end.setDate(end.getDate() + 7);
+      const endDate = end.toISOString().split("T")[0];
+      return [range[0], endDate > range[1] ? endDate : range[1]];
+    },
+    [getDefaultRange, lastForecastDate],
+  );
 
   const calculateYRange = useCallback(
     (plotData, xRange) => {
@@ -201,7 +263,7 @@ const MetroPlotCard = ({
       : null,
   });
 
-  const defRange = useMemo(() => getDefaultRange(), [getDefaultRange]);
+  const defRange = useMemo(() => getRange(), [getRange]);
 
   // On the main chart: click to add a forecast date, drag a line to move it
   const { containerRef, displayDates, draggingDate } = useForecastDateDrag({
@@ -281,7 +343,7 @@ const MetroPlotCard = ({
             rangeslider: {
               ...RANGESLIDER_STYLE,
               visible: !isSmall,
-              range: getDefaultRange(true),
+              range: getRange(true),
             },
           },
           yaxis: {
@@ -352,6 +414,7 @@ const MetroCastView = ({
     intervalVisibility,
     showLegend,
     showOtherGroundTruthSeasons,
+    metrocastSpan,
   } = useView();
   // Kept across locations (the view remounts while one loads); each target
   // has its own window
@@ -359,6 +422,13 @@ const MetroCastView = ({
     `metrocast:${selectedTarget}`,
   );
   useChartReset(() => setXAxisRange(null));
+  // A new span starts from its default window
+  const lastSpanRef = useRef(metrocastSpan);
+  useEffect(() => {
+    if (lastSpanRef.current === metrocastSpan) return;
+    lastSpanRef.current = metrocastSpan;
+    setXAxisRange(null);
+  }, [metrocastSpan, setXAxisRange]);
 
   const stateName = data?.metadata?.location_name;
   const stateCode = METRO_STATE_MAP[stateName];
@@ -374,6 +444,25 @@ const MetroCastView = ({
         Object.keys(targetData).forEach((m) => activeModelSet.add(m));
     });
     return activeModelSet;
+  }, [forecasts, selectedDates, selectedTarget]);
+
+  // Models forecasting past the 4-week horizons on the selected dates
+  const longTermModels = useMemo(() => {
+    const longTermSet = new Set();
+    if (!forecasts || !selectedTarget) return longTermSet;
+    selectedDates.forEach((date) => {
+      Object.entries(forecasts[date]?.[selectedTarget] || {}).forEach(
+        ([model, forecast]) => {
+          if (
+            Object.keys(forecast.predictions || {}).some(
+              (horizon) => Number(horizon) > SHORT_TERM_MAX_HORIZON,
+            )
+          )
+            longTermSet.add(model);
+        },
+      );
+    });
+    return longTermSet;
   }, [forecasts, selectedDates, selectedTarget]);
 
   const { data: childData, loading: loadingChildren } = useAsyncData(
@@ -428,6 +517,7 @@ const MetroCastView = ({
         intervalVisibility={intervalVisibility}
         showLegend={showLegend}
         showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
+        span={metrocastSpan}
       />
       <Stack gap={2}>
         <ChartCaption forecastNote />
@@ -436,6 +526,7 @@ const MetroCastView = ({
           selectedModels={selectedModels}
           setSelectedModels={setSelectedModels}
           activeModels={activeModels}
+          longTermModels={longTermModels}
           selectedDates={selectedDates}
           keyboardShortcut
         />
@@ -471,6 +562,7 @@ const MetroCastView = ({
             intervalVisibility={intervalVisibility}
             showLegend={showLegend}
             showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
+            span={metrocastSpan}
           />
         </UnstyledButton>
       ));

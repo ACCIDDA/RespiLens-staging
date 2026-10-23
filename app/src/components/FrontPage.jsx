@@ -88,11 +88,37 @@ export const FluSightStartAnnouncement = () => (
   />
 );
 
+// Green banner for MetroCast's early 2026-27 start; also rendered on the
+// MetroCast view by DataVisualizationContainer
+export const MetroCastStartAnnouncement = () => (
+  <Announcement
+    id="metrocast-starts-2026"
+    startDate="2026-10-23T00:00:00"
+    endDate="2026-11-08T23:59:59"
+    announcementType="success"
+    text={
+      <span>
+        MetroCast is up early! Local influenza forecasts for the 2026–27 season
+        are live, now with long-term forecasts through the end of the season.{" "}
+        <Anchor
+          href="/forecasts/flu-metrocast"
+          fw={700}
+          c="blue.7"
+          style={{ fontSize: "inherit", verticalAlign: "baseline" }}
+        >
+          Check the forecasts
+        </Anchor>
+      </span>
+    }
+  />
+);
+
 // Site notices, rendered full width above the page title (outside the
 // content container) by DataVisualizationContainer
 export const FrontPageAnnouncements = () => (
   <>
     <FluSightStartAnnouncement />
+    <MetroCastStartAnnouncement />
     <Announcement
       id="new-nssp-all-view"
       startDate="2026-05-20"
@@ -113,7 +139,7 @@ export const FrontPageAnnouncements = () => (
       endDate={"2026-11-03T23:59:59"}
       announcementType={"status"}
       text={
-        "COVID-19 forecasts are ongoing year-round. FluSight and the RSV Forecast Hub have resumed operation for the 2026–27 season. MetroCast (local influenza forecasts) will start on November 4, 2026."
+        "COVID-19 forecasts are ongoing year-round. FluSight, the RSV Forecast Hub and MetroCast (local influenza forecasts) have resumed operation for the 2026–27 season."
       }
     />
   </>
