@@ -8,6 +8,8 @@ const DEFAULT_INTERVAL_VISIBILITY = {
 };
 const DEFAULT_SHOW_LEGEND = true;
 const DEFAULT_SHOW_OTHER_GT = false;
+// MetroCast forecast span: "4wk" (horizons 0-3) or "season" (long-term)
+const DEFAULT_METROCAST_SPAN = "4wk";
 // Past seasons give the peak view its context, so it shows them by default
 const VIEWS_SHOWING_OTHER_GT_BY_DEFAULT = new Set(["flu_peak"]);
 
@@ -81,6 +83,7 @@ export class URLParameterManager {
     const legendParam = this.searchParams.get("legend");
     const otherGtParam = this.searchParams.get("other_gt");
     const histogramParam = this.searchParams.get("histogram");
+    const spanParam = this.searchParams.get("span");
 
     const chartScale = normalizeChartScale(scaleParam || DEFAULT_CHART_SCALE);
     let intervalVisibility = { ...DEFAULT_INTERVAL_VISIBILITY };
@@ -121,6 +124,7 @@ export class URLParameterManager {
       showLegend,
       showOtherGroundTruthSeasons,
       showHistogram: histogramParam === "1" || histogramParam === "true",
+      metrocastSpan: spanParam === "season" ? "season" : DEFAULT_METROCAST_SPAN,
     };
   }
 
@@ -154,6 +158,7 @@ export class URLParameterManager {
     showLegend,
     showOtherGroundTruthSeasons,
     showHistogram,
+    metrocastSpan,
   }) {
     const updatedParams = new URLSearchParams(this.searchParams);
 
@@ -202,6 +207,14 @@ export class URLParameterManager {
         updatedParams.set("histogram", "1");
       } else {
         updatedParams.delete("histogram");
+      }
+    }
+
+    if (metrocastSpan) {
+      if (metrocastSpan !== DEFAULT_METROCAST_SPAN) {
+        updatedParams.set("span", metrocastSpan);
+      } else {
+        updatedParams.delete("span");
       }
     }
 
