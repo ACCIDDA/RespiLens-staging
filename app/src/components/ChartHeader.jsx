@@ -7,6 +7,7 @@ import {
   Popover,
   Tooltip,
   ActionIcon,
+  SegmentedControl,
 } from "@mantine/core";
 import {
   IconAdjustmentsHorizontal,
@@ -60,6 +61,8 @@ const ChartHeader = ({
     setShowOtherGroundTruthSeasons,
     showHistogram,
     setShowHistogram,
+    metrocastSpan,
+    setMetrocastSpan,
   } = useView();
 
   const about = useContext(ChartAboutContext);
@@ -125,6 +128,24 @@ const ChartHeader = ({
       </Stack>
 
       <Group gap={2} wrap="nowrap">
+        {viewType === "metrocast_forecasts" && (
+          <Tooltip
+            label="Long-term (LT) models forecast through the end of the season"
+            openDelay={300}
+          >
+            <SegmentedControl
+              size="xs"
+              mr={6}
+              value={metrocastSpan}
+              onChange={setMetrocastSpan}
+              data={[
+                { value: "4wk", label: "4 weeks" },
+                { value: "season", label: "Full season" },
+              ]}
+              aria-label="Forecast span"
+            />
+          </Tooltip>
+        )}
         <Popover position="bottom-end" shadow="md" width={360}>
           <Popover.Target>
             <Tooltip label="Display options" openDelay={300}>

@@ -72,6 +72,41 @@ def hubverse_df_preprocessor(df: pd.DataFrame, filter_quantiles: bool = True, fi
     return df
 
 
+def samples_to_quantiles(df: pd.DataFrame, quantile_levels: tuple = (0.025, 0.25, 0.5, 0.75, 0.975)) -> pd.DataFrame:
+    """
+    Summarize `output_type` == sample rows into quantile rows, so sample-only submissions can be displayed.
+
+    Hubs without a `horizon` task id (e.g., flu-metrocast 2026-27) get horizons derived as whole weeks
+    between `reference_date` and `target_end_date`. Non-sample rows are returned unchanged.
+
+    Args:
+        df: Hubverse data as pd.DataFrame
+        quantile_levels: Quantile levels to compute from the samples
+
+    Returns:
+        The df with sample rows replaced by quantile rows.
+    """
+    is_sample = df['output_type'] == 'sample'
+    if not is_sample.any():
+        return df
+    samples = df[is_sample].copy()
+    missing_horizon = samples['horizon'].isna()
+    if missing_horizon.any():
+        weeks = (pd.to_datetime(samples.loc[missing_horizon, 'target_end_date'])
+                 - pd.to_datetime(samples.loc[missing_horizon, 'reference_date'])).dt.days // 7
+        samples.loc[missing_horizon, 'horizon'] = weeks
+    task_cols = [col for col in df.columns if col not in ('output_type', 'output_type_id', 'value')]
+    quantiles = (
+        samples.groupby(task_cols, dropna=False)['value']
+        .quantile(list(quantile_levels))
+        .rename('value')
+        .reset_index()
+        .rename(columns={f'level_{len(task_cols)}': 'output_type_id'})
+    )
+    quantiles['output_type'] = 'quantile'
+    return pd.concat([df[~is_sample], quantiles[df.columns]], ignore_index=True)
+
+
 def get_location_info(
         location_data: pd.DataFrame, 
         location: str, 
@@ -96,6 +131,7 @@ def get_location_info(
     # But Respi DOES require that they be unique, and the default code value for metrocast states is 'All'
     # So here we choose to use state FIPS codes instead of 'All' to make them keys
     metrocast_states_to_fips = {
+        "california": "06",
         "colorado": "08",
         "georgia": "13",
         "indiana": "18",
@@ -103,6 +139,7 @@ def get_location_info(
         "maryland": "24",
         "massachusetts": "25",
         "minnesota": "27",
+        "new-york": "36",
         "north-carolina": "37",
         "oregon": "41",
         "south-carolina": "45",
@@ -119,6 +156,11 @@ def get_location_info(
         try: return metrocast_states_to_fips[location]
         except KeyError:
             raise KeyError(f"Flu MetroCast has added a new state {location}. Update `metrocast_states_to_fips` to include this state.")
+    # Only HSA ids are unique across states; state-specific region ids (ut_region_id, nc_flu_region_id,
+    # ca_region_id) restart at 1 or are empty, so those locations are keyed by their slug instead
+    if (value_needed == 'original_location_code') and ('location_type' in current_df.columns) \
+            and (current_df['location_type'].iloc[0] != 'hsa_nci_id'):
+        return location
     else:
         return str(current_df[value_needed].iloc[0])
     

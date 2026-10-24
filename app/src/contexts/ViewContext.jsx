@@ -15,6 +15,7 @@ import {
 const DATE_URL_DELAY_MS = 250;
 
 const METRO_STATE_MAP = {
+  California: "CA",
   Colorado: "CO",
   Georgia: "GA",
   Indiana: "IN",
@@ -22,6 +23,7 @@ const METRO_STATE_MAP = {
   Maryland: "MD",
   Massachusetts: "MA",
   Minnesota: "MN",
+  "New York": "NY",
   "South Carolina": "SC",
   Texas: "TX",
   Utah: "UT",
@@ -401,6 +403,11 @@ export const ViewProvider = ({ children }) => {
   );
   const [showOtherGroundTruthSeasons, setShowOtherGroundTruthSeasons] =
     useState(() => urlManager.getAdvancedParams().showOtherGroundTruthSeasons);
+  // MetroCast forecast span: the 4-week horizons, or the long-term models'
+  // forecasts through the end of the season
+  const [metrocastSpan, setMetrocastSpan] = useState(
+    () => urlManager.getAdvancedParams().metrocastSpan,
+  );
   const [showHistogram, setShowHistogram] = useState(
     () => urlManager.getAdvancedParams().showHistogram,
   );
@@ -879,6 +886,7 @@ export const ViewProvider = ({ children }) => {
       showLegend: urlLegend,
       showOtherGroundTruthSeasons: urlShowOtherGroundTruthSeasons,
       showHistogram: urlShowHistogram,
+      metrocastSpan: urlMetrocastSpan,
     } = urlManager.getAdvancedParams();
 
     if (isSurveillanceView && urlShowOtherGroundTruthSeasons) {
@@ -906,6 +914,9 @@ export const ViewProvider = ({ children }) => {
     if (urlShowHistogram !== showHistogram) {
       setShowHistogram(urlShowHistogram);
     }
+    if (urlMetrocastSpan !== metrocastSpan) {
+      setMetrocastSpan(urlMetrocastSpan);
+    }
   }, [
     searchParams,
     location.pathname,
@@ -917,6 +928,7 @@ export const ViewProvider = ({ children }) => {
     showLegend,
     showOtherGroundTruthSeasons,
     showHistogram,
+    metrocastSpan,
   ]);
 
   const setChartScaleWithUrl = useCallback(
@@ -969,6 +981,16 @@ export const ViewProvider = ({ children }) => {
       setShowHistogram(nextValue);
       if (isForecastPage) {
         urlManager.updateAdvancedParams({ showHistogram: nextValue });
+      }
+    },
+    [urlManager, isForecastPage],
+  );
+
+  const setMetrocastSpanWithUrl = useCallback(
+    (nextValue) => {
+      setMetrocastSpan(nextValue);
+      if (isForecastPage) {
+        urlManager.updateAdvancedParams({ metrocastSpan: nextValue });
       }
     },
     [urlManager, isForecastPage],
@@ -1038,6 +1060,8 @@ export const ViewProvider = ({ children }) => {
     setShowOtherGroundTruthSeasons: setShowOtherGroundTruthSeasonsWithUrl,
     showHistogram,
     setShowHistogram: setShowHistogramWithUrl,
+    metrocastSpan,
+    setMetrocastSpan: setMetrocastSpanWithUrl,
   };
 
   return (

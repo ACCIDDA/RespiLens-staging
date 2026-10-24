@@ -6,6 +6,7 @@ import {
 } from "../utils/nsspGeo";
 
 const METRO_STATE_MAP = {
+  California: "CA",
   Colorado: "CO",
   Georgia: "GA",
   Indiana: "IN",
@@ -13,6 +14,7 @@ const METRO_STATE_MAP = {
   Maryland: "MD",
   Massachusetts: "MA",
   Minnesota: "MN",
+  "New York": "NY",
   "South Carolina": "SC",
   Texas: "TX",
   Utah: "UT",
