@@ -49,7 +49,7 @@ import ForecastChartControls from "../controls/ForecastChartControls";
 import Seo from "../Seo";
 import useQuantileForecastTraces from "../../hooks/useQuantileForecastTraces";
 import { APP_CONFIG } from "../../config/app";
-import { DATASETS, MODEL_COLORS } from "../../config/datasets";
+import { DATASETS, MODEL_COLORS, getModelColor } from "../../config/datasets";
 import { nextIntervalVisibility } from "../../utils/intervalCycle";
 import { downloadChartPng } from "../../utils/downloadChartPng";
 import {
@@ -1524,7 +1524,6 @@ const MyRespiVisualizationPanel = ({
   const plotRef = useRef(null);
   const isResettingRef = useRef(false);
   const comparisonCacheRef = useRef(new Map());
-  const userModelOrderRef = useRef([]);
   const submittedModelOrderRef = useRef([]);
 
   const locationOptions = useMemo(
@@ -1770,35 +1769,16 @@ const MyRespiVisualizationPanel = ({
     return nextOrder;
   }, [selectedSubmittedModels]);
 
-  const stableUserModelOrder = useMemo(() => {
-    const nextOrder = extendStableModelOrder(
-      userModelOrderRef.current,
-      selectedModels,
-    );
-    userModelOrderRef.current = nextOrder;
-    return nextOrder;
-  }, [selectedModels]);
-
+  // Submitted models take the colors the selected hub models aren't using
   const submittedModelPalette = useMemo(() => {
-    const reservedColors = new Set(
-      selectedModels
-        .map((model) => {
-          const index = stableUserModelOrder.indexOf(model);
-          if (index < 0) {
-            return null;
-          }
-
-          return MODEL_COLORS[index % MODEL_COLORS.length];
-        })
-        .filter(Boolean),
-    );
+    const reservedColors = new Set(selectedModels.map(getModelColor));
 
     const availableColors = MODEL_COLORS.filter(
       (color) => !reservedColors.has(color),
     );
 
     return availableColors.length ? availableColors : MODEL_COLORS;
-  }, [selectedModels, stableUserModelOrder]);
+  }, [selectedModels]);
 
   const submittedModelColorFn = useCallback(
     (model) => {
@@ -1906,7 +1886,6 @@ const MyRespiVisualizationPanel = ({
     show95: submittedIntervalVisibility.ci95,
     intervalVisibility: submittedIntervalVisibility,
     modelColorFn: submittedModelColorFn,
-    modelOrder: stableSubmittedModelOrder,
     modelHoverBuilder: buildComparisonHoverText,
     transformY: manualScaleTransform,
   });
