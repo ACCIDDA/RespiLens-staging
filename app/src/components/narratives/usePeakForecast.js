@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from "react";
 import {
-  describePeakSpread,
   formatStoryDate,
   getPastPeakSeason,
   getSeasonStartYear,
@@ -13,8 +12,6 @@ import {
 } from "../../utils/peakForecasts";
 
 const ENSEMBLE_MODEL = "FluSight-ensemble";
-// A latest forecast older than this is not "this week's"
-const STALE_AFTER_DAYS = 14;
 
 const shiftYear = (date, years) =>
   `${Number(date.slice(0, 4)) + years}${date.slice(4)}`;
@@ -62,23 +59,9 @@ export const usePeakForecast = ({
   const latestDate = seasonDates[seasonDates.length - 1] || null;
   const requestedDate = params.get("peakDate");
   const date = seasonDates.includes(requestedDate) ? requestedDate : latestDate;
-  const isStale =
-    latestDate &&
-    Date.parse(`${asOf}T00:00:00Z`) - Date.parse(`${latestDate}T00:00:00Z`) >
-      STALE_AFTER_DAYS * 24 * 60 * 60 * 1000;
 
   const ensemble = useMemo(
     () => summarizePeakForecast(peaks, date, ENSEMBLE_MODEL),
-    [peaks, date],
-  );
-  // Every forecast but the ensemble's own, to compare it against
-  const members = useMemo(
-    () =>
-      summarizePeakForecasts(
-        peaks,
-        date,
-        getPeakModels(peaks, date).filter((model) => model !== ENSEMBLE_MODEL),
-      ),
     [peaks, date],
   );
 
@@ -104,9 +87,6 @@ export const usePeakForecast = ({
     );
     const ensembleThen =
       summaries.find((summary) => summary.model === ENSEMBLE_MODEL) || null;
-    const hits = summaries.map((summary) =>
-      intervalHit(summary.size, observed.value),
-    );
     return {
       season: pastSeason.season,
       observed,
@@ -115,12 +95,10 @@ export const usePeakForecast = ({
       ensembleHit: ensembleThen
         ? intervalHit(ensembleThen.size, observed.value)
         : null,
-      ensembleWeekError: ensembleThen?.week?.median
-        ? weeksBetween(observed.date, ensembleThen.week.median)
-        : null,
       modelCount: summaries.length,
-      in50: hits.filter((hit) => hit.in50).length,
-      in95: hits.filter((hit) => hit.in95).length,
+      in95: summaries.filter(
+        (summary) => intervalHit(summary.size, observed.value).in95,
+      ).length,
     };
   }, [peaks, pastDate, pastSeason]);
 
@@ -156,14 +134,7 @@ export const usePeakForecast = ({
     peaks,
     ensembleModel: ENSEMBLE_MODEL,
     dateLabel: formatStoryDate(date),
-    isLatest: date === latestDate,
-    isStale,
     ensemble,
-    spread: describePeakSpread(members),
-    aboveEnsemble: ensemble
-      ? members.filter((summary) => summary.size.median > ensemble.size.median)
-          .length
-      : null,
     pastDate,
     pastDateLabel: formatStoryDate(pastDate),
     lookBack,

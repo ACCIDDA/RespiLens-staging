@@ -123,11 +123,7 @@ export const useIntroStory = ({ params, updateParams, activeHubs, asOf }) => {
     flu: { ...flu, setLocation },
     // flu_peak reads the same flusight data as the weekly forecasts
     peak: { ...flu, viewType: "flu_peak", setLocation },
-    metro: {
-      ...metro,
-      setLocation: setMetroLocation,
-      longTermModel: DATASETS.metrocast.longTermDefaultModel,
-    },
+    metro: { ...metro, setLocation: setMetroLocation },
     rsv: { ...rsv, setLocation },
     covid: { ...covid, setLocation },
   };
@@ -143,7 +139,6 @@ export const useIntroStory = ({ params, updateParams, activeHubs, asOf }) => {
         : location
           ? resolvePlotLocationDisplayName(location)
           : "",
-    setLocation,
     // The URL change choosing a place makes, for a step that also moves on
     locationPatch,
     hubs,

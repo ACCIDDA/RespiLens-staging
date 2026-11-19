@@ -154,23 +154,6 @@ export const intervalHit = (size, value) => ({
       : false,
 });
 
-// Spread of the plotted models' best guesses, for the narrative's prose
-export const describePeakSpread = (summaries) => {
-  if (!summaries.length) return null;
-  const bySize = [...summaries].sort((a, b) => a.size.median - b.size.median);
-  const timed = summaries
-    .filter((summary) => summary.week?.median)
-    .sort((a, b) => a.week.median.localeCompare(b.week.median));
-  return {
-    count: summaries.length,
-    lowest: bySize[0],
-    highest: bySize[bySize.length - 1],
-    earliest: timed[0] || null,
-    latest: timed[timed.length - 1] || null,
-    untimedCount: summaries.length - timed.length,
-  };
-};
-
 const UTC_DATE = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",

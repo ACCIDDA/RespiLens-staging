@@ -10,20 +10,23 @@ import {
 } from "../../../utils/trajectoryForecasts";
 
 // A narrative is a list of slides read one after another. Each slide has a
-// title, a `chapter` and a `short` name (or `layout: "cover"`: the
-// full-width first page with the title, authors and logo) (the breadcrumb: Narratives ›
+// title, a `chapter` and a `short` name (for the breadcrumb: Narratives ›
 // shortTitle › chapter › short), prose (Markdown, or a function of the
 // story's state returning it, so the text can quote the data on screen;
 // keep it to a few sentences, the chart carries the rest) and a `visual`
-// drawn beside it: "state-map" (with `advanceOnLocation`, a click on a
-// state also moves on), "hub-links", "forecast" (the app's own
-// chart, set up by `view`: which hub's data, which forecast date, which
-// models, which intervals) or "chart" (a chart drawn from a blank canvas by
-// the slide's `chart` function). A chart slide can call out points with
-// `highlights`, and change the app's chart with `customize` (see
-// SlideNarrativeViewer). `story` names the state the slides share (see
-// SlideNarrativeViewer's STORIES); `requires` lists what must exist before
-// a slide opens.
+// drawn beside it:
+// - "hub-table": the slide's `hubs`, side by side
+// - "state-map": a place to pick (with `advanceOnLocation`, a click on a
+//   state also moves on)
+// - "forecast": the app's own chart, set up by `view` (which hub's data,
+//   which forecast date, which models, which intervals)
+// - "chart": a chart drawn from a blank canvas by the slide's `chart`
+// - "hub-links": where to continue in RespiLens
+// `layout: "cover"` makes a full-width first page instead (title, authors
+// and logo). A chart slide can call out points with `highlights`, and
+// change the app's chart with `customize` (see SlideNarrativeViewer).
+// `story` names the state the slides share (see SlideNarrativeViewer's
+// STORIES); `requires` lists what must exist before a slide opens.
 
 const seasonLabel = (season) =>
   `${season}–${String((season + 1) % 100).padStart(2, "0")}`;
@@ -542,14 +545,6 @@ export const narrative = {
   asOf: "2026-10-31",
   // Reading time, shown on the narratives list
   minutes: 20,
-  tags: [
-    "Introduction",
-    "FluSight",
-    "Flu MetroCast",
-    "RSV",
-    "COVID-19",
-    "Ensembles",
-  ],
   story: "intro",
   // Fixed data files made once for this narrative, read as story.snapshots
   snapshots: { sampleSeasons: sampleSeasonsUrl },

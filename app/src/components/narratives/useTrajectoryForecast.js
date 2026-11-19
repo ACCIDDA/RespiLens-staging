@@ -8,10 +8,6 @@ import {
   summarizeTrajectory,
 } from "../../utils/trajectoryForecasts";
 
-// A forecast older than this at the story's date is not "last week's"
-const STALE_AFTER_DAYS = 14;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
  * One hub's weekly forecasts for a narrative: loads them with the app's own
  * useForecastData (only while `active`, so a story with several hubs loads
@@ -57,10 +53,6 @@ export const useTrajectoryForecast = ({
   const latestDate = offered.at(-1) || null;
   const requestedDate = params.get(paramKey);
   const date = offered.includes(requestedDate) ? requestedDate : latestDate;
-  const isStale =
-    Boolean(latestDate) &&
-    Date.parse(`${asOf}T00:00:00Z`) - Date.parse(`${latestDate}T00:00:00Z`) >
-      STALE_AFTER_DAYS * DAY_MS;
 
   const ensemble = useMemo(
     () => summarizeTrajectory(forecasts, date, target, ensembleModel),
@@ -101,15 +93,12 @@ export const useTrajectoryForecast = ({
     viewType,
     forecast,
     forecasts,
-    groundTruth,
     location,
     target,
     ensembleModel,
     date: dateEntry,
     dateLabel: formatStoryDate(date),
     season,
-    isLatest: date === latestDate,
-    isStale,
     // No forecast yet in the story's season: the latest is an earlier one's
     fromPastSeason:
       Boolean(latestDate) && getSeasonStartYear(latestDate) < season,
