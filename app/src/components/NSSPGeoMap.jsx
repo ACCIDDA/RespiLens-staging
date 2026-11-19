@@ -9,7 +9,10 @@ const MAP_PADDING = {
 };
 
 // `displayHeight`: a CSS height to fit the map into (it keeps its aspect
-// ratio, centred); by default it takes its natural height at full width
+// ratio, centred); by default it takes its natural height at full width.
+// `focusableFeatures`: every clickable shape is also a button reached with
+// Tab and pressed with Enter or Space (the map is then a group named
+// `ariaLabel` rather than a picture).
 const NSSPGeoMap = ({
   featureCollection,
   height,
@@ -21,6 +24,8 @@ const NSSPGeoMap = ({
   getFeatureLabel,
   getFeatureFill,
   getFeatureCallout,
+  focusableFeatures = false,
+  ariaLabel = "Interactive geographic map",
 }) => {
   const [activeCalloutKey, setActiveCalloutKey] = useState(null);
   const pathGenerator = useMemo(() => {
@@ -81,8 +86,8 @@ const NSSPGeoMap = ({
     <svg
       viewBox={`0 0 ${MAP_WIDTH} ${height}`}
       style={{ width: "100%", height: displayHeight, display: "block" }}
-      role="img"
-      aria-label="Interactive geographic map"
+      role={focusableFeatures ? "group" : "img"}
+      aria-label={ariaLabel}
     >
       {featureCollection.features.map((feature) => {
         const pathData = pathGenerator(feature);
@@ -95,11 +100,26 @@ const NSSPGeoMap = ({
           ? isFeatureClickable(feature)
           : true;
         const featureKey = getFeatureKey(feature);
+        const asButton = focusableFeatures && isClickable;
 
         return (
           <path
             key={featureKey}
             d={pathData}
+            className={asButton ? "respilens-map-feature" : undefined}
+            role={asButton ? "button" : undefined}
+            tabIndex={asButton ? 0 : undefined}
+            aria-label={asButton ? label : undefined}
+            onKeyDown={
+              asButton
+                ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onFeatureClick(feature);
+                    }
+                  }
+                : undefined
+            }
             fill={
               activeCalloutKey === featureKey
                 ? NSSP_MAP_COLORS.hover

@@ -29,7 +29,13 @@ import Seo from "./Seo";
 import { resolvePlotLocationDisplayName } from "../utils/plotLocationDisplay";
 import { downloadChartPng } from "../utils/downloadChartPng";
 
-const DataVisualizationContainer = ({ disableSeo = false }) => {
+// `embedded`: the chart inside another page (a narrative): no page title,
+// announcements or "Add to My Plots" (it saves from the page's address),
+// and no page padding.
+const DataVisualizationContainer = ({
+  disableSeo = false,
+  embedded = false,
+}) => {
   const {
     selectedLocation,
     data,
@@ -621,24 +627,32 @@ const DataVisualizationContainer = ({ disableSeo = false }) => {
 
   return (
     <ErrorBoundary onReset={() => window.location.reload()}>
-      {!disableSeo && (
+      {!disableSeo && !embedded && (
         <Seo
           title={forecastTitle}
           description={`View ${currentDataset?.fullName || "respiratory disease forecasts"} in RespiLens with model projections, observed trends, and state-level respiratory disease activity.`}
         />
       )}
-      {currentDataset?.shortName === "flu" && <FluSightStartAnnouncement />}
-      {currentDataset?.shortName === "metrocast" && (
+      {!embedded && currentDataset?.shortName === "flu" && (
+        <FluSightStartAnnouncement />
+      )}
+      {!embedded && currentDataset?.shortName === "metrocast" && (
         <MetroCastStartAnnouncement />
       )}
       <ChartAboutContext.Provider value={chartAbout}>
         <ChartResetContext.Provider value={resetCount}>
           <ChartRangeContext.Provider value={rangeStore}>
-            <Container size="xl" pt="md" pb="xl" style={{ maxWidth: "1400px" }}>
+            <Container
+              size="xl"
+              pt={embedded ? 0 : "md"}
+              pb={embedded ? 0 : "xl"}
+              px={embedded ? 0 : undefined}
+              style={{ maxWidth: "1400px" }}
+            >
               <Stack gap="lg">
-                <Stack gap="md" style={{ minHeight: "78vh" }}>
+                <Stack gap="md" style={{ minHeight: embedded ? 0 : "78vh" }}>
                   <ChartHeader
-                    onSave={handleSaveToMyPlots}
+                    onSave={embedded ? null : handleSaveToMyPlots}
                     isAdded={isAdded}
                     onShare={handleShare}
                     shareCopied={clipboard.copied}

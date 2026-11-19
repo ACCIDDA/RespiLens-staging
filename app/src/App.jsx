@@ -3,7 +3,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
   useLocation,
   useParams,
 } from "react-router-dom";
@@ -68,8 +67,6 @@ const FrontPageLocationRoute = () => {
 // We create this new component to hold our main layout.
 // It can safely use hooks because it will be inside the Router and Provider.
 const AppLayout = () => {
-  const navigate = useNavigate(); // Safely used inside <Router>
-
   // <ShutdownBanner />  was below UnifiedAppShell, should we need it again
   return (
     <UnifiedAppShell>
@@ -82,14 +79,7 @@ const AppLayout = () => {
           element={<Navigate to="/surveillance/nhsn" replace />}
         />
         <Route path="/surveillance/*" element={<ForecastRoute />} />
-        <Route
-          path="/narratives"
-          element={
-            <NarrativeBrowser
-              onNarrativeSelect={(id) => navigate(`/narratives/${id}`)}
-            />
-          }
-        />
+        <Route path="/narratives" element={<NarrativeBrowser />} />
         <Route path="/narratives/:id" element={<SlideNarrativeViewer />} />
         <Route path="/forecastle" element={<ForecastleGame />} />
         {ENABLED_TOURNAMENTS.map((tournament) => (

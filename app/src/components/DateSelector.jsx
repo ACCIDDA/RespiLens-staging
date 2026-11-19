@@ -20,6 +20,12 @@ const DateSelector = ({
   // Compact: inline in a subtitle line (smaller, no remove button for a
   // single date, quieter "compare" button)
   compact = false,
+  // Focus the date once there is one, so ← / → act on it at once. Off
+  // where the page manages focus itself (a narrative).
+  autoFocus = true,
+  // ← / → move the active date, from anywhere on the page. Off where the
+  // page uses them itself (a narrative's slides).
+  arrowKeys = true,
 }) => {
   const [keyMovementAnchor, setKeyMovementAnchor] = useState(activeDate); // keyMovement responsible for date keydown movement
   const firstDateBoxRef = useRef(null);
@@ -31,11 +37,11 @@ const DateSelector = ({
   }, [activeDate]);
   const hasDate = !!activeDate;
   useEffect(() => {
-    if (hasDate && firstDateBoxRef.current) {
+    if (autoFocus && hasDate && firstDateBoxRef.current) {
       const timeout = setTimeout(() => firstDateBoxRef.current?.focus(), 100);
       return () => clearTimeout(timeout);
     }
-  }, [hasDate]);
+  }, [autoFocus, hasDate]);
   const handleMove = useCallback(
     (dateToMove, direction) => {
       if (!dateToMove) return;
@@ -70,6 +76,7 @@ const DateSelector = ({
   );
 
   useEffect(() => {
+    if (!arrowKeys) return undefined;
     const handleKeyDown = (event) => {
       if (!keyMovementAnchor) return;
       if (["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
@@ -85,7 +92,7 @@ const DateSelector = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleMove, keyMovementAnchor]);
+  }, [arrowKeys, handleMove, keyMovementAnchor]);
 
   const handleAddDate = () => {
     const sorted = [...selectedDates].sort();

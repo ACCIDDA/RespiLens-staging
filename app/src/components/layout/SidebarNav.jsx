@@ -15,6 +15,7 @@ import {
   IconTool,
   IconChartScatter,
   IconInfoCircle,
+  IconBook,
 } from "@tabler/icons-react";
 import { useView } from "../../hooks/useView";
 import { APP_CONFIG } from "../../config/app";
@@ -86,6 +87,12 @@ const SidebarNav = ({ onNavigate }) => {
       label: "Forecastle",
       icon: IconTarget,
       active: path.startsWith("/forecastle"),
+    },
+    {
+      href: "/narratives",
+      label: "Narratives",
+      icon: IconBook,
+      active: path.startsWith("/narratives"),
     },
     {
       href: "/toolbox",

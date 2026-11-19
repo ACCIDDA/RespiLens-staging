@@ -24,10 +24,15 @@ import {
   transformValueForScale,
 } from "../utils/scaleUtils";
 import { useChartReset } from "../hooks/useChartReset";
+import { useStoryChart } from "../hooks/useStoryChart";
 import useForecastDateDrag from "../hooks/useForecastDateDrag";
 import { extendStableModelOrder, hexToRgba } from "../utils/modelColorUtils";
 import { copyRange, getRelayoutXRange } from "../utils/plotRange";
 import ChartCaption from "./ChartCaption";
+import {
+  getObservedSeasonPeak,
+  summarizePeakForecast,
+} from "../utils/peakForecasts";
 
 const FLU_PEAK_SEASON_START_MONTH_INDEX = 7;
 const FLU_PEAK_SEASON_START_MONTH = 8;
@@ -151,6 +156,9 @@ const FluPeak = ({
   intervalVisibility = { median: true, ci50: true, ci95: true },
   showLegend = true,
   showOtherGroundTruthSeasons = false,
+  // Mark the highest observed week of the forecast date's season (for
+  // looking back at how a past season's forecasts did)
+  showObservedPeak = false,
 }) => {
   const { colorScheme } = useMantineColorScheme();
   const groundTruth = data?.ground_truth;
@@ -281,6 +289,39 @@ const FluPeak = ({
       }
     }
 
+    // The season's observed peak, starred
+    const peakSeasonDate = [...(selectedDates || [])].sort().at(-1);
+    const peak =
+      showObservedPeak && peakSeasonDate
+        ? getObservedSeasonPeak(
+            groundTruth,
+            getFluPeakSeasonStartYear(peakSeasonDate),
+          )
+        : null;
+    if (peak) {
+      traces.push({
+        x: [peak.date],
+        y: [peak.value],
+        name: "Observed peak",
+        type: "scatter",
+        mode: "markers+text",
+        text: ["Observed peak"],
+        textposition: "top center",
+        textfont: { size: 12, color: getChartInk(colorScheme).text },
+        marker: {
+          symbol: "star",
+          size: 18,
+          color: getChartInk(colorScheme).text,
+          line: { width: 1.5, color: "white" },
+        },
+        customdata: [peak.value.toLocaleString()],
+        hovertemplate:
+          "<b>Observed peak</b><br>" +
+          "Week of %{x}<br>" +
+          "Hospitalizations: %{customdata}<extra></extra>",
+      });
+    }
+
     // Model peak predictions data
     if (peaks && selectedModels.length > 0) {
       const rawDates =
@@ -299,69 +340,23 @@ const FluPeak = ({
         const baseColorHex = getModelColor(model, stableModelOrder);
 
         datesToCheck.forEach((refDate, index) => {
-          const dateData = peaks[refDate];
-          if (!dateData) return;
-
-          const intensityData = dateData["peak inc flu hosp"]?.[model];
-          if (!intensityData || !intensityData.predictions) return;
-
-          // extract confidence intervals
-          const iPreds = intensityData.predictions;
-          const getVal = (q) => {
-            const idx = iPreds.quantiles.indexOf(q);
-            return idx !== -1 ? iPreds.values[idx] : null;
-          };
-
-          const medianVal = getVal(0.5);
-          const low95 = getVal(0.025);
-          const high95 = getVal(0.975);
-          const low50 = getVal(0.25);
-          const high50 = getVal(0.75);
-
-          if (medianVal === null) return;
-
-          const timingData = dateData["peak week inc flu hosp"]?.[model];
-          if (!timingData || !timingData.predictions) return;
-
-          const tPreds = timingData.predictions;
-          const dateArray = tPreds["peak week"] || tPreds["values"];
-          const probArray = tPreds["probabilities"];
-
-          let bestDateStr = null;
-          let lowDate95 = null,
-            highDate95 = null;
-          let lowDate50 = null,
-            highDate50 = null;
-
-          if (dateArray && probArray) {
-            let cumulativeProb = 0;
-            let medianIdx = -1,
-              q025Idx = -1,
-              q975Idx = -1,
-              q25Idx = -1,
-              q75Idx = -1;
-            for (let i = 0; i < probArray.length; i++) {
-              cumulativeProb += probArray[i];
-
-              if (q025Idx === -1 && cumulativeProb >= 0.025) q025Idx = i;
-              if (q25Idx === -1 && cumulativeProb >= 0.25) q25Idx = i;
-              if (medianIdx === -1 && cumulativeProb >= 0.5) medianIdx = i;
-              if (q75Idx === -1 && cumulativeProb >= 0.75) q75Idx = i;
-              if (q975Idx === -1 && cumulativeProb >= 0.975) q975Idx = i;
-            }
-            if (medianIdx === -1) medianIdx = probArray.length - 1;
-            if (q975Idx === -1) q975Idx = probArray.length - 1;
-            if (q75Idx === -1) q75Idx = probArray.length - 1;
-
-            bestDateStr = dateArray[medianIdx];
-            lowDate95 = dateArray[q025Idx !== -1 ? q025Idx : 0];
-            highDate95 = dateArray[q975Idx];
-            lowDate50 = dateArray[q25Idx !== -1 ? q25Idx : 0];
-            highDate50 = dateArray[q75Idx];
-          } else if (dateArray && dateArray.length > 0) {
-            bestDateStr = dateArray[Math.floor(dateArray.length / 2)];
-          }
-          if (!bestDateStr) return;
+          // Peak size quantiles, and the peak week's read off its pmf
+          const summary = summarizePeakForecast(peaks, refDate, model);
+          if (!summary?.week?.median) return;
+          const {
+            median: medianVal,
+            q025: low95,
+            q975: high95,
+            q25: low50,
+            q75: high50,
+          } = summary.size;
+          const {
+            median: bestDateStr,
+            q025: lowDate95,
+            q975: highDate95,
+            q25: lowDate50,
+            q75: highDate50,
+          } = summary.week;
 
           const normalizedDate = bestDateStr;
           // Gradient Opacity Calculation
@@ -577,6 +572,7 @@ const FluPeak = ({
     show50,
     show95,
     showOtherGroundTruthSeasons,
+    showObservedPeak,
     normalizedChartScale,
     stableModelOrder,
     colorScheme,
@@ -619,13 +615,18 @@ const FluPeak = ({
     const lastDate = [...(groundTruth?.dates || []), ...(peakDates || [])]
       .sort()
       .at(-1);
-    const start = getFluPeakSeasonStartDate(lastDate);
+    // The selected forecast's season: a forecast from a past season opens
+    // on that season, not on the current one
+    const selectedDate = [...(selectedDates || [])].sort().at(-1) || lastDate;
+    const start = getFluPeakSeasonStartDate(selectedDate);
+    const end =
+      getFluPeakSeasonStartYear(selectedDate) ===
+      getFluPeakSeasonStartYear(lastDate)
+        ? fullDataRange[1]
+        : getFluPeakSeasonEndDate(selectedDate);
 
-    return [
-      start < fullDataRange[0] ? fullDataRange[0] : start,
-      fullDataRange[1],
-    ];
-  }, [fullDataRange, groundTruth, peakDates]);
+    return [start < fullDataRange[0] ? fullDataRange[0] : start, end];
+  }, [fullDataRange, groundTruth, peakDates, selectedDates]);
 
   const rangesliderRange = useMemo(() => fullDataRange, [fullDataRange]);
 
@@ -720,6 +721,11 @@ const FluPeak = ({
     showLegend,
   ]);
 
+  // A narrative's highlights and changes, drawn on top
+  const storyChart = useStoryChart(plotData, layout, {
+    scale: normalizedChartScale,
+  });
+
   return (
     <Stack gap="md">
       <div
@@ -728,8 +734,8 @@ const FluPeak = ({
       >
         <Plot
           ref={plotRef}
-          data={plotData}
-          layout={layout}
+          data={storyChart.traces}
+          layout={storyChart.layout}
           config={PLOT_CONFIG}
           style={{ width: "100%", height: "100%" }}
           useResizeHandler={true}

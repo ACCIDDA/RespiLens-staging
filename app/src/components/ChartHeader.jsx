@@ -63,6 +63,8 @@ const ChartHeader = ({
     setShowHistogram,
     metrocastSpan,
     setMetrocastSpan,
+    autoFocusDate = true,
+    dateArrowKeys = true,
   } = useView();
 
   const about = useContext(ChartAboutContext);
@@ -81,9 +83,12 @@ const ChartHeader = ({
   const datasetTitle =
     getDatasetTitleFromView(viewType) || currentDataset?.fullName;
 
+  // The title takes the row; the controls sit beside it while there is
+  // room and wrap under it (right-aligned) when there is not, so on a phone
+  // the title is never squeezed into a narrow column
   return (
-    <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
-      <Stack gap={6} style={{ minWidth: 0 }}>
+    <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
+      <Stack gap={6} style={{ flex: "1 1 320px", minWidth: 0 }}>
         <Title
           order={2}
           fz={{ base: 20, sm: 24 }}
@@ -121,13 +126,15 @@ const ChartHeader = ({
                 setActiveDate={setActiveDate}
                 loading={loading}
                 multi={viewType !== "flu_peak"}
+                autoFocus={autoFocusDate}
+                arrowKeys={dateArrowKeys}
               />
             </Group>
           )}
         </Group>
       </Stack>
 
-      <Group gap={2} wrap="nowrap">
+      <Group gap={2} wrap="nowrap" ml="auto">
         {viewType === "metrocast_forecasts" && (
           <Tooltip
             label="Long-term (LT) models forecast through the end of the season"
@@ -202,17 +209,19 @@ const ChartHeader = ({
             <IconDownload size={18} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label={isAdded ? "Added!" : "Add to My Plots"}>
-          <ActionIcon
-            variant="subtle"
-            size="lg"
-            color={isAdded ? "green" : "gray"}
-            onClick={onSave}
-            aria-label="Add to My Plots"
-          >
-            <IconChartScatter size={18} />
-          </ActionIcon>
-        </Tooltip>
+        {onSave && (
+          <Tooltip label={isAdded ? "Added!" : "Add to My Plots"}>
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              color={isAdded ? "green" : "gray"}
+              onClick={onSave}
+              aria-label="Add to My Plots"
+            >
+              <IconChartScatter size={18} />
+            </ActionIcon>
+          </Tooltip>
+        )}
         <Tooltip
           label={shareCopied ? "Link copied!" : "Copy link to this view"}
         >

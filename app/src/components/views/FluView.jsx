@@ -32,6 +32,7 @@ const FluView = ({
     showLegend,
     showOtherGroundTruthSeasons,
     showHistogram,
+    showObservedPeak,
   } = useView();
   const histogramVisible =
     viewType === "fludetailed" ||
@@ -230,6 +231,7 @@ const FluView = ({
           intervalVisibility={intervalVisibility}
           showLegend={showLegend}
           showOtherGroundTruthSeasons={showOtherGroundTruthSeasons}
+          showObservedPeak={showObservedPeak}
         />
       </>
     );

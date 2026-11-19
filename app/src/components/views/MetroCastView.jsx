@@ -20,6 +20,7 @@ import ModelSelector from "../ModelSelector";
 import { DATASETS } from "../../config";
 import { useView } from "../../hooks/useView";
 import { useChartReset } from "../../hooks/useChartReset";
+import { useStoryChart } from "../../hooks/useStoryChart";
 import {
   CHART_CONSTANTS,
   GROUND_TRUTH_LINE_WIDTH,
@@ -299,6 +300,54 @@ const MetroPlotCard = ({
     normalizedChartScale === "sqrt" || normalizedChartScale === "log2";
   const longName = targetDisplayNameMap[selectedTarget];
 
+  const plotLayout = {
+    ...base,
+    // Full size: same frame as the other forecast charts
+    margin: isSmall
+      ? { l: 45, r: 12, t: 10, b: 30 }
+      : { l: 64, r: 30, t: 36, b: 30 },
+    showlegend: showLegend && !isSmall,
+    dragmode: false,
+    xaxis: {
+      ...base.xaxis,
+      range: copyRange(xAxisRange || defRange),
+      ...(isSmall && { nticks: 4 }),
+      ...(!isSmall && { rangeselector: getRangeSelector(colorScheme) }),
+      rangeslider: {
+        ...RANGESLIDER_STYLE,
+        visible: !isSmall,
+        range: getRange(true),
+      },
+    },
+    yaxis: {
+      ...base.yaxis,
+      ...getScaleYAxis({
+        scale: normalizedChartScale,
+        rawRange: rawYRange,
+        range: yAxisRange,
+        title: isSmall
+          ? undefined
+          : targetYAxisLabelMap[longName] ||
+            longName ||
+            selectedTarget ||
+            "Value",
+        formatValue: (value) => `${value.toFixed(valueDecimals)}${valueSuffix}`,
+      }),
+      tickformat: isTransformedScale ? undefined : `.${valueDecimals}f`,
+      ticksuffix: isTransformedScale ? undefined : valueSuffix,
+    },
+    hovermode: isSmall ? false : "closest",
+    hoverlabel: {
+      namelength: -1,
+    },
+    ...getForecastDateMarks(colorScheme, displayDates, draggingDate, 0),
+  };
+  // A narrative's highlights and changes, on the main chart only
+  const storyChart = useStoryChart(projectionsData, plotLayout, {
+    scale: normalizedChartScale,
+    enabled: !isSmall,
+  });
+
   const PlotContent = (
     <>
       {title && (
@@ -339,50 +388,8 @@ const MetroPlotCard = ({
           minHeight: isSmall ? undefined : 340,
           opacity: hasForecasts ? 1 : 0.6,
         }}
-        data={projectionsData}
-        layout={{
-          ...base,
-          // Full size: same frame as the other forecast charts
-          margin: isSmall
-            ? { l: 45, r: 12, t: 10, b: 30 }
-            : { l: 64, r: 30, t: 36, b: 30 },
-          showlegend: showLegend && !isSmall,
-          dragmode: false,
-          xaxis: {
-            ...base.xaxis,
-            range: copyRange(xAxisRange || defRange),
-            ...(isSmall && { nticks: 4 }),
-            ...(!isSmall && { rangeselector: getRangeSelector(colorScheme) }),
-            rangeslider: {
-              ...RANGESLIDER_STYLE,
-              visible: !isSmall,
-              range: getRange(true),
-            },
-          },
-          yaxis: {
-            ...base.yaxis,
-            ...getScaleYAxis({
-              scale: normalizedChartScale,
-              rawRange: rawYRange,
-              range: yAxisRange,
-              title: isSmall
-                ? undefined
-                : targetYAxisLabelMap[longName] ||
-                  longName ||
-                  selectedTarget ||
-                  "Value",
-              formatValue: (value) =>
-                `${value.toFixed(valueDecimals)}${valueSuffix}`,
-            }),
-            tickformat: isTransformedScale ? undefined : `.${valueDecimals}f`,
-            ticksuffix: isTransformedScale ? undefined : valueSuffix,
-          },
-          hovermode: isSmall ? false : "closest",
-          hoverlabel: {
-            namelength: -1,
-          },
-          ...getForecastDateMarks(colorScheme, displayDates, draggingDate, 0),
-        }}
+        data={storyChart.traces}
+        layout={storyChart.layout}
         config={{ ...PLOT_CONFIG, staticPlot: isSmall }}
         onRelayout={(e) => {
           const newRange = getRelayoutXRange(e, projectionsData);
@@ -428,6 +435,9 @@ const MetroCastView = ({
     showLegend,
     showOtherGroundTruthSeasons,
     metrocastSpan,
+    // A state's city charts beside its own; off where the chart has little
+    // room (a narrative), so the state's chart keeps its width
+    showMetroTiles = true,
   } = useView();
   // Kept across locations (the view remounts while one loads); each target
   // has its own window
@@ -492,7 +502,7 @@ const MetroCastView = ({
   }, [forecasts, selectedDates, selectedTarget]);
 
   const { data: childData, loading: loadingChildren } = useAsyncData(
-    stateCode && metadata?.locations
+    showMetroTiles && stateCode && metadata?.locations
       ? async () => {
           const cityList = metadata.locations.filter((l) =>
             l.location_name.includes(`, ${stateCode}`),
@@ -515,7 +525,7 @@ const MetroCastView = ({
           return Object.fromEntries(entries.filter(Boolean));
         }
       : null,
-    [stateCode, metadata],
+    [showMetroTiles, stateCode, metadata],
   );
 
   if (!selectedTarget)
@@ -561,7 +571,7 @@ const MetroCastView = ({
   );
 
   // A city: just its chart, like the other forecast pages
-  if (!stateCode) return main;
+  if (!stateCode || !showMetroTiles) return main;
 
   const tiles = loadingChildren
     ? []

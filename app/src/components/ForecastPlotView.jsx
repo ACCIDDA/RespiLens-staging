@@ -25,6 +25,7 @@ import {
 } from "../utils/scaleUtils";
 import { useView } from "../hooks/useView";
 import { useChartReset } from "../hooks/useChartReset";
+import { useStoryChart } from "../hooks/useStoryChart";
 import { getOfficialModels } from "../utils/forecastleScoring";
 import {
   getEarliestGroundTruthSeasonStartDate,
@@ -350,6 +351,11 @@ const ForecastPlotView = ({
     seasonDividerShapes,
   ]);
 
+  // A narrative's highlights and changes, drawn on top
+  const storyChart = useStoryChart(finalTraces, layout, {
+    scale: normalizedChartScale,
+  });
+
   const hasForecasts = hasForecastTraces;
   if (requireTarget && !selectedTarget) {
     return (
@@ -397,8 +403,8 @@ const ForecastPlotView = ({
             height: "100%",
             opacity: hasForecasts ? 1 : 0.6, // Dim the plot if no forecasts exist
           }}
-          data={finalTraces}
-          layout={layout}
+          data={storyChart.traces}
+          layout={storyChart.layout}
           config={PLOT_CONFIG}
           onRelayout={(figure) => handlePlotUpdate(figure)}
         />

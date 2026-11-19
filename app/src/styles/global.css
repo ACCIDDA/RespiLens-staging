@@ -653,3 +653,214 @@ body {
 .respilens-about-modal .mantine-Modal-body > :last-child {
   margin-bottom: 0;
 }
+
+/* Narratives: a state on the location map, as a button: the focus ring
+   is a darker outline (SVG shapes take no CSS outline) */
+.respilens-map-feature:focus-visible {
+  outline: none;
+  stroke: #172033;
+  stroke-width: 2.5;
+}
+
+/* Narratives in full screen: the app's header and sidebar step aside */
+html[data-story-fullscreen] .respilens-shell-header,
+html[data-story-fullscreen] .respilens-shell-navbar {
+  /* over the sidebar's own inline display */
+  display: none !important;
+}
+
+html[data-story-fullscreen] .mantine-AppShell-main {
+  padding-inline-start: 0 !important;
+  padding-top: 0 !important;
+}
+
+html[data-story-fullscreen] .respilens-story-bar-dock {
+  left: 0;
+}
+
+/* Narratives: the breadcrumb over a slide,
+   "Narratives › Introduction to US forecasting › FluSight › Peak" */
+.respilens-story-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.respilens-story-breadcrumb > li + li::before {
+  content: "›";
+  margin: 0 8px;
+  color: var(--mantine-color-dimmed);
+}
+
+/* Narratives: the step bar, pinned to the bottom of the page area (beside
+   the sidebar) so it is always in reach; the dock lets clicks through
+   around the bar itself */
+.respilens-story-bar-dock {
+  position: fixed;
+  left: var(--app-shell-navbar-offset, 0px);
+  right: 0;
+  bottom: 0;
+  z-index: 150;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px 12px;
+  pointer-events: none;
+}
+
+.respilens-story-bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 820px;
+  padding: 8px 10px;
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--mantine-shadow-md);
+}
+
+[data-mantine-color-scheme="dark"] .respilens-story-bar {
+  border-color: var(--mantine-color-dark-4);
+  background: rgba(37, 38, 43, 0.92);
+}
+
+/* Narratives: the step list under a slide. Numbered dots joined by a rule;
+   done steps filled, the current one ringed. */
+.respilens-story-steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.respilens-story-steps > [data-chapter-start] {
+  margin-left: 5px;
+}
+
+.respilens-story-step {
+  /* 24px: the smallest comfortable target, so 12 steps fit on one row */
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--mantine-color-gray-4);
+  background: transparent;
+  color: var(--mantine-color-gray-7);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.respilens-story-step:hover:not(:disabled) {
+  border-color: var(--mantine-color-blue-5);
+}
+
+.respilens-story-step:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: 2px;
+}
+
+.respilens-story-step[aria-current="step"] {
+  border-color: var(--mantine-color-blue-6);
+  background: var(--mantine-color-blue-6);
+  color: var(--mantine-color-white);
+}
+
+.respilens-story-step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+[data-mantine-color-scheme="dark"] .respilens-story-step {
+  border-color: var(--mantine-color-dark-3);
+  color: var(--mantine-color-dark-0);
+}
+
+/* Narratives: the list of what a slide highlights on its chart, numbered
+   like the labels on the chart */
+.respilens-highlight-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.respilens-highlight-list > li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.respilens-highlight-number {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #d9480f;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+[data-mantine-color-scheme="dark"] .respilens-highlight-number {
+  border-color: #ff922b;
+}
+
+/* Narratives: a card linking on to a RespiLens page */
+.respilens-hub-link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease;
+}
+
+.respilens-hub-link:hover {
+  border-color: var(--mantine-color-blue-5);
+}
+
+.respilens-hub-link:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: 2px;
+}
+
+/* Narratives: the hub table's cells, read from their top */
+.respilens-hub-table th,
+.respilens-hub-table td {
+  vertical-align: top;
+}
+
+/* Narratives: prose in a slide, a comfortable measure and rhythm */
+.respilens-story-prose {
+  font-size: var(--mantine-font-size-md);
+  line-height: 1.65;
+}
+
+.respilens-story-prose > * {
+  margin: 0;
+}
+
+.respilens-story-prose > * + * {
+  margin-top: 0.8em;
+}
+
+.respilens-story-prose ul,
+.respilens-story-prose ol {
+  padding-left: 1.3em;
+}
+
+.respilens-story-prose li + li {
+  margin-top: 0.3em;
+}

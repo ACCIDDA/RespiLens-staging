@@ -21,6 +21,8 @@ yarn-error.log*
 
 # assets + data (corrupts images, takes too long for data)
 public/
+# data snapshots kept beside narratives (written compact by their scripts)
+src/data/narratives/**/*.json
 *.svg
 *.ico
 *.png
