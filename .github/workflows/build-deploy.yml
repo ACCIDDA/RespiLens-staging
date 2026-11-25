@@ -100,13 +100,13 @@ jobs:
         if-no-files-found: error
         retention-days: 7
 
-  build-and-deploy:  
+  build:
     needs: [process-data]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    
+      # Keep access to the build's analytics secret if it is environment-scoped.
+      deployment: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -144,6 +144,15 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./app/dist
+
+  # Start deployment in a separate job so the uploaded artifact has time to become visible.
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
